@@ -1,0 +1,19 @@
+This project contains the entire source tree for the MetaWatch watch development systems
+   WDS111 (Analog) and WDS112 (Digital).
+
+Visit the developer section of http://www.metawatch.org to find the latest compiled binary files for this project
+   if you do not need to build the source yourself.
+
+The project is designed to be built by IAR Embedded Workbench for MSP430.
+
+Besides all the source code files for the watch embedded platforms, UI, and remote protocol, the project contains:
+
+   * Source for FreeRTOS configured for the MSP4305438A microprocessor.
+     http://www.FreeRTOS.org/
+
+   * The Bluetooth stack as a library (please read the bluetooth stack license in the Library directory).
+     http://www.iar.com/en/products/iar-embedded-workbench/ti-msp430/
+
+We at Meta Watch will be keeping this project up to date as fixes and enhancements come in. You are encouraged
+   to contribute your own code to this project, but first please submit a Contributor Agreement.
+
