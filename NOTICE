@@ -1,0 +1,16 @@
+   =========================================================================
+   ==  NOTICE file for Meta Watch Firmware and SDK                        ==
+   ==                                                                     ==
+   =========================================================================
+
+   Copyright 2011 Meta Watch Ltd.
+
+   This software uses FreeRTOS
+   	http://www.freeRTOS.org
+   
+   The Bluetooth protocol stack library is licensed from StoneStreetOne and
+       is provided under the license found in 
+       Library/Meta Watch Bluetooth Module License-1.0
+       http://www.stonestreetone.com/
+       
+   

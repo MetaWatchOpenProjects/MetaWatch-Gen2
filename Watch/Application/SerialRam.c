@@ -1,0 +1,852 @@
+//==============================================================================
+//  Copyright 2011 Meta Watch Ltd. - http://www.MetaWatch.org/
+// 
+//  Licensed under the Meta Watch License, Version 1.0 (the "License");
+//  you may not use this file except in compliance with the License.
+//  You may obtain a copy of the License at
+//  
+//      http://www.MetaWatch.org/licenses/license-1.0.html
+//
+//  Unless required by applicable law or agreed to in writing, software
+//  distributed under the License is distributed on an "AS IS" BASIS,
+//  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//  See the License for the specific language governing permissions and
+//  limitations under the License.
+//==============================================================================
+
+/******************************************************************************/
+/*! \file SerialRam.c
+*
+*/
+/******************************************************************************/
+
+
+#include "FreeRTOS.h"
+#include "task.h"
+#include "queue.h"
+
+#include "hal_board_type.h"
+#include "hal_clock_control.h"
+
+#include "Messages.h"
+#include "MessageQueues.h"
+#include "BufferPool.h"     
+#include "DebugUart.h"
+#include "SerialRam.h"
+#include "LcdTask.h"
+#include "LcdDisplay.h"
+#include "Utilities.h"
+
+#define SERIAL_RAM_MSG_QUEUE_LEN   16    
+#define SERIAL_RAM_STACK_DEPTH	   (configMINIMAL_STACK_DEPTH + 60)
+#define SERIAL_RAM_TASK_PRIORITY   (tskIDLE_PRIORITY + 1)
+
+/******************************************************************************/
+
+#define SPI_READ  ( 0x03 )
+#define SPI_WRITE ( 0x02 )
+/* write and read status register */
+#define SPI_RDSR  ( 0x05 )
+#define SPI_WRSR  ( 0x01 )
+
+#define DEFAULT_SR_VALUE ( 0x02 )
+#define FINAL_SR_VALUE   ( 0x43 )
+
+#define SEQUENTIAL_MODE_COMMAND ( 0x41 )
+
+
+/* errata - DMA variables cannot be function scope */
+static unsigned char DummyData = 0x00;
+static unsigned char ReadData = 0x00;
+static unsigned char DmaBusy  = 0;
+
+static void SerialRamInit(void);
+static void SerialRamTask(void *pvParameters);
+
+static tHostMsg* pSramMsg;
+static tHostMsg* pWriteLcdMsg;
+  
+/******************************************************************************/
+
+/* 96 * 12 */
+#define BYTES_PER_SCREEN ( (unsigned int)1152 )
+#define BYTES_PER_LINE   ( 12 )
+
+/* command and two addres bytes */
+#define SPI_OVERHEAD ( 3 )
+
+/******************************************************************************/
+
+#define FREE_BUFFER        ( 1 )
+#define DO_NOT_FREE_BUFFER ( 0 )
+
+static void ClearMemory(void);
+static void SetupCycle(unsigned int Address,unsigned char CycleType);
+static void WriteBlockToSram(unsigned char* pData,unsigned int Size);
+static void ReadBlock(unsigned char* pWriteData,unsigned char* pReadData);
+static void ActivateBuffer(tHostMsg* pMsg);
+static void WaitForDmaEnd(void);
+
+unsigned char UpdateDisplayHandler(tHostMsg* pMsg);
+unsigned char UpdateMyDisplaySramHandler(tHostMsg* pMsg);
+unsigned char ClearLcdSpecialHandler(tHostMsg* pMsg);
+unsigned char LoadTemplateHandler(tHostMsg* pMsg);
+
+/******************************************************************************/
+
+static void SerialRamTask(void *pvParameters);
+unsigned char SerialRamMessageHandler(tHostMsg* pMsg);
+unsigned char WriteBufferHandler(tHostMsg* pMsg);
+
+xTaskHandle SerialRamTaskHandle;
+
+
+/******************************************************************************/
+unsigned char GetStartingRow(unsigned char MsgOptions);
+unsigned int GetActiveBufferStartAddress(unsigned char MsgOptions);
+unsigned int GetDrawBufferStartAddress(unsigned char MsgOptions);
+
+static unsigned char IdleActiveBuffer;
+static unsigned char IdleDrawBuffer;
+
+static unsigned char ApplicationActiveBuffer;
+static unsigned char ApplicationDrawBuffer;
+
+static unsigned char NotificationActiveBuffer;
+static unsigned char NotificationDrawBuffer;
+
+static unsigned char ScrollActiveBuffer;
+static unsigned char ScrollDrawBuffer;
+
+/******************************************************************************/
+
+static void SerialRamInit(void)
+{
+  /*
+   * configure the MSP430 SPI peripheral
+   */
+  
+  /* assert reset when configuring */
+  UCA0CTL1 = UCSWRST;  
+ 
+  EnableSmClkUser(SERIAL_RAM_USER);
+  
+  SRAM_SCLK_PSEL |= SRAM_SCLK_PIN;
+  SRAM_SOMI_PSEL |= SRAM_SOMI_PIN;
+  SRAM_SIMO_PSEL |= SRAM_SIMO_PIN;
+  
+  /* 3 pin SPI master, MSB first, clock inactive when low, phase is 1 */
+  UCA0CTL0 |= UCMST+UCMSB+UCCKPH+UCSYNC;    
+                      
+  UCA0CTL1 |= UCSSEL__SMCLK;
+
+  /* spi clock of 8 MHz */
+  UCA0BR0 = 0x02;               
+  UCA0BR1 = 0x00;               
+
+  /* release reset and wait for SPI to initialize */
+  UCA0CTL1 &= ~UCSWRST;
+  TaskDelayLpmDisable();
+  vTaskDelay(10);
+  TaskDelayLpmEnable();
+  
+  /* 
+   * Read the status register
+   */
+  SRAM_CSN_ASSERT();
+  
+  while (!(UCA0IFG&UCTXIFG));               
+  
+  /* writing automatically clears flag */
+  UCA0TXBUF = SPI_RDSR;
+  while (!(UCA0IFG&UCTXIFG));
+  UCA0TXBUF = DummyData;
+  while (!(UCA0IFG&UCTXIFG));
+  WAIT_FOR_SRAM_SPI_SHIFT_COMPLETE();
+  ReadData = UCA0RXBUF;
+  
+  /* make sure correct value is read from the part */
+  if (   ( ReadData != DEFAULT_SR_VALUE )
+      && ( ReadData != FINAL_SR_VALUE ) )
+  {
+    PrintString("Serial RAM initialization failure (a) \r\n");
+  }
+  
+  SRAM_CSN_DEASSERT();
+  
+  
+  /*
+   * put the part into sequential mode
+   */
+  SRAM_CSN_ASSERT();
+  UCA0TXBUF = SPI_WRSR;
+  while (!(UCA0IFG&UCTXIFG));
+  UCA0TXBUF = SEQUENTIAL_MODE_COMMAND;
+  while (!(UCA0IFG&UCTXIFG));
+  WAIT_FOR_SRAM_SPI_SHIFT_COMPLETE();
+  
+  SRAM_CSN_DEASSERT();
+  
+  /**/
+  SRAM_CSN_ASSERT();
+  UCA0TXBUF = SPI_RDSR;
+  while (!(UCA0IFG&UCTXIFG));
+  
+  UCA0TXBUF = DummyData;
+  while (!(UCA0IFG&UCTXIFG));
+  WAIT_FOR_SRAM_SPI_SHIFT_COMPLETE();
+  ReadData = UCA0RXBUF;
+  
+  /* make sure correct value is read from the part */
+  if ( ReadData != FINAL_SR_VALUE )
+  {
+    PrintString("Serial RAM initialization failure (b) \r\n"); 
+  }
+  SRAM_CSN_DEASSERT();
+  
+  /* disable DMA during read-modify-write cycles */
+  DMACTL4 = DMARMWDIS;
+  
+  /* now use the DMA to clear the entire serial ram */
+  ClearMemory();
+  
+  /***************************************************************************/
+  
+  /* assign the active and idle buffers */
+  IdleActiveBuffer = 0;
+  IdleDrawBuffer = 1;
+  ApplicationActiveBuffer = 2;
+  ApplicationDrawBuffer = 3;
+  NotificationActiveBuffer = 4;
+  NotificationDrawBuffer = 5;
+  ScrollActiveBuffer = 6;
+  ScrollDrawBuffer = 7;
+  
+}
+
+
+
+
+void InitializeSerialRamTask(void)
+{
+  // This is a Rx message queue
+  QueueHandles[SRAM_QINDEX] = 
+    xQueueCreate( SERIAL_RAM_MSG_QUEUE_LEN, MESSAGE_QUEUE_ITEM_SIZE );
+  
+  // prams are: task function, task name, stack len , task params, priority, task handle
+  xTaskCreate(SerialRamTask, 
+              "SERIAL_RAM", 
+              SERIAL_RAM_STACK_DEPTH, 
+              NULL, 
+              SERIAL_RAM_TASK_PRIORITY, 
+              &SerialRamTaskHandle);
+  
+}
+
+/* allow sram function to resuse a message buffer */
+static unsigned char FreeIt;
+
+static void SerialRamTask(void *pvParameters)
+{
+  if ( QueueHandles[SRAM_QINDEX] == 0 )
+  {
+    PrintString("Serial RAM Queue not created!\r\n");
+  }
+  
+  SerialRamInit();
+ 
+  for(;;)
+  {
+    if( pdTRUE == xQueueReceive(QueueHandles[SRAM_QINDEX], &pSramMsg, portMAX_DELAY) )
+    {
+      FreeIt = SerialRamMessageHandler(pSramMsg);
+      
+      if ( FreeIt == FREE_BUFFER )
+      {
+        BPL_FreeMessageBuffer(&pSramMsg);
+      }
+
+      CheckStackUsage(SerialRamTaskHandle,"Serial Ram Task");
+
+    }
+  }
+
+
+}
+
+/* Handle the messages queued to the serial ram task */
+unsigned char SerialRamMessageHandler(tHostMsg* pMsg)
+{
+  unsigned char Type = pMsg->Type;
+  
+  unsigned char FreeMessageBuffer = FREE_BUFFER;
+  
+  switch(Type)
+  {
+  
+  case WriteBuffer:
+    FreeMessageBuffer = WriteBufferHandler(pMsg);
+    break;
+
+  case LoadTemplate:
+    FreeMessageBuffer = LoadTemplateHandler(pMsg);
+    break;
+  
+  case UpdateDisplay:
+    FreeMessageBuffer = UpdateDisplayHandler(pMsg);
+    break;
+    
+  case ClearLcdSpecial:
+    FreeMessageBuffer = ClearLcdSpecialHandler(pMsg);
+    break;
+    
+  case UpdateMyDisplaySram:
+    FreeMessageBuffer = UpdateMyDisplaySramHandler(pMsg);
+    break;
+  
+  default:
+    PrintStringAndHex("<<Unhandled Message>> in Serial Ram Task: Type 0x", Type);
+    break;
+  }
+  
+  return FreeMessageBuffer;
+  
+}
+
+/* see tSerialRamMsgPayload for the payload formatting 
+ * messages were designed so that the system could operate without
+ * copying bytes
+ */
+unsigned char WriteBufferHandler(tHostMsg* pMsg)
+{
+  /* 
+   * save the parameters that are going to get written over 
+   */
+  unsigned char MsgOptions = pMsg->Options;
+  unsigned char RowA = pMsg->pPayload[WRITE_BUFFER_ROW_A_INDEX];
+  unsigned char RowB = pMsg->pPayload[WRITE_BUFFER_ROW_B_INDEX];
+  
+  /* use the options to determine what buffer to write then
+   * determine what buffer is active/draw 
+   * get the buffer address
+   * then add in the row number for the absolute address
+   */
+  unsigned int BufferAddress = GetDrawBufferStartAddress(MsgOptions);
+  unsigned int AbsoluteAddress = BufferAddress + (RowA*BYTES_PER_LINE);
+  
+  /* reformat some bytes of the message */
+  tSerialRamMsg* pSerialRamMsg = (tSerialRamMsg*)pMsg;
+  
+  pSerialRamMsg->AddressMsb = (unsigned char)(AbsoluteAddress >> 8);
+  pSerialRamMsg->AddressLsb = (unsigned char) AbsoluteAddress; 
+  pSerialRamMsg->SerialRamCommand = SPI_WRITE;
+    
+  unsigned char* pData = &pSerialRamMsg->SerialRamCommand;
+  WriteBlockToSram(pData,15);
+  
+  /* the buffer is not large enough to fit everything 'naturally' */
+  unsigned char* pSerialRamCommand2 = &pSerialRamMsg->pLineA[10];
+  unsigned char* pAddressMsb2 = &pSerialRamMsg->pLineA[11];
+  
+  /* if the bit is one then only draw one line */
+  if ( (MsgOptions & WRITE_BUFFER_ONE_LINE_MASK) == 0 )
+  {
+    /* calculate address for second row */
+    AbsoluteAddress = BufferAddress + (RowB*BYTES_PER_LINE);
+    *pSerialRamCommand2 = SPI_WRITE;
+    *pAddressMsb2 = (unsigned char)(AbsoluteAddress >> 8);
+    pSerialRamMsg->AddressLsb2 = (unsigned char) AbsoluteAddress; 
+    /* point to first character to dma */
+    WriteBlockToSram(pSerialRamCommand2,15);
+  }
+  
+  return FREE_BUFFER;
+  
+}
+
+/* use DMA to write a block of data to the serial ram */
+static void WriteBlockToSram(unsigned char* pData,unsigned int Size)
+{  
+  DmaBusy = 1;
+  SRAM_CSN_ASSERT();
+  
+  /* USCIA0 TXIFG is the DMA trigger */
+  DMACTL0 = DMA0TSEL_17;                   
+  
+  __data16_write_addr((unsigned short) &DMA0SA,(unsigned long) pData);
+                                            
+  __data16_write_addr((unsigned short) &DMA0DA,(unsigned long) &UCA0TXBUF);
+             
+  DMA0SZ = Size;
+  
+  /* 
+   * single transfer, increment source address, source byte and dest byte,
+   * level sensitive, enable interrupt, clear interrupt flag
+   */
+  DMA0CTL = DMADT_0 + DMASRCINCR_3 + DMASBDB + DMALEVEL + DMAIE;  
+  
+  /* start the transfer */
+  DMA0CTL |= DMAEN;
+  
+  WaitForDmaEnd();
+
+}
+
+static void ClearBufferInSram(unsigned int Address,
+                              unsigned char Data,
+                              unsigned int Size)
+{  
+  DmaBusy = 1;
+  SetupCycle(Address,SPI_WRITE);
+  
+  /* USCIA0 TXIFG is the DMA trigger */
+  DMACTL0 = DMA0TSEL_17;                   
+  
+  __data16_write_addr((unsigned short) &DMA0SA,(unsigned long) &Data);
+                                            
+  __data16_write_addr((unsigned short) &DMA0DA,(unsigned long) &UCA0TXBUF);
+             
+  DMA0SZ = Size;
+  
+  /* 
+   * single transfer, DON'T increment source address, source byte and dest byte,
+   * level sensitive, enable interrupt, clear interrupt flag
+   */
+  DMA0CTL = DMADT_0 + DMASBDB + DMALEVEL + DMAIE;  
+  
+  /* start the transfer */
+  DMA0CTL |= DMAEN;
+  
+  WaitForDmaEnd();
+  
+}
+
+static void SetupCycle(unsigned int Address,unsigned char CycleType)
+{
+  EnableSmClkUser(SERIAL_RAM_USER);
+  SRAM_CSN_ASSERT();  
+  
+  UCA0TXBUF = CycleType;
+  while (!(UCA0IFG&UCTXIFG));  
+  while (!(UCA0IFG&UCRXIFG));
+  ReadData = UCA0RXBUF;
+  
+  /* write 16 bit address (only 13 bits are used) */
+  UCA0TXBUF = (unsigned char) ( Address >> 8 );
+  while (!(UCA0IFG&UCTXIFG));  
+  while (!(UCA0IFG&UCRXIFG));
+  ReadData = UCA0RXBUF;
+  
+  /* 
+   * wait until read is done (transmit must be done) 
+   * then clear read flag so it is ready for the DMA
+  */
+  UCA0TXBUF = (unsigned char) Address;
+  while (!(UCA0IFG&UCTXIFG));  
+  while (!(UCA0IFG&UCRXIFG));
+  ReadData = UCA0RXBUF;
+  
+}
+
+/* 
+ * Wait until the DMA interrupt clears the busy flag
+ *
+ */
+static void WaitForDmaEnd(void)
+{
+  while(DmaBusy);
+       
+  SRAM_CSN_DEASSERT();
+  DisableSmClkUser(SERIAL_RAM_USER);
+  
+}
+
+static void ReadBlock(unsigned char* pWriteData,unsigned char* pReadData)
+{  
+  DmaBusy = 1;
+  SRAM_CSN_ASSERT();
+  
+  /*
+   * SPI has to write bytes to receive bytes so 
+   *
+   * two DMA channels are used
+   * 
+   * read requires 16 total bytes because the shift in of the read data
+   * lags the transmit data by one byte
+   */
+  
+  /* USCIA0 TXIFG is the DMA trigger for DMA0 and RXIFG is the DMA trigger
+   * for dma1 (DMACTL0 controls both)
+   */
+  DMACTL0 = DMA1TSEL_16 | DMA0TSEL_17;                   
+  __data16_write_addr((unsigned short) &DMA0SA,(unsigned long) pWriteData);                                  
+  __data16_write_addr((unsigned short) &DMA0DA,(unsigned long) &UCA0TXBUF);
+  DMA0SZ = 15+1;
+  /* don't enable interrupt for transmit dma done(channel 0) 
+   * increment the source address because the message contains the address
+   * the other bytes are don't care
+   */
+  DMA0CTL = DMADT_0 + DMASRCINCR_3 + DMASBDB + DMALEVEL;  
+  
+  /* receive data is source for dma 1 */
+  __data16_write_addr((unsigned short) &DMA1SA,(unsigned long) &UCA0RXBUF);                                  
+  __data16_write_addr((unsigned short) &DMA1DA,(unsigned long) pReadData);
+  DMA1SZ = 15+1;
+  /* increment destination address */
+  DMA1CTL = DMADT_0 + DMADSTINCR_3 + DMASBDB + DMALEVEL + DMAIE;  
+
+  /* start the transfer */
+  DMA1CTL |= DMAEN;
+  DMA0CTL |= DMAEN;
+  
+}
+
+
+static void ClearMemory(void)
+{  
+  DmaBusy = 1;
+  SetupCycle(0x0000,SPI_WRITE);
+  
+  /* USCIA0 TXIFG is the DMA trigger */
+  DMACTL0 = DMA0TSEL_17;                   
+  
+  DummyData = 0;
+  
+  __data16_write_addr((unsigned short) &DMA0SA,(unsigned long) &DummyData);
+                                            
+  __data16_write_addr((unsigned short) &DMA0DA,(unsigned long) &UCA0TXBUF);
+             
+  /* write the entire serial ram with zero */
+  DMA0SZ = 8192;
+  
+  /* 
+   * single transfer, source byte and dest byte,
+   * level sensitive, enable interrupt, clear interrupt flag
+   */
+  DMA0CTL = DMADT_0 + DMASBDB + DMALEVEL + DMAIE;  
+  
+  /* start the transfer */
+  DMA0CTL |= DMAEN;
+  
+  WaitForDmaEnd();
+  
+}
+
+
+unsigned char UpdateDisplayHandler(tHostMsg* pMsg)
+{ 
+  unsigned char Options = pMsg->Options;
+  
+  if ( (Options & DRAW_BUFFER_ACTIVATION_MASK) == ACTIVATE_DRAW_BUFFER )
+  { 
+    ActivateBuffer(pMsg);
+  }
+  
+  /* premature exit */
+  if (   (Options & BUFFER_SELECT_MASK) == IDLE_BUFFER_SELECT 
+      && QueryIdlePageNormal() == 0 )
+  {
+    return FREE_BUFFER;
+  }
+  
+  
+  unsigned int BufferAddress = GetActiveBufferStartAddress(Options);
+  unsigned int DrawBufferAddress = GetDrawBufferStartAddress(Options);
+  
+  /* now calculate the absolute address */
+  unsigned int AbsoluteAddress = BufferAddress;
+  unsigned int AbsoluteDrawAddress = DrawBufferAddress;
+  
+  /* if it is the idle buffer; determine starting line */
+  unsigned char LcdRow = GetStartingRow(Options);
+
+  /* update address because of possible starting row change */
+  AbsoluteAddress += BYTES_PER_LINE*LcdRow;
+  AbsoluteDrawAddress += BYTES_PER_LINE*LcdRow;
+       
+  /* A possible change would be store dirty bits at the beginning of the buffer
+   * after reading this only the rows that changed would be read out and 
+   * written to the lcd.
+   * However, it is much easier to just draw the entire screen 
+   */
+  for ( ; LcdRow < 96; LcdRow++ )
+  {
+    /* set up a message for the data read from the serial ram */
+    BPL_AllocMessageBuffer(&pWriteLcdMsg);
+    tLcdMessage* pLcdMessage = (tLcdMessage*)pWriteLcdMsg;
+  
+    /* one buffer is used for writing and another is used for reading */
+    pMsg->pPayload[0] = SPI_READ;
+    pMsg->pPayload[1] = (unsigned char)(AbsoluteAddress >> 8); 
+    pMsg->pPayload[2] = (unsigned char) AbsoluteAddress;
+
+    
+    /* 
+     * go back 3+1 spots for starting location for data from dma read
+     * so there is room for bytes read in when cmd and address are sent
+     */
+    ReadBlock(pMsg->pPayload,&(pLcdMessage->Type));
+    
+    WaitForDmaEnd();
+    
+    /* if there was more ram then it would be better to do a screen copy  */
+    if ( (Options & UPDATE_COPY_MASK ) == COPY_ACTIVE_TO_DRAW_DURING_UPDATE)
+    {
+      /* now format the message for a serial ram write */
+      pLcdMessage->Options = SPI_WRITE;
+      pLcdMessage->LcdCommand = (unsigned char)(AbsoluteDrawAddress >> 8);
+      pLcdMessage->RowNumber = (unsigned char)AbsoluteDrawAddress;
+      
+      WriteBlockToSram(&(pLcdMessage->Options),15);
+      
+      WaitForDmaEnd();
+    }
+
+    /*! todo change to query full */
+    while( uxQueueMessagesWaiting(QueueHandles[LCD_TASK_QINDEX]) > 9 );
+    
+    /* now format the message that is going to go to the LCD task */
+    pLcdMessage->Type = WriteLcd;
+    pLcdMessage->Options = NO_MSG_OPTIONS;
+    pLcdMessage->RowNumber = LcdRow;
+    RouteMsg(&pWriteLcdMsg);
+    
+    AbsoluteAddress += BYTES_PER_LINE;
+    AbsoluteDrawAddress += BYTES_PER_LINE;
+
+  }
+  
+  /*! wait until everything has been written to the LCD */
+  while( uxQueueMessagesWaiting(QueueHandles[LCD_TASK_QINDEX]) > 0 );
+  
+  /*
+   * send chain mail - now tell the display task that the operation
+   * has completed 
+   */
+  pMsg->Type = ChangeModeMsg;
+  pMsg->Options = Options;
+  RouteMsg(&pMsg);
+    
+  return DO_NOT_FREE_BUFFER;
+  
+}
+
+/* Preserve the display order by sending command to SRAM controller first */
+unsigned char UpdateMyDisplaySramHandler(tHostMsg* pMsg)
+{
+  pMsg->Type = UpdateMyDisplayLcd;
+  RouteMsg(&pMsg);
+  
+  return DO_NOT_FREE_BUFFER;   
+}
+
+/* Preserve the display order by sending command to SRAM controller first */
+unsigned char ClearLcdSpecialHandler(tHostMsg* pMsg)
+{
+  pMsg->Type = ClearLcd;
+  RouteMsg(&pMsg);
+  
+  return DO_NOT_FREE_BUFFER;
+}
+
+/* Load a template from flash into a draw buffer (ram)
+ *
+ * This can be used by the phone or the watch application to save drawing time
+ */
+unsigned char LoadTemplateHandler(tHostMsg* pMsg)
+{
+  unsigned int BufferAddress = 
+    GetDrawBufferStartAddress(pMsg->Options);
+                                                    
+  /* now calculate the absolute address */
+  unsigned int AbsoluteAddress = BufferAddress;
+  
+  /* 
+   * templates don't have extra space in them for additional 3 bytes of 
+   * cmd and address
+   */
+  SetupCycle(AbsoluteAddress,SPI_WRITE);
+
+  tLoadTemplate* pLoadTemplateMsg = (tLoadTemplate*)pMsg;
+   
+  /* template zero is reserved for simple patterns */
+  if ( pLoadTemplateMsg->TemplateSelect > 1 )
+  {
+    unsigned char const * pTemplate = 
+      GetTemplatePointer(pLoadTemplateMsg->TemplateSelect);
+  
+    WriteBlockToSram((unsigned char*)pTemplate,BYTES_PER_SCREEN);
+  }
+  else
+  {
+    /* clear or fill the screen */
+    if ( pLoadTemplateMsg->TemplateSelect == 0 )
+    {
+      ClearBufferInSram(AbsoluteAddress,0x00,BYTES_PER_SCREEN);
+    }
+    else
+    {
+      ClearBufferInSram(AbsoluteAddress,0xff,BYTES_PER_SCREEN);  
+    }
+  }
+  
+  return FREE_BUFFER;
+  
+}
+
+/* Activate the current draw buffer (swap pointers) */
+void ActivateBuffer(tHostMsg* pMsg)
+{
+  unsigned char BufferSelect = (pMsg->Options) & BUFFER_SELECT_MASK;
+  unsigned char BufferSwap;
+  
+  
+  PrintStringAndDecimal("BufferSwap ", BufferSelect);
+    
+  switch (BufferSelect)
+  {
+  case 0:
+    BufferSwap = IdleActiveBuffer;
+    IdleActiveBuffer = IdleDrawBuffer;
+    IdleDrawBuffer = BufferSwap;
+    break;
+  case 1:
+    BufferSwap = ApplicationActiveBuffer;
+    ApplicationActiveBuffer = ApplicationDrawBuffer;
+    ApplicationDrawBuffer = BufferSwap;
+    break;
+  case 2:
+    BufferSwap = NotificationActiveBuffer;
+    NotificationActiveBuffer = NotificationDrawBuffer;
+    NotificationDrawBuffer = BufferSwap;
+    break;
+  case 3:
+    BufferSwap = ScrollActiveBuffer;
+    ScrollActiveBuffer = ScrollDrawBuffer;
+    ScrollDrawBuffer = BufferSwap;
+    break;
+  default:
+    PrintStringAndHex("Invalid Buffer Selected: 0x",BufferSelect);
+    break;
+  }
+  
+}
+
+/* determine if the phone is controlling all of the idle screen */
+unsigned char GetStartingRow(unsigned char MsgOptions)
+{
+  unsigned char StartingRow = 0;
+
+  if (   (MsgOptions & BUFFER_SELECT_MASK) == IDLE_BUFFER_SELECT 
+      && GetIdleBufferConfiguration() == WATCH_CONTROLS_TOP )
+  {
+    StartingRow = 30;
+  }
+  else
+  {
+    StartingRow = 0;  
+  }
+  
+  return StartingRow;
+}
+
+/* Get the start address of the active buffer in SRAM */
+unsigned int GetActiveBufferStartAddress(unsigned char MsgOptions)
+{
+  unsigned char BufferIndex;
+  unsigned int BufferStartAddress;
+  
+  unsigned char BufferSelect = MsgOptions & BUFFER_SELECT_MASK;
+  
+  switch (BufferSelect)
+  {
+  case IDLE_BUFFER_SELECT:
+    BufferIndex = IdleActiveBuffer;
+    break;
+  case APPLICATION_BUFFER_SELECT:
+    BufferIndex = ApplicationActiveBuffer;
+    break;
+  case NOTIFICATION_BUFFER_SELECT:
+    BufferIndex = NotificationActiveBuffer;
+    break;
+  case SCROLL_BUFFER_SELECT:
+    BufferIndex = ScrollActiveBuffer;
+    break;
+  default:
+    break;
+  }
+  
+  BufferStartAddress = BYTES_PER_SCREEN * BufferIndex;
+  
+  /* scroll buffers are half the size of normal buffers */
+  if ( BufferIndex == 7 )
+  {
+    BufferStartAddress -= BYTES_PER_SCREEN/2;     
+  }
+  
+  return BufferStartAddress;
+  
+}
+
+/* Get the start address of the Draw buffer in SRAM */
+unsigned int GetDrawBufferStartAddress(unsigned char MsgOptions)
+{
+  unsigned char BufferIndex;
+  unsigned int BufferStartAddress;
+  
+  unsigned char BufferSelect = MsgOptions & BUFFER_SELECT_MASK;
+  
+  switch (BufferSelect)
+  {
+  case IDLE_BUFFER_SELECT:
+    BufferIndex = IdleDrawBuffer;
+    break;
+  case APPLICATION_BUFFER_SELECT:
+    BufferIndex = ApplicationDrawBuffer;
+    break;
+  case NOTIFICATION_BUFFER_SELECT:
+    BufferIndex = NotificationDrawBuffer;
+    break;
+  case SCROLL_BUFFER_SELECT:
+    BufferIndex = ScrollDrawBuffer;
+    break;
+  default:
+    break;
+  }
+  
+  BufferStartAddress = BYTES_PER_SCREEN * BufferIndex;
+  
+  /* scroll buffers are half the size of normal buffers */
+  if ( BufferIndex == 7 )
+  {
+    BufferStartAddress -= BYTES_PER_SCREEN/2;     
+  }
+  
+  return BufferStartAddress;
+}
+
+
+/* Serial RAM controller uses two dma channels
+ * LCD driver task uses one dma channel
+ */
+#pragma vector=DMA_VECTOR
+__interrupt void DMA_ISR(void)
+{
+  /* 0 is no interrupt and remainder are channels 0-7 */
+  switch(__even_in_range(DMAIV,16))
+  {
+  case 0: 
+    break;
+  case 2: 
+    DmaBusy = 0;
+    break;
+  case 4:
+    DmaBusy = 0;
+    break;
+  case 6:
+    LcdDmaIsr();
+    break;
+  default: 
+    break;
+  }
+}
