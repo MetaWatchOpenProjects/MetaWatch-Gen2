@@ -44,6 +44,7 @@ typedef struct
   unsigned char TxDataError;
   unsigned char RxDataOverrun;
   unsigned char RxInvalidStartCallback;
+  unsigned int RxCrcFailureCount;
   
 } tBluetoothStatistics;
 
@@ -73,5 +74,9 @@ extern tBluetoothStatistics gBtStats;
  * and the maximum amount of time the phone was connected
  */
 void IncrementUpTime(void);
+
+/*! Keeps track of CRC failures during receive message processing
+ */
+void IncrementRxCrcFailureCount(void);
 
 #endif

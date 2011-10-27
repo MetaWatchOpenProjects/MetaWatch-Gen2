@@ -19,6 +19,7 @@
 *
 */
 /******************************************************************************/
+#include "hal_board_type.h"
 
 #include "Messages.h"
 
@@ -47,4 +48,9 @@ void IncrementUpTime(void)
     
     gBtStats.UpTime = 0;
   }
+}
+
+void IncrementRxCrcFailureCount(void)
+{
+  gBtStats.RxCrcFailureCount++;
 }
