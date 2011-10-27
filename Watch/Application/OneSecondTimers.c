@@ -56,6 +56,8 @@ typedef struct
 // using last location for debug
 static tOneSecondTimer OneSecondTimers[TOTAL_ONE_SECOND_TIMERS];
 
+static xSemaphoreHandle OneSecondTimerMutex;
+  
 void InitializeOneSecondTimers(void)
 {
   /* clear information for all of the timers */
@@ -72,6 +74,9 @@ void InitializeOneSecondTimers(void)
   
   }
 
+  OneSecondTimerMutex = xSemaphoreCreateMutex();
+  xSemaphoreGive(OneSecondTimerMutex);
+  
 }
 
 
@@ -79,7 +84,7 @@ tTimerId AllocateOneSecondTimer(void)
 {
   signed char result = -1;
 
-  ENTER_CRITICAL_REGION_QUICK();
+  xSemaphoreTake(OneSecondTimerMutex,portMAX_DELAY);
 
   for(unsigned char i = 0; i < TOTAL_ONE_SECOND_TIMERS; i++)
   {
@@ -92,12 +97,12 @@ tTimerId AllocateOneSecondTimer(void)
 
   }
 
-  LEAVE_CRITICAL_REGION_QUICK();
-
   if ( result < 0 )
   {
     PrintString("Unable to allocate Timer\r\n");
   }
+  
+  xSemaphoreGive(OneSecondTimerMutex);
   
   return result;
 }
