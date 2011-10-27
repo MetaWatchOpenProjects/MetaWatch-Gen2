@@ -69,6 +69,12 @@ void main(void)
   /* Turn off the watchdog timer */
   WDTCTL = WDTPW + WDTHOLD;
 
+  /* clear reason for reset */
+  SYSRSTIV = 0;
+  
+  /* disable DMA during read-modify-write cycles */
+  DMACTL4 = DMARMWDIS;
+  
   InitializeCalibrationData();
   
   ConfigureHardware();
@@ -193,14 +199,10 @@ void vApplicationIdleHook(void)
     extern xTaskHandle IdleTaskHandle;
     CheckStackUsage(IdleTaskHandle,"Idle Task");
     
-    DEBUG1_HIGH();
-    
     /* Call MSP430 Utility function to enable low power mode 3.     */
     /* Put OS and Processor to sleep. Will need an interrupt        */
     /* to wake us up from here.   */
     MSP430_LPM_ENTER();
-    
-    DEBUG1_LOW();
     
   }
   
@@ -257,12 +259,15 @@ void DebugCallback4(void)
 }
           
           
-void Debug5Callback(void)
+void DebugCallback5(void)
 {
   //DEBUG5_PULSE();  
 }
 
-
+void MsgHandlerDebugCallback(void)
+{
+  //DEBUG5_PULSE();
+}
 
 
 
