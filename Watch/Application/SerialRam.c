@@ -140,7 +140,9 @@ static void SerialRamInit(void)
                       
   UCA0CTL1 |= UCSSEL__SMCLK;
 
-  /* spi clock of 8 MHz */
+  /* spi clock of 8 MHz
+   * todo - line issue - is it releated to spi speed?
+   */
   UCA0BR0 = 0x02;               
   UCA0BR1 = 0x00;               
 
@@ -203,9 +205,6 @@ static void SerialRamInit(void)
     PrintString("Serial RAM initialization failure (b) \r\n"); 
   }
   SRAM_CSN_DEASSERT();
-  
-  /* disable DMA during read-modify-write cycles */
-  DMACTL4 = DMARMWDIS;
   
   /* now use the DMA to clear the entire serial ram */
   ClearMemory();
@@ -286,6 +285,7 @@ unsigned char SerialRamMessageHandler(tHostMsg* pMsg)
   
   case WriteBuffer:
     FreeMessageBuffer = WriteBufferHandler(pMsg);
+    DEBUG3_PULSE();
     break;
 
   case LoadTemplate:
@@ -602,14 +602,12 @@ unsigned char UpdateDisplayHandler(tHostMsg* pMsg)
       WaitForDmaEnd();
     }
 
-    /*! todo change to query full */
-    while( uxQueueMessagesWaiting(QueueHandles[LCD_TASK_QINDEX]) > 9 );
-    
     /* now format the message that is going to go to the LCD task */
     pLcdMessage->Type = WriteLcd;
     pLcdMessage->Options = NO_MSG_OPTIONS;
     pLcdMessage->RowNumber = LcdRow;
-    RouteMsg(&pWriteLcdMsg);
+    /* wait until message can be added to queue */
+    RouteMsgBlocking(&pWriteLcdMsg);
     
     AbsoluteAddress += BYTES_PER_LINE;
     AbsoluteDrawAddress += BYTES_PER_LINE;
@@ -617,7 +615,12 @@ unsigned char UpdateDisplayHandler(tHostMsg* pMsg)
   }
   
   /*! wait until everything has been written to the LCD */
-  while( uxQueueMessagesWaiting(QueueHandles[LCD_TASK_QINDEX]) > 0 );
+  while( uxQueueMessagesWaiting(QueueHandles[LCD_TASK_QINDEX]) > 0 )
+  {
+    TaskDelayLpmDisable();
+    vTaskDelay(10);
+    TaskDelayLpmEnable();  
+  };
   
   /*
    * send chain mail - now tell the display task that the operation

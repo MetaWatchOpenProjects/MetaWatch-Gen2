@@ -23,18 +23,28 @@
 #include "FreeRTOS.h"           
 #include "queue.h"              
 #include "task.h"
+#include "macro.h"
 
 #include "Messages.h"
 #include "BufferPool.h"
 #include "MessageQueues.h"
 #include "DebugUart.h"
 
+typedef enum
+{
+  Normal,
+  NormalWait,
+  FromIsr,
+  
+} eRouteType;
+
 static unsigned char AllQueuesReady = 0;
 static void AllQueuesReadyCheck(void);
 
 static void SendMessageToQueue(unsigned char Qindex, tHostMsg** ppMsg);
+static void SendMessageToQueueWait(unsigned char Qindex, tHostMsg** ppMsg);
 static void SendMessageToQueueFromIsr(unsigned char Qindex, tHostMsg** ppMsg);
-static void Route(tHostMsg* pMsg, unsigned char FromIsr);
+static void Route(tHostMsg* pMsg, eRouteType RouteType);
 void PrintMessageType(tHostMsg* pMsg);
 
 xQueueHandle QueueHandles[TOTAL_QUEUES];
@@ -108,7 +118,7 @@ void PrintQueueNameIsFull(unsigned char Qindex)
   
 static void SendMessageToQueue(unsigned char Qindex, tHostMsg** ppMsg)
 {
-  /* if the queue is , don't wait */
+  /* if the queue is full, don't wait */
   if ( xQueueSend(QueueHandles[Qindex], ppMsg, 0) == errQUEUE_FULL )
   { 
     PrintQueueNameIsFull(Qindex);
@@ -117,6 +127,16 @@ static void SendMessageToQueue(unsigned char Qindex, tHostMsg** ppMsg)
   
 }
 
+static void SendMessageToQueueWait(unsigned char Qindex, tHostMsg** ppMsg)
+{
+  /* wait */
+  if ( xQueueSend(QueueHandles[Qindex], ppMsg, portMAX_DELAY) == errQUEUE_FULL )
+  { 
+    PrintQueueNameIsFull(Qindex);
+    SendToFreeQueue(ppMsg);
+  }
+
+}
 
 static void SendMessageToQueueFromIsr(unsigned char Qindex, tHostMsg** ppMsg)
 {
@@ -248,26 +268,35 @@ pfSendMessageType SendMsgToQ;
 
 void RouteMsg(tHostMsg** ppMsg)
 {
-  Route(*ppMsg,0); 
+  Route(*ppMsg,Normal); 
 }
 
+void RouteMsgBlocking(tHostMsg** ppMsg)
+{
+  Route(*ppMsg,NormalWait); 
+}
 
 void RouteMsgFromIsr(tHostMsg** ppMsg)
 {
-  Route(*ppMsg,1);
+  Route(*ppMsg,FromIsr);
 }
 
 
-static void Route(tHostMsg* pMsg, unsigned char FromIsr)
+static void Route(tHostMsg* pMsg, eRouteType RouteType)
 {
   /* pick which function to use */
-  if (FromIsr)
+  switch (RouteType)
   {
+  case NormalWait:
+    SendMsgToQ = SendMessageToQueueWait;
+    break;
+  case FromIsr:
     SendMsgToQ = SendMessageToQueueFromIsr;
-  }
-  else
-  {
+    break;
+  case Normal:
+  default:
     SendMsgToQ = SendMessageToQueue;
+    break;
   }
 
   AllQueuesReadyCheck();
@@ -283,6 +312,8 @@ static void Route(tHostMsg* pMsg, unsigned char FromIsr)
   }
   else
   {
+    PrintMessageType(pMsg);
+  
     switch (pMsg->Type)
     {
     case InvalidMessage:                SendMsgToQ(FREE_QINDEX,&pMsg); break;
@@ -362,6 +393,5 @@ static void Route(tHostMsg* pMsg, unsigned char FromIsr)
     default:                            SendMsgToQ(FREE_QINDEX,&pMsg);       break;
     }
   }
-  PrintMessageType(pMsg);
   
 }

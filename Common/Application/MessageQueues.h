@@ -69,6 +69,11 @@ void RouteMsg(tHostMsg** ppMsg);
 */
 void RouteMsgFromIsr(tHostMsg** ppMsg);
 
+/*! Route a message to the appropriate task (queue)
+*
+* \param ppMsg A pointer to a message buffer pointer
+*/
+void RouteMsgBlocking(tHostMsg** ppMsg);
 
 #endif /* MESSAGE_QUEUES_H */
 

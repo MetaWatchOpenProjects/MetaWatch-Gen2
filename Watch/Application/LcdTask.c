@@ -230,6 +230,8 @@ static void WriteLineToLcd(unsigned char* pData,unsigned char Size)
   
 #ifdef DMA
   
+  DEBUG4_PULSE();
+  
   LcdDmaBusy = 1;
   
   /* USCIB0 TXIFG is the DMA trigger
