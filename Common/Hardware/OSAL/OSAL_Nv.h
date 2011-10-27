@@ -1,7 +1,5 @@
 /**************************************************************************************************
   Filename:       OSAL_Nv.h
-  Revised:        $Date: 2011/09/23 17:45:01 $
-  Revision:       $Revision: 1.3 $
 
   Description:    This module defines the OSAL non-volatile memory functions.
 
@@ -87,34 +85,25 @@
 /*
  * Initialize NV service
  */
-extern void osal_nv_init( void *p );
+void osal_nv_init( void *p );
 
 /*
  * Read an NV attribute
  */
-extern unsigned char osal_nv_read( unsigned int id, unsigned int offset, unsigned int len, void *buf );
+unsigned char OsalNvRead( unsigned int id, unsigned int offset, unsigned int len, void *buf );
 
 /*
  * Write an NV attribute
  */
-extern unsigned char osal_nv_write( unsigned int id, unsigned int offset, unsigned int len, void *buf );
+unsigned char OsalNvWrite( unsigned int id, unsigned int offset, unsigned int len, void *buf );
 
-/*
- * Get the length of an NV item.
- */
-extern unsigned int osal_nv_item_len( unsigned int id );
+unsigned int OsalNvItemLength( unsigned int id );
 
-/*
- * Delete an NV item.
- */
-extern unsigned char osal_nv_delete( unsigned int id, unsigned int len );
+void OsalNvItemInit( unsigned int id, unsigned int len, void *buf );
 
+void WriteMasterResetKey(void);
 
-extern void OsalNvItemInit( unsigned int id, unsigned int len, void *buf );
-
-extern void WriteMasterResetKey(void);
-
-extern void PrintNvalSaveError(signed char *pString);
+void PrintNvalSaveError(signed char *pString);
 
 /*********************************************************************
 *********************************************************************/

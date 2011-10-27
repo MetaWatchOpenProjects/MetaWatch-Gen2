@@ -447,6 +447,7 @@ typedef struct
  * \param TotalLines is the number of 12 byte lines in the image
  * \param pMyDisplay points to the lcd display image held in the micro's ram
  */
+#pragma pack(1)
 typedef struct
 {
   unsigned char startByte;
@@ -457,6 +458,7 @@ typedef struct
   unsigned char* pMyDisplay;
   
 } tUpdateMyDisplayMsg;
+#pragma pack()
 
 /*! 
  * \param DisplayMode is Idle, Application, or Notification
@@ -498,6 +500,7 @@ typedef enum
  * \param Size is the size of the nval item
  * \param DataStartByte is the starting location of nval data
  */
+#pragma pack(1)
 typedef struct
 {
   unsigned int NvalIdentifier;
@@ -505,6 +508,7 @@ typedef struct
   unsigned char DataStartByte;
 
 } tNvalOperationPayload;
+#pragma pack()
 
 /******************************************************************************/
 

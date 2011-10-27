@@ -1,7 +1,5 @@
 /******************************************************************************
   Filename:       OSAL_Nv.c
-  Revised:        $Date: 2011/09/23 17:45:01 $
-  Revision:       $Revision: 1.3 $
 
   Description:    This module contains the OSAL non-volatile memory functions.
 
@@ -46,6 +44,8 @@
 /*********************************************************************
  * INCLUDES
  */
+#include "FreeRTOS.h"
+#include "semphr.h"
 
 #include "MSP430FlashUtil.h"
 #include "OSAL_Nv.h"
@@ -58,7 +58,6 @@
 
 #define TRUE  (1==1)
 #define FALSE (0==1)
-#define NULL  ( 0 )
 
 
 /* Physical pages per OSAL logical page - increase to get bigger OSAL_NV_ITEMs.
@@ -270,12 +269,36 @@ static void   hotItemUpdate(unsigned char pg, unsigned int off, unsigned int id)
  */
 static unsigned char osal_nv_item_init( unsigned int id, unsigned int len, void *buf );
 
+/*
+ * Read an NV attribute
+ */
+static unsigned char osal_nv_read( unsigned int id, unsigned int offset, unsigned int len, void *buf );
+
+/*
+ * Write an NV attribute
+ */
+static unsigned char osal_nv_write( unsigned int id, unsigned int offset, unsigned int len, void *buf );
+
+/*
+ * Get the length of an NV item.
+ */
+static unsigned int osal_nv_item_len( unsigned int id );
+
+/*
+ * Delete an NV item.
+ */
+#if 0
+static unsigned char osal_nv_delete( unsigned int id, unsigned int len );
+#endif
+
 #define MASTER_RESET_CODE ( 0xDEAF )
 
 unsigned int nvMasterResetKey;
 static void InitMasterResetKey(void);
 
 static unsigned char MasterResetOnNvalInit;
+
+static xSemaphoreHandle NvalMutex;
 
 /*********************************************************************
  * @fn      initNV
@@ -1187,6 +1210,8 @@ void osal_nv_init( void *p )
 {
   (void)p;  // Suppress Lint warning.
   (void)initNV();  // Always returns TRUE after pages have been erased.
+  NvalMutex = xSemaphoreCreateMutex();
+  xSemaphoreGive(NvalMutex);
   InitMasterResetKey();
 }
 
@@ -1248,7 +1273,7 @@ static unsigned char osal_nv_item_init( unsigned int id, unsigned int len, void 
  *
  * @return  Item length, if found; zero otherwise.
  */
-unsigned int osal_nv_item_len( unsigned int id )
+static unsigned int osal_nv_item_len( unsigned int id )
 {
   unsigned char findPg;
   osalNvHdr_t hdr;
@@ -1283,7 +1308,7 @@ unsigned int osal_nv_item_len( unsigned int id )
  * @return  NV_SUCCESS if successful, NV_ITEM_UNINIT if item did not
  *          exist in NV and offset is non-zero, NV_OPER_FAILED if failure.
  */
-unsigned char osal_nv_write( unsigned int id, unsigned int ndx, unsigned int len, void *buf )
+static unsigned char osal_nv_write( unsigned int id, unsigned int ndx, unsigned int len, void *buf )
 {
   unsigned char rtrn = NV_SUCCESS;
 
@@ -1422,7 +1447,7 @@ unsigned char osal_nv_write( unsigned int id, unsigned int ndx, unsigned int len
  * @return  NV_SUCCESS if NV data was copied to the parameter 'buf'.
  *          Otherwise, NV_OPER_FAILED for failure.
  */
-unsigned char osal_nv_read( unsigned int id, unsigned int ndx, unsigned int len, void *buf )
+static unsigned char osal_nv_read( unsigned int id, unsigned int ndx, unsigned int len, void *buf )
 {
   unsigned char *addr, *ptr = (unsigned char *)buf;
   unsigned char findPg;
@@ -1448,6 +1473,7 @@ unsigned char osal_nv_read( unsigned int id, unsigned int ndx, unsigned int len,
   return NV_SUCCESS;
 }
 
+#if 0
 /*********************************************************************
  * @fn      osal_nv_delete
  *
@@ -1462,7 +1488,7 @@ unsigned char osal_nv_read( unsigned int id, unsigned int ndx, unsigned int len,
  *          NV_BAD_ITEM_LEN if length parameter not correct,
  *          NV_OPER_FAILED if attempted deletion failed.
  */
-unsigned char osal_nv_delete( unsigned int id, unsigned int len )
+static unsigned char osal_nv_delete( unsigned int id, unsigned int len )
 {
   unsigned char findPg;
   unsigned int length;
@@ -1498,7 +1524,7 @@ unsigned char osal_nv_delete( unsigned int id, unsigned int len )
     return NV_SUCCESS;
   }
 }
-
+#endif
 
 extern unsigned char osal_nv_item_init( unsigned int id, unsigned int len, void *buf );
 
@@ -1518,8 +1544,55 @@ void PrintNvalSaveError(signed char *pString)
 
 /******************************************************************************/
 
+unsigned char OsalNvRead( unsigned int id, unsigned int offset, unsigned int len, void *buf )
+{
+  xSemaphoreTake(NvalMutex,portMAX_DELAY);
+  
+  unsigned char result = osal_nv_read(id,offset,len,buf);
+  
+  xSemaphoreGive(NvalMutex);
+  
+  if ( result != NV_SUCCESS )
+  {
+    PrintString("NvalError\r\n");    
+  }
+  
+  return result;
+  
+}
+
+unsigned char OsalNvWrite( unsigned int id, unsigned int offset, unsigned int len, void *buf )
+{
+  xSemaphoreTake(NvalMutex,portMAX_DELAY);
+  
+  unsigned char result = osal_nv_write(id,offset,len,buf);
+  
+  xSemaphoreGive(NvalMutex);
+  
+  if ( result != NV_SUCCESS )
+  {
+    PrintString("NvalError\r\n");    
+  }
+  
+  return result;
+  
+}
+
+unsigned int OsalNvItemLength( unsigned int id )
+{
+  xSemaphoreTake(NvalMutex,portMAX_DELAY);
+  
+  unsigned int result = osal_nv_item_len(id);
+  
+  xSemaphoreGive(NvalMutex);
+  
+  return result;
+}
+
 void OsalNvItemInit(unsigned int id, unsigned int len, void *buf )
 {
+  xSemaphoreTake(NvalMutex,portMAX_DELAY);
+  
   if( NV_SUCCESS == osal_nv_item_init(id,len,buf) )
   {
     if ( MasterResetOnNvalInit == 1 )
@@ -1532,11 +1605,15 @@ void OsalNvItemInit(unsigned int id, unsigned int len, void *buf )
     }
   }   
   
+  xSemaphoreGive(NvalMutex);
+  
 }
 
 
 void InitMasterResetKey(void)
 { 
+  xSemaphoreTake(NvalMutex,portMAX_DELAY);
+  
   nvMasterResetKey = 0;
   MasterResetOnNvalInit = 0;
   if( NV_SUCCESS == osal_nv_item_init(NVID_MASTER_RESET,      
@@ -1560,6 +1637,7 @@ void InitMasterResetKey(void)
                   &nvMasterResetKey); 
   }
   
+  xSemaphoreGive(NvalMutex);
   
 }
 
@@ -1567,10 +1645,15 @@ void WriteMasterResetKey(void)
 {
   nvMasterResetKey = MASTER_RESET_CODE;
   
+  xSemaphoreTake(NvalMutex,portMAX_DELAY);
+  
   osal_nv_write(NVID_MASTER_RESET,
                 NV_ZERO_OFFSET,
                 sizeof(nvMasterResetKey),
                 &nvMasterResetKey);  
+  
+  xSemaphoreGive(NvalMutex);
+  
 }
 
 /******************************************************************************/
