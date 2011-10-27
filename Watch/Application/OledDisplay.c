@@ -2062,25 +2062,25 @@ static void SaveContrastVales(void)
   LastTopContrastIndex = nvTopOledContrastIndexDay;
   LastBottomContrastIndex = nvBottomOledContrastIndexDay;
     
-  osal_nv_write(NVID_TOP_OLED_CONTRAST_DAY,
-                NV_ZERO_OFFSET,
-                sizeof(nvTopOledContrastIndexDay),
-                &nvTopOledContrastIndexDay);
+  OsalNvWrite(NVID_TOP_OLED_CONTRAST_DAY,
+              NV_ZERO_OFFSET,
+              sizeof(nvTopOledContrastIndexDay),
+              &nvTopOledContrastIndexDay);
   
-  osal_nv_write(NVID_BOTTOM_OLED_CONTRAST_DAY,
-                NV_ZERO_OFFSET,
-                sizeof(nvBottomOledContrastIndexDay),
-                &nvBottomOledContrastIndexDay);
+  OsalNvWrite(NVID_BOTTOM_OLED_CONTRAST_DAY,
+              NV_ZERO_OFFSET,
+              sizeof(nvBottomOledContrastIndexDay),
+              &nvBottomOledContrastIndexDay);
   
-  osal_nv_write(NVID_TOP_OLED_CONTRAST_NIGHT,
-                NV_ZERO_OFFSET,
-                sizeof(nvTopOledContrastIndexNight),
-                &nvTopOledContrastIndexNight);
+  OsalNvWrite(NVID_TOP_OLED_CONTRAST_NIGHT,
+              NV_ZERO_OFFSET,
+              sizeof(nvTopOledContrastIndexNight),
+              &nvTopOledContrastIndexNight);
   
-  osal_nv_write(NVID_BOTTOM_OLED_CONTRAST_NIGHT,
-                NV_ZERO_OFFSET,
-                sizeof(nvBottomOledContrastIndexNight),
-                &nvBottomOledContrastIndexNight);
+  OsalNvWrite(NVID_BOTTOM_OLED_CONTRAST_NIGHT,
+              NV_ZERO_OFFSET,
+              sizeof(nvBottomOledContrastIndexNight),
+              &nvBottomOledContrastIndexNight);
 }
 
 static void InitializeDisplayTimeouts(void)

@@ -534,15 +534,15 @@ void SetBatteryLevels(unsigned char * pData)
   LowBatteryWarningLevel = pData[0] * (unsigned int)100;
   LowBatteryBtOffLevel = pData[1] * (unsigned int)100;
   
-  osal_nv_write(NVID_LOW_BATTERY_WARNING_LEVEL,
-                NV_ZERO_OFFSET,
-                sizeof(LowBatteryWarningLevel),
-                &LowBatteryWarningLevel); 
+  OsalNvWrite(NVID_LOW_BATTERY_WARNING_LEVEL,
+              NV_ZERO_OFFSET,
+              sizeof(LowBatteryWarningLevel),
+              &LowBatteryWarningLevel); 
       
-  osal_nv_write(NVID_LOW_BATTERY_BTOFF_LEVEL,
-                NV_ZERO_OFFSET,
-                sizeof(LowBatteryBtOffLevel),
-                &LowBatteryBtOffLevel);    
+  OsalNvWrite(NVID_LOW_BATTERY_BTOFF_LEVEL,
+              NV_ZERO_OFFSET,
+              sizeof(LowBatteryBtOffLevel),
+              &LowBatteryBtOffLevel);    
 }
 
 /* Initialize the low battery levels and read them from flash if they exist */

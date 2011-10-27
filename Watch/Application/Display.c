@@ -213,10 +213,10 @@ void InitializeLinkAlarmEnable(void)
 
 void SaveLinkAlarmEnable(void)
 {
-  osal_nv_write(NVID_LINK_ALARM_ENABLE,
-                NV_ZERO_OFFSET,
-                sizeof(nvLinkAlarmEnable),
-                &nvLinkAlarmEnable);
+  OsalNvWrite(NVID_LINK_ALARM_ENABLE,
+              NV_ZERO_OFFSET,
+              sizeof(nvLinkAlarmEnable),
+              &nvLinkAlarmEnable);
 }
 
 

@@ -2859,18 +2859,18 @@ static void SaveIdleBufferConfig(void)
 
 static void SaveIdleBufferInvert(void)
 {
-  osal_nv_write(NVID_IDLE_BUFFER_INVERT,
-                NV_ZERO_OFFSET,
-                sizeof(nvIdleBufferInvert), 
-                &nvIdleBufferInvert);   
+  OsalNvWrite(NVID_IDLE_BUFFER_INVERT,
+              NV_ZERO_OFFSET,
+              sizeof(nvIdleBufferInvert), 
+              &nvIdleBufferInvert);   
 }
 
 static void SaveDisplaySeconds(void)
 {
-  osal_nv_write(NVID_DISPLAY_SECONDS,
-                NV_ZERO_OFFSET,
-                sizeof(nvDisplaySeconds),
-                &nvDisplaySeconds);
+  OsalNvWrite(NVID_DISPLAY_SECONDS,
+              NV_ZERO_OFFSET,
+              sizeof(nvDisplaySeconds),
+              &nvDisplaySeconds);
 }
 
 unsigned char QueryInvertDisplay(void)

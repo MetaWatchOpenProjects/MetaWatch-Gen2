@@ -1,7 +1,5 @@
 /**************************************************************************************************
   Filename:       MSP430FlashUtil.c
-  Revised:        $Date: 2011/09/23 17:45:01 $
-  Revision:       $Revision: 1.3 $
 
   Description:    Describe the purpose and contents of the file.
 

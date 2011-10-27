@@ -556,10 +556,10 @@ static void NvalOperationHandler(tHostMsg* pMsg)
     
   case NVAL_READ_OPERATION:
     
-    pOutgoingMsg->Options = osal_nv_read(pNvPayload->NvalIdentifier,
-                                         NV_ZERO_OFFSET,
-                                         pNvPayload->Size,
-                                         &pOutgoingMsg->pPayload[2]);
+    pOutgoingMsg->Options = OsalNvRead(pNvPayload->NvalIdentifier,
+                                       NV_ZERO_OFFSET,
+                                       pNvPayload->Size,
+                                       &pOutgoingMsg->pPayload[2]);
     
     pOutgoingMsg->Length += pNvPayload->Size;
     
@@ -567,12 +567,12 @@ static void NvalOperationHandler(tHostMsg* pMsg)
   
   case NVAL_WRITE_OPERATION:
     /* check that the size matches (otherwise NV_FAILURE is sent) */
-    if ( osal_nv_item_len(pNvPayload->NvalIdentifier) == pNvPayload->Size )
+    if ( OsalNvItemLength(pNvPayload->NvalIdentifier) == pNvPayload->Size )
     {
-      pOutgoingMsg->Options = osal_nv_write(pNvPayload->NvalIdentifier,
-                                            NV_ZERO_OFFSET,
-                                            pNvPayload->Size,
-                                            (void*)(&pNvPayload->DataStartByte));
+      pOutgoingMsg->Options = OsalNvWrite(pNvPayload->NvalIdentifier,
+                                          NV_ZERO_OFFSET,
+                                          pNvPayload->Size,
+                                          (void*)(&pNvPayload->DataStartByte));
     }
      
     break;
@@ -603,9 +603,9 @@ void InitializeRstNmiConfiguration(void)
 
 void SaveRstNmiConfiguration(void)
 {
-  osal_nv_write(NVID_RSTNMI_CONFIGURATION,
-                NV_ZERO_OFFSET,
-                sizeof(nvRstNmiConfiguration),
-                &nvRstNmiConfiguration);  
+  OsalNvWrite(NVID_RSTNMI_CONFIGURATION,
+              NV_ZERO_OFFSET,
+              sizeof(nvRstNmiConfiguration),
+              &nvRstNmiConfiguration);  
 }
 

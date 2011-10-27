@@ -1,7 +1,5 @@
 /**************************************************************************************************
   Filename:       MSP430FlashUtil.h
-  Revised:        $Date: 2011/09/23 17:45:01 $
-  Revision:       $Revision: 1.3 $
 
   Description:    This module defines the flashing utilities for the MSP430.
 
