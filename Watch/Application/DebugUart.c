@@ -16,8 +16,10 @@
 
 /******************************************************************************/
 /*! \file DebugUart.c
-*
-*/
+ *
+ *
+ * The print functions cannot be used in interrupt context 
+ */
 /******************************************************************************/
 
 #include "FreeRTOS.h"
@@ -33,10 +35,15 @@
 #include "DebugUart.h"
 #include "Statistics.h"
 
-
-/* a buffer is used so that the code does not have to wait for the UART 
- * to be empty
+/* printing was never intended to be used in interrupt context
+ * the semaphore calls need to be different in ISR context
+ * don't want to wait on uart in ISR 
+ *
+ * output may be garbled when this is defined, but there won't be problems
+ * if print is used within ISR
  */
+#define DEBUG_UART_INTERRUPT_SAFE
+
 #define TX_BUFFER_SIZE ( 255 )
 static unsigned char TxBuffer[TX_BUFFER_SIZE];
 static unsigned char WriteIndex;
@@ -53,10 +60,9 @@ static unsigned char DisableSmClkCounter;
 
 signed char ConversionString[6];
 
+#ifndef DEBUG_UART_INTERRUPT_SAFE
 static xSemaphoreHandle UartMutex;
-
-
-
+#endif
 
 void InitDebugUart(void)
 {
@@ -81,9 +87,13 @@ void InitDebugUart(void)
   UCA3IFG = 0;
   UCA3IE = UCTXIE;
   
+  WriteTxBuffer("\r\n*******************InitDebugUart********************\r\n");
+  
+#ifndef DEBUG_UART_INTERRUPT_SAFE
   UartMutex = xSemaphoreCreateMutex();
+  UART_MUTEX_GIVE();
+#endif
 
-  xSemaphoreGive(UartMutex);
 }
 
 static void WriteTxBuffer(signed char * const pBuf)
@@ -278,56 +288,61 @@ void ToHexString(unsigned int Value, signed char * pString)
 
 /******************************************************************************/
 
-/* These functions were created because the routines that came with the stack
- * broke down when there was memory issues (and there is nothing more annoying
- * than getting invalid debug information)
- */
+#ifdef DEBUG_UART_INTERRUPT_SAFE
+  #define UART_MUTEX_TAKE() { }
+  #define UART_MUTEX_GIVE() { }
+#else
+  #define UART_MUTEX_TAKE() { xSemaphoreTake(UartMutex,portMAX_DELAY); } 
+  #define UART_MUTEX_GIVE() { xSemaphoreGive(UartMutex); }
+#endif
+
+
 void PrintString(signed char * const pString)
 {
-  xSemaphoreTake(UartMutex,portMAX_DELAY);
+  UART_MUTEX_TAKE()
   WriteTxBuffer(pString);
-  xSemaphoreGive(UartMutex); 
+  UART_MUTEX_GIVE();
 }
 
 void PrintString2(signed char * const pString1,signed char * const pString2)
 {
-  xSemaphoreTake(UartMutex,portMAX_DELAY);
+  UART_MUTEX_TAKE()
   WriteTxBuffer(pString1);
   WriteTxBuffer(pString2);
-  xSemaphoreGive(UartMutex); 
+  UART_MUTEX_GIVE();
 }
 
 void PrintString3(signed char * const pString1,
                   signed char * const pString2,
                   signed char * const pString3)
 {
-  xSemaphoreTake(UartMutex,portMAX_DELAY);
+  UART_MUTEX_TAKE()
   WriteTxBuffer(pString1);
   WriteTxBuffer(pString2);
   WriteTxBuffer(pString3);
-  xSemaphoreGive(UartMutex); 
+  UART_MUTEX_GIVE();
 }
 
 void PrintDecimal(unsigned int Value)
 {
-  xSemaphoreTake(UartMutex,portMAX_DELAY);
+  UART_MUTEX_TAKE()
   ToDecimalString(Value,ConversionString);
   WriteTxBuffer(ConversionString);  
-  xSemaphoreGive(UartMutex);
+  UART_MUTEX_GIVE();
 }
 
 void PrintDecimalAndNewline(unsigned int Value)
 {
-  xSemaphoreTake(UartMutex,portMAX_DELAY);
+  UART_MUTEX_TAKE()
   ToDecimalString(Value,ConversionString);
   WriteTxBuffer(ConversionString);
   WriteTxBuffer("\r\n");  
-  xSemaphoreGive(UartMutex);
+  UART_MUTEX_GIVE();
 }
 
 void PrintSignedDecimalAndNewline(signed int Value)
 {
-  xSemaphoreTake(UartMutex,portMAX_DELAY);
+  UART_MUTEX_TAKE()
   if ( Value < 0 )
   {
     Value = ~Value + 1;
@@ -336,28 +351,28 @@ void PrintSignedDecimalAndNewline(signed int Value)
   WriteTxBuffer("-");
   WriteTxBuffer(ConversionString);
   WriteTxBuffer("\r\n");  
-  xSemaphoreGive(UartMutex);
+  UART_MUTEX_GIVE();
 }
 
 void PrintStringAndDecimal(signed char * const pString,unsigned int Value)
 {
-  xSemaphoreTake(UartMutex,portMAX_DELAY);
+  UART_MUTEX_TAKE()
   WriteTxBuffer(pString);  
   ToDecimalString(Value,ConversionString);
   WriteTxBuffer(ConversionString);
   WriteTxBuffer("\r\n");
-  xSemaphoreGive(UartMutex);
+  UART_MUTEX_GIVE();
 }
 
 void PrintStringAndSpaceAndDecimal(signed char * const pString,unsigned int Value)
 {
-  xSemaphoreTake(UartMutex,portMAX_DELAY);
+  UART_MUTEX_TAKE()
   WriteTxBuffer(pString);
   WriteTxBuffer(" ");  
   ToDecimalString(Value,ConversionString);
   WriteTxBuffer(ConversionString);
   WriteTxBuffer("\r\n");
-  xSemaphoreGive(UartMutex);
+  UART_MUTEX_GIVE();
 }
 
 void PrintStringAndTwoDecimals(signed char * const pString1,
@@ -365,7 +380,7 @@ void PrintStringAndTwoDecimals(signed char * const pString1,
                                signed char * const pString2,
                                unsigned int Value2)
 {
-  xSemaphoreTake(UartMutex,portMAX_DELAY);
+  UART_MUTEX_TAKE()
   WriteTxBuffer(pString1);  
   ToDecimalString(Value1,ConversionString);
   WriteTxBuffer(ConversionString);
@@ -375,14 +390,14 @@ void PrintStringAndTwoDecimals(signed char * const pString1,
   ToDecimalString(Value2,ConversionString);
   WriteTxBuffer(ConversionString);
   WriteTxBuffer("\r\n");
-  xSemaphoreGive(UartMutex); 
+  UART_MUTEX_GIVE();
 }
 
 void PrintStringSpaceAndTwoDecimals(signed char * const pString1,
                                     unsigned int Value1,
                                     unsigned int Value2)
 {
-  xSemaphoreTake(UartMutex,portMAX_DELAY);
+  UART_MUTEX_TAKE()
   WriteTxBuffer(pString1);  
   WriteTxBuffer(" ");
   ToDecimalString(Value1,ConversionString);
@@ -391,7 +406,7 @@ void PrintStringSpaceAndTwoDecimals(signed char * const pString1,
   ToDecimalString(Value2,ConversionString);
   WriteTxBuffer(ConversionString);
   WriteTxBuffer("\r\n");
-  xSemaphoreGive(UartMutex); 
+  UART_MUTEX_GIVE();
 }
 
 void PrintStringSpaceAndThreeDecimals(signed char * const pString1,
@@ -399,7 +414,7 @@ void PrintStringSpaceAndThreeDecimals(signed char * const pString1,
                                       unsigned int Value2,
                                       unsigned int Value3)
 {
-  xSemaphoreTake(UartMutex,portMAX_DELAY);
+  UART_MUTEX_TAKE()
   WriteTxBuffer(pString1);  
   WriteTxBuffer(" ");
   ToDecimalString(Value1,ConversionString);
@@ -411,19 +426,27 @@ void PrintStringSpaceAndThreeDecimals(signed char * const pString1,
   ToDecimalString(Value3,ConversionString);
   WriteTxBuffer(ConversionString);
   WriteTxBuffer("\r\n");
-  xSemaphoreGive(UartMutex); 
+  UART_MUTEX_GIVE();
 }
 
 void PrintStringAndHex(signed char * const pString,unsigned int Value)
 {
-  xSemaphoreTake(UartMutex,portMAX_DELAY);
+  UART_MUTEX_TAKE()
   WriteTxBuffer(pString);  
   ToHexString(Value,ConversionString);
   WriteTxBuffer(ConversionString);   
   WriteTxBuffer("\r\n");
-  xSemaphoreGive(UartMutex);
+  UART_MUTEX_GIVE();
 }
 
+void PrintTimeStamp(void)
+{
+  UART_MUTEX_TAKE()
+  ToHexString(RTCPS,ConversionString);
+  WriteTxBuffer(ConversionString);
+  WriteTxBuffer(" ");
+  UART_MUTEX_GIVE();  
+}
 
 /* callback from FreeRTOS */
 void vApplicationMallocFailedHook(size_t xWantedSize)
