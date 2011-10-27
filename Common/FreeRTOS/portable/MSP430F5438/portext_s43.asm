@@ -110,6 +110,7 @@ vPortYield:
                 pushx.w    SR
 ;                /* Now the SR is stacked we can disable interrupts. */
                 dint
+                nop
                 bicx.w #0xF000,0(r1)
                 swpbx.w +4(r1)
                 rlax.w +4(r1)
@@ -132,11 +133,14 @@ vPortYield:
 vTickISRCheck:  tst.b &RtosTickEnabled
                 jne vTickISR  
                 reti
-vTickISR:       /* add a millisecond to the capture compare value */
+
+                RSEG ISR_CODE
+                EVEN
+                
+vTickISR:       portSAVE_CONTEXT
+                /* add a millisecond to the capture compare value */
                 movx.w &TA0CCR0,&TA0R
                 add.w &RtosTickCount,&TA0CCR0
-                
-                portSAVE_CONTEXT
                 calla    #vTaskIncrementTick
                 calla    #vTaskSwitchContext 
                 portRESTORE_CONTEXT

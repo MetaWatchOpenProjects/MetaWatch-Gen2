@@ -51,6 +51,7 @@ void MSP430_LPM_ENTER(void)
 static void EnterLpm3(void)
 {
 #ifdef LPM_ENABLED
+    
   /* Turn off the watchdog timer */
   WDTCTL = WDTPW | WDTHOLD;
 
@@ -59,19 +60,21 @@ static void EnterLpm3(void)
    * OS in the middle of stopping the OS Scheduler.
    */
   __disable_interrupt();
+  __no_operation();
   DisableRtosTick();
-  __enable_interrupt();
-
   /* errata PMM11 divide MCLK by two before going to sleep */
   MCLK_DIV(2);
+  DEBUG1_HIGH();
   
-  __no_operation();
+  __enable_interrupt();
   LPM3;
   __no_operation();
+  DEBUG1_LOW();
 
   /* errata PMM11 - wait to put MCLK into normal mode */
   __delay_cycles(100);
   MCLK_DIV(1);
+  
   
   
   /* Generate a vTickIsr by setting the flag to trigger an interrupt
@@ -111,6 +114,7 @@ static void EnterShippingMode(void)
   __delay_cycles(100000);
   
   __disable_interrupt();
+  __no_operation();
 
   /* reset radio and drive rts and cts */
   P10OUT &= ~BIT3;
