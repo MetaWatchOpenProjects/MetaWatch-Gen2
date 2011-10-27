@@ -32,11 +32,11 @@
 
 /******************************************************************************/
 
-#define VERSION_STRING "0.7.42"
+#define VERSION_STRING "0.8.0"
 
 /* create the main page for the Doxygen output */
 
-/*! \mainpage MetaWatch Software (Version 0.7.42)
+/*! \mainpage MetaWatch Software (Version 0.8.0)
  *
  * \section intro_sec Introduction
  *
@@ -62,7 +62,7 @@
 /******************************************************************************/
 
 /*! number of buffers in the message buffer pool */
-#define NUM_MSG_BUFFERS 20
+#define NUM_MSG_BUFFERS 40
 
 /******************************************************************************/
 
