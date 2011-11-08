@@ -469,7 +469,8 @@ static void IdleUpdateHandler(void)
   }
   else
   {
-    IdleUpdateTime = ONE_SECOND * 60;
+    int Seconds = GetRTCSEC();  
+    IdleUpdateTime = 60 - Seconds; // ONE_SECOND * 60;
   }
   
   /* setup a timer to determine when to draw the screen again */
