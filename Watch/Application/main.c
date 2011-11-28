@@ -63,6 +63,8 @@ static void Housekeeping(void);
 
 static unsigned char FreeBuffers;
 
+/* variables for storing time stamp before and after entering LPM */
+static unsigned long sleep_secs;
 
 void main(void)
 {
@@ -199,10 +201,19 @@ void vApplicationIdleHook(void)
     extern xTaskHandle IdleTaskHandle;
     CheckStackUsage(IdleTaskHandle,"Idle Task");
     
+    unsigned long secs0 = (GetRTCDAY() * 24 + GetRTCHOUR()) * 3600 + 
+      GetRTCMIN() * 60 + GetRTCSEC();
+    
     /* Call MSP430 Utility function to enable low power mode 3.     */
     /* Put OS and Processor to sleep. Will need an interrupt        */
     /* to wake us up from here.   */
     MSP430_LPM_ENTER();
+    
+    unsigned long secs1 = (GetRTCDAY() * 24 + GetRTCHOUR()) * 3600 + 
+      GetRTCMIN() * 60 + GetRTCSEC();
+    
+    sleep_secs += (secs1 - secs0);
+    drawSleepTime(sleep_secs);
     
   }
   

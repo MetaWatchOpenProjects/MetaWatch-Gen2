@@ -469,8 +469,7 @@ static void IdleUpdateHandler(void)
   }
   else
   {
-    int Seconds = GetRTCSEC();  
-    IdleUpdateTime = 60 - Seconds; // ONE_SECOND * 60;
+    IdleUpdateTime = 60 - GetRTCSEC(); // ONE_SECOND * 60;
   }
   
   /* setup a timer to determine when to draw the screen again */
@@ -491,7 +490,7 @@ static void IdleUpdateHandler(void)
     if ( nvIdleBufferConfig == WATCH_CONTROLS_TOP )
     {
       /* only draw watch part */
-      FillMyBuffer(STARTING_ROW,WATCH_DRAWN_IDLE_BUFFER_ROWS,0x00);
+      FillMyBuffer(STARTING_ROW + 6,WATCH_DRAWN_IDLE_BUFFER_ROWS - 6,0x00);
       DrawIdleScreen();
       PrepareMyBufferForLcd(STARTING_ROW,WATCH_DRAWN_IDLE_BUFFER_ROWS);
       SendMyBufferToLcd(WATCH_DRAWN_IDLE_BUFFER_ROWS);
@@ -932,6 +931,8 @@ static void ListPairedDevicesHandler(void)
     row += 12+5;
       
   }
+  //check totoal LPM time so far
+  WriteString(sleep_secs,row, col, DONT_ADD_SPACE_AT_END);
   
   PrepareMyBufferForLcd(STARTING_ROW,NUM_LCD_ROWS);
   SendMyBufferToLcd(NUM_LCD_ROWS);
