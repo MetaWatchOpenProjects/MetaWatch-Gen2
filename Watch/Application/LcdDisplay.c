@@ -188,7 +188,8 @@ static void InitializeDisplaySeconds(void);
 static void SaveDisplaySeconds(void);
 
 /******************************************************************************/
-
+/* variables for storing time stamp before and after entering LPM */
+static unsigned long sleep_secs;
 
 /******************************************************************************/
 
@@ -932,7 +933,9 @@ static void ListPairedDevicesHandler(void)
       
   }
   //check totoal LPM time so far
-  WriteString(sleep_secs,row, col, DONT_ADD_SPACE_AT_END);
+  char pLong[32];
+  sprintf(pLong, "%lu", sleep_secs);
+  WriteString(pLong, row, col, DONT_ADD_SPACE_AT_END);
   
   PrepareMyBufferForLcd(STARTING_ROW,NUM_LCD_ROWS);
   SendMyBufferToLcd(NUM_LCD_ROWS);

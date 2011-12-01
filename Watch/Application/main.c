@@ -63,9 +63,6 @@ static void Housekeeping(void);
 
 static unsigned char FreeBuffers;
 
-/* variables for storing time stamp before and after entering LPM */
-static unsigned long sleep_secs;
-
 void main(void)
 {
   /* Turn off the watchdog timer */
@@ -213,7 +210,7 @@ void vApplicationIdleHook(void)
       GetRTCMIN() * 60 + GetRTCSEC();
     
     sleep_secs += (secs1 - secs0);
-    drawSleepTime(sleep_secs);
+    //drawSleepTime(sleep_secs);
     
   }
   
