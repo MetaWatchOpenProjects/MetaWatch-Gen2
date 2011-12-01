@@ -209,9 +209,8 @@ void vApplicationIdleHook(void)
     unsigned long secs1 = (GetRTCDAY() * 24 + GetRTCHOUR()) * 3600 + 
       GetRTCMIN() * 60 + GetRTCSEC();
     
-    sleep_secs += (secs1 - secs0);
-    //drawSleepTime(sleep_secs);
-    
+    extern unsigned long sleep_secs;
+    sleep_secs += (secs1 - secs0);    
   }
   
 }

@@ -19,6 +19,7 @@
  *
  */
 /******************************************************************************/
+#include <stdio.h>
 
 #include "FreeRTOS.h"           
 #include "task.h"               
@@ -189,7 +190,7 @@ static void SaveDisplaySeconds(void);
 
 /******************************************************************************/
 /* variables for storing time stamp before and after entering LPM */
-static unsigned long sleep_secs;
+unsigned long sleep_secs;
 
 /******************************************************************************/
 
@@ -933,7 +934,7 @@ static void ListPairedDevicesHandler(void)
       
   }
   //check totoal LPM time so far
-  char pLong[32];
+  unsigned char pLong[32];
   sprintf(pLong, "%lu", sleep_secs);
   WriteString(pLong, row, col, DONT_ADD_SPACE_AT_END);
   
