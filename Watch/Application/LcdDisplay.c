@@ -20,6 +20,8 @@
  */
 /******************************************************************************/
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include "FreeRTOS.h"           
 #include "task.h"               
@@ -492,7 +494,7 @@ static void IdleUpdateHandler(void)
     if ( nvIdleBufferConfig == WATCH_CONTROLS_TOP )
     {
       /* only draw watch part */
-      FillMyBuffer(STARTING_ROW + 6,WATCH_DRAWN_IDLE_BUFFER_ROWS - 6,0x00);
+      FillMyBuffer(STARTING_ROW,WATCH_DRAWN_IDLE_BUFFER_ROWS,0x00);
       DrawIdleScreen();
       PrepareMyBufferForLcd(STARTING_ROW,WATCH_DRAWN_IDLE_BUFFER_ROWS);
       SendMyBufferToLcd(WATCH_DRAWN_IDLE_BUFFER_ROWS);
@@ -933,11 +935,10 @@ static void ListPairedDevicesHandler(void)
     row += 12+5;
       
   }
-  //check totoal LPM time so far
-  unsigned char pLong[32];
-  sprintf(pLong, "%lu", sleep_secs);
-  WriteString(pLong, row, col, DONT_ADD_SPACE_AT_END);
-  
+
+  // show total LPM mode time so far  
+  ShowLpmTime(row, col);
+    
   PrepareMyBufferForLcd(STARTING_ROW,NUM_LCD_ROWS);
   SendMyBufferToLcd(NUM_LCD_ROWS);
 
@@ -946,6 +947,24 @@ static void ListPairedDevicesHandler(void)
 
 }
 
+static void ShowLpmTime(unsigned char row, unsigned char col)
+{
+    char pLpmTime[12];
+    char *pPos = pLpmTime;
+    
+    ldiv_t result = div(sleep_secs, 3600);
+    sprintf(pPos, "%lu", result.quot);
+    pPos += strlen(pLpmTime);
+    pLpmTime[pPos++] = ':';
+    
+    result = div(result.rem, 60);
+    sprintf(pPos, "%lu", result.quot);
+    pPos = pLpmTime + strlen(pLpmTime);
+    pLpmTime[pPos++] = ':';
+    sprintf(pPos, "%lu", result.rem);
+    
+    WriteString(pLpmTime, row, col, DONT_ADD_SPACE_AT_END);    
+}
 
 static void DrawConnectionScreen()
 {
@@ -2688,9 +2707,11 @@ static void ConfigureIdleUserInterfaceButtons(void)
                          MenuModeMsg,
                          MENU_MODE_OPTION_PAGE1);
       
-      DisableButtonAction(IDLE_MODE,
+      EnableButtonAction(IDLE_MODE,
                           SW_B_INDEX,
-                          BUTTON_STATE_IMMEDIATE);
+                          BUTTON_STATE_IMMEDIATE
+                          ResetSleepCounter,
+                          NO_MSG_OPTIONS);
                           
       /* map this mode's entry button to go back to the idle mode */
       EnableButtonAction(IDLE_MODE,
@@ -2964,5 +2985,10 @@ unsigned char QueryIdlePageNormal(void)
   {
     return 0;  
   };
-  
+}
+
+static void ResetSleepCounter(void)  
+{
+    sleep_secs = 0;
+    ListPairedDevicesHandler();
 }
