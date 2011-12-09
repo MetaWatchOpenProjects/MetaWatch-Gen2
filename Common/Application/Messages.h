@@ -265,7 +265,7 @@ typedef enum
     
   AccelerometerSteps = 0xea,
   AccelerometerRawData = 0xeb,
-  
+  ResetSleepCounterMsg = 0xec,
   
 } eMessageType;
 

@@ -70,4 +70,5 @@ unsigned char* GetTemplatePointer(unsigned char TemplateSelect);
  */
 unsigned char QueryIdlePageNormal(void);
 
+
 #endif /* LCD_DISPLAY_H */

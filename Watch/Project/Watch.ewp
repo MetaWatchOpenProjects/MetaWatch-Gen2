@@ -10,7 +10,7 @@
     <debug>1</debug>
     <settings>
       <name>General</name>
-      <archiveVersion>7</archiveVersion>
+      <archiveVersion>8</archiveVersion>
       <data>
         <version>27</version>
         <wantNonLocal>1</wantNonLocal>
@@ -70,8 +70,8 @@
         </option>
         <option>
           <name>Input variant</name>
-          <version>0</version>
-          <state>1</state>
+          <version>1</version>
+          <state>2</state>
         </option>
         <option>
           <name>Input description</name>
@@ -79,8 +79,8 @@
         </option>
         <option>
           <name>Output variant</name>
-          <version>0</version>
-          <state>1</state>
+          <version>1</version>
+          <state>2</state>
         </option>
         <option>
           <name>Output description</name>
@@ -155,7 +155,7 @@
       <name>ICC430</name>
       <archiveVersion>4</archiveVersion>
       <data>
-        <version>30</version>
+        <version>32</version>
         <wantNonLocal>1</wantNonLocal>
         <debug>1</debug>
         <option>
@@ -399,12 +399,60 @@
           <state>1</state>
         </option>
         <option>
-          <name>IccRelaxedFpPrecision</name>
+          <name>CCPUTAG</name>
+          <state>1</state>
+        </option>
+        <option>
+          <name>CCCodeFunctions</name>
+          <state>CODE</state>
+        </option>
+        <option>
+          <name>CCData16</name>
+          <state>DATA</state>
+        </option>
+        <option>
+          <name>CCData20</name>
+          <state>DATA</state>
+        </option>
+        <option>
+          <name>CCIntvec</name>
+          <state>INTVEC</state>
+        </option>
+        <option>
+          <name>CCCstack</name>
+          <state>CSTACK</state>
+        </option>
+        <option>
+          <name>CCRamFuncCode</name>
+          <state>RAMFUNC_CODE</state>
+        </option>
+        <option>
+          <name>CCIsrCode</name>
+          <state>ISR_CODE</state>
+        </option>
+        <option>
+          <name>CCDifunct</name>
+          <state>DIFUNCT</state>
+        </option>
+        <option>
+          <name>AggressiveInlining</name>
           <state>0</state>
         </option>
         <option>
-          <name>CCPUTAG</name>
+          <name>AggressiveUnrolling</name>
+          <state>0</state>
+        </option>
+        <option>
+          <name>IccCppInlineSemantics</name>
+          <state>0</state>
+        </option>
+        <option>
+          <name>IccStaticDestr</name>
           <state>1</state>
+        </option>
+        <option>
+          <name>IccFloatSemantics</name>
+          <state>0</state>
         </option>
       </data>
     </settings>
@@ -908,7 +956,7 @@
     <debug>1</debug>
     <settings>
       <name>General</name>
-      <archiveVersion>7</archiveVersion>
+      <archiveVersion>8</archiveVersion>
       <data>
         <version>27</version>
         <wantNonLocal>1</wantNonLocal>
@@ -968,8 +1016,8 @@
         </option>
         <option>
           <name>Input variant</name>
-          <version>0</version>
-          <state>1</state>
+          <version>1</version>
+          <state>2</state>
         </option>
         <option>
           <name>Input description</name>
@@ -977,8 +1025,8 @@
         </option>
         <option>
           <name>Output variant</name>
-          <version>0</version>
-          <state>1</state>
+          <version>1</version>
+          <state>2</state>
         </option>
         <option>
           <name>Output description</name>
@@ -1053,7 +1101,7 @@
       <name>ICC430</name>
       <archiveVersion>4</archiveVersion>
       <data>
-        <version>30</version>
+        <version>32</version>
         <wantNonLocal>1</wantNonLocal>
         <debug>1</debug>
         <option>
@@ -1297,12 +1345,60 @@
           <state>1</state>
         </option>
         <option>
-          <name>IccRelaxedFpPrecision</name>
+          <name>CCPUTAG</name>
+          <state>1</state>
+        </option>
+        <option>
+          <name>CCCodeFunctions</name>
+          <state>CODE</state>
+        </option>
+        <option>
+          <name>CCData16</name>
+          <state>DATA</state>
+        </option>
+        <option>
+          <name>CCData20</name>
+          <state>DATA</state>
+        </option>
+        <option>
+          <name>CCIntvec</name>
+          <state>INTVEC</state>
+        </option>
+        <option>
+          <name>CCCstack</name>
+          <state>CSTACK</state>
+        </option>
+        <option>
+          <name>CCRamFuncCode</name>
+          <state>RAMFUNC_CODE</state>
+        </option>
+        <option>
+          <name>CCIsrCode</name>
+          <state>ISR_CODE</state>
+        </option>
+        <option>
+          <name>CCDifunct</name>
+          <state>DIFUNCT</state>
+        </option>
+        <option>
+          <name>AggressiveInlining</name>
           <state>0</state>
         </option>
         <option>
-          <name>CCPUTAG</name>
+          <name>AggressiveUnrolling</name>
+          <state>0</state>
+        </option>
+        <option>
+          <name>IccCppInlineSemantics</name>
+          <state>0</state>
+        </option>
+        <option>
+          <name>IccStaticDestr</name>
           <state>1</state>
+        </option>
+        <option>
+          <name>IccFloatSemantics</name>
+          <state>0</state>
         </option>
       </data>
     </settings>
@@ -1806,7 +1902,7 @@
     <debug>1</debug>
     <settings>
       <name>General</name>
-      <archiveVersion>7</archiveVersion>
+      <archiveVersion>8</archiveVersion>
       <data>
         <version>27</version>
         <wantNonLocal>1</wantNonLocal>
@@ -1866,8 +1962,8 @@
         </option>
         <option>
           <name>Input variant</name>
-          <version>0</version>
-          <state>1</state>
+          <version>1</version>
+          <state>2</state>
         </option>
         <option>
           <name>Input description</name>
@@ -1875,8 +1971,8 @@
         </option>
         <option>
           <name>Output variant</name>
-          <version>0</version>
-          <state>1</state>
+          <version>1</version>
+          <state>2</state>
         </option>
         <option>
           <name>Output description</name>
@@ -1951,7 +2047,7 @@
       <name>ICC430</name>
       <archiveVersion>4</archiveVersion>
       <data>
-        <version>30</version>
+        <version>32</version>
         <wantNonLocal>1</wantNonLocal>
         <debug>1</debug>
         <option>
@@ -2195,12 +2291,60 @@
           <state>1</state>
         </option>
         <option>
-          <name>IccRelaxedFpPrecision</name>
+          <name>CCPUTAG</name>
+          <state>1</state>
+        </option>
+        <option>
+          <name>CCCodeFunctions</name>
+          <state>CODE</state>
+        </option>
+        <option>
+          <name>CCData16</name>
+          <state>DATA</state>
+        </option>
+        <option>
+          <name>CCData20</name>
+          <state>DATA</state>
+        </option>
+        <option>
+          <name>CCIntvec</name>
+          <state>INTVEC</state>
+        </option>
+        <option>
+          <name>CCCstack</name>
+          <state>CSTACK</state>
+        </option>
+        <option>
+          <name>CCRamFuncCode</name>
+          <state>RAMFUNC_CODE</state>
+        </option>
+        <option>
+          <name>CCIsrCode</name>
+          <state>ISR_CODE</state>
+        </option>
+        <option>
+          <name>CCDifunct</name>
+          <state>DIFUNCT</state>
+        </option>
+        <option>
+          <name>AggressiveInlining</name>
           <state>0</state>
         </option>
         <option>
-          <name>CCPUTAG</name>
+          <name>AggressiveUnrolling</name>
+          <state>0</state>
+        </option>
+        <option>
+          <name>IccCppInlineSemantics</name>
+          <state>0</state>
+        </option>
+        <option>
+          <name>IccStaticDestr</name>
           <state>1</state>
+        </option>
+        <option>
+          <name>IccFloatSemantics</name>
+          <state>0</state>
         </option>
       </data>
     </settings>
@@ -2704,7 +2848,7 @@
     <debug>1</debug>
     <settings>
       <name>General</name>
-      <archiveVersion>7</archiveVersion>
+      <archiveVersion>8</archiveVersion>
       <data>
         <version>27</version>
         <wantNonLocal>1</wantNonLocal>
@@ -2764,8 +2908,8 @@
         </option>
         <option>
           <name>Input variant</name>
-          <version>0</version>
-          <state>1</state>
+          <version>1</version>
+          <state>2</state>
         </option>
         <option>
           <name>Input description</name>
@@ -2773,8 +2917,8 @@
         </option>
         <option>
           <name>Output variant</name>
-          <version>0</version>
-          <state>1</state>
+          <version>1</version>
+          <state>2</state>
         </option>
         <option>
           <name>Output description</name>
@@ -2849,7 +2993,7 @@
       <name>ICC430</name>
       <archiveVersion>4</archiveVersion>
       <data>
-        <version>30</version>
+        <version>32</version>
         <wantNonLocal>1</wantNonLocal>
         <debug>1</debug>
         <option>
@@ -3093,12 +3237,60 @@
           <state>1</state>
         </option>
         <option>
-          <name>IccRelaxedFpPrecision</name>
+          <name>CCPUTAG</name>
+          <state>1</state>
+        </option>
+        <option>
+          <name>CCCodeFunctions</name>
+          <state>CODE</state>
+        </option>
+        <option>
+          <name>CCData16</name>
+          <state>DATA</state>
+        </option>
+        <option>
+          <name>CCData20</name>
+          <state>DATA</state>
+        </option>
+        <option>
+          <name>CCIntvec</name>
+          <state>INTVEC</state>
+        </option>
+        <option>
+          <name>CCCstack</name>
+          <state>CSTACK</state>
+        </option>
+        <option>
+          <name>CCRamFuncCode</name>
+          <state>RAMFUNC_CODE</state>
+        </option>
+        <option>
+          <name>CCIsrCode</name>
+          <state>ISR_CODE</state>
+        </option>
+        <option>
+          <name>CCDifunct</name>
+          <state>DIFUNCT</state>
+        </option>
+        <option>
+          <name>AggressiveInlining</name>
           <state>0</state>
         </option>
         <option>
-          <name>CCPUTAG</name>
+          <name>AggressiveUnrolling</name>
+          <state>0</state>
+        </option>
+        <option>
+          <name>IccCppInlineSemantics</name>
+          <state>0</state>
+        </option>
+        <option>
+          <name>IccStaticDestr</name>
           <state>1</state>
+        </option>
+        <option>
+          <name>IccFloatSemantics</name>
+          <state>0</state>
         </option>
       </data>
     </settings>
@@ -3836,7 +4028,7 @@
         <name>$PROJ_DIR$\..\Hardware\F5xx_F6xx_Core_Lib\HAL_FLASH.h</name>
       </file>
       <file>
-        <name>$PROJ_DIR$\..\Hardware\F5xx_F6xx_Core_Lib\hal_macros.h</name>
+        <name>$PROJ_DIR$\..\Hardware\F5xx_F6xx_Core_Lib\HAL_MACROS.h</name>
       </file>
       <file>
         <name>$PROJ_DIR$\..\Hardware\F5xx_F6xx_Core_Lib\HAL_PMAP.c</name>

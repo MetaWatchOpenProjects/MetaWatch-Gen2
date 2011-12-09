@@ -63,7 +63,6 @@ static void Housekeeping(void);
 
 static unsigned char FreeBuffers;
 
-
 void main(void)
 {
   /* Turn off the watchdog timer */
@@ -199,11 +198,19 @@ void vApplicationIdleHook(void)
     extern xTaskHandle IdleTaskHandle;
     CheckStackUsage(IdleTaskHandle,"Idle Task");
     
+    unsigned long secs0 = (GetRTCDAY() * 24 + GetRTCHOUR()) * 3600 + 
+      GetRTCMIN() * 60 + GetRTCSEC();
+    
     /* Call MSP430 Utility function to enable low power mode 3.     */
     /* Put OS and Processor to sleep. Will need an interrupt        */
     /* to wake us up from here.   */
     MSP430_LPM_ENTER();
     
+    unsigned long secs1 = (GetRTCDAY() * 24 + GetRTCHOUR()) * 3600 + 
+      GetRTCMIN() * 60 + GetRTCSEC();
+    
+    extern unsigned long sleep_secs;
+    sleep_secs += (secs1 - secs0);    
   }
   
 }

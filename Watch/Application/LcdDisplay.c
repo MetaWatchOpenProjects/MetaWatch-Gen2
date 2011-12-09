@@ -19,6 +19,9 @@
  *
  */
 /******************************************************************************/
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include "FreeRTOS.h"           
 #include "task.h"               
@@ -164,6 +167,12 @@ static void DisplayDate(void);
 static void DisplayDataSeparator(unsigned char RowOffset,
                                  unsigned char ColumnOffset);
 
+/******************************************************************************/
+static void ShowLpmTime(unsigned char, unsigned char);
+static void ResetSleepCounter(void);
+
+/******************************************************************************/
+
 /* the internal buffer */
 #define STARTING_ROW                  ( 0 )
 #define WATCH_DRAWN_IDLE_BUFFER_ROWS  ( 30 )
@@ -188,7 +197,8 @@ static void InitializeDisplaySeconds(void);
 static void SaveDisplaySeconds(void);
 
 /******************************************************************************/
-
+/* variables for storing time stamp before and after entering LPM */
+unsigned long sleep_secs;
 
 /******************************************************************************/
 
@@ -218,8 +228,6 @@ static void ConfigureIdleUserInterfaceButtons(void);
 
 static void DontChangeButtonConfiguration(void);
 static void DefaultApplicationAndNotificationButtonConfiguration(void);
-
-/******************************************************************************/
 
 //
 const unsigned char pBarCodeImage[NUM_LCD_ROWS*NUM_LCD_COL_BYTES];
@@ -414,6 +422,11 @@ static void DisplayQueueMessageHandler(tHostMsg* pMsg)
       GenerateLinkAlarm();  
     }
     break;
+    
+  case ResetSleepCounterMsg:
+    ResetSleepCounter();
+    break;
+    
   default:
     PrintStringAndHex("<<Unhandled Message>> in Lcd Display Task: Type 0x", Type);
     break;
@@ -469,7 +482,7 @@ static void IdleUpdateHandler(void)
   }
   else
   {
-    IdleUpdateTime = ONE_SECOND * 60;
+    IdleUpdateTime = 60 - GetRTCSEC(); // ONE_SECOND * 60;
   }
   
   /* setup a timer to determine when to draw the screen again */
@@ -931,7 +944,10 @@ static void ListPairedDevicesHandler(void)
     row += 12+5;
       
   }
-  
+
+  // show total LPM mode time so far  
+  ShowLpmTime(row, col);
+    
   PrepareMyBufferForLcd(STARTING_ROW,NUM_LCD_ROWS);
   SendMyBufferToLcd(NUM_LCD_ROWS);
 
@@ -940,6 +956,24 @@ static void ListPairedDevicesHandler(void)
 
 }
 
+static void ShowLpmTime(unsigned char row, unsigned char col)
+{
+    unsigned char pLpmTime[12];
+    char *pPos = pLpmTime;
+    
+    ldiv_t result = ldiv(sleep_secs, 3600);
+    sprintf(pPos, "%lu", result.quot);
+    pPos += strlen(pLpmTime);
+    *pPos++ = ':';
+    
+    result = ldiv(result.rem, 60);
+    sprintf(pPos, "%lu", result.quot);
+    pPos = pLpmTime + strlen(pLpmTime);
+    *pPos = ':';
+    sprintf(pPos, "%lu", result.rem);
+    
+    WriteString(pLpmTime, row, col, DONT_ADD_SPACE_AT_END);    
+}
 
 static void DrawConnectionScreen()
 {
@@ -2682,9 +2716,11 @@ static void ConfigureIdleUserInterfaceButtons(void)
                          MenuModeMsg,
                          MENU_MODE_OPTION_PAGE1);
       
-      DisableButtonAction(IDLE_MODE,
+      EnableButtonAction(IDLE_MODE,
                           SW_B_INDEX,
-                          BUTTON_STATE_IMMEDIATE);
+                          BUTTON_STATE_IMMEDIATE,
+                          ResetSleepCounterMsg,
+                          NO_MSG_OPTIONS);
                           
       /* map this mode's entry button to go back to the idle mode */
       EnableButtonAction(IDLE_MODE,
@@ -2958,5 +2994,10 @@ unsigned char QueryIdlePageNormal(void)
   {
     return 0;  
   };
-  
+}
+
+static void ResetSleepCounter(void)  
+{
+    sleep_secs = 0;
+    ListPairedDevicesHandler();
 }
