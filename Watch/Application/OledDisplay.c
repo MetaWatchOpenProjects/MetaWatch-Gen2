@@ -33,6 +33,7 @@
 #include "hal_lpm.h"
 #include "hal_battery.h"
 #include "hal_crystal_timers.h"
+#include "hal_oled.h"
 
 #include "Buttons.h"
 #include "BufferPool.h"
@@ -272,7 +273,8 @@ void InitializeDisplayTask(void)
   
   SetupTimerForAnalogDisplay();
   InitializeContrastValues();
-  InitializeOleds();
+  InitOledI2cPeripheral();
+  OledPowerUpSequence();
   InitializeDisplayBuffers();
   SetupIdleFace();
   InitializeDisplayTimeouts();
@@ -322,7 +324,7 @@ static void InitializeDisplayBuffers(void)
 }
 
 
-static void OledTaskStartup(void)
+static void InitializeDisplayControllers(void)
 {
   /*
    * Initialize display controllers for both of the OLEDs
@@ -468,7 +470,7 @@ static void DisplayTask(void *pvParameters)
   }
   
   InitializeDisplayTimers();
-  OledTaskStartup();
+  InitializeDisplayControllers();
   
   /* 
    * display the logo on the top screen and 
@@ -1041,6 +1043,18 @@ static void TurnDisplayOn(tImageBuffer* pBuffer)
     break;
   }
   
+  /* to save power the 10V supply is disabled when the oleds are not being used
+   * the 2.5V IO is also disabled.
+   *
+   * if both of the displays are off then turn on the supplies and
+   * re-initialize them 
+   */
+  if ( TopDisplayOn == 0 && BottomDisplayOn == 0 )
+  {
+    OledPowerUpSequence();
+    InitializeDisplayControllers();
+  }
+  
   /* turn required display on */
   switch (pBuffer->OledPosition)
   {
@@ -1116,6 +1130,11 @@ static void TurnDisplayOff(etOledPosition OledPosition)
     break;
   }
 
+  if ( TopDisplayOn == 0 && BottomDisplayOn == 0 )
+  {
+    OledPowerDown();  
+  }
+  
 }
 
 static void FillDisplayBuffer(tImageBuffer* pBuffer,unsigned char FillByte)
