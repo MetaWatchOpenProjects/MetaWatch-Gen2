@@ -24,30 +24,20 @@
 #ifndef HAL_BATTERY_H
 #define HAL_BATTERY_H
 
-/*! The state of the battery charging circuit */
-typedef enum
-{
-  BATTERY_STATE_PRECHARGE = 0x00,
-  BATTERY_STATE_CHARGE_DONE = 0x01,
-  BATTERY_STATE_FAST_CHARGE = 0x02,
-  BATTERY_STATE_CHARGE_OFF  = 0x03,
-
-} tBatteryState;  
-
-
-/*! Decodes the bits on port 6 to determine the battery state
+/*! The state of the battery charging circuit is dedcoded from the bits on 
+ *  port 6 
  *
  *   Stat2    Stat1      Status                  Hex value
  *    0          0       Precharge                   0x00
  *    1          0       Fast charge                 0x10
  *    0          1       Charge Done                 0x08
  *    1          1       Timer Fault or Sleep        0x18
- *
- * \param port6Value is the is the status inputs from the BQ24080
- *
- * \return state of the battery charging circuit based on input pins.
  */
-tBatteryState DecodeBatteryState(unsigned char port6Value);
+#define BATTERY_PRECHARGE              ( 0x00 )
+#define BATTERY_FAST_CHARGE            ( 0x02 )
+#define BATTERY_CHARGE_DONE            ( 0x01 )
+#define BATTERY_CHARGE_OFF_FAULT_SLEEP ( 0x03 )
+
 
 /*! Configure the pins used for reading the battery state and 
  * charging the battery.
@@ -65,7 +55,6 @@ unsigned char BatteryChargingControl(void);
 
 
 /*! Query whether or not the battery is charging
- * If powergood isn't valid then neither are the charge bits 
  *
  * \return 1 if the battery is charging else 0
  */
