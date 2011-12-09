@@ -256,6 +256,7 @@ static void PrintMessageType(tHostMsg* pMsg)
   case ReadLightSensorResponse:    PrintStringAndHex("ReadLightSensorResponse 0x",MessageType); break;
   case LowBatteryWarningMsg:       PrintStringAndHex("LowBatteryWarningMsg 0x",MessageType);   break; 
   case LowBatteryBtOffMsg:         PrintStringAndHex("LowBatteryBtOffMsg 0x",MessageType);     break; 
+  case ResetSleepCounterMsg:       PrintStringAndHex("ResetSleepCounterMsg 0x",MessageType);     break; 
   
   default:                         PrintStringAndHex("Unknown Message Type 0x",MessageType);   break;
   }  
@@ -390,6 +391,7 @@ static void Route(tHostMsg* pMsg, eRouteType RouteType)
     case ReadLightSensorResponse:       SendMsgToQ(SPP_TASK_QINDEX,&pMsg);   break;
     case LowBatteryWarningMsg:          SendMsgToQ(DISPLAY_QINDEX,&pMsg);    break;
     case LowBatteryBtOffMsg:            SendMsgToQ(DISPLAY_QINDEX,&pMsg);    break;
+    case ResetSleepCounterMsg:          SendMsgToQ(DISPLAY_QINDEX,&pMsg);    break;
     default:                            SendMsgToQ(FREE_QINDEX,&pMsg);       break;
     }
   }

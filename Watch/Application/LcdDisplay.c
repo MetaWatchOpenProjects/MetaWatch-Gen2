@@ -167,6 +167,12 @@ static void DisplayDate(void);
 static void DisplayDataSeparator(unsigned char RowOffset,
                                  unsigned char ColumnOffset);
 
+/******************************************************************************/
+static void ShowLpmTime(unsigned char, unsigned char);
+static void ResetSleepCounter(void);
+
+/******************************************************************************/
+
 /* the internal buffer */
 #define STARTING_ROW                  ( 0 )
 #define WATCH_DRAWN_IDLE_BUFFER_ROWS  ( 30 )
@@ -222,8 +228,6 @@ static void ConfigureIdleUserInterfaceButtons(void);
 
 static void DontChangeButtonConfiguration(void);
 static void DefaultApplicationAndNotificationButtonConfiguration(void);
-
-/******************************************************************************/
 
 //
 const unsigned char pBarCodeImage[NUM_LCD_ROWS*NUM_LCD_COL_BYTES];
@@ -418,6 +422,11 @@ static void DisplayQueueMessageHandler(tHostMsg* pMsg)
       GenerateLinkAlarm();  
     }
     break;
+    
+  case ResetSleepCounterMsg:
+    ResetSleepCounter();
+    break;
+    
   default:
     PrintStringAndHex("<<Unhandled Message>> in Lcd Display Task: Type 0x", Type);
     break;
@@ -949,18 +958,18 @@ static void ListPairedDevicesHandler(void)
 
 static void ShowLpmTime(unsigned char row, unsigned char col)
 {
-    char pLpmTime[12];
+    unsigned char pLpmTime[12];
     char *pPos = pLpmTime;
     
-    ldiv_t result = div(sleep_secs, 3600);
+    ldiv_t result = ldiv(sleep_secs, 3600);
     sprintf(pPos, "%lu", result.quot);
     pPos += strlen(pLpmTime);
-    pLpmTime[pPos++] = ':';
+    *pPos++ = ':';
     
-    result = div(result.rem, 60);
+    result = ldiv(result.rem, 60);
     sprintf(pPos, "%lu", result.quot);
     pPos = pLpmTime + strlen(pLpmTime);
-    pLpmTime[pPos++] = ':';
+    *pPos = ':';
     sprintf(pPos, "%lu", result.rem);
     
     WriteString(pLpmTime, row, col, DONT_ADD_SPACE_AT_END);    
@@ -2709,8 +2718,8 @@ static void ConfigureIdleUserInterfaceButtons(void)
       
       EnableButtonAction(IDLE_MODE,
                           SW_B_INDEX,
-                          BUTTON_STATE_IMMEDIATE
-                          ResetSleepCounter,
+                          BUTTON_STATE_IMMEDIATE,
+                          ResetSleepCounterMsg,
                           NO_MSG_OPTIONS);
                           
       /* map this mode's entry button to go back to the idle mode */
