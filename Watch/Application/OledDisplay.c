@@ -244,7 +244,7 @@ static tOledButtonMode LastButtonConfiguration = ReservedButtonMode;
 
 static void DontChangeButtonConfiguration(void);
 static void ChangeAnalogButtonConfiguration(tOledButtonMode NextButtonMode);
-
+static void NormalIdleScreenButtonConfiguration(void);
 
 /******************************************************************************/
 
@@ -489,7 +489,8 @@ static void DisplayTask(void *pvParameters)
   /* don't enable buttons until after splash screen */
   DontChangeButtonConfiguration();
   ChangeAnalogButtonConfiguration(IdleButtonMode);
-    
+  NormalIdleScreenButtonConfiguration();
+  
   for(;;)
   {
     if( xQueueReceive(QueueHandles[DISPLAY_QINDEX], &pDisplayMsg, portMAX_DELAY) )
@@ -1162,21 +1163,50 @@ static inline unsigned char BitReverse(unsigned char data)
   
 }
 
-unsigned char QueryDisplayMode(void)
+unsigned char QueryButtonMode(void)
 {
-  return CurrentMode;  
+  unsigned char result;
+  
+  switch (CurrentMode)
+  {
+    
+  case IDLE_MODE:
+    if ( CurrentButtonConfiguration == IdleButtonMode )
+    {
+      result = NORMAL_IDLE_SCREEN_BUTTON_MODE;
+    }
+    else
+    {
+      result = WATCH_DRAWN_SCREEN_BUTTON_MODE;  
+    }
+    break;
+    
+  case APPLICATION_MODE:
+    result = APPLICATION_SCREEN_BUTTON_MODE;
+    break;
+  
+  case NOTIFICATION_MODE:
+    result = NOTIFICATION_BUTTON_MODE;
+    break;
+  
+  case SCROLL_MODE:
+    result = SCROLL_MODE;
+    break;
+  
+  }
+  
+  return result;  
 }
-
 
 static void DontChangeButtonConfiguration(void)
 {
-  EnableButtonAction(IDLE_MODE,
+  EnableButtonAction(NORMAL_IDLE_SCREEN_BUTTON_MODE,
                      SW_A_INDEX,
                      BUTTON_STATE_LONG_HOLD,
                      SoftwareResetMsg,
                      NO_MSG_OPTIONS);
 
-  EnableButtonAction(IDLE_MODE,
+  EnableButtonAction(NORMAL_IDLE_SCREEN_BUTTON_MODE,
                      SW_P_INDEX,
                      BUTTON_STATE_IMMEDIATE,
                      OledCrownMenuMsg,
@@ -1186,19 +1216,55 @@ static void DontChangeButtonConfiguration(void)
    * setup the button to generate an event when the crown is pushed back in 
    * (in == off state)
    */
-  EnableButtonAction(IDLE_MODE,
+  EnableButtonAction(NORMAL_IDLE_SCREEN_BUTTON_MODE,
                      SW_P_INDEX,
                      BUTTON_STATE_PRESSED,
                      OledCrownMenuButtonMsg,
                      OLED_CROWN_MENU_BUTTON_OPTION_EXIT);
       
-  EnableButtonAction(IDLE_MODE,
+  EnableButtonAction(NORMAL_IDLE_SCREEN_BUTTON_MODE,
                      SW_P_INDEX,
                      BUTTON_STATE_HOLD,
                      OledCrownMenuButtonMsg,
                      OLED_CROWN_MENU_BUTTON_OPTION_EXIT);
   
-  EnableButtonAction(IDLE_MODE,
+  EnableButtonAction(NORMAL_IDLE_SCREEN_BUTTON_MODE,
+                     SW_P_INDEX,
+                     BUTTON_STATE_LONG_HOLD,
+                     OledCrownMenuButtonMsg,
+                     OLED_CROWN_MENU_BUTTON_OPTION_EXIT);
+  
+  /****************************************************************************/
+  
+  EnableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
+                     SW_A_INDEX,
+                     BUTTON_STATE_LONG_HOLD,
+                     SoftwareResetMsg,
+                     NO_MSG_OPTIONS);
+
+  EnableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
+                     SW_P_INDEX,
+                     BUTTON_STATE_IMMEDIATE,
+                     OledCrownMenuMsg,
+                     NO_MSG_OPTIONS);
+      
+  /* 
+   * setup the button to generate an event when the crown is pushed back in 
+   * (in == off state)
+   */
+  EnableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
+                     SW_P_INDEX,
+                     BUTTON_STATE_PRESSED,
+                     OledCrownMenuButtonMsg,
+                     OLED_CROWN_MENU_BUTTON_OPTION_EXIT);
+      
+  EnableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
+                     SW_P_INDEX,
+                     BUTTON_STATE_HOLD,
+                     OledCrownMenuButtonMsg,
+                     OLED_CROWN_MENU_BUTTON_OPTION_EXIT);
+  
+  EnableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                      SW_P_INDEX,
                      BUTTON_STATE_LONG_HOLD,
                      OledCrownMenuButtonMsg,
@@ -1207,13 +1273,34 @@ static void DontChangeButtonConfiguration(void)
 }
 
 
+static void NormalIdleScreenButtonConfiguration(void)
+{
+  EnableButtonAction(NORMAL_IDLE_SCREEN_BUTTON_MODE,
+                     SW_A_INDEX,
+                     BUTTON_STATE_IMMEDIATE,
+                     WatchStatusMsg,
+                     NO_MSG_OPTIONS);
+  
+  EnableButtonAction(NORMAL_IDLE_SCREEN_BUTTON_MODE,
+                     SW_B_INDEX,
+                     BUTTON_STATE_IMMEDIATE,
+                     OledShowIdleBufferMsg,
+                     NO_MSG_OPTIONS);
+  
+  EnableButtonAction(NORMAL_IDLE_SCREEN_BUTTON_MODE,
+                     SW_C_INDEX,
+                     BUTTON_STATE_IMMEDIATE,
+                     MenuModeMsg,
+                     NO_MSG_OPTIONS);
+}
+
 static void ChangeAnalogButtonConfiguration(tOledButtonMode NextButtonMode)
 {
   LastButtonConfiguration = CurrentButtonConfiguration;
   CurrentButtonConfiguration = NextButtonMode;
       
   /* always delete the master reset action */
-  DisableButtonAction(IDLE_MODE,
+  DisableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                       SW_A_INDEX,
                       BUTTON_STATE_LONG_HOLD);
       
@@ -1222,39 +1309,21 @@ static void ChangeAnalogButtonConfiguration(tOledButtonMode NextButtonMode)
     switch (CurrentButtonConfiguration)
     {
     case IdleButtonMode:
-          
-      EnableButtonAction(IDLE_MODE,
-                         SW_A_INDEX,
-                         BUTTON_STATE_IMMEDIATE,
-                         WatchStatusMsg,
-                         NO_MSG_OPTIONS);
-    
-      EnableButtonAction(IDLE_MODE,
-                         SW_B_INDEX,
-                         BUTTON_STATE_IMMEDIATE,
-                         OledShowIdleBufferMsg,
-                         NO_MSG_OPTIONS);
-      
-      EnableButtonAction(IDLE_MODE,
-                         SW_C_INDEX,
-                         BUTTON_STATE_IMMEDIATE,
-                         MenuModeMsg,
-                         NO_MSG_OPTIONS);
-      
+      /* don't do anything - this has its own button configuration */
       break;
     
     case MenuButtonMode:
          
       /* toggle button is handled for each page/face */
       
-      EnableButtonAction(IDLE_MODE,
+      EnableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                          SW_B_INDEX,
                          BUTTON_STATE_IMMEDIATE,
                          MenuButtonMsg,
                          MENU_BUTTON_OPTION_EXIT);
       
       /* go to the next page */
-      EnableButtonAction(IDLE_MODE,
+      EnableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                          SW_C_INDEX,
                          BUTTON_STATE_IMMEDIATE,
                          MenuModeMsg,
@@ -1264,15 +1333,15 @@ static void ChangeAnalogButtonConfiguration(tOledButtonMode NextButtonMode)
       
     case CrownMenuButtonMode:
       
-      DisableButtonAction(IDLE_MODE,
+      DisableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                           SW_A_INDEX,
                           BUTTON_STATE_IMMEDIATE);
       
-      DisableButtonAction(IDLE_MODE,
+      DisableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                           SW_B_INDEX,
                           BUTTON_STATE_IMMEDIATE);
             
-      EnableButtonAction(IDLE_MODE,
+      EnableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                          SW_C_INDEX,
                          BUTTON_STATE_IMMEDIATE,
                          OledCrownMenuMsg,
@@ -1287,26 +1356,7 @@ static void ChangeAnalogButtonConfiguration(tOledButtonMode NextButtonMode)
     
 }
 
-#if 0
-    /* buttons d, e, and f are activated when the crown is pulled */
-    EnableButtonAction(IDLE_MODE,
-                       SW_D_INDEX,
-                       BUTTON_STATE_IMMEDIATE,
-                       OledContrastMsg,
-                       OLED_CONTRAST_OPTION_TOP_DISPLAY);
-    
-    EnableButtonAction(IDLE_MODE,
-                       SW_F_INDEX,
-                       BUTTON_STATE_IMMEDIATE,
-                       OledContrastMsg,
-                       OLED_CONTRAST_OPTION_BOTTOM_DISPLAY);
-        
-
-        
-  }
-  
-}
-#endif
+/* buttons d, e, and f are activated when the crown is pulled */
 
 
 #define WATCH_STATUS_DATE_TIME_FACE              ( 0 )
@@ -2258,7 +2308,7 @@ static void MenuModeHandler(unsigned char MsgOptions)
   case TOGGLE_BLUETOOTH_PAGE:
     DisplayBluetoothToggleFace();
     
-    EnableButtonAction(IDLE_MODE,
+    EnableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                        SW_A_INDEX,
                        BUTTON_STATE_IMMEDIATE,
                        MenuButtonMsg,
@@ -2268,7 +2318,7 @@ static void MenuModeHandler(unsigned char MsgOptions)
   case TOGGLE_LINK_ALARM_PAGE:
     DisplayLinkAlarmToggleFace();
     
-    EnableButtonAction(IDLE_MODE,
+    EnableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                        SW_A_INDEX,
                        BUTTON_STATE_IMMEDIATE,
                        MenuButtonMsg,
@@ -2279,7 +2329,7 @@ static void MenuModeHandler(unsigned char MsgOptions)
   case TOGGLE_DISCOVERABILITY_PAGE:
     DisplayPairiabilityFace();
     
-    EnableButtonAction(IDLE_MODE,
+    EnableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                        SW_A_INDEX,
                        BUTTON_STATE_IMMEDIATE,
                        MenuButtonMsg,
@@ -2290,7 +2340,7 @@ static void MenuModeHandler(unsigned char MsgOptions)
   case TOGGLE_RST_NMI_PAGE:
     DisplayRstNmiConfigurationFace();
     
-    EnableButtonAction(IDLE_MODE,
+    EnableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                        SW_A_INDEX,
                        BUTTON_STATE_IMMEDIATE,
                        MenuButtonMsg,
@@ -2301,7 +2351,7 @@ static void MenuModeHandler(unsigned char MsgOptions)
   case TOGGLE_SECURE_SIMPLE_PAIRING_PAGE:
     DisplaySspFace();
     
-    EnableButtonAction(IDLE_MODE,
+    EnableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                        SW_A_INDEX,
                        BUTTON_STATE_IMMEDIATE,
                        MenuButtonMsg,
@@ -2312,7 +2362,7 @@ static void MenuModeHandler(unsigned char MsgOptions)
   case RESET_WATCH_PAGE:
     DisplayResetWatchFace();
     
-    EnableButtonAction(IDLE_MODE,
+    EnableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                        SW_A_INDEX,
                        BUTTON_STATE_IMMEDIATE,
                        SoftwareResetMsg,
@@ -2517,7 +2567,7 @@ static void OledCrownMenuHandler(unsigned char MsgOptions)
   case TURN_CROWN_PAGE:
     DisplayCrownPullFace();
     
-    DisableButtonAction(IDLE_MODE,
+    DisableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                         SW_A_INDEX,
                         BUTTON_STATE_IMMEDIATE);
     break;
@@ -2525,7 +2575,7 @@ static void OledCrownMenuHandler(unsigned char MsgOptions)
   case TOP_CONTRAST_PAGE:
     DisplayTopContrastFace();
     
-    EnableButtonAction(IDLE_MODE,
+    EnableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                        SW_A_INDEX,
                        BUTTON_STATE_IMMEDIATE,
                        OledCrownMenuButtonMsg,
@@ -2537,7 +2587,7 @@ static void OledCrownMenuHandler(unsigned char MsgOptions)
   case BOTTOM_CONTRAST_PAGE:
     DisplayBottomContrastFace();
     
-    EnableButtonAction(IDLE_MODE,
+    EnableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                        SW_A_INDEX,
                        BUTTON_STATE_IMMEDIATE,
                        OledCrownMenuButtonMsg,
@@ -2548,11 +2598,11 @@ static void OledCrownMenuHandler(unsigned char MsgOptions)
   case MASTER_RESET_PAGE:
     DisplayMasterResetFace();
     
-    DisableButtonAction(IDLE_MODE,
+    DisableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                         SW_A_INDEX,
                         BUTTON_STATE_IMMEDIATE);
         
-    EnableButtonAction(IDLE_MODE,
+    EnableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                        SW_A_INDEX,
                        BUTTON_STATE_LONG_HOLD,
                        SoftwareResetMsg,

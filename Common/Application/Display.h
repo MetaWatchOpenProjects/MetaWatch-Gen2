@@ -45,11 +45,11 @@ unsigned char* GetLocalBluetoothAddressString(void);
  */
 unsigned char* GetRemoteBluetoothAddressString(void);
 
-/*! Find out what display mode the Display Task is in
+/*! Find out what button configuration to use
  *
- *\return Returns a display mode as defined in messages.h
+ *\return Returns a button mode as defined in messages.h
  */
-unsigned char QueryDisplayMode(void);
+unsigned char QueryButtonMode(void);
 
 /*! Reads the hardware revision register in the MSP430
  *

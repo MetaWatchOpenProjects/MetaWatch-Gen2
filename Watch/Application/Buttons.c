@@ -60,7 +60,7 @@ static void InitializeButtonDataStructures(void);
 static void ButtonStateMachine(unsigned char ButtonOn,
                                unsigned char btnIndex);
 
-tButtonConfiguration ButtonCfg[NUMBER_OF_MODES][NUMBER_OF_BUTTONS];
+tButtonConfiguration ButtonCfg[NUMBER_OF_BUTTON_MODES][NUMBER_OF_BUTTONS];
 
 static const tButtonConfiguration cUnusedButtonConfiguration = 
 {
@@ -352,7 +352,7 @@ static void InitializeButtonConfigurationStructure(void)
   unsigned char DisplayMode = 0;  
   unsigned char ButtonIndex = 0;
   
-  for ( DisplayMode = 0; DisplayMode < NUMBER_OF_MODES; DisplayMode++ )
+  for ( DisplayMode = 0; DisplayMode < NUMBER_OF_BUTTON_MODES; DisplayMode++ )
   {
     for ( ButtonIndex = 0; ButtonIndex < NUMBER_OF_BUTTONS; ButtonIndex++ )
     {
@@ -371,9 +371,9 @@ static void HandleButtonEvent(unsigned char ButtonIndex,
                               unsigned char ButtonPressType)
 {
   tHostMsg* pButtonEventMsg;
-  tButtonConfiguration* pLocalCfg = &(ButtonCfg[QueryDisplayMode()][ButtonIndex]);
+  tButtonConfiguration* pLocalCfg = &(ButtonCfg[QueryButtonMode()][ButtonIndex]);
   
-  unsigned char DisplayMode = QueryDisplayMode();
+  unsigned char DisplayMode = QueryButtonMode();
   
   eMessageType Type = (eMessageType)pLocalCfg->CallbackMsgType[ButtonPressType];
   unsigned char Options = pLocalCfg->CallbackMsgOptions[ButtonPressType];
@@ -423,7 +423,7 @@ unsigned char GetAbsoluteButtonMask(unsigned char ButtonIndex)
 {
   unsigned char Rval = 0;
   
-  Rval = ButtonCfg[QueryDisplayMode()][ButtonIndex].MaskTable;
+  Rval = ButtonCfg[QueryButtonMode()][ButtonIndex].MaskTable;
   Rval &= BUTTON_ABSOLUTE_MASK;
   Rval = Rval << ButtonIndex;  
   
@@ -438,7 +438,7 @@ unsigned char GetButtonImmediateModeMask(unsigned char ButtonIndex)
 {
   unsigned char Rval = 0;
   
-  Rval = ButtonCfg[QueryDisplayMode()][ButtonIndex].MaskTable;
+  Rval = ButtonCfg[QueryButtonMode()][ButtonIndex].MaskTable;
   Rval &= BUTTON_IMMEDIATE_MASK;
   Rval = Rval << ButtonIndex;  
   
