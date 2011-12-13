@@ -1,5 +1,5 @@
 [DebugChecksum]
-Checksum=1140384069
+Checksum=-612248125
 [DisAssemblyWindow]
 NumStates=_ 1
 State 1=_ 1
@@ -25,7 +25,7 @@ NextState0=0
 NextState1=0
 [Action Register]
 Break=1
-State Storage=1
+State Storage=0
 [InterruptLog]
 LogEnabled=0
 SumEnabled=0
@@ -45,6 +45,20 @@ ActionState=1
 [TraceHelper]
 Enabled=0
 ShowSource=1
+[Log file]
+LoggingEnabled=_ 0
+LogFile=_ ""
+Category=_ 0
+[TermIOLog]
+LoggingEnabled=_ 0
+LogFile=_ ""
+[CallStackLog]
+Enabled=0
+[DriverProfiling]
+Enabled=0
+Mode=151400460
+Graph=0
+Symbiont=0
 [Breakpoints]
 Count=0
 [FET]
@@ -52,7 +66,7 @@ Clock mode=14
 Extended Clock mode=-1
 Secure Password=
 Extended Clock Control Enable=1
-Advanced Extended Clock Control=1
+Advanced Extended Clock Control=0
 Emulation mode=0
 Free running=0
 Shutting Down=3
@@ -67,20 +81,6 @@ SP=0
 SR=0
 all registers=0
 File name=
-[Log file]
-LoggingEnabled=_ 0
-LogFile=_ ""
-Category=_ 0
-[TermIOLog]
-LoggingEnabled=_ 0
-LogFile=_ ""
 [Aliases]
 Count=0
 SuppressDialog=0
-[CallStackLog]
-Enabled=0
-[DriverProfiling]
-Enabled=0
-Mode=6488180
-Graph=0
-Symbiont=0
