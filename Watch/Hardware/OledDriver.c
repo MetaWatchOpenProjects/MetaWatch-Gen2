@@ -34,10 +34,8 @@
 #define DATA_CONTROL_BYTE              ( 0xC0 )
 #define DATA_CONTINUATION_CONTROL_BYTE ( 0x40 )
 
-void InitializeOleds(void)
+void OledPowerUpSequence(void)
 {
-  InitOledI2cPeripheral();
-  
   /* 
    * special power on sequence 
    */
@@ -49,6 +47,7 @@ void InitializeOleds(void)
   /* assert reset */
   OLED_RSTN_ASSERT();
   __delay_cycles(3000);
+  
   /* enable power */
   OLED_POWER_ENABLE();  
   __delay_cycles(3000);
@@ -57,6 +56,12 @@ void InitializeOleds(void)
   OLED_RSTN_DEASSERT();
   __delay_cycles(3000);
     
+}
+
+void OledPowerDown(void)
+{
+  OLED_IO_POWER_DISABLE();    
+  OLED_IO_POWER_DISABLE();
 }
 
 void SetOledDeviceAddress(etOledPosition OledPosition)
