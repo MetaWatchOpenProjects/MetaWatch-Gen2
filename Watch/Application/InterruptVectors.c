@@ -21,6 +21,8 @@
  * if they are defined somewhere else then they should not be included here
  *
  * This is for debugging only
+ * 
+ * Don't include this for text output version because of assert
  */
 /******************************************************************************/
 
@@ -119,7 +121,7 @@ __interrupt void USCI_B2_VECTOR_ISR(void)
 #pragma vector=USCI_A2_VECTOR      /* 0xFFE8 */
 __interrupt void USCI_A2_VECTOR_ISR(void)
 {
-    assert(0);
+  assert(0);
 }
 
 

@@ -29,11 +29,9 @@
 #include "DebugUart.h"
 
 // used to monitor battery status
-static unsigned char BatteryChargeBits;
-
-// shows the current charge state
-static volatile tBatteryState BatteryState;
-
+static unsigned char CurrentBatteryState;
+static unsigned char LastBatteryState;
+static unsigned char PowerGood;
 
 void ConfigureBatteryPins(void)
 {
@@ -51,26 +49,35 @@ void ConfigureBatteryPins(void)
   
   BATTERY_CHARGE_DISABLE();
 
+  CurrentBatteryState = 0x00;
+  LastBatteryState = 0xff;
+    PowerGood = 0;
+  
 }
 
 /******************************************************************************/
 
-static unsigned char SavedPowerGood = 0xff;
-
-/*! Update the power good status 
- *
- * \return 1 if power is good status has changed
- *
- */
-static unsigned char UpdatePowerGood(unsigned char Value)
+unsigned char BatteryChargingControl(void)
 {
-  unsigned char PowerGoodChanged = 0;
-  unsigned char PowerGood = 0;
+  unsigned char BatteryChargeChange = 0;
+
+  /* prepare for measurement */
+  BAT_CHARGE_OUT |= BAT_CHARGE_OPEN_DRAIN_BITS;
+
+  /* always enable the charger (it may already be enabled) */
+  BATTERY_CHARGE_ENABLE();
   
-  Value &= BAT_CHARGE_PWR_GOOD;
+  /* a wait is required between the two steps */
+  TaskDelayLpmDisable();
+  vTaskDelay(10);
+  TaskDelayLpmEnable();
+  
+  /* take reading */
+  unsigned char BatteryChargeBits = BAT_CHARGE_IN;
 
   /* Bit 5 is low, which means we have input power == good */
-  if ( Value == 0 )
+  unsigned char PowerGoodN = BatteryChargeBits & BAT_CHARGE_PWR_GOOD;
+  if ( PowerGoodN == 0 )
   {
     PowerGood = 1;
   }
@@ -78,110 +85,68 @@ static unsigned char UpdatePowerGood(unsigned char Value)
   {
     PowerGood = 0;
   }
-  
-  /* only print an update if the value changes */
-  if ( SavedPowerGood != PowerGood )
-  {
-    PowerGoodChanged = 1;
-    if ( Value == 0 )
-    {
-      PrintString("PowerGood ");  
-    }
-    else
-    {
-      PrintString("PowerNotGood ");
-    }
-  }
-  SavedPowerGood = PowerGood;
-  
-  return PowerGoodChanged;
-  
-}
-
-
-unsigned char BatteryChargingControl(void)
-{
-  /* prepare for measurment */
-  BAT_CHARGE_OUT |= BAT_CHARGE_OPEN_DRAIN_BITS;
-
-  /* a wait is required between the two steps */
-  TaskDelayLpmDisable();
-  vTaskDelay(10);
-  TaskDelayLpmEnable();
-  
-  /* take reading */
-  BatteryChargeBits = BAT_CHARGE_IN;
-
-  /* measurement is complete */
-  BAT_CHARGE_OUT &= ~BAT_CHARGE_OPEN_DRAIN_BITS;
 
   /* 
-   * Update Status Bits
+   * Decode the battery state
    */
   
-  unsigned char BatteryChargeChange = UpdatePowerGood(BatteryChargeBits);
+  // mask and shift to get the current battery charge status
+  BatteryChargeBits &= (BAT_CHARGE_STAT1 | BAT_CHARGE_STAT2);
+  CurrentBatteryState = BatteryChargeBits >> 3;
                    
-  if( SavedPowerGood )
+  if ( LastBatteryState != CurrentBatteryState )
   {
-    BATTERY_CHARGE_ENABLE();
+    BatteryChargeChange = 1;
   }
-  else
+  LastBatteryState = CurrentBatteryState;
+ 
+#ifdef BATTERY_CHARGE_DEBUG
+  if ( BatteryChargeChange )
   {
+    switch (CurrentBatteryState)
+  {
+    case BATTERY_PRECHARGE:              PrintString("[Pre] ");   break;
+    case BATTERY_FAST_CHARGE:            PrintString("[Fast] ");  break;
+    case BATTERY_CHARGE_DONE:            PrintString("[Done] ");  break; 
+    case BATTERY_CHARGE_OFF_FAULT_SLEEP: PrintString("[Sleep] "); break;
+    default:                             PrintString("[Bat?]");   break;
+  }
+
+  }
+#endif
+
+  /* if the part is in sleep mode or there was a fault then
+   * disable the charge control and disable the pullups 
+   *
+   * any faults will be cleared by the high-to-low transition on the enable pin
+   */
+  switch (CurrentBatteryState)
+  {
+  case BATTERY_PRECHARGE:
+  case BATTERY_FAST_CHARGE:
+  case BATTERY_CHARGE_DONE: 
+    /* do nothing */ 
+    break; 
+
+  case BATTERY_CHARGE_OFF_FAULT_SLEEP: 
     BATTERY_CHARGE_DISABLE();
+    BAT_CHARGE_OUT &= ~BAT_CHARGE_OPEN_DRAIN_BITS;
+    break;
+  
+  default:
+    break;
   }
-
-  /* This function decodes the port 6 bits to get the battery charger state */
-  BatteryState = DecodeBatteryState(BatteryChargeBits);
-
+  
+   
   return BatteryChargeChange;
   
 }
 
 
-tBatteryState DecodeBatteryState(unsigned char port6Value)
-{
-  static unsigned char SavedValue;
-  
-  // Mask to leave the status bits
-  port6Value &= (BAT_CHARGE_STAT1 | BAT_CHARGE_STAT2);
-  
-  // the enum uses the two lsbs in the byte
-  port6Value = port6Value >> 3;
-  
-  port6Value &= 0x03;
-
-  // there isn't a good way to determine if the battery is connected
-#if 1
-    
-  if ( port6Value != SavedValue )
-  {
-  switch (port6Value)
-  {
-    case 0x00: PrintString("[Pre] ");   break;
-    case 0x02: PrintString("[Fast] ");  break;
-    case 0x01: PrintString("[Done] ");  break; 
-    case 0x03: PrintString("[Sleep] "); break;
-  
-  default:
-    PrintString("[Bat?]");
-    break;
-  
-  }
-  }
-  SavedValue = port6Value;
-   
-#endif
-  
-  // The port 6 value converted to the typedef enum
-  return (tBatteryState)port6Value;
-}
-
-
 unsigned char QueryBatteryCharging(void)
 {
-  if (   ( BatteryState == BATTERY_STATE_PRECHARGE 
-      ||   BatteryState == BATTERY_STATE_FAST_CHARGE )
-      && SavedPowerGood  )
+  if (   CurrentBatteryState == BATTERY_PRECHARGE 
+      || CurrentBatteryState == BATTERY_FAST_CHARGE )
   {
     return 1; 
   }
@@ -194,5 +159,5 @@ unsigned char QueryBatteryCharging(void)
 
 unsigned char QueryPowerGood(void)
 { 
-  return SavedPowerGood;
+  return PowerGood;
 }

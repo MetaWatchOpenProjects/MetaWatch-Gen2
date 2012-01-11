@@ -105,7 +105,7 @@ void ButtonStateHandler(void);
 
 /*! Associate and action with a button
  *
- * \param DisplayMode is idle, application or notification
+ * \param ButtonMode is idle, application or notification
  * \param ButtonIndex is A-F, or pull switch
  * \param ButtonPressType is immediate,press,hold, or long hold
  * \param CallbackMsgType is the message type for the callback
@@ -120,17 +120,17 @@ void EnableButtonAction(unsigned char DisplayMode,
 
 /*! Delete a button press type and its association
  *
- * \param DisplayMode is idle, application or notification
+ * \param ButtonMode is idle, application or notification
  * \param ButtonIndex is A-F, or pull switch
  * \param ButtonPressType is immediate,press,hold, or long hold
  */
-void DisableButtonAction(unsigned char DisplayMode,
+void DisableButtonAction(unsigned char ButtonMode,
                          unsigned char ButtonIndex,
                          unsigned char ButtonPressType);
 
 /*! Read a button press's association
  *
- * \param DisplayMode is idle, application or notification
+ * \param ButtonMode is idle, application or notification
  * \param ButtonIndex is A-F, or pull switch
  * \param ButtonPressType is immediate,press,hold, or long hold
  * \param pPayload must point to a 5 byte or greater structure.  It will
@@ -141,7 +141,7 @@ void DisableButtonAction(unsigned char DisplayMode,
  * phone should use application mode and not destroy the buttons used for idle mode.
  *
  */
-void ReadButtonConfiguration(unsigned char DisplayMode,
+void ReadButtonConfiguration(unsigned char ButtonMode,
                              unsigned char ButtonPressType,
                              unsigned char ButtonIndex,
                              unsigned char* pPayload);

@@ -419,6 +419,15 @@ typedef struct
 #define NUMBER_OF_MODES   ( 4 )
 #define MODE_MASK         ( BUFFER_SELECT_MASK )
 
+/* these should match the display modes for idle, application, notification,
+ * and scroll modes
+ */
+#define NORMAL_IDLE_SCREEN_BUTTON_MODE ( 0 )
+#define APPLICATION_SCREEN_BUTTON_MODE ( 1 )
+#define NOTIFICATION_BUTTON_MODE       ( 2 )
+#define SCROLL_BUTTON_MODE             ( 3 )
+#define WATCH_DRAWN_SCREEN_BUTTON_MODE ( 4 )
+#define NUMBER_OF_BUTTON_MODES         ( 5 )
 
 #define UPDATE_COPY_MASK                       ( BIT4 )
 #define COPY_ACTIVE_TO_DRAW_DURING_UPDATE      ( BIT4 )

@@ -218,6 +218,7 @@ static void ConfigureIdleUserInterfaceButtons(void);
 
 static void DontChangeButtonConfiguration(void);
 static void DefaultApplicationAndNotificationButtonConfiguration(void);
+static void SetupNormalIdleScreenButtons(void);
 
 /******************************************************************************/
 
@@ -317,6 +318,7 @@ static void DisplayTask(void *pvParameters)
 
   DontChangeButtonConfiguration();
   DefaultApplicationAndNotificationButtonConfiguration();
+  SetupNormalIdleScreenButtons();
   
   for(;;)
   {
@@ -596,9 +598,39 @@ static void ConnectionStateChangeHandler(void)
   }
 }
 
-unsigned char QueryDisplayMode(void)
+unsigned char QueryButtonMode(void)
 {
-  return CurrentMode;  
+  unsigned char result;
+  
+  switch (CurrentMode)
+  {
+    
+  case IDLE_MODE:
+    if ( CurrentIdlePage == NormalPage )
+    {
+      result = NORMAL_IDLE_SCREEN_BUTTON_MODE;
+    }
+    else
+    {
+      result = WATCH_DRAWN_SCREEN_BUTTON_MODE;  
+    }
+    break;
+    
+  case APPLICATION_MODE:
+    result = APPLICATION_SCREEN_BUTTON_MODE;
+    break;
+  
+  case NOTIFICATION_MODE:
+    result = NOTIFICATION_BUTTON_MODE;
+    break;
+  
+  case SCROLL_MODE:
+    result = SCROLL_MODE;
+    break;
+  
+  }
+  
+  return result;  
 }
 
 static void ChangeModeHandler(tHostMsg* pMsg)
@@ -2428,7 +2460,7 @@ const unsigned char DaysOfWeek[7][10*4] =
 static void DontChangeButtonConfiguration(void)
 {
   /* assign LED button to all modes */
-  for ( unsigned char i = 0; i < NUMBER_OF_MODES; i++ )
+  for ( unsigned char i = 0; i < NUMBER_OF_BUTTON_MODES; i++ )
   {
     /* turn off led 3 seconds after button has been released */
     EnableButtonAction(i,
@@ -2455,6 +2487,41 @@ static void DontChangeButtonConfiguration(void)
 
 }
 
+static void SetupNormalIdleScreenButtons(void)
+{
+  EnableButtonAction(NORMAL_IDLE_SCREEN_BUTTON_MODE,
+                     SW_F_INDEX,
+                     BUTTON_STATE_IMMEDIATE,
+                     WatchStatusMsg,
+                     RESET_DISPLAY_TIMER);
+  
+  EnableButtonAction(NORMAL_IDLE_SCREEN_BUTTON_MODE,
+                     SW_E_INDEX,
+                     BUTTON_STATE_IMMEDIATE,
+                     ListPairedDevicesMsg,
+                     NO_MSG_OPTIONS);
+   
+  /* led is already assigned */
+  
+  EnableButtonAction(NORMAL_IDLE_SCREEN_BUTTON_MODE,
+                     SW_C_INDEX,
+                     BUTTON_STATE_IMMEDIATE,
+                     MenuModeMsg,
+                     MENU_MODE_OPTION_PAGE1);
+  
+  EnableButtonAction(NORMAL_IDLE_SCREEN_BUTTON_MODE,
+                     SW_B_INDEX,
+                     BUTTON_STATE_IMMEDIATE,
+                     ToggleSecondsMsg,
+                     TOGGLE_SECONDS_OPTIONS_UPDATE_IDLE);
+  
+  EnableButtonAction(NORMAL_IDLE_SCREEN_BUTTON_MODE,
+                     SW_A_INDEX,
+                     BUTTON_STATE_IMMEDIATE,
+                     BarCode,
+                     RESET_DISPLAY_TIMER);  
+}
+
 static void ConfigureIdleUserInterfaceButtons(void)
 {
   if ( CurrentIdlePage != LastIdlePage )
@@ -2462,22 +2529,25 @@ static void ConfigureIdleUserInterfaceButtons(void)
     LastIdlePage = CurrentIdlePage;
   
     /* only allow reset on one of the pages */
-    DisableButtonAction(IDLE_MODE,
+    DisableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                         SW_F_INDEX,
                         BUTTON_STATE_PRESSED);
     
     switch ( CurrentIdlePage )
     {
     case NormalPage:
+      /* do nothing */
+      break;
+      
     case RadioOnWithPairingInfoPage:
           
-      EnableButtonAction(IDLE_MODE,
+      EnableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                          SW_F_INDEX,
                          BUTTON_STATE_IMMEDIATE,
                          WatchStatusMsg,
                          RESET_DISPLAY_TIMER);
     
-      EnableButtonAction(IDLE_MODE,
+      EnableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                          SW_E_INDEX,
                          BUTTON_STATE_IMMEDIATE,
                          ListPairedDevicesMsg,
@@ -2485,19 +2555,19 @@ static void ConfigureIdleUserInterfaceButtons(void)
        
       /* led is already assigned */
       
-      EnableButtonAction(IDLE_MODE,
+      EnableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                          SW_C_INDEX,
                          BUTTON_STATE_IMMEDIATE,
                          MenuModeMsg,
                          MENU_MODE_OPTION_PAGE1);
       
-      EnableButtonAction(IDLE_MODE,
+      EnableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                          SW_B_INDEX,
                          BUTTON_STATE_IMMEDIATE,
                          ToggleSecondsMsg,
                          TOGGLE_SECONDS_OPTIONS_UPDATE_IDLE);
    
-      EnableButtonAction(IDLE_MODE,
+      EnableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                          SW_A_INDEX,
                          BUTTON_STATE_IMMEDIATE,
                          BarCode,
@@ -2508,13 +2578,13 @@ static void ConfigureIdleUserInterfaceButtons(void)
     case BluetoothOffPage:
     case RadioOnWithoutPairingInfoPage:
    
-      EnableButtonAction(IDLE_MODE,
+      EnableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                          SW_F_INDEX,
                          BUTTON_STATE_IMMEDIATE,
                          ModifyTimeMsg,
                          MODIFY_TIME_INCREMENT_HOUR);
       
-      EnableButtonAction(IDLE_MODE,
+      EnableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                          SW_E_INDEX,
                          BUTTON_STATE_IMMEDIATE,
                          ListPairedDevicesMsg,
@@ -2522,19 +2592,19 @@ static void ConfigureIdleUserInterfaceButtons(void)
       
       /* led is already assigned */
       
-      EnableButtonAction(IDLE_MODE,
+      EnableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                          SW_C_INDEX,
                          BUTTON_STATE_IMMEDIATE,
                          MenuModeMsg,
                          MENU_MODE_OPTION_PAGE1);
       
-      EnableButtonAction(IDLE_MODE,
+      EnableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                          SW_B_INDEX,
                          BUTTON_STATE_IMMEDIATE,
                          ModifyTimeMsg,
                          MODIFY_TIME_INCREMENT_DOW);
    
-      EnableButtonAction(IDLE_MODE,
+      EnableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                          SW_A_INDEX,
                          BUTTON_STATE_IMMEDIATE,
                          ModifyTimeMsg,
@@ -2545,13 +2615,13 @@ static void ConfigureIdleUserInterfaceButtons(void)
       
     case Menu1Page:
       
-      EnableButtonAction(IDLE_MODE,
+      EnableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                          SW_F_INDEX,
                          BUTTON_STATE_IMMEDIATE,
                          MenuButtonMsg,
                          MENU_BUTTON_OPTION_TOGGLE_DISCOVERABILITY);
       
-      EnableButtonAction(IDLE_MODE,
+      EnableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                          SW_E_INDEX,
                          BUTTON_STATE_IMMEDIATE,
                          MenuButtonMsg,
@@ -2559,19 +2629,19 @@ static void ConfigureIdleUserInterfaceButtons(void)
       
       /* led is already assigned */
       
-      EnableButtonAction(IDLE_MODE,
+      EnableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                          SW_C_INDEX,
                          BUTTON_STATE_IMMEDIATE,
                          MenuButtonMsg,
                          MENU_BUTTON_OPTION_EXIT);
       
-      EnableButtonAction(IDLE_MODE,
+      EnableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                          SW_B_INDEX,
                          BUTTON_STATE_IMMEDIATE,
                          MenuModeMsg,
                          MENU_MODE_OPTION_PAGE2);
    
-      EnableButtonAction(IDLE_MODE,
+      EnableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                          SW_A_INDEX,
                          BUTTON_STATE_IMMEDIATE,
                          MenuButtonMsg,
@@ -2582,13 +2652,13 @@ static void ConfigureIdleUserInterfaceButtons(void)
     case Menu2Page:
       
       /* this cannot be immediate because Master Reset is on this button also */
-      EnableButtonAction(IDLE_MODE,
+      EnableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                          SW_F_INDEX,
                          BUTTON_STATE_PRESSED,
                          SoftwareResetMsg,
                          NO_MSG_OPTIONS);
       
-      EnableButtonAction(IDLE_MODE,
+      EnableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                          SW_E_INDEX,
                          BUTTON_STATE_IMMEDIATE,
                          MenuButtonMsg,
@@ -2596,19 +2666,19 @@ static void ConfigureIdleUserInterfaceButtons(void)
       
       /* led is already assigned */
       
-      EnableButtonAction(IDLE_MODE,
+      EnableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                          SW_C_INDEX,
                          BUTTON_STATE_IMMEDIATE,
                          MenuButtonMsg,
                          MENU_BUTTON_OPTION_EXIT);
             
-      EnableButtonAction(IDLE_MODE,
+      EnableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                          SW_B_INDEX,
                          BUTTON_STATE_IMMEDIATE,
                          MenuModeMsg,
                          MENU_MODE_OPTION_PAGE3);
             
-      EnableButtonAction(IDLE_MODE,
+      EnableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                          SW_A_INDEX,
                          BUTTON_STATE_IMMEDIATE,
                          MenuButtonMsg,
@@ -2619,13 +2689,13 @@ static void ConfigureIdleUserInterfaceButtons(void)
       
     case Menu3Page:
       
-      EnableButtonAction(IDLE_MODE,
+      EnableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                          SW_F_INDEX,
                          BUTTON_STATE_IMMEDIATE,
                          MenuButtonMsg,
                          MENU_BUTTON_OPTION_INVERT_DISPLAY);
       
-      EnableButtonAction(IDLE_MODE,
+      EnableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                          SW_E_INDEX,
                          BUTTON_STATE_IMMEDIATE,
                          MenuButtonMsg,
@@ -2633,13 +2703,13 @@ static void ConfigureIdleUserInterfaceButtons(void)
       
       /* led is already assigned */
       
-      EnableButtonAction(IDLE_MODE,
+      EnableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                          SW_C_INDEX,
                          BUTTON_STATE_IMMEDIATE,
                          MenuButtonMsg,
                          MENU_BUTTON_OPTION_EXIT);
       
-      EnableButtonAction(IDLE_MODE,
+      EnableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                          SW_B_INDEX,
                          BUTTON_STATE_IMMEDIATE,
                          MenuModeMsg,
@@ -2647,13 +2717,13 @@ static void ConfigureIdleUserInterfaceButtons(void)
             
 #if 0
       /* shipping mode is disabled for now */
-      EnableButtonAction(IDLE_MODE,
+      EnableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                          SW_A_INDEX,
                          BUTTON_STATE_IMMEDIATE,
                          EnterShippingModeMsg,
                          NO_MSG_OPTIONS);
 #else
-      DisableButtonAction(IDLE_MODE,
+      DisableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                           SW_A_INDEX,
                           BUTTON_STATE_IMMEDIATE);
 #endif      
@@ -2661,14 +2731,14 @@ static void ConfigureIdleUserInterfaceButtons(void)
       
     case ListPairedDevicesPage:
       
-      EnableButtonAction(IDLE_MODE,
+      EnableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                          SW_F_INDEX,
                          BUTTON_STATE_IMMEDIATE,
                          WatchStatusMsg,
                          RESET_DISPLAY_TIMER);
     
       /* map this mode's entry button to go back to the idle mode */
-      EnableButtonAction(IDLE_MODE,
+      EnableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                          SW_E_INDEX,
                          BUTTON_STATE_IMMEDIATE,
                          IdleUpdate,
@@ -2676,18 +2746,18 @@ static void ConfigureIdleUserInterfaceButtons(void)
        
       /* led is already assigned */
       
-      EnableButtonAction(IDLE_MODE,
+      EnableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                          SW_C_INDEX,
                          BUTTON_STATE_IMMEDIATE,
                          MenuModeMsg,
                          MENU_MODE_OPTION_PAGE1);
       
-      DisableButtonAction(IDLE_MODE,
+      DisableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                           SW_B_INDEX,
                           BUTTON_STATE_IMMEDIATE);
                           
       /* map this mode's entry button to go back to the idle mode */
-      EnableButtonAction(IDLE_MODE,
+      EnableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                          SW_A_INDEX,
                          BUTTON_STATE_IMMEDIATE,
                          BarCode,
@@ -2697,13 +2767,13 @@ static void ConfigureIdleUserInterfaceButtons(void)
     case WatchStatusPage:
       
       /* map this mode's entry button to go back to the idle mode */
-      EnableButtonAction(IDLE_MODE,
+      EnableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                          SW_F_INDEX,
                          BUTTON_STATE_IMMEDIATE,
                          IdleUpdate,
                          RESET_DISPLAY_TIMER);
     
-      EnableButtonAction(IDLE_MODE,
+      EnableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                          SW_E_INDEX,
                          BUTTON_STATE_IMMEDIATE,
                          ListPairedDevicesMsg,
@@ -2711,17 +2781,17 @@ static void ConfigureIdleUserInterfaceButtons(void)
        
       /* led is already assigned */
       
-      EnableButtonAction(IDLE_MODE,
+      EnableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                          SW_C_INDEX,
                          BUTTON_STATE_IMMEDIATE,
                          MenuModeMsg,
                          MENU_MODE_OPTION_PAGE1);
       
-      DisableButtonAction(IDLE_MODE,
+      DisableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                           SW_B_INDEX,
                           BUTTON_STATE_IMMEDIATE);
                           
-      EnableButtonAction(IDLE_MODE,
+      EnableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                          SW_A_INDEX,
                          BUTTON_STATE_IMMEDIATE,
                          BarCode,
@@ -2730,13 +2800,13 @@ static void ConfigureIdleUserInterfaceButtons(void)
   
     case QrCodePage:
       
-      EnableButtonAction(IDLE_MODE,
+      EnableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                          SW_F_INDEX,
                          BUTTON_STATE_IMMEDIATE,
                          WatchStatusMsg,
                          RESET_DISPLAY_TIMER);
     
-      EnableButtonAction(IDLE_MODE,
+      EnableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                          SW_E_INDEX,
                          BUTTON_STATE_IMMEDIATE,
                          ListPairedDevicesMsg,
@@ -2744,18 +2814,18 @@ static void ConfigureIdleUserInterfaceButtons(void)
        
       /* led is already assigned */
       
-      EnableButtonAction(IDLE_MODE,
+      EnableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                          SW_C_INDEX,
                          BUTTON_STATE_IMMEDIATE,
                          MenuModeMsg,
                          MENU_MODE_OPTION_PAGE1);
       
-      DisableButtonAction(IDLE_MODE,
+      DisableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                           SW_B_INDEX,
                           BUTTON_STATE_IMMEDIATE);
                           
       /* map this mode's entry button to go back to the idle mode */
-      EnableButtonAction(IDLE_MODE,
+      EnableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                          SW_A_INDEX,
                          BUTTON_STATE_IMMEDIATE,
                          IdleUpdate,
@@ -2784,13 +2854,19 @@ static void DefaultApplicationAndNotificationButtonConfiguration(void)
       index++;
     }
    
-    EnableButtonAction(APPLICATION_MODE,
+    EnableButtonAction(APPLICATION_SCREEN_BUTTON_MODE,
                        index,
                        BUTTON_STATE_PRESSED,
                        ButtonEventMsg,
                        NO_MSG_OPTIONS);
 
-    EnableButtonAction(NOTIFICATION_MODE,
+    EnableButtonAction(NOTIFICATION_BUTTON_MODE,
+                       index,
+                       BUTTON_STATE_PRESSED,
+                       ButtonEventMsg,
+                       NO_MSG_OPTIONS);
+    
+    EnableButtonAction(SCROLL_BUTTON_MODE,
                        index,
                        BUTTON_STATE_PRESSED,
                        ButtonEventMsg,

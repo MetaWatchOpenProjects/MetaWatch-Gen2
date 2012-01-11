@@ -54,10 +54,11 @@ typedef enum
   
 } etOledPosition;
 
-/*! Initialize the peripheral in the microcontroller and perform the 
- * required power up sequence for the OLEDs
- */
-void InitializeOleds(void);
+/*! perform the required power up sequence for the OLEDs */
+void OledPowerUpSequence(void);
+
+/* Disable the IO and 10V supplies to the OLEDs */
+void OledPowerDown(void);
 
 /*! Setup the OLED for use
  * \param OledPosition - top or bottom
