@@ -34,6 +34,27 @@
 #define HOST_MSG_MAX_PAYLOAD_LENGTH \
   (HOST_MSG_BUFFER_LENGTH - HOST_MSG_HEADER_LENGTH - HOST_MSG_CRC_LENGTH)
 
+
+/*! Message Format
+ *
+ * \param Length is the length of the message.  This is only used for messages
+ * sent to the host
+ * \param Type is the type of the message
+ * \param Options is the option byte of the message
+ * \param pBuffer can point to a message buffer 
+ *
+ */
+typedef struct
+{
+  unsigned char Length;
+  unsigned char Type;
+  unsigned char Options;
+  unsigned char * pBuffer; 
+
+} tMessage;
+
+
+
 /*! Host Message Packet Format
  * 
  * \note This message format is also used internally but not all fields are used.
@@ -56,7 +77,11 @@
  * re-assemble/frame a message.
  * 
  * The Get Device Type message is 0x01, 0x06, 0x01, 0x00, 0x0B, 0xD9.
+ *
+ * \note Deprecated - This format is not used internally BUT IS STILL THE 
+ * FORMAT FOR MESSAGES SENT TO THE HOST 
  */
+#if 0
 typedef struct
 {
   unsigned char startByte;
@@ -69,6 +94,8 @@ typedef struct
 
 } tHostMsg;
 
+#endif
+
 #define NO_MSG_OPTIONS      ( 0 )
 #define NONZERO_MSG_OPTIONS ( 0xff )
 
@@ -78,11 +105,6 @@ typedef struct
 #define WRITE_BUFFER_TWO_LINES     ( 0x00 )
 #define WRITE_BUFFER_ONE_LINE      ( 0x10 )
 #define WRITE_BUFFER_ONE_LINE_MASK ( 0x10 )
-
-#define WRITE_BUFFER_ROW_A_INDEX ( 0 )
-#define WRITE_BUFFER_ROW_B_INDEX ( 13 )
-#define WRITE_BUFFER_LINE_A_STARTING_INDEX ( 1 )
-#define WRITE_BUFFER_LINE_B_STARTING_INDEX ( 14 )
 
 /*! The serial ram message is formatted so that it can be overlaid onto the
  * message from the host (so that a buffer allocation does not have to be
@@ -101,24 +123,15 @@ typedef struct
  */
 typedef struct
 {
-  unsigned char Reserved0;
-  unsigned char Reserved1;
-  unsigned char SerialRamCommand;
-  unsigned char AddressMsb;
-  unsigned char AddressLsb;
+  unsigned char RowSelectA;
   unsigned char pLineA[12];
-  unsigned char AddressLsb2;
+  unsigned char RowSelectB;
   unsigned char pLineB[12];
-  unsigned char Reserved31;
 
-} tSerialRamMsg;
+} tSerialRamPayload;
 
 /*! The LCD message is formatted so that it can be written directly to the LCD
  *
- * \param startByte is not used
- * \param Length is not used
- * \param Type is WriteLcd
- * \param Options byte is not used
  * \param LcdCommand is the lcd write command for the LCD
  * \param RowNumber is the row on the LCD
  * \param pLine[12] is a line of LCD data
@@ -128,17 +141,20 @@ typedef struct
  */
 typedef struct
 {
-  unsigned char startByte;
-  unsigned char Length;
-  unsigned char Type;
-  unsigned char Options;
+  unsigned char Reserved0;
+  unsigned char Reserved1;
   unsigned char LcdCommand;
   unsigned char RowNumber;
   unsigned char pLine[12];
   unsigned char Dummy1;
   unsigned char Dummy2;
   
-} tLcdMessage;
+} tLcdMessagePayload;
+
+#define LCD_MESSAGE_CMD_INDEX        ( 2 ) 
+#define LCD_MESSAGE_ROW_NUMBER_INDEX ( 3 )
+#define LCD_MESSAGE_LINE_INDEX       ( 4 )
+
 
 /*! Message type enumeration 
  * 
@@ -158,10 +174,10 @@ typedef enum
   ConnectionTimeoutMsg = 0x08,
   TurnRadioOnMsg = 0x09,
   TurnRadioOffMsg = 0x0a,
-  SppReserved = 0x0b,
-  PariringControlMsg = 0x0c,
-  EnterSniffModeMsg = 0x0d,
-  xxReEnterSniffModeMsg = 0x0e,
+  ReadRssiMsg = 0x0b,
+  PairingControlMsg = 0x0c,
+  ReadRssiResponseMsg = 0x0d,
+  SniffControlMsg = 0x0e,
   LinkAlarmMsg = 0x0f,
   
   /*
@@ -186,6 +202,8 @@ typedef enum
   /* config and (dis)enable vibrate */
   SetVibrateMode = 0x23,
   
+  ButtonStateMsg = 0x24,
+  
   /* Sets the RTC */
   SetRealTimeClock = 0x26,  
   GetRealTimeClock = 0x27,
@@ -206,16 +224,16 @@ typedef enum
    * LCD display related commands
    */ 
   WriteBuffer = 0x40,
-  ConfigureMode = 0x41,
+  ConfigureDisplay = 0x41,
   ConfigureIdleBufferSize = 0x42,
   UpdateDisplay = 0x43,
   LoadTemplate = 0x44,
-  UpdateMyDisplaySram = 0x45, 
+  Unused_0x45 = 0x45, 
   EnableButtonMsg = 0x46,
   DisableButtonMsg = 0x47,
   ReadButtonConfigMsg = 0x48,
   ReadButtonConfigResponse = 0x49,
-  UpdateMyDisplayLcd = 0x4a,
+  Unused_0x4a = 0x4a,
   
   /* */
   BatteryChargeControl = 0x52,
@@ -235,18 +253,16 @@ typedef enum
    *
    ****************************************************************************/
   
-  
   /*****************************************************************************
    *
    * Watch/Internal Use Only
    *
    ****************************************************************************/
   IdleUpdate = 0xa0,
-  xxxInitialIdleUpdate = 0xa1,
   WatchDrawnScreenTimeout = 0xa2,
-  ClearLcdSpecial = 0xa3,
-  WriteLcd = 0xa4,
-  ClearLcd = 0xa5,
+  SplashTimeoutMsg = 0xa3,
+  Unused_0xa4 = 0xa4,
+  Unused_0xa5 = 0xa5,
   ChangeModeMsg = 0xa6,
   ModeTimeoutMsg = 0xa7,
   WatchStatusMsg = 0xa8,
@@ -257,15 +273,21 @@ typedef enum
   ModifyTimeMsg = 0xad,
   MenuButtonMsg = 0xae,
   ToggleSecondsMsg = 0xaf,
-  SplashTimeoutMsg = 0xb0,
   
   LedChange = 0xc0,
   
   QueryMemoryMsg = 0xd0,
     
-  AccelerometerSteps = 0xea,
-  AccelerometerRawData = 0xeb,
+  AccelerometerHostMsg = 0xe0,
+  AccelerometerEnableMsg  = 0xe1,
+  AccelerometerDisableMsg = 0xe2,
+  AccelerometerSendDataMsg = 0xe3,
+  AccelerometerAccessMsg = 0xe4,
+  AccelerometerResponseMsg = 0xe5,
+  AccelerometerSetupMsg = 0xe6,
   
+  SniffControlAckMsg = 0xf0,
+  SniffStateChangeMsg = 0xf1,
   
 } eMessageType;
 
@@ -387,22 +409,14 @@ typedef struct
 
 /*! Load Template Strucutre 
  *
- * /param startByte
- * /param Length
- * /param Type
- * /param Options
  * /param TemplateSelect (the first bye of payload) selects what will be filled
  * into display memory.
  */  
 typedef struct
 {
-  unsigned char startByte;
-  unsigned char Length;
-  unsigned char Type;
-  unsigned char Options;
   unsigned char TemplateSelect;
   
-} tLoadTemplate;
+} tLoadTemplatePayload;
 
 /* options */
 #define IDLE_BUFFER_SELECT         ( 0x00 )
@@ -447,33 +461,11 @@ typedef struct
 /* configure mode option */
 #define SAVE_MODE_CONFIGURATION_MASK ( BIT4 )
 
-/*! Update My (The watch) Display Message Structure 
- *
- * \param startByte is a placeholder
- * \param Length is a placeholder
- * \param Type = UpdateMyDisplayLcd
- * \param Options byte is unused
- * \param TotalLines is the number of 12 byte lines in the image
- * \param pMyDisplay points to the lcd display image held in the micro's ram
- */
-#pragma pack(1)
-typedef struct
-{
-  unsigned char startByte;
-  unsigned char Length;
-  unsigned char Type;
-  unsigned char Options;
-  unsigned int TotalLines;
-  unsigned char* pMyDisplay;
-  
-} tUpdateMyDisplayMsg;
-#pragma pack()
-
 /*! 
  * \param DisplayMode is Idle, Application, or Notification
  * \param ButtonIndex is the button index
  * \param ButtonPressType is immediate, pressed, hold, or long hold
- * \param CallbackMsgType is the callback message type for the button evetn
+ * \param CallbackMsgType is the callback message type for the button event
  * \param CallbackMsgOptions is the options to send with the message
  */
 typedef struct
@@ -518,32 +510,6 @@ typedef struct
 
 } tNvalOperationPayload;
 #pragma pack()
-
-/******************************************************************************/
-
-/*! Commands are used as a quick alternative to messages because they don't
- * require the overhead of allocating a message buffer 
- *
- * \note It may be nicer to create a queue that can handle either a
- * simple message (no payload) or a 32 byte message
- *
- */
-typedef enum
-{
-  ButtonDebounce = 0x10,
-  ButtonState = 0x11,
-  
-  VibrationState = 0x20,
-  
-  ExpiredTimerCmd = 0x30,
-  
-  SniffModeEntryCmd = 0x40,
-  
-  BlasterCmd = 0x50,
-  
-  ScrollModeCmd = 0x60,
-  
-} eCmdType;
 
 /******************************************************************************/
 
@@ -626,19 +592,77 @@ typedef union
 
 /******************************************************************************/
 
-/*! Overlay onto entire message (not payload) */
+/*! Overlay onto buffer */
 typedef struct
 {
-  unsigned char startByte;
-  unsigned char Length;
-  unsigned char Type;
-  unsigned char Options;
   unsigned char GeneralPurposeType;
-  unsigned char pPayload[HOST_MSG_MAX_PAYLOAD_LENGTH-1];
-  unsigned char crcLsb;
-  unsigned char crcMsb;
+  unsigned char pData[HOST_MSG_MAX_PAYLOAD_LENGTH-1];
 
-} tGeneralPurposeMsg;
+} tGeneralPurposePayload;
 
+/******************************************************************************/
+
+/*! Options for sniff control message
+ *
+ * Enable and disable sniff mode
+ * Request stack to exit sniff mode
+ * Request stack to disable sniff mode and disable sniff mode
+ */
+#define SNIFF_RESERVED_OPTION      ( 0 )
+#define AUTO_SNIFF_ENABLE_OPTION   ( 1 )
+#define AUTO_SNIFF_DISABLE_OPTION  ( 2 ) 
+#define SNIFF_ENTER_OPTION         ( 3 )
+#define SNIFF_EXIT_OPTION          ( 4 )
+#define SNIFF_ENTER_FAILED_OPTION  ( 5 )
+#define SNIFF_EXIT_FAILED_OPTION   ( 6 ) 
+
+/******************************************************************************/
+
+
+typedef struct
+{
+  unsigned char Address;
+  unsigned char Size;
+  unsigned char Data;
+  
+} tAccelerometerAccessPayload;
+
+#define ACCELEROMETER_DATA_START_INDEX ( 2 ) 
+
+#define ACCELEROMETER_ACCESS_WRITE_OPTION ( 0 )
+#define ACCELEROMETER_ACCESS_READ_OPTION  ( 1 )
+
+#define INTERRUPT_CONTROL_DISABLE_INTERRUPT ( 0 )
+#define INTERRUPT_CONTROL_ENABLE_INTERRUPT  ( 1 )
+
+/* send interrupt data = sid */
+#define SID_CONTROL_SEND_INTERRUPT ( 0 )
+#define SID_CONTROL_SEND_DATA      ( 1 )
+
+#define ACCELEROMETER_SETUP_RESERVED_OPTION                 ( 0 )
+#define ACCELEROMETER_SETUP_INTERRUPT_CONTROL_OPTION        ( 1 )
+#define ACCELEROMETER_SETUP_OPMODE_OPTION                   ( 2 )
+#define ACCELEROMETER_SETUP_SID_CONTROL_OPTION              ( 3 )
+#define ACCELEROMETER_SETUP_SID_ADDR_OPTION                 ( 4 )
+#define ACCELEROMETER_SETUP_SID_LENGTH_OPTION               ( 5 )
+#define ACCELEROMETER_SETUP_INTERRUPT_ENABLE_DISABLE_OPTION ( 6 )
+
+#define ACCELEROMETER_HOST_MSG_IS_DATA_OPTION      ( 1 )
+#define ACCELEROMETER_HOST_MSG_IS_INTERRUPT_OPTION ( 2 )
+
+
+/******************************************************************************/
+
+#define READ_RSSI_SUCCESS_OPTION ( 1 )
+#define READ_RSSI_FAILURE_OPTION ( 2 )
+
+
+/******************************************************************************/
+
+#define CONFIGURE_DISPLAY_OPTION_RESERVED             ( 0 )
+#define CONFIGURE_DISPLAY_OPTION_DONT_DISPLAY_SECONDS ( 1 )
+#define CONFIGURE_DISPLAY_OPTION_DISPLAY_SECONDS      ( 2 )
+#define CONFIGURE_DISPLAY_OPTION_DONT_INVERT_DISPLAY  ( 3 )
+#define CONFIGURE_DISPLAY_OPTION_INVERT_DISPLAY       ( 4 )
 
 #endif  /* MESSAGES_H */

@@ -78,10 +78,8 @@ void SetupTimerForAnalogDisplay( void )
   // additional prescale by 8
   TB0EX0 = TBIDEX__8;           
 
-  // Total prescale = 64  fin = 512 Hz
-
-  // Set the compare match value according to the tick rate we want
-  // this is 0.1 Hz / 512 Hz = 5120
+  // Set the compare match value according to get a pulse every 1 second
+  // 5120 = (1 second)/((1/32.768e3)*64)  
   TB0CCR0 = ( ANALOG_DISP_TIMER_DIVIDER - 1);
 
   // It's not good to use zero as a toggle point because you can get an
@@ -103,7 +101,7 @@ void SetupTimerForAnalogDisplay( void )
  * to stop the fast advance.
  *
  * \note This is the capture-compare zero interrupt which occurs when the PWM
- * timer hits its end count.  We get one interrupt per pulse to the disaplay.
+ * timer hits its end count.  We get one interrupt per pulse to the display.
  *
  * \param none
  *

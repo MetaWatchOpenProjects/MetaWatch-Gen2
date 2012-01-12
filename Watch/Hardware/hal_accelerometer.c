@@ -1,3 +1,4 @@
+
 //==============================================================================
 //  Copyright 2011 Meta Watch Ltd. - http://www.MetaWatch.org/
 // 
@@ -22,6 +23,7 @@
 
 #include "FreeRTOS.h"
 #include "task.h"
+#include "semphr.h"
 
 #include "hal_board_type.h"
 #include "hal_accelerometer.h"
@@ -34,7 +36,10 @@ static unsigned char AccelerometerBusy;
 static unsigned char Count;
 static unsigned char Index;
 static unsigned char* pAccelerometerData;
+  
+static xSemaphoreHandle AccelerometerMutex;
 
+  
 /******************************************************************************/
 
 /* the accelerometer can run at 400 kHz */
@@ -56,6 +61,9 @@ void InitAccelerometerPeripheral(void)
   /* enable interrupts after serial controller is released from reset */
   /* ACCELEROMETER_IE |= UCNACKIE + UCSTPIE + UCSTTIE + UCTXIE + UCRXIE  */
   ACCELEROMETER_IE |= UCNACKIE;
+
+  AccelerometerMutex = xSemaphoreCreateMutex();
+  xSemaphoreGive(AccelerometerMutex);
   
 }
 
@@ -66,6 +74,7 @@ void AccelerometerWrite(unsigned char RegisterAddress,
 {
   
   EnableSmClkUser(ACCELEROMETER_USER);
+  xSemaphoreTake(AccelerometerMutex,portMAX_DELAY);
   
   AccelerometerBusy = 1;
   Count = Length;
@@ -91,6 +100,7 @@ void AccelerometerWrite(unsigned char RegisterAddress,
   while(ACCELEROMETER_CTL1 & UCTXSTP);
   
   DisableSmClkUser(ACCELEROMETER_USER);
+  xSemaphoreGive(AccelerometerMutex);
   
 }
 
@@ -98,9 +108,9 @@ void AccelerometerRead(unsigned char RegisterAddress,
                        unsigned char* pData,
                        unsigned char Length)
 {
-     
   EnableSmClkUser(ACCELEROMETER_USER);
-
+  xSemaphoreTake(AccelerometerMutex,portMAX_DELAY);
+  
   AccelerometerBusy = 1;
   Count = Length;
   Index = 0;
@@ -126,6 +136,7 @@ void AccelerometerRead(unsigned char RegisterAddress,
   while(AccelerometerBusy);
   
   DisableSmClkUser(ACCELEROMETER_USER);
+  xSemaphoreGive(AccelerometerMutex);
 
 }
 
@@ -171,6 +182,7 @@ __interrupt void ACCERLEROMETER_ISR(void)
     {
       /* send nack and stop immediately because RXBUF has not been read */
       ACCELEROMETER_CTL1 |= UCTXSTP;
+    
       /* this wait is required for things to work properly (3.125 us) */
       while(ACCELEROMETER_CTL1 & UCTXSTP);
       pAccelerometerData[Index++] = ACCELEROMETER_RXBUF;

@@ -85,7 +85,7 @@
 /*
  * Initialize NV service
  */
-void osal_nv_init( void *p );
+void OsalNvInit( void *p );
 
 /*
  * Read an NV attribute
@@ -103,7 +103,7 @@ void OsalNvItemInit( unsigned int id, unsigned int len, void *buf );
 
 void WriteMasterResetKey(void);
 
-void PrintNvalSaveError(signed char *pString);
+void PrintNvalSaveError(char *pString);
 
 /*********************************************************************
 *********************************************************************/

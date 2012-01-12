@@ -82,12 +82,6 @@
 
 /*-----------------------------------------------------------*/
 
-/* Interrupt control macros. */
-//#define portDISABLE_INTERRUPTS()    { DisableFlow(); __disable_interrupt(); }
-//#define portENABLE_INTERRUPTS()     { __enable_interrupt(); EnableFlow(); }
-
-#define portDISABLE_INTERRUPTS()    { __disable_interrupt(); }
-#define portENABLE_INTERRUPTS()     { __enable_interrupt(); }
 
 /*-----------------------------------------------------------*/
 
@@ -98,7 +92,9 @@
 {                                                                             \
    extern volatile unsigned portSHORT usCriticalNesting;                      \
                                                                               \
-   portDISABLE_INTERRUPTS();                                                  \
+   __disable_interrupt();                                                     \
+   __no_operation();                                                          \
+                                                                              \
    /* Now interrupts are disabled usCriticalNesting can be accessed      */   \
    /* directly.  Increment ulCriticalNesting to keep a count of how many */   \
    /* times portENTER_CRITICAL() has been called.                        */   \
@@ -108,7 +104,6 @@
 #define portEXIT_CRITICAL()                                                   \
 {                                                                             \
    extern volatile unsigned portSHORT usCriticalNesting;                      \
-   extern volatile unsigned portSHORT usFlowEnabled;                          \
                                                                               \
    if( usCriticalNesting > portNO_CRITICAL_SECTION_NESTING )                  \
    {                                                                          \
@@ -118,36 +113,7 @@
       /* re-enabled. */                                                       \
       if( usCriticalNesting == portNO_CRITICAL_SECTION_NESTING )              \
       {                                                                       \
-         portENABLE_INTERRUPTS();                                             \
-      }                                                                       \
-   }                                                                          \
-}
-
-#define xportENTER_CRITICAL()                                                  \
-{                                                                             \
-   extern volatile unsigned portSHORT usCriticalNesting;                      \
-                                                                              \
-   portDISABLE_INTERRUPTS();                                                  \
-                                                            \
-   /* Now interrupts are disabled usCriticalNesting can be accessed */        \
-   /* directly.  Increment ulCriticalNesting to keep a count of how many */   \
-   /* times portENTER_CRITICAL() has been called. */                          \
-   usCriticalNesting++;                                                       \
-}
-
-#define xportEXIT_CRITICAL()                                                   \
-{                                                                             \
-   extern volatile unsigned portSHORT usCriticalNesting;                      \
-                                                                              \
-   if( usCriticalNesting > portNO_CRITICAL_SECTION_NESTING )                  \
-   {                                                                          \
-      /* Decrement the nesting count as we are leaving a critical section. */ \
-      usCriticalNesting--;                                                    \
-      /* If the nesting level has reached zero then interrupts should be */   \
-      /* re-enabled. */                                                       \
-      if( usCriticalNesting == portNO_CRITICAL_SECTION_NESTING )              \
-      {                                                                       \                                               \
-         portENABLE_INTERRUPTS();                                             \
+        __enable_interrupt();                                                 \
       }                                                                       \
    }                                                                          \
 }
@@ -160,13 +126,9 @@
 /*
  * Manual context switch called by portYIELD or taskYIELD.
  */
-// extern __task void vPortYield( void );
 extern void vPortYield( void );
-extern void vPortYieldISR(void);
-
 #define portYIELD() vPortYield()
 
-extern void vTickISR(void);
 /*-----------------------------------------------------------*/
 
 /* Hardware specifics. */
@@ -175,25 +137,6 @@ extern void vTickISR(void);
 #define portTICK_RATE_MS         ((portTickType) 1000 / configTICK_RATE_HZ)
 #define portNOP()                __no_operation()
 /*-----------------------------------------------------------*/
-
-/* Task function macros as described on the FreeRTOS.org WEB site. */
-//#define portTASK_FUNCTION_PROTO( vFunction, pvParameters ) void vFunction( void *pvParameters )
-//#define portTASK_FUNCTION( vFunction, pvParameters ) void vFunction( void *pvParameters )
-
-/* Compiler specifics. */
-// #define inline   _inline
-
-/* Just used by the demo application to indicate which form of interrupt
-service routine should be used.  See the online port documentation for more
-information. */
-#define MSP_ROWLEY_RB_PORT
-
-#if configINTERRUPT_EXAMPLE_METHOD == 2
-
-extern void vTaskSwitchContext( void );
-#define portYIELD_FROM_ISR( x ) if( x ) vTaskSwitchContext()
-
-#endif
 
 #endif /* PORTMACRO_H */
 

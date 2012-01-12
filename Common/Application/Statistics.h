@@ -60,6 +60,8 @@ typedef struct
 {
   unsigned char DebugUartOverflow;
   unsigned char BufferPoolFailure;
+  unsigned char QueueOverflow;
+  unsigned char FllFailure;
 
 } tApplicationStatistics;
 

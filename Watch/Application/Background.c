@@ -27,7 +27,6 @@
 #include "queue.h"
 
 #include "Messages.h"
-#include "BufferPool.h"     
 #include "MessageQueues.h"
 
 #include "hal_board_type.h"
@@ -49,19 +48,24 @@
 #include "Statistics.h"
 #include "OSAL_Nv.h"
 #include "NvIds.h"
+#include "Display.h"
+#include "LcdDisplay.h"
+#include "OledDriver.h"
+#include "OledDisplay.h"
+#include "Accelerometer.h"
 
 static void BackgroundTask(void *pvParameters);
 
-static void BackgroundMessageHandler(tHostMsg* pMsg);
+static void BackgroundMessageHandler(tMessage* pMsg);
 
-static void AdvanceWatchHandsHandler(tHostMsg* pMsg);
-static void EnableButtonMsgHandler(tHostMsg* pMsg);
-static void DisableButtonMsgHandler(tHostMsg* pMsg);
-static void ReadButtonConfigHandler(tHostMsg* pMsg);
-static void ReadBatteryVoltageHandler(tHostMsg* pMsg);
-static void ReadLightSensorHandler(tHostMsg* pMsg);
-static void NvalOperationHandler(tHostMsg* pMsg);
-static void SoftwareResetHandler(tHostMsg* pMsg);
+static void AdvanceWatchHandsHandler(tMessage* pMsg);
+static void EnableButtonMsgHandler(tMessage* pMsg);
+static void DisableButtonMsgHandler(tMessage* pMsg);
+static void ReadButtonConfigHandler(tMessage* pMsg);
+static void ReadBatteryVoltageHandler(void);
+static void ReadLightSensorHandler(void);
+static void NvalOperationHandler(tMessage* pMsg);
+static void SoftwareResetHandler(tMessage* pMsg);
 
 #define BACKGROUND_MSG_QUEUE_LEN   8    
 #define BACKGROUND_STACK_DEPTH	    (configMINIMAL_STACK_DEPTH + 50)
@@ -69,7 +73,7 @@ static void SoftwareResetHandler(tHostMsg* pMsg);
 
 xTaskHandle xBkgTaskHandle;
 
-static tHostMsg* pBackgroundMsg;
+static tMessage BackgroundMsg;
 
 static tTimerId BatteryMonitorTimerId;
 static void InitializeBatteryMonitorInterval(void);
@@ -78,13 +82,17 @@ static unsigned int nvBatteryMonitorIntervalInSeconds;
 
 static unsigned char LedOn;
 static tTimerId LedTimerId;
-static void LedChangeHandler(tHostMsg* pMsg);
+static void LedChangeHandler(tMessage* pMsg);
 
 /******************************************************************************/
 
 /* externed with hal_lpm */
 unsigned char nvRstNmiConfiguration;
 static void InitializeRstNmiConfiguration(void);
+
+/******************************************************************************/
+
+static void NvUpdater(unsigned int NvId);
 
 /******************************************************************************/
 
@@ -101,7 +109,7 @@ void InitializeBackgroundTask( void )
   xTaskCreate(BackgroundTask, 
               "BACKGROUND", 
               BACKGROUND_STACK_DEPTH, 
-              NULL, 
+              (void *) NULL, 
               BACKGROUND_TASK_PRIORITY, 
               &xBkgTaskHandle);
 
@@ -120,9 +128,12 @@ static void BackgroundTask(void *pvParameters)
     PrintString("Background Queue not created!\r\n");
   }
   
+  portENTER_CRITICAL();
+  /* let the names print out nicely */
   PrintString(SPP_DEVICE_NAME);
   PrintString2("\r\nSoftware Version ",VERSION_STRING);
   PrintString("\r\n\r\n");
+  portEXIT_CRITICAL();
   
   InitializeRstNmiConfiguration();
   
@@ -160,28 +171,25 @@ static void BackgroundTask(void *pvParameters)
                       LedChange,
                       LED_OFF_OPTION);
 
-#if 0
-  BPL_AllocMessageBuffer(&pBackgroundMsg);
-  UTL_BuildHstMsg(pBackgroundMsg,GetDeviceType,NO_MSG_OPTIONS,
-                  pBackgroundMsg->pPayload,0);
-  RouteMsg(&pBackgroundMsg);
-  
-  BPL_AllocMessageBuffer(&pBackgroundMsg);  
-  UTL_BuildHstMsg(pBackgroundMsg,GetRealTimeClock,NO_MSG_OPTIONS,
-                  pBackgroundMsg->pPayload,0);
-  RouteMsg(&pBackgroundMsg);
-#endif
+  /*
+   * This does not need to be done in main
+   */
+  InitializeAccelerometer();
   
   for(;;)
   {
     if( pdTRUE == xQueueReceive(QueueHandles[BACKGROUND_QINDEX], 
-                                &pBackgroundMsg, portMAX_DELAY ) )
+                                &BackgroundMsg, portMAX_DELAY ) )
     {
-      BackgroundMessageHandler(pBackgroundMsg);
+      PrintMessageType(&BackgroundMsg);
       
-      BPL_FreeMessageBuffer(&pBackgroundMsg);
+      BackgroundMessageHandler(&BackgroundMsg);
+      
+      SendToFreeQueue(&BackgroundMsg);
       
       CheckStackUsage(xBkgTaskHandle,"Background Task");
+
+      CheckQueueUsage(QueueHandles[BACKGROUND_QINDEX]);
 
     }
 
@@ -190,23 +198,22 @@ static void BackgroundTask(void *pvParameters)
 }
 
 /*! Handle the messages routed to the background task */
-static void BackgroundMessageHandler(tHostMsg* pMsg)
+static void BackgroundMessageHandler(tMessage* pMsg)
 {  
-  tHostMsg* pOutgoingMsg;    
-
-  eMessageType Type = (eMessageType)pMsg->Type;
+  tMessage OutgoingMsg;    
       
-  switch(Type)
+  switch(pMsg->Type)
   {
   case GetDeviceType:
-    BPL_AllocMessageBuffer(&pOutgoingMsg);
     
-    pOutgoingMsg->pPayload[0] = BOARD_TYPE;
+    SetupMessageAndAllocateBuffer(&OutgoingMsg,
+                                  GetDeviceTypeResponse,
+                                  NO_MSG_OPTIONS);
   
-    UTL_BuildHstMsg(pOutgoingMsg,GetDeviceTypeResponse,NO_MSG_OPTIONS,
-                    pOutgoingMsg->pPayload,sizeof(unsigned char));
+    OutgoingMsg.pBuffer[0] = BOARD_TYPE;
+    OutgoingMsg.Length = 1;
+    RouteMsg(&OutgoingMsg);
     
-    RouteMsg(&pOutgoingMsg);
     break;
 
   case AdvanceWatchHandsMsg:
@@ -218,24 +225,23 @@ static void BackgroundMessageHandler(tHostMsg* pMsg)
     break;
     
   case SetRealTimeClock:
-    halRtcSet((tRtcHostMsgPayload*)pMsg->pPayload);
+    halRtcSet((tRtcHostMsgPayload*)pMsg->pBuffer);
     
 #ifdef DIGITAL
-    BPL_AllocMessageBuffer(&pOutgoingMsg);
-    pOutgoingMsg->Type = IdleUpdate;
-    pOutgoingMsg->Options = NO_MSG_OPTIONS;
-    RouteMsg(&pOutgoingMsg);
+    SetupMessage(&OutgoingMsg,IdleUpdate,NO_MSG_OPTIONS);
+    RouteMsg(&OutgoingMsg);
 #endif
     break;
   
   case GetRealTimeClock:
-    BPL_AllocMessageBuffer(&pOutgoingMsg);
-    halRtcGet((tRtcHostMsgPayload*)pOutgoingMsg->pPayload);
     
-    UTL_BuildHstMsg(pOutgoingMsg,GetRealTimeClockResponse,NO_MSG_OPTIONS,
-                    pOutgoingMsg->pPayload,sizeof(tRtcHostMsgPayload));
+    SetupMessageAndAllocateBuffer(&OutgoingMsg,
+                                  GetRealTimeClockResponse,
+                                  NO_MSG_OPTIONS);
     
-    RouteMsg(&pOutgoingMsg);
+    halRtcGet((tRtcHostMsgPayload*)OutgoingMsg.pBuffer);
+    OutgoingMsg.Length = sizeof(tRtcHostMsgPayload);
+    RouteMsg(&OutgoingMsg);
     break;
 
   case EnableButtonMsg:
@@ -256,13 +262,13 @@ static void BackgroundMessageHandler(tHostMsg* pMsg)
     /* update the screen if there has been a change in charging status */
     if ( BatteryChargingControl() )
     {
-      BPL_AllocMessageBuffer(&pOutgoingMsg);
-      pOutgoingMsg->Type = IdleUpdate;
-      RouteMsg(&pOutgoingMsg);   
+      SetupMessage(&OutgoingMsg,IdleUpdate,NO_MSG_OPTIONS);
+      RouteMsg(&OutgoingMsg);  
     }
 #endif 
-    
+    DEBUG4_HIGH();
     BatterySenseCycle();
+    DEBUG4_LOW();
     LowBatteryMonitor();
 #ifdef TASK_DEBUG
     UTL_FreeRtosTaskStackCheck();
@@ -275,15 +281,15 @@ static void BackgroundMessageHandler(tHostMsg* pMsg)
     break;
 
   case BatteryConfigMsg:
-    SetBatteryLevels(pMsg->pPayload);
+    SetBatteryLevels(pMsg->pBuffer);
     break;
     
   case ReadBatteryVoltageMsg:
-    ReadBatteryVoltageHandler(pMsg);
+    ReadBatteryVoltageHandler();
     break;
 
   case ReadLightSensorMsg:
-    ReadLightSensorHandler(pMsg);
+    ReadLightSensorHandler();
     break;
     
   case SoftwareResetMsg:
@@ -298,8 +304,38 @@ static void BackgroundMessageHandler(tHostMsg* pMsg)
     /* insert handler here */
     break;
     
+  case ButtonStateMsg:
+    ButtonStateHandler(); 
+    break;
+
+  /*
+   * Accelerometer Messages 
+   */
+  case AccelerometerEnableMsg:
+    AccelerometerEnable();
+    break;
+    
+  case AccelerometerDisableMsg:
+    AccelerometerDisable();
+    break;
+  
+  case AccelerometerSendDataMsg:
+    AccelerometerSendDataHandler();
+    break;
+  
+  case AccelerometerAccessMsg:
+    AccelerometerAccessHandler(pMsg);
+    break;
+  
+  case AccelerometerSetupMsg:
+    AccelerometerSetupHandler(pMsg);
+    break;
+   
+  /*
+   *
+   */
   default:
-    PrintStringAndHex("<<Unhandled Message>> in Background Task: Type 0x", Type);
+    PrintStringAndHex("<<Unhandled Message>> in Background Task: Type 0x", pMsg->Type);
     break;
   }
 
@@ -311,12 +347,12 @@ static void BackgroundMessageHandler(tHostMsg* pMsg)
  * the analog watch hands.
  *
  */
-static void AdvanceWatchHandsHandler(tHostMsg* pMsg)
+static void AdvanceWatchHandsHandler(tMessage* pMsg)
 {
 #ifdef ANALOG
   // overlay a structure pointer on the data section
   tAdvanceWatchHandsPayload* pPayload;
-  pPayload = (tAdvanceWatchHandsPayload*) pMsg->pPayload;
+  pPayload = (tAdvanceWatchHandsPayload*) pMsg->pBuffer;
 
   if ( pPayload->Hours <= 12 )
   {
@@ -341,7 +377,7 @@ static void AdvanceWatchHandsHandler(tHostMsg* pMsg)
  * \param tHostMsg* pMsg The message options contain the type of operation that
  * should be performed on the LED outout.
  */
-static void LedChangeHandler(tHostMsg* pMsg)
+static void LedChangeHandler(tMessage* pMsg)
 {
   switch (pMsg->Options)
   {
@@ -390,9 +426,10 @@ static void LedChangeHandler(tHostMsg* pMsg)
  *
  * \param tHostMsg* pMsg - A message with a tButtonActionPayload payload
  */
-static void EnableButtonMsgHandler(tHostMsg* pMsg)
+static void EnableButtonMsgHandler(tMessage* pMsg)
 {
-  tButtonActionPayload* pButtonActionPayload = (tButtonActionPayload*)pMsg->pPayload;  
+  tButtonActionPayload* pButtonActionPayload = 
+    (tButtonActionPayload*)pMsg->pBuffer;  
 
   EnableButtonAction(pButtonActionPayload->DisplayMode,
                      pButtonActionPayload->ButtonIndex,
@@ -407,9 +444,10 @@ static void EnableButtonMsgHandler(tHostMsg* pMsg)
  *
  * \param tHostMsg* pMsg - A message with a tButtonActionPayload payload
  */
-static void DisableButtonMsgHandler(tHostMsg* pMsg)
+static void DisableButtonMsgHandler(tMessage* pMsg)
 {
-  tButtonActionPayload* pButtonActionPayload = (tButtonActionPayload*)pMsg->pPayload;  
+  tButtonActionPayload* pButtonActionPayload = 
+    (tButtonActionPayload*)pMsg->pBuffer;  
   
   DisableButtonAction(pButtonActionPayload->DisplayMode,
                       pButtonActionPayload->ButtonIndex,
@@ -423,22 +461,25 @@ static void DisableButtonMsgHandler(tHostMsg* pMsg)
  *
  * \param tHostMsg* pMsg - A message with a tButtonActionPayload payload
  */
-static void ReadButtonConfigHandler(tHostMsg* pMsg)
+static void ReadButtonConfigHandler(tMessage* pMsg)
 {
-  tButtonActionPayload* pButtonActionPayload = (tButtonActionPayload*)pMsg->pPayload;  
+  /* map incoming message payload to button information */
+  tButtonActionPayload* pButtonActionPayload = 
+    (tButtonActionPayload*)pMsg->pBuffer;  
   
-  tHostMsg* pOutgoingMsg;
-  BPL_AllocMessageBuffer(&pOutgoingMsg);
+  tMessage OutgoingMsg;
+  SetupMessageAndAllocateBuffer(&OutgoingMsg,
+                                ReadButtonConfigResponse,
+                                NO_MSG_OPTIONS);
   
   ReadButtonConfiguration(pButtonActionPayload->DisplayMode,
                           pButtonActionPayload->ButtonIndex,
                           pButtonActionPayload->ButtonPressType,
-                          pOutgoingMsg->pPayload);
+                          OutgoingMsg.pBuffer);
   
-  UTL_BuildHstMsg(pOutgoingMsg,ReadButtonConfigResponse,NO_MSG_OPTIONS,
-                  pOutgoingMsg->pPayload,5);
+  OutgoingMsg.Length = 5;
   
-  RouteMsg(&pOutgoingMsg);
+  RouteMsg(&OutgoingMsg);
   
 }
 
@@ -448,27 +489,28 @@ static void ReadButtonConfigHandler(tHostMsg* pMsg)
  * \param tHostMsg* pMsg is unused
  *
  */
-static void ReadBatteryVoltageHandler(tHostMsg* pMsg)
+static void ReadBatteryVoltageHandler(void)
 {
-  tHostMsg* pOutgoingMsg;
-  BPL_AllocMessageBuffer(&pOutgoingMsg);
+  tMessage OutgoingMsg;
+  SetupMessageAndAllocateBuffer(&OutgoingMsg,
+                                ReadBatteryVoltageResponse,
+                                NO_MSG_OPTIONS);
   
   /* if the battery is not present then these values are meaningless */
-  pOutgoingMsg->pPayload[0] = QueryPowerGood();
-  pOutgoingMsg->pPayload[1] = QueryBatteryCharging();
+  OutgoingMsg.pBuffer[0] = 0;
+  OutgoingMsg.pBuffer[1] = QueryBatteryCharging();
   
   unsigned int bv = ReadBatterySense();
-  pOutgoingMsg->pPayload[2] = bv & 0xFF;
-  pOutgoingMsg->pPayload[3] = (bv >> 8 ) & 0xFF;
+  OutgoingMsg.pBuffer[2] = bv & 0xFF;
+  OutgoingMsg.pBuffer[3] = (bv >> 8 ) & 0xFF;
   
   bv = ReadBatterySenseAverage();
-  pOutgoingMsg->pPayload[4] = bv & 0xFF;
-  pOutgoingMsg->pPayload[5] = (bv >> 8 ) & 0xFF;
+  OutgoingMsg.pBuffer[4] = bv & 0xFF;
+  OutgoingMsg.pBuffer[5] = (bv >> 8 ) & 0xFF;
 
-  UTL_BuildHstMsg(pOutgoingMsg,ReadBatteryVoltageResponse,NO_MSG_OPTIONS,
-                  pOutgoingMsg->pPayload,6);
+  OutgoingMsg.Length = 6;
   
-  RouteMsg(&pOutgoingMsg);
+  RouteMsg(&OutgoingMsg);
   
 }
 
@@ -478,29 +520,30 @@ static void ReadBatteryVoltageHandler(tHostMsg* pMsg)
  * \param tHostMsg* pMsg is unused
  *
  */
-static void ReadLightSensorHandler(tHostMsg* pMsg)
+static void ReadLightSensorHandler(void)
 {
   /* start cycle and wait for it to finish */
   LightSenseCycle();
   
   /* send message to the host */
-  tHostMsg* pOutgoingMsg;
-  BPL_AllocMessageBuffer(&pOutgoingMsg);
+  tMessage OutgoingMsg;
+  SetupMessageAndAllocateBuffer(&OutgoingMsg,
+                                ReadLightSensorResponse,
+                                NO_MSG_OPTIONS);
   
   /* instantaneous value */
   unsigned int lv = ReadLightSense();
-  pOutgoingMsg->pPayload[0] = lv & 0xFF;
-  pOutgoingMsg->pPayload[1] = (lv >> 8 ) & 0xFF;
+  OutgoingMsg.pBuffer[0] = lv & 0xFF;
+  OutgoingMsg.pBuffer[1] = (lv >> 8 ) & 0xFF;
 
   /* average value */
   lv = ReadLightSenseAverage();
-  pOutgoingMsg->pPayload[2] = lv & 0xFF;
-  pOutgoingMsg->pPayload[3] = (lv >> 8 ) & 0xFF;
+  OutgoingMsg.pBuffer[2] = lv & 0xFF;
+  OutgoingMsg.pBuffer[3] = (lv >> 8 ) & 0xFF;
 
-  UTL_BuildHstMsg(pOutgoingMsg,ReadLightSensorResponse,NO_MSG_OPTIONS,
-                  pOutgoingMsg->pPayload,4);
+  OutgoingMsg.Length = 4;
   
-  RouteMsg(&pOutgoingMsg);
+  RouteMsg(&OutgoingMsg);
   
 }
 
@@ -516,7 +559,7 @@ static void InitializeBatteryMonitorInterval(void)
 }
 
 /* choose whether or not to do a master reset (reset non-volatile values) */
-static void SoftwareResetHandler(tHostMsg* pMsg)
+static void SoftwareResetHandler(tMessage* pMsg)
 {
   if ( pMsg->Options == MASTER_RESET_OPTION )
   {
@@ -527,22 +570,23 @@ static void SoftwareResetHandler(tHostMsg* pMsg)
   
 }
 
-static void NvalOperationHandler(tHostMsg* pMsg)
+static void NvalOperationHandler(tMessage* pMsg)
 {
   /* overlay */
-  tNvalOperationPayload* pNvPayload = (tNvalOperationPayload*)pMsg->pPayload;  
+  tNvalOperationPayload* pNvPayload = (tNvalOperationPayload*)pMsg->pBuffer;  
 
   /* create the outgoing message */
-  tHostMsg* pOutgoingMsg;
-  BPL_AllocMessageBuffer(&pOutgoingMsg);
-  pOutgoingMsg->Options = NV_FAILURE;
-  pOutgoingMsg->Type = NvalOperationResponseMsg;
+  tMessage OutgoingMsg;
+  SetupMessageAndAllocateBuffer(&OutgoingMsg,
+                                NvalOperationResponseMsg,
+                                NV_FAILURE);
+  
   /* add identifier to outgoing message */
   tWordByteUnion Identifier;
   Identifier.word = pNvPayload->NvalIdentifier;
-  pOutgoingMsg->pPayload[0] = Identifier.byte0;
-  pOutgoingMsg->pPayload[1] = Identifier.byte1;
-  pOutgoingMsg->Length = 2;
+  OutgoingMsg.pBuffer[0] = Identifier.byte0;
+  OutgoingMsg.pBuffer[1] = Identifier.byte1;
+  OutgoingMsg.Length = 2;
   
   /* option byte in return message is status */
   switch (pMsg->Options)
@@ -556,41 +600,44 @@ static void NvalOperationHandler(tHostMsg* pMsg)
     
   case NVAL_READ_OPERATION:
     
-    pOutgoingMsg->Options = OsalNvRead(pNvPayload->NvalIdentifier,
+    /* read the value and update the length */
+    OutgoingMsg.Options = OsalNvRead(pNvPayload->NvalIdentifier,
                                        NV_ZERO_OFFSET,
                                        pNvPayload->Size,
-                                       &pOutgoingMsg->pPayload[2]);
+                                     &OutgoingMsg.pBuffer[2]);
     
-    pOutgoingMsg->Length += pNvPayload->Size;
+    OutgoingMsg.Length += pNvPayload->Size;
     
     break;
   
   case NVAL_WRITE_OPERATION:
+    
     /* check that the size matches (otherwise NV_FAILURE is sent) */
     if ( OsalNvItemLength(pNvPayload->NvalIdentifier) == pNvPayload->Size )
     {
-      pOutgoingMsg->Options = OsalNvWrite(pNvPayload->NvalIdentifier,
+      OutgoingMsg.Options = OsalNvWrite(pNvPayload->NvalIdentifier,
                                           NV_ZERO_OFFSET,
                                           pNvPayload->Size,
                                           (void*)(&pNvPayload->DataStartByte));
     }
      
+    /* update the copy in ram */
+    NvUpdater(pNvPayload->NvalIdentifier);
     break;
   
   default:
     break;
   }
   
-  UTL_PrepareHstMsg(pOutgoingMsg);
-  RouteMsg(&pOutgoingMsg);
+  RouteMsg(&OutgoingMsg);
   
 }
 
 
+/******************************************************************************/
+  
 void InitializeRstNmiConfiguration(void)
 {
-  /****************************************************************************/
-  
   nvRstNmiConfiguration = RST_PIN_DISABLED;
   OsalNvItemInit(NVID_RSTNMI_CONFIGURATION, 
                  sizeof(nvRstNmiConfiguration), 
@@ -609,3 +656,106 @@ void SaveRstNmiConfiguration(void)
               &nvRstNmiConfiguration);  
 }
 
+
+
+
+/******************************************************************************/
+  
+/* The value in RAM must be updated if the phone writes the value in
+ * flash (until the code is changed to read the value from flash)
+ */
+static void NvUpdater(unsigned int NvId)
+{
+  switch (NvId)
+  {
+#ifdef DIGITAL
+    case NVID_IDLE_BUFFER_CONFIGURATION:
+      InitializeIdleBufferConfig();
+      break;
+    case NVID_IDLE_BUFFER_INVERT:
+      InitializeIdleBufferInvert();
+      break;
+#endif
+      
+    case NVID_IDLE_MODE_TIMEOUT:
+    case NVID_APPLICATION_MODE_TIMEOUT:
+    case NVID_NOTIFICATION_MODE_TIMEOUT:
+    case NVID_RESERVED_MODE_TIMEOUT:
+      InitializeModeTimeouts();
+      break;
+      
+#ifdef ANALOG
+    case NVID_IDLE_DISPLAY_TIMEOUT:
+    case NVID_APPLICATION_DISPLAY_TIMEOUT:
+    case NVID_NOTIFICATION_DISPLAY_TIMEOUT:
+    case NVID_RESERVED_DISPLAY_TIMEOUT:
+      InitializeDisplayTimeouts();
+      break;
+#endif
+      
+    case NVID_SNIFF_DEBUG:
+    case NVID_BATTERY_DEBUG:
+    case NVID_CONNECTION_DEBUG:
+      InitializeDebugFlags();
+      break;
+      
+    case NVID_RSTNMI_CONFIGURATION:
+      InitializeRstNmiConfiguration();
+      break;
+      
+    case NVID_MASTER_RESET:
+      /* this gets handled on reset */
+      break;
+      
+    case NVID_LOW_BATTERY_WARNING_LEVEL:
+    case NVID_LOW_BATTERY_BTOFF_LEVEL:
+      InitializeLowBatteryLevels();
+      break;
+      
+    case NVID_BATTERY_SENSE_INTERVAL:
+      InitializeBatteryMonitorInterval();
+      break;
+      
+    case NVID_LIGHT_SENSE_INTERVAL:
+      break;
+      
+    case NVID_SECURE_SIMPLE_PAIRING_ENABLE:
+      /* not for phone control - reset watch */
+      break;
+      
+    case NVID_LINK_ALARM_ENABLE:
+      InitializeLinkAlarmEnable();
+      break;
+      
+    case NVID_LINK_ALARM_DURATION:
+      break;
+      
+    case NVID_PAIRING_MODE_DURATION:
+      /* not for phone control - reset watch */
+      break;
+      
+    case NVID_TIME_FORMAT:
+      InitializeTimeFormat();
+      break;
+      
+    case NVID_DATE_FORMAT:
+      InitializeDateFormat();
+      break;
+      
+#ifdef DIGITAL
+    case NVID_DISPLAY_SECONDS:
+      InitializeDisplaySeconds();
+      break;
+#endif
+      
+#ifdef ANALOG
+    case NVID_TOP_OLED_CONTRAST_DAY:
+    case NVID_BOTTOM_OLED_CONTRAST_DAY:
+    case NVID_TOP_OLED_CONTRAST_NIGHT:
+    case NVID_BOTTOM_OLED_CONTRAST_NIGHT:
+      InitializeContrastValues();
+      break;
+#endif
+      
+  }
+}

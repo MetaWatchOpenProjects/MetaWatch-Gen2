@@ -22,8 +22,12 @@
 
 #include "FreeRTOS.h"
 #include "task.h"
+#include "queue.h"
 
 #include "hal_board_type.h"
+
+#include "Messages.h"
+#include "MessageQueues.h"
 
 #include "DebugUart.h"
 #include "hal_crc.h"
@@ -32,7 +36,6 @@
 
 #ifdef TASK_DEBUG
 static unsigned char TaskIndex = 0;
-static unsigned char NumberOfTasksInLog  = 0;
 static tTaskInfo taskInfoArray[MAX_NUM_TASK_LOG_ENTRIES];
 #endif
 
@@ -42,32 +45,28 @@ static tTaskInfo taskInfoArray[MAX_NUM_TASK_LOG_ENTRIES];
  * \return TRUE if task could be registered
  *         FALSE if the task did not fit into the list
  */
-unsigned char UTL_RegisterFreeRtosTask(pdTASK_CODE pxTaskCode, 
-                                       const signed char * const pcName, 
-                                       void *xTaskHandle,
+unsigned char UTL_RegisterFreeRtosTask(void * TaskHandle,
                                        unsigned int StackDepth)
 {
   unsigned char retValue = 1;
   
-  if(NumberOfTasksInLog >= MAX_NUM_TASK_LOG_ENTRIES)
+  if(TaskIndex >= MAX_NUM_TASK_LOG_ENTRIES)
   {
     PrintString("Task Log is Full \r\n");
     retValue = 0;  
   }
   else
   {
-    //taskInfoArray[TaskIndex].taskCode = pxTaskCode;
-    taskInfoArray[TaskIndex].name = (signed char*)pcName;
-    taskInfoArray[TaskIndex].taskHandle = xTaskHandle;
+    taskInfoArray[TaskIndex].taskHandle = TaskHandle;
     taskInfoArray[TaskIndex].Depth = StackDepth;
     
+	/* if this is true then there are big problems */
     if ( StackDepth > 1000 )
     {
       __no_operation();  
     }
     
     TaskIndex++;
-    NumberOfTasksInLog++;
   
   }
   
@@ -88,7 +87,7 @@ void UTL_FreeRtosTaskStackCheck( void )
   FreeEntries = uxTaskGetStackHighWaterMark( taskInfoArray[PrintTaskIndex].taskHandle );
   
   /* free, used, total */
-  PrintStringSpaceAndThreeDecimals(taskInfoArray[PrintTaskIndex].name,
+  PrintStringSpaceAndThreeDecimals((char*)pcTaskGetTaskName( taskInfoArray[PrintTaskIndex].taskHandle ),
                                    FreeEntries,
                                    taskInfoArray[PrintTaskIndex].Depth - FreeEntries,
                                    taskInfoArray[PrintTaskIndex].Depth);
@@ -97,97 +96,44 @@ void UTL_FreeRtosTaskStackCheck( void )
   PrintTaskIndex++;
   if ( PrintTaskIndex >= TaskIndex )
   {
-    PrintTaskIndex = 0;  
+    PrintTaskIndex = 0;
+    
+    tMessage OutgoingMsg;
+    SetupMessage(&OutgoingMsg,QueryMemoryMsg,NO_MSG_OPTIONS);
+    RouteMsg(&OutgoingMsg);
   }
 
 }
 
-#endif
+#endif /* TASK_DEBUG */
 
 
-/*! Builds a host message including the header and CRC
- *
- * The message type, options and data must be provided by the user. The function
- * then creates the message header and CRC. The result is a packet that can be
- * sent directly to the host that meets the protocol requirements.
- *
- * \param pMsg Message allocated from the buffer pool
- * \param msgType
- *
- */
-void UTL_BuildHstMsg(tHostMsg* pMsg, 
-                     eMessageType msgType, 
-                     unsigned char msgOptions, 
-                     unsigned char *pData, 
-                     unsigned char dataLen )
+void GenerateHostMsgCrc(tMessage* pMsg,unsigned int PayloadLength)
 {
-  unsigned char ii;
-  tWordByteUnion crc;
+  tWordByteUnion Crc;
   
-  if ( dataLen > HOST_MSG_MAX_PAYLOAD_LENGTH )
-  {
-    PrintString("Data is too large for message\r\n");  
-  }
+  halCrcInit();
+  halCrcAddByte(HOST_MSG_START_FLAG);
+  halCrcAddByte(pMsg->Length);
+  halCrcAddByte(pMsg->Type);
+  halCrcAddByte(pMsg->Options);
+  Crc.word = halCrcCalculate(pMsg->pBuffer,PayloadLength);
+  halCrcGiveMutex();
   
-  // fill in the header
-  pMsg->startByte  = HOST_MSG_START_FLAG;
-  pMsg->Length  = dataLen + (HOST_MSG_HEADER_LENGTH + HOST_MSG_CRC_LENGTH);
-  pMsg->Type    = msgType;
-  pMsg->Options = msgOptions;
-  
-  // copy the message data
-  for(ii = 0; ii < dataLen; ii++)
-  {
-    pMsg->pPayload[ii] = pData[ii];
-  }
-  
-  // exclude the crc bytes in the length since they aren't part of the crc
-  crc.word = halCrcCalculate( (unsigned char*) pMsg, pMsg->Length - HOST_MSG_CRC_LENGTH);
-  
-  // The CRC is in the two bytes that follow the data
-  pMsg->pPayload[dataLen] = crc.byte0;
-  pMsg->pPayload[dataLen + 1] = crc.byte1;
-
-  // for debugging
-  pMsg->crcLsb = pMsg->pPayload[dataLen];
-  pMsg->crcMsb = pMsg->pPayload[dataLen + 1];
-  
-}
-
-/* udpate header bytes and calculate the crc */
-void UTL_PrepareHstMsg(tHostMsg* pMsg)
-{
-  tWordByteUnion crc;
-  unsigned char CrcIndex = pMsg->Length;
-  
-  // fill in the header
-  pMsg->startByte  = HOST_MSG_START_FLAG;
-  pMsg->Length += (HOST_MSG_HEADER_LENGTH + HOST_MSG_CRC_LENGTH);
-  
-  // exclude the crc bytes in the length since they aren't part of the crc
-  crc.word = halCrcCalculate( (unsigned char*) pMsg, pMsg->Length - HOST_MSG_CRC_LENGTH);
-  
-  // The CRC is in the two bytes that follow the data
-  pMsg->pPayload[CrcIndex] = crc.byte0;
-  pMsg->pPayload[CrcIndex + 1] = crc.byte1;
-
-  // for debugging
-  pMsg->crcLsb = pMsg->pPayload[CrcIndex];
-  pMsg->crcMsb = pMsg->pPayload[CrcIndex + 1];
+  /* now put the crc into the message buffer */
+  pMsg->pBuffer[pMsg->Length-1] = Crc.byte1;
+  pMsg->pBuffer[pMsg->Length-2] = Crc.byte0;
   
 }
 
 
-
-
-
-
-
-void CopyBytes(unsigned char* pDest, unsigned char* pSource, unsigned char Size)
+void CopyHostMsgPayload(unsigned char* pBuffer, 
+                        unsigned char* pSource, 
+                        unsigned char Size)
 {
   for(unsigned char i = 0; i < Size; i++)
   {
-    pDest[i] = pSource[i];
+    pBuffer[i] = pSource[i];
   }
 }
 
@@ -206,17 +152,11 @@ unsigned char * GetSoftwareVersionString(void)
 /* called in each task but currently disabled */
 void CheckStackUsage(xTaskHandle TaskHandle,signed char* TaskName)
 {
-#if 0
+#ifdef CHECK_STACK_USAGE
+
   portBASE_TYPE HighWater = uxTaskGetStackHighWaterMark(TaskHandle);
   
-#if 1
-  if ( HighWater <  16 )
-  {
-    PrintStringAndDecimal((signed char*)TaskName,HighWater);
-  }
-#else
   PrintStringAndDecimal(TaskName,HighWater);
-#endif
 
 #endif
   
@@ -225,5 +165,47 @@ void CheckStackUsage(xTaskHandle TaskHandle,signed char* TaskName)
 void vApplicationStackOverflowHook( xTaskHandle *pxTask, signed char *pcTaskName )
 {
   /* try to print task name */
-  PrintString2("Stack overflow for ",pcTaskName);
+  PrintString2("Stack overflow for ",(char*)pcTaskName);
 }
+
+/******************************************************************************/
+/* 
+ * from TI 
+ */
+unsigned char PMM15Check (void)
+{
+  // First check if SVSL/SVML is configured for fast wake-up
+  if ( (!(SVSMLCTL & SVSLE)) || ((SVSMLCTL & SVSLE) && (SVSMLCTL & SVSLFP)) ||
+       (!(SVSMLCTL & SVMLE)) || ((SVSMLCTL & SVMLE) && (SVSMLCTL & SVMLFP)) )
+  { 
+    // Next Check SVSH/SVMH settings to see if settings are affected by PMM15
+    if ((SVSMHCTL & SVSHE) && (!(SVSMHCTL & SVSHFP)))
+    {
+      if ( (!(SVSMHCTL & SVSHMD)) ||
+           ((SVSMHCTL & SVSHMD) && (SVSMHCTL & SVSMHACE)) )
+        return 1; // SVSH affected configurations
+    }
+
+    if ((SVSMHCTL & SVMHE) && (!(SVSMHCTL & SVMHFP)) && (SVSMHCTL & SVSMHACE))
+      return 1; // SVMH affected configurations
+  }
+
+  return 0; // SVS/M settings not affected by PMM15
+
+}
+
+/******************************************************************************/
+
+void CheckQueueUsage(xQueueHandle Qhandle)
+{
+#ifdef CHECK_QUEUE_USAGE
+  portBASE_TYPE waiting = Qhandle->uxMessagesWaiting + 1;
+  
+  if (  waiting > Qhandle->MaxWaiting )
+  {
+    Qhandle->MaxWaiting = waiting;    
+  }
+  
+#endif
+}
+     

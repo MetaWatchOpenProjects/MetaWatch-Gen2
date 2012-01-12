@@ -51,9 +51,6 @@ void InitializeOneSecondTimers(void);
 /*! One Second Timer handler that occurs in interrupt context */
 unsigned char OneSecondTimerHandlerIsr(void);
 
-/*! Handler for expired timers that runs in the Command Task */
-void ExpiredOneSecondTimerHandler(void);
-
 /*! Allocate a one second timer
  *
  * returns >= 0 TimerId, < 0 error

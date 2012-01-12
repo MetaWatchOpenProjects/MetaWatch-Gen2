@@ -15,30 +15,21 @@
 //==============================================================================
 
 /******************************************************************************/
-/*! \file LcdTask.c
+/*! \file LcdDriver.c
  *
+ * The vertical interval is 16.6 ms.
  */
 /******************************************************************************/
-
-#include "FreeRTOS.h"
-#include "task.h"
-#include "queue.h"
 
 #include "hal_board_type.h"
 #include "hal_clock_control.h"
 #include "hal_lcd.h"
 
 #include "Messages.h"
-#include "MessageQueues.h"
-#include "BufferPool.h"     
-#include "Utilities.h"      
-#include "DebugUart.h"
-#include "LcdTask.h"
-#include "LcdDisplay.h"
 
-#define LCD_TASK_MSG_QUEUE_LEN   12    
-#define LCD_TASK_STACK_DEPTH     (configMINIMAL_STACK_DEPTH + 20)
-#define LCD_TASK_TASK_PRIORITY   (tskIDLE_PRIORITY + 1)
+#include "DebugUart.h"
+#include "LcdDriver.h"
+#include "LcdDisplay.h"
 
 /******************************************************************************/
 
@@ -48,33 +39,19 @@
 
 static unsigned char LCD_CLEAR_COMMAND[] = {LCD_CLEAR_CMD, 0x00, 0x00};
 
+static unsigned char LCD_STATIC_COMMAND[] = {LCD_STATIC_CMD, 0x00, 0x00};
+
 /* errata - DMA variables cannot be function scope */
 static unsigned char LcdDmaBusy = 0;
 
-static void LcdPeripheralInit(void);
-static void LcdTask(void *pvParameters);
-static void LcdTaskMessageHandler(tHostMsg* pMsg);
-
-static tHostMsg* pLcdTaskMsg;
-  
-static void WriteLcdHandler(tHostMsg* pMsg);
-static void ClearLcdHandler(void);
-static void UpdateMyDisplayHandler(tHostMsg* pMsg);
-
 /******************************************************************************/
 
-static void LcdTask(void *pvParameters);
-static void LcdTaskMessageHandler(tHostMsg* pMsg);
-
-xTaskHandle LcdTaskHandle;
-
-/******************************************************************************/
 static void WriteLineToLcd(unsigned char* pData,unsigned char Size);
 
 
 /******************************************************************************/
 
-static void LcdPeripheralInit(void)
+void LcdPeripheralInit(void)
 {
   /* LCD 5.0 V SUPPLY */
   LCD_5V_PDIR |= LCD_5V_BIT;
@@ -107,88 +84,9 @@ static void LcdPeripheralInit(void)
 
 }
 
-
-void InitializeLcdTask(void)
-{
-  LcdPeripheralInit();
- 
-  // This is a Rx message queue
-  QueueHandles[LCD_TASK_QINDEX] = 
-    xQueueCreate( LCD_TASK_MSG_QUEUE_LEN, MESSAGE_QUEUE_ITEM_SIZE );
-  
-  // prams are: task function, task name, stack len , task params, priority, task handle
-  xTaskCreate(LcdTask, 
-              "LCD_DRIVER", 
-              LCD_TASK_STACK_DEPTH, 
-              NULL, 
-              LCD_TASK_TASK_PRIORITY, 
-              &LcdTaskHandle);
-}
-
-/*! The LCD task runs forever.  It writes data to the LCD based on the 
- * commands it receives in its queue.
- */
-static void LcdTask(void *pvParameters)
-{
-  if ( QueueHandles[LCD_TASK_QINDEX] == 0 )
-  {
-    PrintString("Lcd Task Queue not created!\r\n");
-  }
-
-  /* the first task is to clear the LCD */
-  BPL_AllocMessageBuffer(&pLcdTaskMsg);
-  pLcdTaskMsg->Type = ClearLcd;
-  RouteMsg(&pLcdTaskMsg);
-  
-  for(;;)
-  {
-    if( pdTRUE == xQueueReceive(QueueHandles[LCD_TASK_QINDEX], 
-                                &pLcdTaskMsg, portMAX_DELAY) )
-    {
-      LcdTaskMessageHandler(pLcdTaskMsg);
-        
-      BPL_FreeMessageBuffer(&pLcdTaskMsg);
-      
-      CheckStackUsage(LcdTaskHandle,"Lcd Task");
-      
-    }
-  }
-
-
-}
-
-/*! Process the messages routed to the LCD driver Task */
-static void LcdTaskMessageHandler(tHostMsg* pMsg)
-{
-  unsigned char Type = pMsg->Type;
-    
-  switch(Type)
-  {
-  
-  case WriteLcd:
-    WriteLcdHandler(pMsg);
-    break;
-  
-  case ClearLcd:
-    ClearLcdHandler();
-    break;
-    
-  case UpdateMyDisplayLcd:
-    UpdateMyDisplayHandler(pMsg);
-    break;
-    
-  default:
-    PrintStringAndHex("<<Unhandled Message>> in Lcd Task: Type 0x", Type);
-    break;
-  }
-
-}
-
 /*! Writes a single line to the LCD */
-static void WriteLcdHandler(tHostMsg* pMsg)
+void WriteLcdHandler(tLcdMessagePayload* pLcdMessage)
 {
-  tLcdMessage* pLcdMessage = (tLcdMessage*)(pMsg);
-  
   pLcdMessage->LcdCommand = LCD_WRITE_CMD;
   pLcdMessage->RowNumber += FIRST_LCD_LINE_OFFSET;
   
@@ -217,11 +115,15 @@ static void WriteLcdHandler(tHostMsg* pMsg)
 }
 
 
-static void ClearLcdHandler(void)
+void ClearLcd(void)
 {
   WriteLineToLcd(LCD_CLEAR_COMMAND,LCD_CLEAR_CMD_SIZE);   
 }
     
+void PutLcdIntoStaticMode(void)
+{
+  WriteLineToLcd(LCD_STATIC_COMMAND,LCD_STATIC_CMD_SIZE);   
+}
     
 static void WriteLineToLcd(unsigned char* pData,unsigned char Size)
 {  
@@ -229,8 +131,6 @@ static void WriteLineToLcd(unsigned char* pData,unsigned char Size)
   LCD_CS_ASSERT();
   
 #ifdef DMA
-  
-  DEBUG4_PULSE();
   
   LcdDmaBusy = 1;
   
@@ -275,11 +175,8 @@ static void WriteLineToLcd(unsigned char* pData,unsigned char Size)
         
 }
 
-static void UpdateMyDisplayHandler(tHostMsg* pMsg)
+void UpdateMyDisplay(unsigned char * pBuffer,unsigned int TotalLines)
 {  
-  
-  tUpdateMyDisplayMsg* pUpdateMyDisplayMessage = (tUpdateMyDisplayMsg*)pMsg;
-  
   EnableSmClkUser(LCD_USER);
   LCD_CS_ASSERT();
   
@@ -297,11 +194,11 @@ static void UpdateMyDisplayHandler(tHostMsg* pMsg)
   DMACTL1 = DMA2TSEL_19;    
     
   __data16_write_addr((unsigned short) &DMA2SA,
-                      (unsigned long) pUpdateMyDisplayMessage->pMyDisplay);
+                      (unsigned long) pBuffer);
                                             
   __data16_write_addr((unsigned short) &DMA2DA,(unsigned long) &LCD_SPI_UCBxTXBUF);
             
-  DMA2SZ = (pUpdateMyDisplayMessage->TotalLines*sizeof(tLcdLine));
+  DMA2SZ = TotalLines*sizeof(tLcdLine);
   
   /* 
    * single transfer, increment source address, source byte and dest byte,
@@ -320,13 +217,13 @@ static void UpdateMyDisplayHandler(tHostMsg* pMsg)
   LCD_SPI_UCBxTXBUF = LCD_WRITE_CMD;
   while (!(LCD_SPI_UCBxIFG&UCTXIFG));
   
-  unsigned int Size = (pUpdateMyDisplayMessage->TotalLines*sizeof(tLcdLine));
+  unsigned int Size = TotalLines*sizeof(tLcdLine);
   for ( unsigned int Index = 0; Index < Size; Index++ )
   {
-    LCD_SPI_UCBxTXBUF = pUpdateMyDisplayMessage->pMyDisplay[Index];
-    while (!(LCD_SPI_UCBxIFG&UCTXIFG));
+      LCD_SPI_UCBxTXBUF = pBuffer[Index];
+      while (!(LCD_SPI_UCBxIFG&UCTXIFG));
   }
-
+    
 #endif
   
   /* add one more dummy byte at the end */
@@ -339,7 +236,8 @@ static void UpdateMyDisplayHandler(tHostMsg* pMsg)
   /* now the chip select can be deasserted */
   LCD_CS_DEASSERT();
   DisableSmClkUser(LCD_USER);
-        
+ 
+  PutLcdIntoStaticMode();
 }
 
 void LcdDmaIsr(void)

@@ -170,7 +170,7 @@ __interrupt void WDT_VECTOR_ISR(void)
   assert(0);
 }
 
-#if 1
+#if 0
 #pragma vector=TIMER0_B1_VECTOR    /* 0xFFF6 */
 __interrupt void TIMER0_B1_VECTOR_ISR(void)
 {
@@ -178,7 +178,7 @@ __interrupt void TIMER0_B1_VECTOR_ISR(void)
 }
 #endif
 
-#ifndef ANALOG
+#if 0
   #pragma vector=TIMER0_B0_VECTOR    /* 0xFFF8 */
   __interrupt void TIMER0_B0_VECTOR_ISR(void)
   {

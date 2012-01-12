@@ -24,6 +24,7 @@
 #include "semphr.h"              
 #include "task.h"                
 #include "queue.h"
+#include "portmacro.h"
 
 #include "Messages.h"
 #include "MessageQueues.h"
@@ -45,14 +46,11 @@
 #include "LcdDisplay.h"
 #include "Display.h"
 #include "Utilities.h"
-#include "Pedometer.h"
-#include "SerialRam.h"
-#include "LcdTask.h"
+#include "Accelerometer.h"
 #include "Buttons.h"
 #include "Vibration.h"
 #include "OneSecondTimers.h"
 #include "DebugUart.h"
-#include "CommandTask.h"
 #include "Statistics.h"
 
 #include "OSAL_Nv.h"
@@ -60,9 +58,7 @@
 
 static void ConfigureHardware(void);
 static void Housekeeping(void);
-
-static unsigned char FreeBuffers;
-
+static void ForceWatchdogReset(void);
 
 void main(void)
 {
@@ -79,15 +75,16 @@ void main(void)
   
   ConfigureHardware();
 
-  osal_nv_init(0);
+  OsalNvInit(0);
   
   InitializeDebugFlags();
+  InitializeButtons();
+  InitializeVibration();
+  InitializeOneSecondTimers();
   
   InitializeBufferPool();    
 
   InitializeSppTask();
-  
-  InitializeCommandTask();
   
   InitializeRealTimeClock();       
 
@@ -97,44 +94,17 @@ void main(void)
 
   InitializeAdc();
 
-#ifdef DIGITAL
-
-  InitializeSerialRamTask();
-  
-  InitializeLcdTask();
-
-#else
-  
-  unsigned char QueueOfZeroLength = 0;
-  QueueHandles[SRAM_QINDEX] = 
-    xQueueCreate( QueueOfZeroLength, MESSAGE_QUEUE_ITEM_SIZE );
-  
-  QueueHandles[LCD_TASK_QINDEX] = 
-    xQueueCreate( QueueOfZeroLength, MESSAGE_QUEUE_ITEM_SIZE );
-  
-#endif
-  
-#if 0
-  InitializePedometerTask();
-#endif
-  
 #if 0
   /* timeout is 16 seconds */
   hal_SetWatchdogTimeout(16); 
 #endif
 
-  extern xSemaphoreHandle CrcMutex;
-  CrcMutex = xSemaphoreCreateMutex();
-  xSemaphoreGive(CrcMutex);
-
-#if 0
-  SetSniffSlotParameter(MaxInterval, 8);
-  SetSniffSlotParameter(MinInterval, 6);
-  SetSniffModeEntryDelay(200);
+#ifdef CHECK_FOR_PMM15
+  /* make sure error pmm15 does not exist */
+  while ( PMM15Check() );
 #endif
   
-  
-  /* Start the Task Scheduler. */
+  PrintString("Starting Task Scheduler.\r\n");
   vTaskStartScheduler();
 
   /* if vTaskStartScheduler exits an error occured. */
@@ -171,29 +141,40 @@ static void ConfigureHardware(void)
 
   /* the accelerometer may not be used so configure its pins here */  
   CONFIG_ACCELEROMETER_PINS();
-  CONFIG_ACCELEROMETER_PINS_FOR_SLEEP();
   
 }
 
 /* The following function exists to put the MCU to sleep when in the idle task. */
+static unsigned char SppReadyToSleep;
+static unsigned char TaskDelayLockCount;
+static unsigned char AllTaskQueuesEmptyFlag;
+
 void vApplicationIdleHook(void)
 {
-  
   Housekeeping();
   
-  /* Put the processor to sleep if the serial port indicates it is OK, 
-   * the command task does not have anything to process, and
+  /* Put the processor to sleep if the serial port indicates it is OK and 
    * all of the queues are empty.
    *
    * This will stop the OS scheduler.
    */
 
-  FreeBuffers = QueueHandles[FREE_QINDEX]->uxMessagesWaiting;
+  SppReadyToSleep = SerialPortReadyToSleep();
+  TaskDelayLockCount = GetTaskDelayLockCount();
+  AllTaskQueuesEmptyFlag = AllTaskQueuesEmpty();
   
-  if (   SerialPortReadyToSleep()
-      && CommandTaskReadyToSleep()
-      && GetTaskDelayLockCount() == 0
-      && (FreeBuffers == NUM_MSG_BUFFERS) )
+  if ( SppReadyToSleep )
+  {
+    DEBUG3_HIGH();  
+  }
+  else
+  {
+    DEBUG3_LOW();
+  }
+  
+  if (   SppReadyToSleep
+      && TaskDelayLockCount == 0
+      && AllTaskQueuesEmptyFlag )
       
   {
     extern xTaskHandle IdleTaskHandle;
@@ -208,7 +189,10 @@ void vApplicationIdleHook(void)
   
 }
 
-/* when debugging one may want to disable this */
+/* when debugging one may want to disable this 
+ * the reset may not always occur (if code gets messed up enough it won't
+ * get here)
+ */
 static void Housekeeping(void)
 {
   if (   gBtStats.MallocFailed
@@ -228,6 +212,22 @@ static void Housekeeping(void)
   }
   
 }
+
+#if 0
+/* set watchdog for 16 second timeout */
+static void SetWatchdogReset(void)
+{
+  /* write password, select aclk, divide by 512*1024 = 16 ms */
+  WDTCTL = WDTPW + WDTSSEL__ACLK + WDTIS_3;
+}
+#endif
+
+/* write the inverse of the password and force reset */
+static void ForceWatchdogReset(void)
+{
+  WDTCTL = ~WDTPW; 
+}
+
 
 /*
  * Callbacks are for debug signals and nothing else!
@@ -259,7 +259,7 @@ void DebugCallback4(void)
 }
           
           
-void DebugCallback5(void)
+void Debug5Callback(void)
 {
   //DEBUG5_PULSE();  
 }
@@ -269,6 +269,17 @@ void MsgHandlerDebugCallback(void)
   //DEBUG5_PULSE();
 }
 
+/* This interrupt port is used by the stack. Do not change the name of this
+ * function.
+ *
+ * Place a call to your interrupt routine here.
+ */
+void AccelerometerPinIsr(void)
+{
+  AccelerometerIsr();
+}
+
+     
 
 
 

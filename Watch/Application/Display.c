@@ -23,9 +23,9 @@
 
 #include "FreeRTOS.h"
 #include "queue.h"
+#include "portmacro.h"
 
 #include "Messages.h"
-#include "BufferPool.h"
 #include "MessageQueues.h"
 #include "Display.h"
 #include "OSAL_Nv.h"
@@ -223,13 +223,12 @@ void SaveLinkAlarmEnable(void)
 /* send a vibration to the wearer */
 void GenerateLinkAlarm(void)
 {
-  tHostMsg* pMsg;
+  tMessage Msg;
   
-  BPL_AllocMessageBuffer(&pMsg);
-  pMsg->Type = SetVibrateMode;
+  SetupMessageAndAllocateBuffer(&Msg,SetVibrateMode,NO_MSG_OPTIONS);
   
   tSetVibrateModePayload* pMsgData;
-  pMsgData = (tSetVibrateModePayload*) pMsg->pPayload;
+  pMsgData = (tSetVibrateModePayload*) Msg.pBuffer;
   
   pMsgData->Enable = 1;
   pMsgData->OnDurationLsb = 0x00;
@@ -238,7 +237,7 @@ void GenerateLinkAlarm(void)
   pMsgData->OffDurationMsb = 0x01;
   pMsgData->NumberOfCycles = 5;
   
-  RouteMsg(&pMsg);
+  RouteMsg(&Msg);
 }
 
 /******************************************************************************/
@@ -314,4 +313,23 @@ unsigned char QueryBatteryDebug(void)
 unsigned char QueryConnectionDebug(void)
 {
   return nvConnectionDebug;  
+}
+
+/******************************************************************************/
+
+unsigned int nvPairingModeDurationInSeconds;
+
+void InitializePairingModeDuration(void)
+{
+  nvPairingModeDurationInSeconds = PAIRING_MODE_TIMEOUT_IN_SECONDS;
+  OsalNvItemInit(NVID_PAIRING_MODE_DURATION, 
+                 sizeof(nvPairingModeDurationInSeconds), 
+                 &nvPairingModeDurationInSeconds);
+  
+  
+}
+
+unsigned int GetPairingModeDurationInSeconds(void)
+{
+  return nvPairingModeDurationInSeconds;  
 }

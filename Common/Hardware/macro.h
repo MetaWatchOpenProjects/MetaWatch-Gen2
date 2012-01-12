@@ -26,13 +26,14 @@
 #ifndef MACRO_H
 #define MACRO_H
 
+#include "portmacro.h"
 
 /*! Save the interrupt state and disable interrutps */
 #define ENTER_CRITICAL_REGION_QUICK() \
-  { int quick = __get_interrupt_state(); __disable_interrupt();
+  { portENTER_CRITICAL();
 
 /*! Restore saved interrupt state */
-#define LEAVE_CRITICAL_REGION_QUICK() __set_interrupt_state(quick); }
+#define LEAVE_CRITICAL_REGION_QUICK() portEXIT_CRITICAL(); }
 
 
 /*! DisableFlow comes from SerialPortProfile */
@@ -42,11 +43,11 @@ extern void EnableFlow(void);
 
 /*! Save interrupt state, disable interrupts, and disable flow from bluetooth serial port */
 #define ENTER_CRITICAL_REGION_SLOW() \
-  { int slow = __get_interrupt_state(); DisableFlow(); __disable_interrupt();
+  { portENTER_CRITICAL(); DisableFlow(); 
 
 
 /*! Restore interrupt state and enable flow from bluetooth serial port */
-#define LEAVE_CRITICAL_REGION_SLOW() __set_interrupt_state(slow); EnableFlow();}
+#define LEAVE_CRITICAL_REGION_SLOW() portEXIT_CRITICAL(); EnableFlow(); }
 
 
 #endif /* MACRO_H */

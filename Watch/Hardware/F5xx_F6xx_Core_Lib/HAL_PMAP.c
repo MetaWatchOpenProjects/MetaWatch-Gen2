@@ -42,6 +42,7 @@
 
 #include "msp430.h"
 #include "HAL_PMAP.h" 
+#include "portmacro.h"
 
 // Check and define PMAP function only if the device has port mapping capability
 // Note: This macro is defined in the device-specific header file if this
@@ -53,9 +54,7 @@ void configure_ports(const unsigned char *port_mapping, unsigned char *PxMAPy,
 {
   uint16_t i;
   
-  // Store current interrupt state, then disable all interrupts
-  uint16_t globalInterruptState = __get_SR_register() & GIE;
-  __disable_interrupt();
+  portENTER_CRITICAL();
   
   // Get write-access to port mapping registers:
   PMAPPWD = PMAPPW;
@@ -73,8 +72,7 @@ void configure_ports(const unsigned char *port_mapping, unsigned char *PxMAPy,
   // Disable write-access to port mapping registers:
   PMAPPWD = 0;
   
-  // Restore previous interrupt state
-  __bis_SR_register(globalInterruptState);
+  portEXIT_CRITICAL();
 }
 
 #endif  /* __MSP430_HAS_PORT_MAPPING__ */

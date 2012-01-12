@@ -164,8 +164,11 @@
           <state>HW_DEVBOARD_V2</state>
           <state>DMA</state>
           <state>LPM_ENABLED</state>
-          <state>xTASK_DEBUG</state>
-          <state>xBLASTER</state>
+          <state>TASK_DEBUG</state>
+          <state>xCHECK_FOR_PMM15</state>
+          <state>xCHECK_STACK_USAGE</state>
+          <state>xCHECK_QUEUE_USAGE</state>
+          <state>xCLOCK_CONTROL_DEBUG</state>
         </option>
         <option>
           <name>CCPreprocFile</name>
@@ -5393,6 +5396,9 @@
   <group>
     <name>Application</name>
     <file>
+      <name>$PROJ_DIR$\..\Application\Accelerometer.c</name>
+    </file>
+    <file>
       <name>$PROJ_DIR$\..\Application\Adc.c</name>
     </file>
     <file>
@@ -5403,9 +5409,6 @@
     </file>
     <file>
       <name>$PROJ_DIR$\..\Application\Buttons.c</name>
-    </file>
-    <file>
-      <name>$PROJ_DIR$\..\Application\CommandTask.c</name>
     </file>
     <file>
       <name>$PROJ_DIR$\..\Application\DebugUart.c</name>
@@ -5440,7 +5443,7 @@
       </excluded>
     </file>
     <file>
-      <name>$PROJ_DIR$\..\Application\LcdTask.c</name>
+      <name>$PROJ_DIR$\..\Application\LcdDriver.c</name>
       <excluded>
         <configuration>Analog Devboard</configuration>
         <configuration>Analog</configuration>
@@ -5471,9 +5474,6 @@
     </file>
     <file>
       <name>$PROJ_DIR$\..\Application\OneSecondTimers.c</name>
-    </file>
-    <file>
-      <name>$PROJ_DIR$\..\Application\Pedometer.c</name>
     </file>
     <file>
       <name>$PROJ_DIR$\..\Application\SerialRam.c</name>
@@ -5722,6 +5722,9 @@
       <name>$PROJ_DIR$\..\Hardware\hal_rtos_timer.c</name>
     </file>
     <file>
+      <name>$PROJ_DIR$\..\Hardware\hal_software_fll.c</name>
+    </file>
+    <file>
       <name>$PROJ_DIR$\..\Hardware\hal_vibe.c</name>
     </file>
     <file>
@@ -5731,9 +5734,6 @@
         <configuration>Digital</configuration>
         <configuration>Digital - TXT</configuration>
       </excluded>
-    </file>
-    <file>
-      <name>$PROJ_DIR$\..\Hardware\RTCASMFunctions_IAR.s43</name>
     </file>
   </group>
 </project>

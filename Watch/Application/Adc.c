@@ -32,7 +32,6 @@
 
 #include "Messages.h"
 #include "MessageQueues.h"
-#include "BufferPool.h"
 #include "DebugUart.h"
 #include "Utilities.h"
 #include "Adc.h"
@@ -68,7 +67,7 @@ static unsigned char LightSenseAverageReady = 0;
 
 static unsigned char LowBatteryWarningMessageSent;
 static unsigned char LowBatteryBtOffMessageSent;
-static tHostMsg* pMsg;
+static tMessage Msg;
     
 
 #define DEFAULT_LOW_BATTERY_WARNING_LEVEL    ( 3500 )
@@ -91,8 +90,6 @@ static void FinishLightSenseCycle(void);
 
 static void WaitForAdcBusy(void);
 static void EndAdcCycle(void);
-
-static void InitializeLowBatteryLevels(void);
 
 /*! the voltage from the battery is divided
  * before it goes to ADC (so that it is less than
@@ -155,21 +152,24 @@ void InitializeAdc(void)
   /* enable the 2.5V reference */
   ADC12CTL0 = ADC12REFON + ADC12REF2_5V;
 
+  /* allow conditional request for modosc */
+  UCSCTL8 |= MODOSCREQEN;
+  
   /* select ADC12SC bit as sample and hold source (00) 
    * and use pulse mode
-   * use ACLK so that ADCCLK < 2.7 MHz and so that SMCLK does not have to be used
+   * use modosc / 2 because frequency must be 0.45 MHz to 2.7 MHz
   */
-  ADC12CTL1 = ADC12CSTARTADD_0 + ADC12SHP + ADC12SSEL_1;
+  ADC12CTL1 = ADC12CSTARTADD_0 + ADC12SHP + ADC12SSEL_0 + ADC12DIV_2;
 
   /* 12 bit resolution, only use reference when doing a conversion, 
-   * use low power mode because sample rate is < 50 ksps 
+  * todo: use low power mode because sample rate is < 50 ksps 
   */
-  ADC12CTL2 = ADC12TCOFF + ADC12RES_2 + ADC12REFBURST + ADC12SR;
+  ADC12CTL2 = ADC12TCOFF + ADC12RES_2 + ADC12REFBURST;// + ADC12SR;
 
   /* setup input channels */
-  ADC12MCTL0 = HARDWARE_CFG_INPUT_CHANNEL;
-  ADC12MCTL1 = BATTERY_SENSE_INPUT_CHANNEL;
-  ADC12MCTL2 = LIGHT_SENSE_INPUT_CHANNEL;
+  ADC12MCTL0 = HARDWARE_CFG_INPUT_CHANNEL + ADC12EOS;
+  ADC12MCTL1 = BATTERY_SENSE_INPUT_CHANNEL + ADC12EOS;
+  ADC12MCTL2 = LIGHT_SENSE_INPUT_CHANNEL + ADC12EOS;
 
   BatterySenseSampleIndex = 0;
   LightSenseSampleIndex = 0;
@@ -248,10 +248,11 @@ void BatterySenseCycle(void)
   BATTERY_SENSE_ENABLE();
   ENABLE_REFERENCE();
 
+  /* low_bat_en assertion to bat_sense valid is ~100 ns */
+  
   StartBatterySenseConversion();
   WaitForAdcBusy();
   FinishBatterySenseCycle();
-  
 }
 
 /* battery sense cycle requires 630 us using ACLK */
@@ -273,7 +274,13 @@ static void FinishBatterySenseCycle(void)
   {
     BatterySense += GetBatteryCalibrationValue();
   }
+  
   BatterySenseSamples[BatterySenseSampleIndex++] = BatterySense;
+  
+  if ( BatterySense < 1000 )
+  {
+    __no_operation();  
+  }
   
   if ( BatterySenseSampleIndex >= MAX_SAMPLES )
   {
@@ -286,7 +293,6 @@ static void FinishBatterySenseCycle(void)
   EndAdcCycle();
 
 }
-
 
 void LowBatteryMonitor(void)
 {
@@ -303,22 +309,22 @@ void LowBatteryMonitor(void)
      *
      * if the battery is not present then the readings are meaningless
     */  
-    PrintStringAndTwoDecimals("Batt Inst: ",BatterySense,
-                              " Batt Avg: ",BatteryAverage);
+    PrintStringAndThreeDecimals("Batt Inst: ",BatterySense,
+                                " Batt Avg: ",BatteryAverage,
+                                " Batt Charge Enable: ", QueryBatteryChargeEnabled());
     
   }
   
   /* if the battery is charging then ignore the measured voltage
    * and clear the flags
   */
-  if ( QueryPowerGood() )
+  if ( QueryBatteryCharging() )
   {
     /* what about case where someone charges battery on an airplane? */
     if ( LowBatteryBtOffMessageSent )
     {
-      BPL_AllocMessageBuffer(&pMsg);
-      pMsg->Type = TurnRadioOnMsg;
-      RouteMsg(&pMsg);
+      SetupMessage(&Msg,TurnRadioOnMsg,NO_MSG_OPTIONS);
+      RouteMsg(&Msg);
     }
     
     LowBatteryWarningMessageSent = 0;  
@@ -330,27 +336,26 @@ void LowBatteryMonitor(void)
      * do this check first so the bt off message will get sent first
      * if startup occurs when voltage is below thresholds
      */
-    if (   BatteryAverage < LowBatteryBtOffLevel
+    if (   BatteryAverage != 0
+        && BatteryAverage < LowBatteryBtOffLevel
         && LowBatteryBtOffMessageSent == 0 )
     {
       LowBatteryBtOffMessageSent = 1;
       
-      BPL_AllocMessageBuffer(&pMsg);
-      UTL_BuildHstMsg(pMsg,LowBatteryBtOffMsgHost,NO_MSG_OPTIONS,
-                      (unsigned char*)BatteryAverage,2);
-      RouteMsg(&pMsg);
+      SetupMessageAndAllocateBuffer(&Msg,LowBatteryBtOffMsgHost,NO_MSG_OPTIONS);
+      CopyHostMsgPayload(Msg.pBuffer,(unsigned char *)&BatteryAverage,2);
+      Msg.Length = 2;
+      RouteMsg(&Msg);
     
       /* send the same message to the display task */
-      BPL_AllocMessageBuffer(&pMsg);
-      pMsg->Type = LowBatteryBtOffMsg;
-      RouteMsg(&pMsg);
+      SetupMessage(&Msg,LowBatteryBtOffMsg,NO_MSG_OPTIONS);
+      RouteMsg(&Msg);
       
       /* now send a vibration to the wearer */
-      BPL_AllocMessageBuffer(&pMsg);
-      pMsg->Type = SetVibrateMode;
+      SetupMessageAndAllocateBuffer(&Msg,SetVibrateMode,NO_MSG_OPTIONS);
 
       tSetVibrateModePayload* pMsgData;
-      pMsgData = (tSetVibrateModePayload*) pMsg->pPayload;
+      pMsgData = (tSetVibrateModePayload*) Msg.pBuffer;
       
       pMsgData->Enable = 1;
       pMsgData->OnDurationLsb = 0x00;
@@ -359,31 +364,30 @@ void LowBatteryMonitor(void)
       pMsgData->OffDurationMsb = 0x01;
       pMsgData->NumberOfCycles = 5;
       
-      RouteMsg(&pMsg);
+      RouteMsg(&Msg);
 
     }
     
-    if (   BatteryAverage < LowBatteryWarningLevel 
+    if (   BatteryAverage != 0
+        && BatteryAverage < LowBatteryWarningLevel 
         && LowBatteryWarningMessageSent == 0 )
     {
       LowBatteryWarningMessageSent = 1;
 
-      BPL_AllocMessageBuffer(&pMsg);
-      UTL_BuildHstMsg(pMsg,LowBatteryWarningMsgHost,NO_MSG_OPTIONS,
-                      (unsigned char*)BatteryAverage,2);
-      RouteMsg(&pMsg);
+      SetupMessageAndAllocateBuffer(&Msg,LowBatteryWarningMsgHost,NO_MSG_OPTIONS);
+      CopyHostMsgPayload(Msg.pBuffer,(unsigned char*)&BatteryAverage,2);
+      Msg.Length = 2;
+      RouteMsg(&Msg);
     
       /* send the same message to the display task */
-      BPL_AllocMessageBuffer(&pMsg);
-      pMsg->Type = LowBatteryWarningMsg;
-      RouteMsg(&pMsg);
+      SetupMessage(&Msg,LowBatteryWarningMsg,NO_MSG_OPTIONS);
+      RouteMsg(&Msg);
       
       /* now send a vibration to the wearer */
-      BPL_AllocMessageBuffer(&pMsg);
-      pMsg->Type = SetVibrateMode;
+      SetupMessageAndAllocateBuffer(&Msg,SetVibrateMode,NO_MSG_OPTIONS);
 
       tSetVibrateModePayload* pMsgData;
-      pMsgData = (tSetVibrateModePayload*) pMsg->pPayload;
+      pMsgData = (tSetVibrateModePayload*) Msg.pBuffer;
 
       pMsgData->Enable = 1;
       pMsgData->OnDurationLsb = 0x00;
@@ -392,7 +396,7 @@ void LowBatteryMonitor(void)
       pMsgData->OffDurationMsb = 0x02;
       pMsgData->NumberOfCycles = 5;
       
-      RouteMsg(&pMsg);
+      RouteMsg(&Msg);
       
     }
   
@@ -472,6 +476,7 @@ unsigned int ReadBatterySense(void)
   return BatterySense;
 }
 
+/* returns 0 if the measurement is not valid (yet) */
 unsigned int ReadBatterySenseAverage(void)
 {
   unsigned int SampleTotal = 0;
@@ -485,10 +490,6 @@ unsigned int ReadBatterySenseAverage(void)
     }
     
     Result = SampleTotal/MAX_SAMPLES;
-  }
-  else
-  {
-    Result = BatterySense;  
   }
   
   return Result;
@@ -546,7 +547,7 @@ void SetBatteryLevels(unsigned char * pData)
 }
 
 /* Initialize the low battery levels and read them from flash if they exist */
-static void InitializeLowBatteryLevels(void)
+void InitializeLowBatteryLevels(void)
 {
   LowBatteryWarningLevel = DEFAULT_LOW_BATTERY_WARNING_LEVEL;
   LowBatteryBtOffLevel = DEFAULT_LOW_BATTERY_BTOFF_LEVEL;

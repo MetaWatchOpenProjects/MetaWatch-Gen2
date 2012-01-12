@@ -36,7 +36,6 @@
 #include "hal_oled.h"
 
 #include "Buttons.h"
-#include "BufferPool.h"
 #include "OledDriver.h"
 #include "Utilities.h"
 #include "DebugUart.h"
@@ -45,7 +44,6 @@
 #include "OneSecondTimers.h"
 #include "OSAL_Nv.h"
 #include "NvIds.h"
-#include "CommandTask.h"
 #include "Display.h"
 #include "Background.h"
 #include "Fonts.h"
@@ -156,13 +154,13 @@ unsigned char NvalSettingsChanged;
 
 /******************************************************************************/
 
-static void WatchStatusHandler(tHostMsg* pMsg);
-static void WatchDrawnScreenTimeoutHandler(tHostMsg* pMsg);
-static void WriteBufferHandler(tHostMsg* pMsg);
-static void WriteScrollBufferHandler(tHostMsg* pMsg);
+static void WatchStatusHandler(tMessage* pMsg);
+static void WatchDrawnScreenTimeoutHandler(tMessage* pMsg);
+static void WriteBufferHandler(tMessage* pMsg);
+static void WriteScrollBufferHandler(tMessage* pMsg);
 static void ScrollHandler(void);
 static void ChangeModeHandler(unsigned char Mode);
-static void ModeTimeoutHandler(unsigned char Mode);
+static void ModeTimeoutHandler(unsigned char CurrentMode);
 static void MenuModeHandler(unsigned char MsgOptions);
 static void MenuButtonHandler(unsigned char MsgOptions);
 static void ShowIdleBufferHandler(void);
@@ -183,7 +181,7 @@ xTaskHandle DisplayHandle;
 
 static void DisplayTask(void *pvParameters);
 
-static tHostMsg* pDisplayMsg;
+static tMessage DisplayMsg;
 
 static unsigned char CurrentMode;
 static unsigned char LastMode;
@@ -205,7 +203,6 @@ static unsigned char nvBottomOledContrastIndexDay;
 static unsigned char nvTopOledContrastIndexNight;
 static unsigned char nvBottomOledContrastIndexNight;
 
-static void InitializeContrastValues(void);
 static void SaveContrastVales(void);
 
 /******************************************************************************/
@@ -214,7 +211,6 @@ static unsigned int nvIdleDisplayTimeout;
 static unsigned int nvApplicationDisplayTimeout;
 static unsigned int nvNotificationDisplayTimeout;
 
-static void InitializeDisplayTimeouts(void);
 
 /******************************************************************************/
 
@@ -362,7 +358,7 @@ static void InitializeDisplayControllers(void)
 }
 
 
-static void DisplayQueueMessageHandler(tHostMsg* pMsg)
+static void DisplayQueueMessageHandler(tMessage* pMsg)
 {
   eMessageType Type = (eMessageType)pMsg->Type;
   
@@ -454,6 +450,10 @@ static void DisplayQueueMessageHandler(tHostMsg* pMsg)
       GenerateLinkAlarm();  
     }
     break;
+       
+  case SniffControlAckMsg:
+  //case StateMachineMsg:
+    break;
     
   default:
     PrintStringAndHex("<<Unhandled Message>> in Oled Display Task: Type 0x", Type);
@@ -478,7 +478,12 @@ static void DisplayTask(void *pvParameters)
    */
   DisplayBuffer((tImageBuffer*)&MetaWatchLogoBuffer);
   DisplayAppAndStackVersionsOnBottomOled();
-  
+    
+  /* turn the radio on; initialize the serial port profile */
+  tMessage Msg;
+  SetupMessage(&Msg,TurnRadioOnMsg,NO_MSG_OPTIONS);
+  RouteMsg(&Msg);
+    
   /* force startup screens to be displayed 
    * without something else overwriting them
    */
@@ -493,13 +498,16 @@ static void DisplayTask(void *pvParameters)
   
   for(;;)
   {
-    if( xQueueReceive(QueueHandles[DISPLAY_QINDEX], &pDisplayMsg, portMAX_DELAY) )
+    if( xQueueReceive(QueueHandles[DISPLAY_QINDEX], &DisplayMsg, portMAX_DELAY) )
     {
-      DisplayQueueMessageHandler(pDisplayMsg);
+      DisplayQueueMessageHandler(&DisplayMsg);
       
-      BPL_FreeMessageBuffer(&pDisplayMsg);
+      SendToFreeQueue(&DisplayMsg);
       
       CheckStackUsage(DisplayHandle,"Display");
+      
+      CheckQueueUsage(QueueHandles[DISPLAY_QINDEX]);
+      
     }
   }
 }
@@ -555,12 +563,12 @@ tImageBuffer* SelectImageBuffer(unsigned char MsgOptions,
   return pImage;
 }
 
-static void WriteBufferHandler(tHostMsg* pMsg)
+static void WriteBufferHandler(tMessage* pMsg)
 {
   tImageBuffer * pImage;
   
   tWriteOledBufferPayload* pWriteOledBufferPayload = 
-    (tWriteOledBufferPayload*)pMsg->pPayload;
+    (tWriteOledBufferPayload*)pMsg->pBuffer;
 
   pImage = SelectImageBuffer(pMsg->Options,
                              pWriteOledBufferPayload->BufferSelect);  
@@ -634,10 +642,10 @@ static unsigned int ScrollCharactersToDisplay;
 static unsigned char pScrollBuffer[SCROLL_BUFFER_SIZE];
 static unsigned char LastScrollPacketReceived;
 
-static void WriteScrollBufferHandler(tHostMsg* pMsg)
+static void WriteScrollBufferHandler(tMessage* pMsg)
 {
   tWriteScrollBufferPayload* pWriteScrollBufferPayload = 
-    (tWriteScrollBufferPayload*)pMsg->pPayload;
+    (tWriteScrollBufferPayload*)pMsg->pBuffer;
 
   /* copy the data into the buffer */
   for(unsigned char i = 0; i < pWriteScrollBufferPayload->Size; i++)
@@ -696,6 +704,8 @@ static void CopyBufferToDisplay(tImageBuffer* pBuffer)
 /* or CopyOffsetBufferToDisplay */
 static void ScrollHandler(void)
 {
+  tMessage OutgoingMsg;
+      
   /* shorthand */
   unsigned char *pBuf = NotificationPage1bottom.pPixelData;
   
@@ -757,24 +767,22 @@ static void ScrollHandler(void)
     if ( LastScrollPacketReceived == 0 )
     {
       /* send a scroll request message to the host */
-      tHostMsg* pOutgoingMsg;
-      BPL_AllocMessageBuffer(&pOutgoingMsg);
-      unsigned char data[2];
-      data[0] = (unsigned char)eScScrollRequest;
+      SetupMessageAndAllocateBuffer(&OutgoingMsg,
+                                    StatusChangeEvent,
+                                    NOTIFICATION_MODE);
+      OutgoingMsg.Length = 2;
+      OutgoingMsg.pBuffer[0] = (unsigned char)eScScrollRequest;
+
       if ( ScrollCharactersToDisplay > SCROLL_BUFFER_SIZE - ROW_SIZE )
       {
-        data[1] = 0;
+        OutgoingMsg.pBuffer[1] = 0;
       }
       else
       {
-        data[1] = SCROLL_BUFFER_SIZE - ROW_SIZE - ScrollCharactersToDisplay;
+        OutgoingMsg.pBuffer[1] = SCROLL_BUFFER_SIZE - ROW_SIZE - ScrollCharactersToDisplay;
       }
-      UTL_BuildHstMsg(pOutgoingMsg, 
-                      StatusChangeEvent, 
-                      NOTIFICATION_MODE, 
-                      (unsigned char*)&data, sizeof(data));
       
-      RouteMsg(&pOutgoingMsg);  
+      RouteMsg(&OutgoingMsg);  
     }
   }
   
@@ -806,15 +814,14 @@ static void ScrollHandler(void)
     LastScrollPacketReceived = 0;
     
     /* send scroll done status */
-    tHostMsg* pOutgoingMsg;
-    BPL_AllocMessageBuffer(&pOutgoingMsg);
-    unsigned char data = (unsigned char)eScScrollComplete;
-    UTL_BuildHstMsg(pOutgoingMsg, 
-                    StatusChangeEvent, 
-                    NOTIFICATION_MODE, 
-                    &data, sizeof(data));
+    SetupMessageAndAllocateBuffer(&OutgoingMsg,
+                                  StatusChangeEvent,
+                                  NOTIFICATION_MODE);
+          
+    OutgoingMsg.pBuffer[0] = (unsigned char)eScScrollComplete;
+    OutgoingMsg.Length = 1;
     
-    RouteMsg(&pOutgoingMsg);  
+    RouteMsg(&OutgoingMsg);  
     
   }
 }
@@ -1007,7 +1014,7 @@ static void BuildOledScreenAddNewline(void)
 static void BuildOledScreenAddInteger(unsigned int Value)
 {
   unsigned char pTemporaryBuildString[6];
-  ToDecimalString(Value,(signed char*)&pTemporaryBuildString);
+  ToDecimalString(Value,(char*)&pTemporaryBuildString);
   BuildOledScreenAddString(pTemporaryBuildString); 
 }
 
@@ -1174,13 +1181,13 @@ unsigned char QueryButtonMode(void)
     if ( CurrentButtonConfiguration == IdleButtonMode )
     {
       result = NORMAL_IDLE_SCREEN_BUTTON_MODE;
-    }
+}
     else
     {
       result = WATCH_DRAWN_SCREEN_BUTTON_MODE;  
     }
     break;
-    
+
   case APPLICATION_MODE:
     result = APPLICATION_SCREEN_BUTTON_MODE;
     break;
@@ -1233,9 +1240,9 @@ static void DontChangeButtonConfiguration(void)
                      BUTTON_STATE_LONG_HOLD,
                      OledCrownMenuButtonMsg,
                      OLED_CROWN_MENU_BUTTON_OPTION_EXIT);
-  
+    
   /****************************************************************************/
-  
+
   EnableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                      SW_A_INDEX,
                      BUTTON_STATE_LONG_HOLD,
@@ -1269,31 +1276,31 @@ static void DontChangeButtonConfiguration(void)
                      BUTTON_STATE_LONG_HOLD,
                      OledCrownMenuButtonMsg,
                      OLED_CROWN_MENU_BUTTON_OPTION_EXIT);
-    
+          
 }
 
 
 static void NormalIdleScreenButtonConfiguration(void)
 {
   EnableButtonAction(NORMAL_IDLE_SCREEN_BUTTON_MODE,
-                     SW_A_INDEX,
-                     BUTTON_STATE_IMMEDIATE,
-                     WatchStatusMsg,
-                     NO_MSG_OPTIONS);
-  
+                         SW_A_INDEX,
+                         BUTTON_STATE_IMMEDIATE,
+                         WatchStatusMsg,
+                         NO_MSG_OPTIONS);
+    
   EnableButtonAction(NORMAL_IDLE_SCREEN_BUTTON_MODE,
-                     SW_B_INDEX,
-                     BUTTON_STATE_IMMEDIATE,
-                     OledShowIdleBufferMsg,
-                     NO_MSG_OPTIONS);
-  
+                         SW_B_INDEX,
+                         BUTTON_STATE_IMMEDIATE,
+                         OledShowIdleBufferMsg,
+                         NO_MSG_OPTIONS);
+      
   EnableButtonAction(NORMAL_IDLE_SCREEN_BUTTON_MODE,
-                     SW_C_INDEX,
-                     BUTTON_STATE_IMMEDIATE,
-                     MenuModeMsg,
-                     NO_MSG_OPTIONS);
+                         SW_C_INDEX,
+                         BUTTON_STATE_IMMEDIATE,
+                         MenuModeMsg,
+                         NO_MSG_OPTIONS);
 }
-
+      
 static void ChangeAnalogButtonConfiguration(tOledButtonMode NextButtonMode)
 {
   LastButtonConfiguration = CurrentButtonConfiguration;
@@ -1356,7 +1363,7 @@ static void ChangeAnalogButtonConfiguration(tOledButtonMode NextButtonMode)
     
 }
 
-/* buttons d, e, and f are activated when the crown is pulled */
+    /* buttons d, e, and f are activated when the crown is pulled */
 
 
 #define WATCH_STATUS_DATE_TIME_FACE              ( 0 )
@@ -1369,7 +1376,7 @@ static void ChangeAnalogButtonConfiguration(tOledButtonMode NextButtonMode)
 
 static unsigned char WatchStatusIndex;
 
-static void WatchStatusHandler(tHostMsg* pMsg)
+static void WatchStatusHandler(tMessage* pMsg)
 {
   /* on the first press display the time
    *
@@ -1421,7 +1428,7 @@ static void WatchStatusHandler(tHostMsg* pMsg)
 }
 
 /* display timeout */
-static void WatchDrawnScreenTimeoutHandler(tHostMsg* pMsg)
+static void WatchDrawnScreenTimeoutHandler(tMessage* pMsg)
 {
   TurnDisplayOff(TopOled);
   TurnDisplayOff(BottomOled);
@@ -1499,21 +1506,21 @@ static void DisplayDateAndTimeFace(void)
   StartBuildingOledScreen(TopOled);
   SetFont(MetaWatch16Oled);
   BuildColumn = 15;
-  BuildOledScreenAddString((unsigned char*)DaysOfTheWeek[GetRTCDOW()]);
+  BuildOledScreenAddString((unsigned char*)DaysOfTheWeek[RTCDOW]);
   BuildOledScreenAddCharacter(' ');
   
   /* determine if month or day is displayed first */
   if ( GetDateFormat() == MONTH_FIRST )
   {
-    BuildOledScreenAddInteger(GetRTCMON());
+    BuildOledScreenAddInteger(RTCMON);
     BuildOledScreenAddCharacter('/');
-    BuildOledScreenAddInteger(GetRTCDAY());
+    BuildOledScreenAddInteger(RTCDAY);
   }
   else
   {
-    BuildOledScreenAddInteger(GetRTCDAY());
+    BuildOledScreenAddInteger(RTCDAY);
     BuildOledScreenAddCharacter('/');
-    BuildOledScreenAddInteger(GetRTCMON());
+    BuildOledScreenAddInteger(RTCMON);
   }
   
   BuildOledScreenSendToDisplay();  
@@ -1525,7 +1532,7 @@ static void DisplayDateAndTimeFace(void)
   BuildColumn = 25;
   
   /* display hour */
-  int Hour = GetRTCHOUR();
+  int Hour = RTCHOUR;
   
   /* if required convert to twelve hour format */
   if ( GetTimeFormat() == TWELVE_HOUR )
@@ -1543,23 +1550,23 @@ static void DisplayDateAndTimeFace(void)
   BuildOledScreenAddCharacter(':');
   
   /* check to see if the minutes need to be padded */
-  int Minutes = GetRTCMIN();
+  int Minutes = RTCMIN;
   if ( Minutes < 10 )
   {
     BuildOledScreenAddCharacter('0');
   }
-  BuildOledScreenAddInteger(GetRTCMIN());
+  BuildOledScreenAddInteger(RTCMIN);
   
 #if 0
   BuildOledScreenAddCharacter(':');
-  BuildOledScreenAddInteger(GetRTCSEC());
+  BuildOledScreenAddInteger(RTCSEC);
 #endif
   
   /* display am/pm if in 12 hour mode */
   SetFont(MetaWatch5Oled);
   if ( GetTimeFormat() == TWELVE_HOUR ) 
   {
-    Hour = GetRTCHOUR();
+    Hour = RTCHOUR;
     
     if ( Hour >= 12 )
     {
@@ -2099,7 +2106,7 @@ static void InitializeDisplayTimers(void)
 }
 
 
-static void InitializeContrastValues(void)
+void InitializeContrastValues(void)
 {
   nvTopOledContrastIndexDay = 4;
   nvBottomOledContrastIndexDay = 4;
@@ -2152,7 +2159,7 @@ static void SaveContrastVales(void)
               &nvBottomOledContrastIndexNight);
 }
 
-static void InitializeDisplayTimeouts(void)
+void InitializeDisplayTimeouts(void)
 {
   nvIdleDisplayTimeout = DEFAULT_IDLE_DISPLAY_TIMEOUT;
   nvApplicationDisplayTimeout = DEFAULT_APPLICATION_DISPLAY_TIMEOUT;
@@ -2235,9 +2242,9 @@ static void ChangeModeHandler(unsigned char Mode)
 
 }
 
-static void ModeTimeoutHandler(unsigned char Mode)
+static void ModeTimeoutHandler(unsigned char CurrentMode)
 {
-  switch ( Mode )
+  switch ( CurrentMode )
   {
   
   case IDLE_MODE:
@@ -2263,17 +2270,15 @@ static void ModeTimeoutHandler(unsigned char Mode)
     break;
   }  
   
-  tHostMsg* pOutgoingMsg;
-  
-  /* send a message to the host */
-  BPL_AllocMessageBuffer(&pOutgoingMsg);
-  unsigned char data = (unsigned char)eScModeTimeout;
-  UTL_BuildHstMsg(pOutgoingMsg, 
-                  StatusChangeEvent, 
-                  NO_MSG_OPTIONS, 
-                  &data, sizeof(data));
-  
-  RouteMsg(&pOutgoingMsg);
+  /* send a message to the host indicating that a timeout occurred */
+  tMessage OutgoingMsg;
+  SetupMessageAndAllocateBuffer(&OutgoingMsg,
+                                StatusChangeEvent,
+                                CurrentMode);
+    
+  OutgoingMsg.pBuffer[0] = (unsigned char)eScModeTimeout;
+  OutgoingMsg.Length = 1;
+  RouteMsg(&OutgoingMsg);
   
 }
 
@@ -2392,7 +2397,7 @@ static void SelectNextMenuPage(void)
 
 static void MenuButtonHandler(unsigned char MsgOptions)
 {
-  tHostMsg* pOutgoingMsg;
+  tMessage OutgoingMsg;
   
   switch (MsgOptions)
   {
@@ -2401,19 +2406,18 @@ static void MenuButtonHandler(unsigned char MsgOptions)
     
     if ( QueryConnectionState() != Initializing )
     {
-      BPL_AllocMessageBuffer(&pOutgoingMsg);
-      pOutgoingMsg->Type = PariringControlMsg;
+      SetupMessage(&OutgoingMsg,PairingControlMsg,NO_MSG_OPTIONS);
         
       if ( QueryDiscoverable() )
       {
-        pOutgoingMsg->Options = PAIRING_CONTROL_OPTION_DISABLE_PAIRING;
+        OutgoingMsg.Options = PAIRING_CONTROL_OPTION_DISABLE_PAIRING;
       }
       else
       {
-        pOutgoingMsg->Options = PAIRING_CONTROL_OPTION_ENABLE_PAIRING;  
+        OutgoingMsg.Options = PAIRING_CONTROL_OPTION_ENABLE_PAIRING;  
       }
       
-      RouteMsg(&pOutgoingMsg);
+      RouteMsg(&OutgoingMsg);
     }
     /* screen will be updated with a message from spp */
     break;
@@ -2432,18 +2436,16 @@ static void MenuButtonHandler(unsigned char MsgOptions)
     
     if ( QueryConnectionState() != Initializing )
     {
-      BPL_AllocMessageBuffer(&pOutgoingMsg);
-        
       if ( QueryBluetoothOn() )
       {
-        pOutgoingMsg->Type = TurnRadioOffMsg;
+        SetupMessage(&OutgoingMsg,TurnRadioOffMsg,NO_MSG_OPTIONS);
       }
       else
       {
-        pOutgoingMsg->Type = TurnRadioOnMsg;
+        SetupMessage(&OutgoingMsg,TurnRadioOnMsg,NO_MSG_OPTIONS);
       }
       
-      RouteMsg(&pOutgoingMsg);  
+      RouteMsg(&OutgoingMsg);  
       NvalSettingsChanged = 1;
     }
     /* screen will be updated with a message from spp */
@@ -2452,11 +2454,8 @@ static void MenuButtonHandler(unsigned char MsgOptions)
   case MENU_BUTTON_OPTION_TOGGLE_SECURE_SIMPLE_PAIRING:
     if ( QueryConnectionState() != Initializing )
     {
-      BPL_AllocMessageBuffer(&pOutgoingMsg);
-      pOutgoingMsg->Type = PariringControlMsg;
-      pOutgoingMsg->Options = PAIRING_CONTROL_OPTION_TOGGLE_SSP;
-      RouteMsg(&pOutgoingMsg);
-      NvalSettingsChanged = 1;
+      SetupMessage(&OutgoingMsg,PairingControlMsg,PAIRING_CONTROL_OPTION_TOGGLE_SSP);
+      RouteMsg(&OutgoingMsg);
     }
     /* screen will be updated with a message from spp */
     break;
@@ -2491,11 +2490,10 @@ static void MenuExitHandler(void)
   /* save all of the non-volatile items 
    *
   */
-  tHostMsg* pOutgoingMsg;
-  BPL_AllocMessageBuffer(&pOutgoingMsg);
-  pOutgoingMsg->Type = PariringControlMsg;
-  pOutgoingMsg->Options = PAIRING_CONTROL_OPTION_SAVE_SPP;
-  RouteMsg(&pOutgoingMsg);
+  tMessage OutgoingMsg;
+  SetupMessage(&OutgoingMsg,PairingControlMsg,PAIRING_CONTROL_OPTION_SAVE_SPP);
+  RouteMsg(&OutgoingMsg);
+  
   /**/
   SaveLinkAlarmEnable();
   SaveRstNmiConfiguration();
@@ -2700,7 +2698,9 @@ unsigned char ScrollTimerCallbackIsr(void)
 {
   unsigned char ExitLpm = 1;
 
-  RouteCommandFromIsr(ScrollModeCmd);
+  tMessage Msg;
+  SetupMessage(&Msg,OledScrollMsg,NO_MSG_OPTIONS);
+  RouteMsgFromIsr(&Msg);
   
   return ExitLpm;
 }

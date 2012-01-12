@@ -220,11 +220,11 @@ xQueueHandle xQueueCreate( unsigned portBASE_TYPE uxQueueLength, unsigned portBA
 {
 xQUEUE *pxNewQueue;
 size_t xQueueSizeInBytes;
+
 	/* Allocate the new queue structure. */
 	if( uxQueueLength > ( unsigned portBASE_TYPE ) 0 )
 	{
 		pxNewQueue = ( xQUEUE * ) pvPortMalloc( sizeof( xQUEUE ) );
-
 		if( pxNewQueue != NULL )
 		{
 			/* Create the list of pointers to queue items.  The queue is one byte
@@ -842,7 +842,8 @@ signed char *pcOriginalReadPosition;
 				{
 					traceQUEUE_PEEK( pxQueue );
 
-					/* We are not removing the data, so reset our read pointer. */
+					/* We are not removing the data, so reset our read
+					pointer. */
 					pxQueue->pcReadFrom = pcOriginalReadPosition;
 
 					/* The data is being left in the queue, so see if there are

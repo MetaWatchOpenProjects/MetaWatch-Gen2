@@ -34,6 +34,7 @@ typedef enum
   MetaWatch5,
   MetaWatch7,
   MetaWatch16,
+  MetaWatchTime,
   MetaWatch5Oled,
   MetaWatch7Oled,
   MetaWatch16Oled,
@@ -44,13 +45,17 @@ typedef enum
 /*! Use to size the bitmap used in the Display Task for printing characters FOR 
  * THE LCD VERSION
  */
-#define MAX_FONT_ROWS ( 16 )
+#define MAX_FONT_ROWS ( 19 )
 
 /*! The maximum number of columns any font (or icon) requires.  This is 
  * used to define the size of the bitmap passed into font functions FOR THE
  * OLED version
  */
 #define MAX_FONT_COLUMNS ( 30 )
+
+#define TOTAL_TIME_CHARACTERS      ( 12 )
+#define TIME_CHARACTER_COLON_INDEX ( 10 )
+#define TIME_CHARACTER_SPACE_INDEX ( 11 )
 
 /*! Convert a character into an index into the font table
  *

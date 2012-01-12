@@ -32,7 +32,6 @@
 #include "hal_rtc.h"
 
 #include "Background.h"
-#include "BufferPool.h"
 #include "Utilities.h"
 
 /******************************************************************************/
@@ -66,12 +65,12 @@ void InitializeVibration(void)
 
 
 /* Handle the message from the host that starts a vibration event */
-void SetVibrateModeHandler(tHostMsg* pMsg)
+void SetVibrateModeHandler(tMessage* pMsg)
 {
 
   // overlay a structure pointer on the data section
   tSetVibrateModePayload* pMsgData;
-  pMsgData = (tSetVibrateModePayload*) pMsg->pPayload;
+  pMsgData = (tSetVibrateModePayload*) pMsg->pBuffer;
 
   // set it active or cancel it
   VibeEventActive = pMsgData->Enable;
@@ -121,9 +120,11 @@ void SetVibrateModeHandler(tHostMsg* pMsg)
 
 /* 
  * Once the phone has started a vibration event this controls the pulsing
- * on and off 
+ * on and off.
+ * 
+ * This requires < 7 us and is done in the ISR
 */
-void VibrationMotorStateMachine(void)
+void VibrationMotorStateMachineIsr(void)
 {
   VibeEventTimerCount++;
   
@@ -138,10 +139,12 @@ void VibrationMotorStateMachine(void)
       {
         motorOn = pdFALSE;
         nextActionTime +=  timeOff;
-        cycleCount -= 1;
-    
-        // This is the end of the event
-        if(0 == cycleCount)
+        
+        if ( cycleCount > 0 )
+        {
+          cycleCount -= 1;
+        }
+        else /* the count is zero */
         {
           VibeEventActive = pdFALSE;
           DisableRtcPrescaleInterruptUser(RTC_TIMER_VIBRATION);
@@ -157,8 +160,14 @@ void VibrationMotorStateMachine(void)
   
     }
   
-    // Set/clean  the port bit that controls the motor
+    // Set/clean the port bit that controls the motor
     SetVibeMotorState(motorOn);
   
   }
+  else
+  {
+    DisableRtcPrescaleInterruptUser(RTC_TIMER_VIBRATION);
+    DisableVibratorPwm();   
+  }
+  
 }

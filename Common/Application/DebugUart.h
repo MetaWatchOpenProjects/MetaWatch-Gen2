@@ -27,20 +27,22 @@
 #ifndef DEBUG_UART_H
 #define DEBUG_UART_H
 
+typedef char tString;
+
 /*! Initialize the uart peripheral and create mutex */
 void InitDebugUart(void);
 
 /*! Print a string */
-void PrintString(signed char * const pString);
+void PrintString(tString * const pString);
 
 /*! Print two strings */
-void PrintString2(signed char * const pString1,
-                  signed char * const pString2);
+void PrintString2(tString * const pString1,
+                  tString * const pString2);
 
 /*! Print three strings */
-void PrintString3(signed char * const pString1,
-                  signed char * const pString2,
-                  signed char * const pString3);
+void PrintString3(tString * const pString1,
+                  tString * const pString2,
+                  tString * const pString3);
 
 /*! Print a 16 bit value in decimal */
 void PrintDecimal(unsigned int Value);
@@ -49,27 +51,35 @@ void PrintDecimal(unsigned int Value);
 void PrintDecimalAndNewline(unsigned int Value);
 
 /*! Print a string and a 16 bit value */
-void PrintStringAndDecimal(signed char * const pString,unsigned int Value);
+void PrintStringAndDecimal(tString * const pString,unsigned int Value);
 
 /*! Print a string, space and 16 bit value */
-void PrintStringAndSpaceAndDecimal(signed char * const pString,unsigned int Value);
+void PrintStringAndSpaceAndDecimal(tString * const pString,unsigned int Value);
 
 /*! Print a string and an 16 bit value represented in hexadecimal */
-void PrintStringAndHex(signed char * const pString,unsigned int Value);
+void PrintStringAndHex(tString * const pString,unsigned int Value);
 
 /*! Print a string 16 bit value, and another string and 16 bit value */
-void PrintStringAndTwoDecimals(signed char * const pString1,
+void PrintStringAndTwoDecimals(tString * const pString1,
                                unsigned int Value1,
-                               signed char * const pString2,
+                               tString * const pString2,
                                unsigned int Value2);
 
+/*! Print a string 16 bit value three times */
+void PrintStringAndThreeDecimals(tString * const pString1,
+                                 unsigned int Value1,
+                                 tString * const pString2,
+                                 unsigned int Value2,
+                                 tString * const pString3,
+                                 unsigned int Value3);
+
 /*! Print a string and two 16 bit values with spaces inbetween */
-void PrintStringSpaceAndTwoDecimals(signed char * const pString1,
+void PrintStringSpaceAndTwoDecimals(tString * const pString1,
                                     unsigned int Value1,
                                     unsigned int Value2);
 
 /*! Print a string and three 16 bit values with spaces inbetween */
-void PrintStringSpaceAndThreeDecimals(signed char * const pString1,
+void PrintStringSpaceAndThreeDecimals(tString * const pString1,
                                       unsigned int Value1,
                                       unsigned int Value2,
                                       unsigned int Value3);
@@ -86,9 +96,12 @@ void DisableUartSmClkIsr(void);
 
 
 /*! Convert a 16 bit value into a string */
-void ToDecimalString(unsigned int Value, signed char * pString);
+void ToDecimalString(unsigned int Value, tString * pString);
 
 /*! Convert a 16 bit value into a hexadecimal string */
-void ToHexString(unsigned int Value, signed char * pString);
+void ToHexString(unsigned int Value, tString * pString);
+
+/*! Print the RTCPS */
+void PrintTimeStamp(void);
 
 #endif

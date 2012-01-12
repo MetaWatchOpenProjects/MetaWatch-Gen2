@@ -32,7 +32,7 @@ void EnableSmClkUser(unsigned char User)
 
   ENTER_CRITICAL_REGION_QUICK();
   
-#if 0
+#ifdef CLOCK_CONTROL_DEBUG
   DEBUG5_HIGH();
 #endif
   
@@ -55,7 +55,7 @@ void DisableSmClkUser(unsigned char User)
   {
     UCSCTL8 &= ~SMCLKREQEN;
     
-#if 0
+#ifdef CLOCK_CONTROL_DEBUG
     DEBUG5_LOW();
 #endif
   };

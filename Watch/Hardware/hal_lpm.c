@@ -75,7 +75,7 @@ static void EnterLpm3(void)
   __delay_cycles(100);
   MCLK_DIV(1);
   
-  
+
   
   /* Generate a vTickIsr by setting the flag to trigger an interrupt
    * You can't call vTaskIncrementTick and vTaskSwitchContext from within a
@@ -115,11 +115,8 @@ static void EnterShippingMode(void)
   
   __disable_interrupt();
   __no_operation();
-
-  /* reset radio and drive rts and cts */
-  P10OUT &= ~BIT3;
-  P1OUT |= BIT0 + BIT3;
-  P1DIR |= BIT0 + BIT3;
+  
+  ResetRadioAndDriveRtsCts();
   
   DISABLE_DISPLAY_POWER();
   DISABLE_LCD_ENABLE();
@@ -222,4 +219,14 @@ void EnableRstPin(void)
 void DisableRstPin(void)
 {
   ConfigureResetPinFunction(RST_PIN_DISABLED);  
+}
+
+void ResetRadioAndDriveRtsCts(void)
+{
+  /* reset radio and drive rts and cts */
+  P10OUT &= ~BIT3;
+  
+  //P1DIR |= BIT0 + BIT3;
+  //P1OUT |= BIT0 + BIT3;
+  
 }

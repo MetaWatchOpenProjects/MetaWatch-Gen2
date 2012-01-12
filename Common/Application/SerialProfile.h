@@ -140,21 +140,31 @@ void QueryLinkKeys(unsigned char Index,
 
 /******************************************************************************/
 
-/*! Allow sniff mode to be entered */
-void EnableSniff(void);
-
-/*! Prevent sniff mode from being entered */
-void DisableSniff(void);
-
-/*! Query the state of the SniffEnabled register 
+/*! Query the state of the AutoSniffEnabled register 
  * \return 1 if Sniff is Enabled, 0 otherwise 
  */
-unsigned char QuerySniffEnabled(void);
+unsigned char QueryAutoSniffEnabled(void);
 
 /*! 
  * \param DelayMs is the delay for entering sniff mode 
  */
 void SetSniffModeEntryDelay(unsigned int DelayMs);
+
+
+/* these are actually the HCI Current Mode Types + some housekeeping */
+typedef enum
+{
+  Active = 0,             
+  Hold = 1,
+  Sniff = 2,                  
+  Park = 3,
+  PhoneNotConnected = 4,
+  SniffToActive = 5,
+  ActiveToSniff = 6,
+  
+} etSniffState;
+
+etSniffState QuerySniffState(void);
 
 /******************************************************************************/
 

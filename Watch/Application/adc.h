@@ -101,4 +101,11 @@ void SetBatteryLevels(unsigned char * pData);
  */
 void LowBatteryMonitor(void);
 
+
+/*! Set the default values for the low battery levels stored in flash if they
+ * do not exist.  If they exists then read them from flash and store them
+ * into a variable in ram
+ */
+void InitializeLowBatteryLevels(void);
+
 #endif // ADC_H

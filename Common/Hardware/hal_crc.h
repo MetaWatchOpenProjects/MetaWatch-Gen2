@@ -36,8 +36,12 @@
  * Initialize the CRC generator in the MSP430
  *
  * Use this before computing a new CRC.
+ * 
+ * This takes the CRC semaphore
  */
 void halCrcInit(void);
+
+void halCrcGiveMutex(void);
 
 /*!
  * Add a byte to the current CRC operation.

@@ -31,10 +31,8 @@
 
 #include "Messages.h"
 #include "MessageQueues.h"
-#include "BufferPool.h"     
 #include "DebugUart.h"
 #include "Utilities.h"
-#include "CommandTask.h"
 
 #include "OneSecondTimers.h"
 
@@ -45,7 +43,6 @@ typedef struct
   unsigned int DownCounter;
   unsigned char Allocated;
   unsigned char Running;
-  unsigned char Expired;
   unsigned char RepeatCount;
   eMessageType CallbackMsgType;
   unsigned char CallbackMsgOptions;
@@ -53,7 +50,6 @@ typedef struct
 } tOneSecondTimer;
 
 
-// using last location for debug
 static tOneSecondTimer OneSecondTimers[TOTAL_ONE_SECOND_TIMERS];
 
 static xSemaphoreHandle OneSecondTimerMutex;
@@ -67,7 +63,6 @@ void InitializeOneSecondTimers(void)
     OneSecondTimers[i].DownCounter = 0;
     OneSecondTimers[i].Allocated = 0;
     OneSecondTimers[i].Running = 0;
-    OneSecondTimers[i].Expired = 0;
     OneSecondTimers[i].RepeatCount = 0;
     OneSecondTimers[i].CallbackMsgType = InvalidMessage;
     OneSecondTimers[i].CallbackMsgOptions = 0;
@@ -123,7 +118,6 @@ signed char DeallocateOneSecondTimer(tTimerId TimerId)
   {
     OneSecondTimers[TimerId].Allocated = 0;
     OneSecondTimers[TimerId].Running = 0;
-    OneSecondTimers[TimerId].Expired = 0;
     result = TimerId;
   }
 
@@ -151,7 +145,6 @@ void StartOneSecondTimer(tTimerId TimerId)
   ENTER_CRITICAL_REGION_QUICK();
 
   OneSecondTimers[TimerId].Running = 1;
-  OneSecondTimers[TimerId].Expired = 0;
   OneSecondTimers[TimerId].DownCounter = OneSecondTimers[TimerId].Timeout;
   
   LEAVE_CRITICAL_REGION_QUICK();
@@ -162,7 +155,6 @@ void StopOneSecondTimer(tTimerId TimerId)
   ENTER_CRITICAL_REGION_QUICK();
 
   OneSecondTimers[TimerId].Running = 0;
-  OneSecondTimers[TimerId].Expired = 0;
   
   LEAVE_CRITICAL_REGION_QUICK();
 }
@@ -225,7 +217,6 @@ unsigned char OneSecondTimerHandlerIsr(void)
   {
     if ( OneSecondTimers[i].Running == 1 )
     {        
-      
       /* decrement the counter first */
       if ( OneSecondTimers[i].DownCounter > 0 )
       {
@@ -250,14 +241,13 @@ unsigned char OneSecondTimerHandlerIsr(void)
           OneSecondTimers[i].Running = 0;  
         }
         
-        OneSecondTimers[i].Expired = 1;
-        ExitLpm = 1;
-        /*! todo - pass the index of the expired timer and then
-         * make expired handler more efficient (another reason for a new type
-         * of queue )
-         */
-        RouteCommandFromIsr(ExpiredTimerCmd);
+        tMessage OneSecondMsg;
+        SetupMessage(&OneSecondMsg,
+                     OneSecondTimers[i].CallbackMsgType,
+                     OneSecondTimers[i].CallbackMsgOptions);
         
+        RouteMsgFromIsr(&OneSecondMsg);
+        ExitLpm = 1;
       }
     }
   }
@@ -265,31 +255,4 @@ unsigned char OneSecondTimerHandlerIsr(void)
   return ExitLpm;
   
 }
-
-static tHostMsg* pOneSecondMsg;
-
-void ExpiredOneSecondTimerHandler(void)
-{
-  tOneSecondTimer CurrentTimer;
-
-  for (unsigned char i = 0; i < TOTAL_ONE_SECOND_TIMERS; i++ )
-  {
-    ENTER_CRITICAL_REGION_QUICK();
-    CurrentTimer = OneSecondTimers[i];
-    OneSecondTimers[i].Expired = 0;
-    LEAVE_CRITICAL_REGION_QUICK();
-  
-    if ( CurrentTimer.Expired == 1 )
-    {
-      /* send a callback message */
-      BPL_AllocMessageBuffer(&pOneSecondMsg);        
-      pOneSecondMsg->Type = CurrentTimer.CallbackMsgType;
-      pOneSecondMsg->Options = CurrentTimer.CallbackMsgOptions;
-      RouteMsg(&pOneSecondMsg);
-  
-    }
-  }
-  
-}
-
 

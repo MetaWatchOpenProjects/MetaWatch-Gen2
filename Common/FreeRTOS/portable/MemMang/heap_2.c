@@ -149,8 +149,8 @@ xBlockLink *pxFirstFreeBlock;														\
 	pxFirstFreeBlock->xBlockSize = configTOTAL_HEAP_SIZE;							\
 	pxFirstFreeBlock->pxNextFreeBlock = &xEnd;										\
 }
-
 /*-----------------------------------------------------------*/
+
 void *pvPortMalloc( size_t xWantedSize )
 {
 xBlockLink *pxBlock, *pxPreviousBlock, *pxNewBlockLink;
@@ -239,12 +239,8 @@ void *pvReturn = NULL;
 
 	return pvReturn;
 }
-
 /*-----------------------------------------------------------*/
-//void vPortFree(void *pv)
-//{
-//   BTPS_FreeMemory(pv);
-//}
+
 void vPortFree( void *pv )
 {
 unsigned char *puc = ( unsigned char * ) pv;

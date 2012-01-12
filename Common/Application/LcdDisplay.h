@@ -70,4 +70,20 @@ unsigned char* GetTemplatePointer(unsigned char TemplateSelect);
  */
 unsigned char QueryIdlePageNormal(void);
 
+/*! Initialize flash/ram value for the idle buffer configuration */
+void InitializeIdleBufferConfig(void);
+
+/*! Initialize flash/ram value for controlling whether or not the idle buffer
+ *  is inverted */
+void InitializeIdleBufferInvert(void);
+
+/*! Initialize flash/ram value for whether or not to display seconds */
+void InitializeDisplaySeconds(void);
+
+/*! Called from RTC one second interrupt
+ *
+ * \return 1 if lpm should be exited, 0 otherwise
+ */
+unsigned char LcdRtcUpdateHandlerIsr(void);
+
 #endif /* LCD_DISPLAY_H */

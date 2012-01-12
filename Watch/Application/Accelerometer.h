@@ -15,22 +15,29 @@
 //==============================================================================
 
 /******************************************************************************/
-/*! \file Pedometer.h
+/*! \file Accelerometer.h
  *
- * This is an example task that blocks on a counting semaphore.
- * When enabled it generates a message to the phone when the watch is shaken.
- * The default stack configuration may not support the amount of traffic that
- * it generates.
  */
 /******************************************************************************/
 
-#ifndef PEDOMETER_H
-#define PEDOMETER_H
+#ifndef ACCELEROMETER_H
+#define ACCELEROMETER_H
 
-/*! Initialize accelerometer, setup task and counting semaphore */
-void InitializePedometerTask(void);
 
-/*! The pedometer task blocks on a counting semaphore */
-void IncrementPedometerSemaphoreFromIsr(void);
+/******************************************************************************/
+   
+void InitializeAccelerometer(void);
 
-#endif /*PEDOMETER_H */
+/*! The accelerometer is configured to wake up on a certain threshold */
+void AccelerometerIsr(void);
+
+void AccelerometerSendDataHandler(void);
+void AccelerometerSetupHandler(tMessage* pMsg);
+void AccelerometerAccessHandler(tMessage* pMsg);
+void AccelerometerEnable(void);
+void AccelerometerDisable(void);
+
+/******************************************************************************/
+
+
+#endif /*ACCELEROMETER_H */

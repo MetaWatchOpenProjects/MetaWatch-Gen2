@@ -31,49 +31,105 @@
   #error "queue.h must be included before MessageQueues.h"
 #endif
 
-#define MESSAGE_QUEUE_ITEM_SIZE ( ( unsigned int ) sizeof( unsigned char* ) )
+#define MESSAGE_QUEUE_ITEM_SIZE ( ( unsigned int ) sizeof( tMessage ) )
 
 #define FREE_QINDEX        ( 0 )
 #define BACKGROUND_QINDEX  ( 1 )
 #define DISPLAY_QINDEX     ( 2 )
-#define LCD_TASK_QINDEX    ( 3 )
-#define SRAM_QINDEX        ( 4 )
-#define SPP_TASK_QINDEX    ( 5 ) 
-#define TOTAL_QUEUES       ( 6 )
+#define SPP_TASK_QINDEX    ( 3 )
+#define TOTAL_QUEUES       ( 4 )
+
 
 /*! Array of all of the queue handles */
 extern xQueueHandle QueueHandles[TOTAL_QUEUES];
 
-/*! send a buffer to the free queue
-*
-* \param ppMsg A pointer to message buffer pointer
-*/
-void SendToFreeQueue(tHostMsg** ppMsg);
+
+/*! \return 1 when all task queues are empty and the part can go into sleep 
+ * mode 
+ */
+unsigned char AllTaskQueuesEmpty(void);
 
 
-/*! send a buffer to the free queue from an ISR
-*
-* \param ppMsg A pointer to a message buffer pointer
-*/
-void SendToFreeQueueIsr(tHostMsg** ppMsg);
+/*! Send a message to the free queue.  If this is a short message that 
+ * did not allocate a buffer then no action is taken.
+ *
+ * \param pMsg A pointer to message buffer
+ */
+void SendToFreeQueue(tMessage* pMsg);
 
-/*! Route a message to the appropriate task (queue)
-*
-* \param ppMsg A pointer to a message buffer pointer
-*/
-void RouteMsg(tHostMsg** ppMsg);
 
-/*! Route a message to the appropriate task (queue) from an ISR
-*
-* \param ppMsg A pointer to a message buffer pointer
-*/
-void RouteMsgFromIsr(tHostMsg** ppMsg);
+/*! Send a message to the free queue.  If this is a short message that 
+ * did not allocate a buffer then no action is taken.
+ *
+ * \param pMsg A pointer to a message buffer
+ */
+void SendToFreeQueueIsr(tMessage* pMsg);
 
-/*! Route a message to the appropriate task (queue)
+/*! Route a message to the appropriate task (queue). This operation is a copy.
 *
-* \param ppMsg A pointer to a message buffer pointer
+ * \param pMsg A pointer to a message buffer
 */
-void RouteMsgBlocking(tHostMsg** ppMsg);
+void RouteMsg(tMessage* pMsg);
+
+/*! Route a message to the appropriate task (queue) from an ISR.
+ *
+ * \param pMsg A pointer to a message buffer
+ */
+void RouteMsgFromIsr(tMessage* pMsg);
+
+/*! Route a message to the appropriate task (queue) and wait until there is
+ * room in the queue.
+ *
+ * \param pMsg A pointer to a message buffer
+ */
+void RouteMsgBlocking(tMessage* pMsg);
+
+/*! Let routing know handle of spp queue.  This function is used so that the
+ * number of queues can change without affecting the stack.
+*
+ * \param SppQueueHandle - handle for spp queue
+*/
+void AssignSppQueueHandle(xQueueHandle SppHandle);
+
+/*! Set the message parameters.  Safe to call when in interrupt context.
+ *
+ * \param pMsg is a pointer to a message
+ * \param Type is the message type
+ * \param Options are the message options
+ *
+ * \note This does not allocate a buffer from the buffer pool (It is for a 
+ * "short" message ).
+*
+*/
+void SetupMessage(tMessage* pMsg,
+                  unsigned char Type,
+                  unsigned char Options);
+
+/*! Set the message parameters.
+ *
+ * The pMsg->pBuffer pMsg will point to a message buffer after a call to 
+ * this function (unless there aren't any available).  A buffer allocation
+ * failure will result in a watchdog reset.
+ *
+ * \param pMsg is a pointer to a message
+ * \param Type is the message type
+ * \param Options are the message options
+ *
+ * \note This cannot be called from an ISR.  It was chosen to not allow buffers
+ * to be allocated from ISRs because of the amount of time it can take
+*
+*/
+void SetupMessageAndAllocateBuffer(tMessage* pMsg,
+                                   unsigned char Type,
+                                   unsigned char Options);
+
+
+/*! Print the message type
+ *
+ * \param pMsg is a pointer to a message 
+*
+*/
+void PrintMessageType(tMessage* pMsg);
 
 #endif /* MESSAGE_QUEUES_H */
 

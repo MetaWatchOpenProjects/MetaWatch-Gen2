@@ -163,4 +163,13 @@ unsigned char QueryBatteryDebug(void);
 /* \return 1 when connection debug messages should be printed */
 unsigned char QueryConnectionDebug(void);
 
+/******************************************************************************/
+
+/* if 0 then don't ever time out */
+#define PAIRING_MODE_TIMEOUT_IN_SECONDS ( 600 )
+
+void InitializePairingModeDuration(void);
+
+unsigned int GetPairingModeDurationInSeconds(void);
+
 #endif /* DISPLAY_H */

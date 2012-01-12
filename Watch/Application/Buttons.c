@@ -34,7 +34,6 @@
 
 #include "Buttons.h"
 #include "Background.h"
-#include "BufferPool.h"
 #include "Buttons.h"
 #include "DebugUart.h"
 #include "SerialProfile.h"
@@ -42,7 +41,6 @@
 #include "MessageQueues.h"
 #include "Display.h"
 #include "OneSecondTimers.h"
-#include "CommandTask.h"
 
 /* Allocate an array of structures to keep track of button data.  Index 4 is not
  * used, but it complicates things too much to skip it.  Everything is sized and
@@ -78,6 +76,7 @@ unsigned char GetButtonImmediateModeMask(unsigned char ButtonIndex);
 static void HandleButtonEvent(unsigned char ButtonIndex,
                               unsigned char ButtonPressType);
 
+static tMessage OutgoingEventMsg;
 
 /******************************************************************************/
 
@@ -370,10 +369,7 @@ static void InitializeButtonConfigurationStructure(void)
 static void HandleButtonEvent(unsigned char ButtonIndex,
                               unsigned char ButtonPressType)
 {
-  tHostMsg* pButtonEventMsg;
   tButtonConfiguration* pLocalCfg = &(ButtonCfg[QueryButtonMode()][ButtonIndex]);
-  
-  unsigned char DisplayMode = QueryButtonMode();
   
   eMessageType Type = (eMessageType)pLocalCfg->CallbackMsgType[ButtonPressType];
   unsigned char Options = pLocalCfg->CallbackMsgOptions[ButtonPressType];
@@ -381,31 +377,23 @@ static void HandleButtonEvent(unsigned char ButtonIndex,
   if ( (pLocalCfg->MaskTable & (1 << ButtonPressType)) == 0 )
   {
     /* if the message type is non-zero then generate a message */
-    if ( Type != 0 )
+    if ( Type != InvalidMessage )
     {
-        BPL_AllocMessageBuffer(&pButtonEventMsg);
-
-        /* if this button press is going to the bluetooth then
-         * format it properly.
+        /* if this button press is going to the bluetooth then allocate
+         * a buffer and add the button index
          */
         if ( Type == ButtonEventMsg )
         {
-          // Send the index of the button that changed state
-          UTL_BuildHstMsg(pButtonEventMsg, 
-                          Type, 
-                          Options, 
-                          &ButtonIndex, sizeof(ButtonIndex));
+          SetupMessageAndAllocateBuffer(&OutgoingEventMsg,Type,Options);
+          OutgoingEventMsg.pBuffer[0] = ButtonIndex;
+          OutgoingEventMsg.Length = 1;
         }
         else
         {
-          /* a button can be configured to send any type of simple message
-           * simple == limited payload
-           */
-          pButtonEventMsg->Type = Type;
-          pButtonEventMsg->Options = Options;
+          SetupMessage(&OutgoingEventMsg,Type,Options);   
         }
 
-        RouteMsg(&pButtonEventMsg);
+        RouteMsg(&OutgoingEventMsg);
         
     }
         
@@ -509,8 +497,7 @@ __interrupt void ButtonPortIsr(void)
 
   if(StartDebouncing)
   {
-    RouteCommandFromIsr(ButtonDebounce);
-    EXIT_LPM_ISR();
+    EnableRtcPrescaleInterruptUser(RTC_TIMER_BUTTON); 
   }
 
 }

@@ -19,10 +19,10 @@
 *
 */
 /******************************************************************************/
-#include "hal_board_type.h"
+
+#include "portmacro.h"
 
 #include "Messages.h"
-
 #include "Statistics.h"
 #include "SerialProfile.h"
 

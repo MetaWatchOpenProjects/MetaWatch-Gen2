@@ -38,26 +38,24 @@ void InitializeBufferPool(void);
 
 /*! Remove a message from the free buffer pool 
  * 
- * \param ppMsgBuffer will point to a message buffer pointer after a successful
- * call to this function.
+ * \return a pointer to a buffer
  */
-void BPL_AllocMessageBuffer(tHostMsg** ppMsgBuffer);
-
+unsigned char* BPL_AllocMessageBuffer(void);
 
 /*! Add a message to the free buffer pool.  This function performs basic memory
  * range checking.
  * 
- * \param ppMsgBuffer points to the message buffer pointer to be freed (added
+ * \param pBuffer points to the message buffer to be freed (added
  * to the free queue).
  */
-void BPL_FreeMessageBuffer(tHostMsg** ppMsgBuffer);
+void BPL_FreeMessageBuffer(unsigned char* pBuffer);
 
-/*! Remove a message from the free buffer pool when in interrupt context.  This 
- * function is required by FreeRTOS
+/*! Add a message to the free buffer pool.  This function performs basic memory
+ * range checking.
  * 
- * \param ppMsgBuffer will point to a message buffer pointer after a successful
- * call to this function.
+ * \param pBuffer points to the message buffer to be freed (added
+ * to the free queue).
  */
-void BPL_AllocMessageBufferFromISR(tHostMsg** ppMsgBuffer);
+void BPL_FreeMessageBufferFromIsr(unsigned char* pBuffer);
 
 #endif /* BUFFER_POOL_H */

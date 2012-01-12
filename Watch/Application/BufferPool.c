@@ -23,6 +23,7 @@
 
 #include "FreeRTOS.h"
 #include "queue.h"         
+#include "task.h"
 
 #include "hal_board_type.h"
 #include "hal_lpm.h"
@@ -33,18 +34,11 @@
 #include "Statistics.h"
 #include "DebugUart.h"
 
-/*! Allocate two header bytes at the start of each message buffer.  These are
- * not visible outside this module, which is why the struct is defined here.
- *
- * \param msgHeader that is not externally accessable
- * \param msgOptions byte that is not externally accessable
- * \param buffer is a buffer of HOST_MSG_BUFFER_LENGTH whose address goes
+/*! \param buffer is a buffer of HOST_MSG_BUFFER_LENGTH whose address goes
  * onto a queue
 */
 typedef struct
 {
-  unsigned char msgHeader;                
-  unsigned char msgOptions;               
   unsigned char buffer[HOST_MSG_BUFFER_LENGTH];  
 
 } tBufferPoolBuffer;    
@@ -59,22 +53,20 @@ static tBufferPoolBuffer BufferPool[NUM_MSG_BUFFERS];
 static const unsigned char* LOW_BUFFER_ADDRESS   = &(BufferPool[0].buffer[0]);
 static const unsigned char* HIGH_BUFFER_ADDRESS  = &(BufferPool[NUM_MSG_BUFFERS - 1].buffer[0]);
 
-
+static void SetBufferPoolFailureBit(void)
+{
+  gAppStats.BufferPoolFailure = 1;  
+}
 
 void InitializeBufferPool( void )
 {
   unsigned int  ii;              // loop counter
   unsigned char* pMsgBuffer;      // holds the address of the msg buffer to add to the queue
   
-  ii = sizeof(unsigned char*);  // use this to check the compilers size for a byte *
-  
   // create the queue to hold the free message buffers
   QueueHandles[FREE_QINDEX] =
     xQueueCreate( ( unsigned portBASE_TYPE ) NUM_MSG_BUFFERS,
                   ( unsigned portBASE_TYPE ) sizeof(unsigned char*) );
-  
-  // Add the queue to the registry so we can tack it in StateViewer
-  // vQueueAddToRegistry( m_xMessagedQueue, ( signed portCHAR * ) "Message_Buffer_Q" );
   
   // Add the address of each buffer's data section to the queue
   for(ii = 0; ii < NUM_MSG_BUFFERS; ii++)
@@ -85,75 +77,110 @@ void InitializeBufferPool( void )
   
       // We only call this at initialization so it should never fail
       // params: queue handle, ptr to item to queue, ticks to wait if full
-      if ( xQueueSend( QueueHandles[FREE_QINDEX], &pMsgBuffer, 0 ) != pdTRUE )
+      if ( xQueueSend( QueueHandles[FREE_QINDEX], &pMsgBuffer, DONT_WAIT ) != pdTRUE )
       {
         PrintString("Unable to build Free Queue\r\n");
-        gAppStats.BufferPoolFailure = 1;
+        SetBufferPoolFailureBit();
       }
   }
 }
 
-
-
-
-
-void BPL_AllocMessageBuffer(tHostMsg** ppMsgBuffer)
+unsigned char* BPL_AllocMessageBuffer(void)
 {
+  unsigned char * pBuffer = NULL;
+
   // params are: queue handle, ptr to the msg buffer, ticks to wait
-  if( pdTRUE != xQueueReceive( QueueHandles[FREE_QINDEX], (unsigned char**) ppMsgBuffer, 0 ) )
+  if( pdTRUE != xQueueReceive( QueueHandles[FREE_QINDEX], &pBuffer, DONT_WAIT ) )
   {
-    *ppMsgBuffer = NULL;
-    
     PrintString("Unable to Allocate Buffer\r\n");
-    gAppStats.BufferPoolFailure = 1;
+    SetBufferPoolFailureBit();
   }
 
-  /* set default values
-   * this only makes sense since the buffers are all of the same type 
-   */
-  (*ppMsgBuffer)->Type = InvalidMessage;
-  (*ppMsgBuffer)->Length = 0;
-  (*ppMsgBuffer)->Options = NO_MSG_OPTIONS;
-    
-}
-
-
-
-
-void BPL_AllocMessageBufferFromISR(tHostMsg** ppMsgBuffer)
-{  
-  // params are: queue handle, ptr to the msg buffer, ticks to wait
-  if( pdTRUE != xQueueReceiveFromISR( QueueHandles[FREE_QINDEX], (unsigned char**) ppMsgBuffer, 0 ))
-  {
-    *ppMsgBuffer = NULL;
-    
-    PrintString("Unable to Allocate Buffer from Isr\r\n");
-    gAppStats.BufferPoolFailure = 1;
-  }
-}
-
-
-/* checks that address is in range */
-void BPL_FreeMessageBuffer( tHostMsg** ppMsgBuffer )
-{
-  unsigned char* pMsgBuffer = (unsigned char*) (*ppMsgBuffer);
-
-  // make sure the returned pointer is in range
-  if (   pMsgBuffer < LOW_BUFFER_ADDRESS 
-      || pMsgBuffer > HIGH_BUFFER_ADDRESS )
+  if (   pBuffer < LOW_BUFFER_ADDRESS 
+      || pBuffer > HIGH_BUFFER_ADDRESS )
   {
     PrintString("Free Buffer Corruption\r\n");
-    gAppStats.BufferPoolFailure = 1;
+    SetBufferPoolFailureBit();
+}
+
+  return pBuffer;
+
+}
+
+#if 0
+/* This is slow enough that we don't want to encourage it */
+unsigned char* BPL_AllocMessageBufferFromISR(void)
+{
+  unsigned char * pBuffer = NULL;
+
+  signed portBASE_TYPE HigherPriorityTaskWoken;
+  
+  // params are: queue handle, ptr to the msg buffer, ticks to wait
+  if( pdTRUE != xQueueReceiveFromISR(QueueHandles[FREE_QINDEX], 
+                                     &pBuffer, 
+                                     &HigherPriorityTaskWoken ))
+  {
+    PrintString("Unable to Allocate Buffer from Isr\r\n");
+    SetBufferPoolFailureBit();
+  }
+    
+  if ( HigherPriorityTaskWoken == pdTRUE )
+  {
+    portYIELD();
   }
 
+  return pBuffer;
+    
+}
+#endif
+
+void BPL_FreeMessageBuffer(unsigned char* pBuffer)
+{  
+  // make sure the returned pointer is in range
+  if (   pBuffer < LOW_BUFFER_ADDRESS 
+      || pBuffer > HIGH_BUFFER_ADDRESS )
+  {
+    PrintString("Free Buffer Corruption\r\n");
+    SetBufferPoolFailureBit();
+  }
+    
   // params are: queue handle, ptr to item to queue, tick to wait if full
   // the queue can't be full unless there is a bug, so don't wait on full
-  if( pdTRUE != xQueueSend(QueueHandles[FREE_QINDEX], ppMsgBuffer, 0) )
-  {
+  if( pdTRUE != xQueueSend(QueueHandles[FREE_QINDEX], &pBuffer, DONT_WAIT) )
+{
     PrintString("Unable to add buffer to Free Queue\r\n");
-    gAppStats.BufferPoolFailure = 1;
+    SetBufferPoolFailureBit();
   }
 
 }
 
+void BPL_FreeMessageBufferFromIsr(unsigned char* pBuffer)
+{
+  // make sure the returned pointer is in range
+  if (   pBuffer < LOW_BUFFER_ADDRESS 
+      || pBuffer > HIGH_BUFFER_ADDRESS )
+  {
+    PrintString("Free Buffer Corruption\r\n");
+    SetBufferPoolFailureBit();
+  }
+
+  signed portBASE_TYPE HigherPriorityTaskWoken;
+  
+  // params are: queue handle, ptr to item to queue, tick to wait if full
+  // the queue can't be full unless there is a bug, so don't wait on full
+  if( pdTRUE != xQueueSendFromISR(QueueHandles[FREE_QINDEX], 
+                                  &pBuffer, 
+                                  &HigherPriorityTaskWoken) )
+  {
+    PrintString("Unable to add buffer to Free Queue\r\n");
+    SetBufferPoolFailureBit();
+  }
+
+  
+  if ( HigherPriorityTaskWoken == pdTRUE )
+  {
+    portYIELD();
+}
+
+}
 

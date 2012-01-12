@@ -88,7 +88,8 @@
 #define RESOLUTION_8BIT    ( 0 << 6 )
 #define RESOLUTION_12BIT   ( 1 << 6 )
 #define WUF_ENABLE         ( 1 << 1 )
-#define WUF_DISABLE        ( 0 << 1 )
+#define TAP_ENABLE_TDTE    ( 1 << 2 ) 
+#define TILT_ENABLE_TPE    ( 1 << 0 )
 
 /* INT_CTRL_REG1 */
 #define IEN ( 1 << 5 ) 

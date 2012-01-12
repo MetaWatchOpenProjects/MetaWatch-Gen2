@@ -61,8 +61,8 @@ unsigned char BatteryChargingControl(void);
 unsigned char QueryBatteryCharging(void);
 
 /*!
- * \return 1 if the power is good and 0 otherwise.
+ * \return 1 if the battery charger is enabled
  */
-unsigned char QueryPowerGood(void);
+unsigned char QueryBatteryChargeEnabled(void);
 
 #endif // HAL_BATTERY_H

@@ -1198,7 +1198,7 @@ static void hotItemUpdate(unsigned char pg, unsigned int off, unsigned int id)
 }
 
 /*********************************************************************
- * @fn      osal_nv_init
+ * @fn      OsalNvInit
  *
  * @brief   Initialize NV service.
  *
@@ -1206,7 +1206,7 @@ static void hotItemUpdate(unsigned char pg, unsigned int off, unsigned int id)
  *
  * @return  none
  */
-void osal_nv_init( void *p )
+void OsalNvInit( void *p )
 {
   (void)p;  // Suppress Lint warning.
   (void)initNV();  // Always returns TRUE after pages have been erased.
@@ -1535,7 +1535,7 @@ extern unsigned char osal_nv_read( unsigned int id, unsigned int offset, unsigne
 
 
 
-void PrintNvalSaveError(signed char *pString)
+void PrintNvalSaveError(char *pString)
 {
   PrintString3("Unable to save",pString," to non-volatile memory.\r\n");    
 }

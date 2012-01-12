@@ -991,6 +991,20 @@ unsigned portBASE_TYPE uxTaskGetNumberOfTasks( void ) PRIVILEGED_FUNCTION;
 
 /**
  * task. h
+ * <PRE>signed char *pcTaskGetTaskName( xTaskHandle xTaskToQuery );</PRE>
+ *
+ * @return The text (human readable) name of the task referenced by the handle
+ * xTaskToQueury.  A task can query its own name by either passing in its own
+ * handle, or by setting xTaskToQuery to NULL.  INCLUDE_pcTaskGetTaskName must be
+ * set to 1 in FreeRTOSConfig.h for pcTaskGetTaskName() to be available.
+ *
+ * \page pcTaskGetTaskName pcTaskGetTaskName
+ * \ingroup TaskUtils
+ */
+signed char *pcTaskGetTaskName( xTaskHandle xTaskToQuery );
+
+/**
+ * task. h
  * <PRE>void vTaskList( char *pcWriteBuffer );</PRE>
  *
  * configUSE_TRACE_FACILITY must be defined as 1 for this function to be

@@ -36,7 +36,6 @@
 /*! Task Information Structure */
 typedef struct
 {
-  signed char * name;
   void * taskHandle;
   unsigned int Depth;
 
@@ -57,27 +56,23 @@ void UTL_FreeRtosTaskStackCheck(void);
  */
 void CheckStackUsage(xTaskHandle TaskHandle,signed char * TaskName);
 
-/*! Prepare a message for transmission to the host by filling in the header
- * bytes, setting message type, copying payload, and generating checksum
+/*! Generate the crc for the message to be sent to the host. Add the crc to the
+ * end of the payload
  *
- * \param pMsg is a pointer to the message
- * \param msgType is the type of message
- * \param msgOption is the options for the message
- * \param pData is a pointer to payload data to be copied into message
- * \param dataLen is the size of the payload
+ * \param pMsg is a pointer to a (host) message
+ * \param PayloadLength is the size of the payload
  */
-void UTL_BuildHstMsg(tHostMsg* pMsg, 
-                     eMessageType msgType, 
-                     unsigned char msgOption, 
-                     unsigned char *pData, 
-                     unsigned char dataLen );
+void GenerateHostMsgCrc(tMessage* pMsg,unsigned int PayloadLength);
 
-/*! Prepare a message for transmission to the host by filling in the header
- * bytes and calculating the checksum
+/*! memcopy
  *
- * \param pMsg is a pointer to the message
+ * \param pBuffer is the destination
+ * \param pSource is a pointer to the source
+ * \param Size is the size
  */
-void UTL_PrepareHstMsg(tHostMsg* pMsg);
+void CopyHostMsgPayload(unsigned char* pBuffer, 
+                        unsigned char* pSource, 
+                        unsigned char Size);
 
 /*void CopyBytes(unsigned char* pDest, unsigned char* pSource, unsigned char Size); */
 
@@ -86,5 +81,14 @@ unsigned char * GetDeviceNameString(void);
 
 /*! return a pointer to the software version string */
 unsigned char * GetSoftwareVersionString(void);
+
+/*! Check the configuration of the power management module to make sure that
+ * it is not setup in a mode that will cause problems
+ */
+unsigned char PMM15Check(void);
+
+
+/*! check how full a queue is */
+void CheckQueueUsage(xQueueHandle Qhandle);
 
 #endif /* UTILITIES_H */

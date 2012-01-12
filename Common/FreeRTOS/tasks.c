@@ -330,7 +330,6 @@ static tskTCB *prvAllocateTCBAndStack( unsigned short usStackDepth, portSTACK_TY
 /*lint +e956 */
 
 
-//unsigned char UTL_RegisterFreeRtosTask(  pdTASK_CODE pxTaskCode, const signed char * const pcName, void *xTaskHandle);
 /*-----------------------------------------------------------
  * TASK CREATION API documented in task.h
  *----------------------------------------------------------*/
@@ -478,12 +477,10 @@ tskTCB * pxNewTCB;
 	}
 
 #ifdef TASK_DEBUG
-  extern unsigned char UTL_RegisterFreeRtosTask(pdTASK_CODE pxTaskCode, 
-                                       const signed char * const pcName, 
-                                       void *xTaskHandle,
+  extern unsigned char UTL_RegisterFreeRtosTask(void *xTaskHandle,
                                        unsigned int StackDepth);
     
-  UTL_RegisterFreeRtosTask( pxTaskCode, pcName, ( xTaskHandle ) pxNewTCB,usStackDepth);
+  UTL_RegisterFreeRtosTask( ( xTaskHandle ) pxNewTCB,usStackDepth);
 #endif
   
 	return xReturn;
@@ -1001,6 +998,7 @@ portBASE_TYPE xReturn;
 		STEPPING THROUGH HERE USING A DEBUGGER CAN CAUSE BIG PROBLEMS IF THE
 		DEBUGGER ALLOWS INTERRUPTS TO BE PROCESSED. */
 		__disable_interrupt();
+    __no_operation();
 
 		xSchedulerRunning = pdTRUE;
 		xTickCount = ( portTickType ) 0;
@@ -1030,7 +1028,8 @@ void vTaskEndScheduler( void )
 	/* Stop the scheduler interrupts and call the portable scheduler end
 	routine so the original ISRs can be restored if necessary.  The port
 	layer must ensure interrupts enable	bit is left in the correct state. */
-	portDISABLE_INTERRUPTS();
+	__disable_interrupt();
+  __no_operation();
 	xSchedulerRunning = pdFALSE;
 	vPortEndScheduler();
 }
@@ -1147,6 +1146,21 @@ unsigned portBASE_TYPE uxTaskGetNumberOfTasks( void )
 	portBASE_TYPE. */
 	return uxCurrentNumberOfTasks;
 }
+/*-----------------------------------------------------------*/
+
+#if ( INCLUDE_pcTaskGetTaskName == 1 )
+
+	signed char *pcTaskGetTaskName( xTaskHandle xTaskToQuery )
+	{
+	tskTCB *pxTCB;
+
+		/* If null is passed in here then the name of the calling task is being queried. */
+		pxTCB = prvGetTCBFromHandle( xTaskToQuery );
+		//configASSERT( pxTCB );
+		return &( pxTCB->pcTaskName[ 0 ] );
+	}
+
+#endif
 /*-----------------------------------------------------------*/
 
 #if ( configUSE_TRACE_FACILITY == 1 )
@@ -1515,6 +1529,10 @@ void vTaskIncrementTick( void )
 #endif
 /*-----------------------------------------------------------*/
 
+#if 0
+static unsigned int UnderflowFailures;
+#endif
+
 void vTaskSwitchContext( void )
 {
 	if( uxSchedulerSuspended != ( unsigned portBASE_TYPE ) pdFALSE )
@@ -1548,7 +1566,17 @@ void vTaskSwitchContext( void )
 	while( listLIST_IS_EMPTY( &( pxReadyTasksLists[ uxTopReadyPriority ] ) ) )
 	{
 		--uxTopReadyPriority;
+    
+#if 0
+    if ( uxTopReadyPriority > uxTopUsedPriority )
+    {
+      uxTopUsedPriority = 0;
+      UnderflowFailures++;
+      break;
 	}
+#endif
+}
+
 
 	/* listGET_OWNER_OF_NEXT_ENTRY walks through the list, so the tasks of the
 	same priority get an equal share of the processor time. */

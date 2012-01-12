@@ -41,7 +41,7 @@ static unsigned char (*pCrystalCallback2)(void);
 static unsigned char (*pCrystalCallback3)(void);
 static unsigned char (*pCrystalCallback4)(void);
 
-static unsigned char Timer0Users;
+//static unsigned char Timer0Users;
 
 #define TIMER0_RTOS_USER ( 0 )
 #define TIMER0_USER1     ( 1 )
@@ -69,12 +69,14 @@ void SetupRtosTimer(void)
    */
   TA0EX0 = 0x7;
 
-  Timer0Users = 0;
+  //Timer0Users = 0;
   
   EnableRtosTick();
 
   //TA0CTL |= TAIE;
-    
+
+  TA0CTL |= TASSEL_1 | MC_2 | ID_2;
+  
 }
 
 /* the timer is not stopped unless the rtos is off and all of the other timers
@@ -117,13 +119,13 @@ static void AddUser(unsigned char User,unsigned int CrystalTicks)
   }
   
   /* start counting up in continuous mode if not already doing so */
-  if ( Timer0Users == 0 )
-  {
-    TA0CTL |= TASSEL_1 | MC_2 | ID_2; 
-  }
+//  if ( Timer0Users == 0 )
+//  {
+//    TA0CTL |= TASSEL_1 | MC_2 | ID_2; 
+//  }
   
   /* keep track of users */
-  Timer0Users |= (1 << User);
+  //Timer0Users |= (1 << User);
   
   LEAVE_CRITICAL_REGION_QUICK();
   
@@ -145,13 +147,13 @@ static void RemoveUser(unsigned char User)
   }
   
   /* remove a user */
-  Timer0Users &= ~(1 << User);
+  //Timer0Users &= ~(1 << User);
     
   /* disable timer if no one is using it */
-  if ( Timer0Users == 0 )
-  {
-    TA0CTL = 0;  
-  }
+//  if ( Timer0Users == 0 )
+//  {
+//    TA0CTL = 0;  
+//  }
   
   LEAVE_CRITICAL_REGION_QUICK();
   

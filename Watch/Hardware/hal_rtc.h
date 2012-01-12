@@ -101,25 +101,5 @@ void halRtcGet(tRtcHostMsgPayload* pRtcData);
 #define RTC_TIMER_USER_DEBUG_UART ( BIT4 )
 #define RTC_TIMER_USER_BLASTER    ( BIT5 )
 
-/* TI fix */
-extern int SetRTCYEAR(int year); 	
-extern int SetRTCMON(int month);
-extern int SetRTCDAY(int day);
-extern int SetRTCDOW(int dow);
-extern int SetRTCHOUR(int hour);
-extern int SetRTCMIN(int min);
-extern int SetRTCSEC(int sec);
-
-extern int GetRTCTIM0(void); 	
-extern int GetRTCTIM1(void); 	
-extern int GetRTCDATE(void); 	
-extern int GetRTCYEAR(void); 	
-
-extern int GetRTCMON(void);
-extern int GetRTCDOW(void);
-extern int GetRTCDAY(void);
-extern int GetRTCHOUR(void);
-extern int GetRTCMIN(void);
-extern int GetRTCSEC(void);
 
 #endif /* HAL_RTC_H */

@@ -23,6 +23,7 @@
 
 #include "hal_board_type.h"
 #include "hal_miscellaneous.h"
+#include "hal_software_fll.h"
 
 #include "HAL_PMM.h"
 #include "HAL_UCS.h"
@@ -81,6 +82,7 @@ void SetupClockAndPowerManagementModule(void)
   
   // second parameter is 16000/32768 = 488
   Init_FLL_Settle(16000,488);                 
+  SoftwareFllInit();
 
   // setup for quick wake up from interrupt and
   // minimal power consumption in sleep mode
