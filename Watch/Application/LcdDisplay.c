@@ -386,6 +386,10 @@ static void DisplayQueueMessageHandler(tMessage* pMsg)
   case SniffStateChangeMsg:
     break;
   
+  case LowBatteryWarningMsg:
+  case LowBatteryBtOffMsg:
+    break;
+    
   case LinkAlarmMsg:
     if ( QueryLinkAlarmEnable() )
     {

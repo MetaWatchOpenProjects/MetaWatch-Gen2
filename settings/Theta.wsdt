@@ -3,7 +3,7 @@
 <Workspace>
   <ConfigDictionary>
     
-  <CurrentConfigs><Project>Watch/Analog - TXT</Project></CurrentConfigs></ConfigDictionary>
+  <CurrentConfigs><Project>Watch/Devboard</Project></CurrentConfigs></ConfigDictionary>
   <Desktop>
     <Static>
       <Workspace>
@@ -12,7 +12,7 @@
           
           
           
-        <Column0>119</Column0><Column1>27</Column1><Column2>27</Column2><Column3>27</Column3></ColumnWidths>
+        <Column0>183</Column0><Column1>27</Column1><Column2>27</Column2><Column3>27</Column3></ColumnWidths>
       </Workspace>
       <Build>
         
@@ -29,7 +29,7 @@
     <Windows>
       
       
-    <Wnd2>
+    <Wnd0>
         <Tabs>
           <Tab>
             <Identity>TabID-25128-12010</Identity>
@@ -41,7 +41,7 @@
           </Tab>
         </Tabs>
         
-      <SelectedTab>0</SelectedTab></Wnd2><Wnd3>
+      <SelectedTab>0</SelectedTab></Wnd0><Wnd1>
         <Tabs>
           <Tab>
             <Identity>TabID-11243-12066</Identity>
@@ -57,20 +57,20 @@
           </Tab>
         </Tabs>
         
-      <SelectedTab>0</SelectedTab></Wnd3></Windows>
+      <SelectedTab>0</SelectedTab></Wnd1></Windows>
     <Editor>
       
       
       
       
-    <Pane><Tab><Factory>TextEditor</Factory><Filename>$WS_DIR$\Watch\Application\Buttons.c</Filename><XPos>0</XPos><YPos>334</YPos><SelStart>11117</SelStart><SelEnd>11117</SelEnd></Tab><Tab><Factory>TextEditor</Factory><Filename>$WS_DIR$\Common\Application\Display.h</Filename><XPos>0</XPos><YPos>33</YPos><SelStart>1812</SelStart><SelEnd>1827</SelEnd></Tab><Tab><Factory>TextEditor</Factory><Filename>$WS_DIR$\Watch\Application\BufferPool.c</Filename><XPos>0</XPos><YPos>0</YPos><SelStart>0</SelStart><SelEnd>0</SelEnd></Tab><Tab><Factory>TextEditor</Factory><Filename>$WS_DIR$\Watch\Application\Buttons.h</Filename><XPos>0</XPos><YPos>114</YPos><SelStart>4720</SelStart><SelEnd>4720</SelEnd></Tab><Tab><Factory>TextEditor</Factory><Filename>$WS_DIR$\Watch\Application\Background.c</Filename><XPos>0</XPos><YPos>587</YPos><SelStart>15997</SelStart><SelEnd>15997</SelEnd></Tab><Tab><Factory>TextEditor</Factory><Filename>$WS_DIR$\Watch\Hardware\hal_rtc.c</Filename><XPos>0</XPos><YPos>249</YPos><SelStart>6497</SelStart><SelEnd>6497</SelEnd></Tab><Tab><Factory>TextEditor</Factory><Filename>$WS_DIR$\Watch\Application\InterruptVectors.c</Filename><XPos>0</XPos><YPos>160</YPos><SelStart>3842</SelStart><SelEnd>3842</SelEnd></Tab><Tab><Factory>TextEditor</Factory><Filename>$WS_DIR$\Common\FreeRTOS\portable\MSP430F5438\portext_s43.asm</Filename><XPos>0</XPos><YPos>111</YPos><SelStart>5305</SelStart><SelEnd>5305</SelEnd></Tab><Tab><Factory>TextEditor</Factory><Filename>$WS_DIR$\Watch\Hardware\hal_vibe.c</Filename><XPos>0</XPos><YPos>4</YPos><SelStart>1046</SelStart><SelEnd>1046</SelEnd></Tab><Tab><Factory>TextEditor</Factory><Filename>$WS_DIR$\Watch\Application\LcdDisplay.c</Filename><XPos>0</XPos><YPos>2669</YPos><SelStart>75916</SelStart><SelEnd>75916</SelEnd></Tab><Tab><Factory>TextEditor</Factory><Filename>$WS_DIR$\Watch\Application\OledDisplay.c</Filename><XPos>0</XPos><YPos>995</YPos><SelStart>26752</SelStart><SelEnd>26752</SelEnd></Tab><Tab><Factory>TextEditor</Factory><Filename>$WS_DIR$\Watch\Hardware\hal_software_fll.c</Filename><XPos>0</XPos><YPos>0</YPos><SelStart>246</SelStart><SelEnd>246</SelEnd></Tab><ActiveTab>11</ActiveTab><Tab><Factory>TextEditor</Factory><Filename>$WS_DIR$\Watch\Application\LcdDriver.c</Filename><XPos>0</XPos><YPos>29</YPos><SelStart>1732</SelStart><SelEnd>1732</SelEnd></Tab><Tab><Factory>TextEditor</Factory><Filename>$WS_DIR$\Watch\Hardware\hal_board_type.h</Filename><XPos>0</XPos><YPos>0</YPos><SelStart>1383</SelStart><SelEnd>1383</SelEnd></Tab><Tab><Factory>TextEditor</Factory><Filename>$WS_DIR$\Watch\Application\main.c</Filename><XPos>0</XPos><YPos>45</YPos><SelStart>1972</SelStart><SelEnd>1972</SelEnd></Tab><Tab><Factory>TextEditor</Factory><Filename>$WS_DIR$\Watch\Hardware\hal_battery.c</Filename><XPos>0</XPos><YPos>78</YPos><SelStart>0</SelStart><SelEnd>0</SelEnd></Tab><Tab><Factory>TextEditor</Factory><Filename>$WS_DIR$\Watch\Application\Adc.c</Filename><XPos>0</XPos><YPos>405</YPos><SelStart>12089</SelStart><SelEnd>12089</SelEnd></Tab><Tab><Factory>TextEditor</Factory><Filename>$WS_DIR$\..\FossilGamma\Stack\Application\SerialProfile.c</Filename><XPos>0</XPos><YPos>2013</YPos><SelStart>80051</SelStart><SelEnd>80051</SelEnd></Tab><Tab><Factory>TextEditor</Factory><Filename>$WS_DIR$\Common\FreeRTOS\portable\MSP430F5438\FreeRTOSConfig.h</Filename><XPos>0</XPos><YPos>93</YPos><SelStart>4708</SelStart><SelEnd>4708</SelEnd></Tab><Tab><Factory>TextEditor</Factory><Filename>$WS_DIR$\Watch\Application\SerialRam.c</Filename><XPos>0</XPos><YPos>13</YPos><SelStart>1284</SelStart><SelEnd>1284</SelEnd></Tab></Pane><ActivePane>0</ActivePane><Pane><Tab><Factory>TextEditor</Factory><Filename>$WS_DIR$\Common\Application\Messages.h</Filename><XPos>0</XPos><YPos>415</YPos><SelStart>13010</SelStart><SelEnd>13043</SelEnd></Tab><ActiveTab>0</ActiveTab></Pane><Sizes><Pane><X>500000</X><Y>500000</Y></Pane><Pane><X>500000</X><Y>500000</Y></Pane></Sizes><SplitMode>4</SplitMode></Editor>
+    <Pane/><ActivePane>0</ActivePane><Pane><Tab><Factory>TextEditor</Factory><Filename>$WS_DIR$\Common\Application\Messages.h</Filename><XPos>0</XPos><YPos>225</YPos><SelStart>6724</SelStart><SelEnd>6744</SelEnd></Tab><Tab><Factory>TextEditor</Factory><Filename>$WS_DIR$\Watch\Hardware\hal_board_type.h</Filename><XPos>0</XPos><YPos>0</YPos><SelStart>808</SelStart><SelEnd>808</SelEnd></Tab><ActiveTab>1</ActiveTab></Pane><Sizes><Pane><X>500000</X><Y>500000</Y></Pane><Pane><X>500000</X><Y>500000</Y></Pane></Sizes><SplitMode>4</SplitMode></Editor>
     <Positions>
       
       
       
       
       
-    <Top><Row0><Sizes><Toolbar-02c486a0><key>iaridepm.enu1</key></Toolbar-02c486a0></Sizes></Row0></Top><Left><Row0><Sizes><Wnd2><Rect><Top>-2</Top><Left>-2</Left><Bottom>744</Bottom><Right>210</Right><x>-2</x><y>-2</y><xscreen>148</xscreen><yscreen>140</yscreen><sizeHorzCX>88095</sizeHorzCX><sizeHorzCY>143149</sizeHorzCY><sizeVertCX>126190</sizeVertCX><sizeVertCY>762781</sizeVertCY></Rect></Wnd2></Sizes></Row0></Left><Right><Row0><Sizes/></Row0></Right><Bottom><Row0><Sizes><Wnd3><Rect><Top>-2</Top><Left>-2</Left><Bottom>189</Bottom><Right>1682</Right><x>-2</x><y>-2</y><xscreen>1684</xscreen><yscreen>191</yscreen><sizeHorzCX>1002381</sizeHorzCX><sizeHorzCY>195297</sizeHorzCY><sizeVertCX>88095</sizeVertCX><sizeVertCY>143149</sizeVertCY></Rect></Wnd3></Sizes></Row0></Bottom><Float><Sizes/></Float></Positions>
+    <Top><Row0><Sizes><Toolbar-009f86a0><key>iaridepm.enu1</key></Toolbar-009f86a0></Sizes></Row0></Top><Left><Row0><Sizes><Wnd0><Rect><Top>-2</Top><Left>-2</Left><Bottom>744</Bottom><Right>274</Right><x>-2</x><y>-2</y><xscreen>148</xscreen><yscreen>140</yscreen><sizeHorzCX>88095</sizeHorzCX><sizeHorzCY>143149</sizeHorzCY><sizeVertCX>164286</sizeVertCX><sizeVertCY>762781</sizeVertCY></Rect></Wnd0></Sizes></Row0></Left><Right><Row0><Sizes/></Row0></Right><Bottom><Row0><Sizes><Wnd1><Rect><Top>-2</Top><Left>-2</Left><Bottom>189</Bottom><Right>1682</Right><x>-2</x><y>-2</y><xscreen>1684</xscreen><yscreen>191</yscreen><sizeHorzCX>1002381</sizeHorzCX><sizeHorzCY>195297</sizeHorzCY><sizeVertCX>88095</sizeVertCX><sizeVertCY>143149</sizeVertCY></Rect></Wnd1></Sizes></Row0></Bottom><Float><Sizes/></Float></Positions>
   </Desktop>
 </Workspace>
 
