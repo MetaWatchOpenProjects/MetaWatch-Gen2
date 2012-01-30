@@ -171,10 +171,26 @@ static void BackgroundTask(void *pvParameters)
                       LedChange,
                       LED_OFF_OPTION);
 
-  /*
-   * This does not need to be done in main
-   */
+  /****************************************************************************/
+  
   InitializeAccelerometer();
+  
+  /* debug */
+  SetupMessageAndAllocateBuffer(&BackgroundMsg,
+                                AccelerometerSetupMsg,
+                                ACCELEROMETER_SETUP_INTERRUPT_CONTROL_OPTION);
+  
+  BackgroundMsg.pBuffer[0] = INTERRUPT_CONTROL_ENABLE_INTERRUPT;
+  BackgroundMsg.Length = 1;
+  RouteMsg(&BackgroundMsg);
+    
+  /* don't call AccelerometerEnable() directly use a message*/
+  SetupMessage(&BackgroundMsg,AccelerometerEnableMsg,NO_MSG_OPTIONS);
+  RouteMsg(&BackgroundMsg);
+  
+  /* end debug */
+  
+  /****************************************************************************/
   
   for(;;)
   {
@@ -266,9 +282,7 @@ static void BackgroundMessageHandler(tMessage* pMsg)
       RouteMsg(&OutgoingMsg);  
     }
 #endif 
-    DEBUG4_HIGH();
     BatterySenseCycle();
-    DEBUG4_LOW();
     LowBatteryMonitor();
 #ifdef TASK_DEBUG
     UTL_FreeRtosTaskStackCheck();

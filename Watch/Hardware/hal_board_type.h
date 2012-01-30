@@ -32,11 +32,11 @@
 
 /******************************************************************************/
 
-#define VERSION_STRING "0.9.2"
+#define VERSION_STRING "0.9.3"
 
 /* create the main page for the Doxygen output */
 
-/*! \mainpage MetaWatch Software (Version 0.9.2)
+/*! \mainpage MetaWatch Software (Version 0.9.3)
  *
  * \section intro_sec Introduction
  *

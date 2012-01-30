@@ -91,6 +91,22 @@
 #define TAP_ENABLE_TDTE    ( 1 << 2 ) 
 #define TILT_ENABLE_TPE    ( 1 << 0 )
 
+/* CTRL_REG3 */
+#define SRST               ( 1 << 7 )
+#define TILT_ODR_1_6HZ     ( 0 << 5 )
+#define TILT_ODR_6_3HZ     ( 1 << 5 )
+#define TILT_ODR_12_5HZ    ( 2 << 5 )
+#define TILT_ODR_50HZ      ( 3 << 5 )
+#define DCST               ( 1 << 4 )
+#define TAP_ODR_50HZ       ( 0 << 2 )
+#define TAP_ODR_100HZ      ( 1 << 2 )
+#define TAP_ODR_200HZ      ( 2 << 2 )
+#define TAP_ODR_400HZ      ( 3 << 2 )
+#define WUF_ODR_25HZ       ( 0 << 0 )
+#define WUF_ODR_50HZ       ( 1 << 0 )
+#define WUF_ODR_100HZ      ( 2 << 0 )
+#define WUF_ODR_200HZ      ( 3 << 0 )
+
 /* INT_CTRL_REG1 */
 #define IEN ( 1 << 5 ) 
 #define IEA ( 1 << 4 )

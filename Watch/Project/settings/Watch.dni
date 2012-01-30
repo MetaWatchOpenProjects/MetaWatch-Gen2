@@ -1,5 +1,5 @@
 [DebugChecksum]
-Checksum=-331051035
+Checksum=-1243863099
 [DisAssemblyWindow]
 NumStates=_ 1
 State 1=_ 1
@@ -21,10 +21,10 @@ ByteLimit=50
 Control Register=0
 [Sequencer]
 Control Register=0
-NextState0=4352
-NextState1=13090
+NextState0=0
+NextState1=0
 [Action Register]
-Break=1
+Break=7
 State Storage=0
 [InterruptLog]
 LogEnabled=0
@@ -60,7 +60,9 @@ Mode=0
 Graph=0
 Symbiont=0
 [Breakpoints]
-Count=0
+Bp0=_ "STD_CODE" "{$PROJ_DIR$\..\Application\main.c}.66.3@1" 1 0 0 0 "" 0 ""
+Bp1=_ "STD_CODE" "{$PROJ_DIR$\..\Application\LcdDisplay.c}.1717.9@1" 1 0 0 0 "" 0 ""
+Count=2
 [FET]
 Clock mode=14
 Extended Clock mode=-1

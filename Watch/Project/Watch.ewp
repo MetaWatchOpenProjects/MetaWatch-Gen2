@@ -3760,7 +3760,6 @@
           <state>DMA</state>
           <state>LPM_ENABLED</state>
           <state>xTASK_DEBUG</state>
-          <state>xBLASTER</state>
         </option>
         <option>
           <name>CCPreprocFile</name>
@@ -4658,7 +4657,6 @@
           <state>DMA</state>
           <state>LPM_ENABLED</state>
           <state>xTASK_DEBUG</state>
-          <state>xBLASTER</state>
         </option>
         <option>
           <name>CCPreprocFile</name>

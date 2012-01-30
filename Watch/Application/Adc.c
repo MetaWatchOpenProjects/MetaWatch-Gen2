@@ -320,13 +320,7 @@ void LowBatteryMonitor(void)
   */
   if ( QueryBatteryCharging() )
   {
-    /* what about case where someone charges battery on an airplane? */
-    if ( LowBatteryBtOffMessageSent )
-    {
-      SetupMessage(&Msg,TurnRadioOnMsg,NO_MSG_OPTIONS);
-      RouteMsg(&Msg);
-    }
-    
+    /* user must turn radio back on */
     LowBatteryWarningMessageSent = 0;  
     LowBatteryBtOffMessageSent = 0;
   }

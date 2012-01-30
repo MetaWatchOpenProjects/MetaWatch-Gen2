@@ -43,7 +43,7 @@
 
 static unsigned char WriteRegisterData;
 
-#define ACCELEROMETER_DEBUG ( 0 )
+#define ACCELEROMETER_DEBUG ( 1 )
 
 #if ACCELEROMETER_DEBUG == 1
 static unsigned char pReadRegisterData[16];
@@ -60,6 +60,10 @@ static unsigned char SidLength;
 
 /******************************************************************************/
 
+static void ReadInterruptReleaseRegister(void);
+
+/******************************************************************************/
+
 void InitializeAccelerometer(void)
 {
   InitAccelerometerPeripheral();
@@ -73,7 +77,22 @@ void InitializeAccelerometer(void)
 #endif
  
   PrintString("Accelerometer Initialization\r\n");
- 
+
+#if 0
+  /* reset chip */
+  WriteRegisterData = PC1_STANDBY_MODE;
+  AccelerometerWrite(KIONIX_CTRL_REG1,&WriteRegisterData,ONE_BYTE);
+
+  WriteRegisterData = SRST;
+  AccelerometerWrite(KIONIX_CTRL_REG3,&WriteRegisterData,ONE_BYTE);
+  
+  /* wait until reset is complete */
+  while ( WriteRegisterData & SRST )
+  {
+    AccelerometerRead(KIONIX_CTRL_REG3,&WriteRegisterData,ONE_BYTE);  
+  }
+#endif
+  
   /* 
    * make sure part is in standby mode because some registers can only
    * be changed when the part is not active.
@@ -90,18 +109,16 @@ void InitializeAccelerometer(void)
   AccelerometerWrite(KIONIX_INT_CTRL_REG2,&WriteRegisterData,ONE_BYTE);
 
 #if ACCELEROMETER_DEBUG == 1
-  /* check that writes are correct and check read functions */
-  AccelerometerRead(KIONIX_INT_CTRL_REG1,pReadRegisterData+0,ONE_BYTE);
-  AccelerometerRead(KIONIX_CTRL_REG1,pReadRegisterData+1,ONE_BYTE);
-  AccelerometerRead(KIONIX_CTRL_REG1,pReadRegisterData+2,ONE_BYTE);
-  AccelerometerRead(KIONIX_INT_CTRL_REG1,pReadRegisterData+3,ONE_BYTE);
-  AccelerometerRead(KIONIX_INT_CTRL_REG2,pReadRegisterData+4,ONE_BYTE);
-  AccelerometerRead(KIONIX_INT_REL,pReadRegisterData+5,ONE_BYTE);
-  AccelerometerRead(KIONIX_INT_SRC_REG1,pReadRegisterData+6,ONE_BYTE);
-  AccelerometerRead(KIONIX_INT_SRC_REG2,pReadRegisterData+7,ONE_BYTE);
-  AccelerometerRead(KIONIX_STATUS_REG,pReadRegisterData+8,ONE_BYTE);
-  /* burst read */
-  AccelerometerRead(KIONIX_CTRL_REG1,pReadRegisterData+9,ONE_BYTE*7);
+ 
+  /* single byte read test */
+  AccelerometerRead(KIONIX_DCST_RESP,pReadRegisterData,1);
+  PrintStringAndHex("KIONIX_DCST_RESP (0x55) = 0x",pReadRegisterData[0]);
+  
+  /* multiple byte read test */
+  AccelerometerRead(KIONIX_WHO_AM_I,pReadRegisterData,2);
+  PrintStringAndHex("KIONIX_WHO_AM_I (0x10) = 0x",pReadRegisterData[0]);
+  PrintStringAndHex("KIONIX_TILT_POS_CUR (0x20) = 0x",pReadRegisterData[1]);
+  
 #endif
     
   /* 
@@ -125,7 +142,11 @@ void InitializeAccelerometer(void)
   
   /* setup the default for the AccelerometerEnable command */
   OperatingModeRegister = PC1_OPERATING_MODE | RESOLUTION_12BIT | WUF_ENABLE;
-  
+  InterruptControl = INTERRUPT_CONTROL_DISABLE_INTERRUPT; 
+  SidControl = SID_CONTROL_SEND_DATA;
+  SidAddr = KIONIX_XOUT_HPF_L;
+  SidLength = 6;
+
   AccelerometerDisable();
    
   /* 
@@ -134,13 +155,13 @@ void InitializeAccelerometer(void)
    * the real time clock can also be used
    */
   
-#if 0
+#if 1
   /* change to output data rate to 25 Hz */
   WriteRegisterData = WUF_ODR_25HZ;
   AccelerometerWrite(KIONIX_CTRL_REG3,&WriteRegisterData,ONE_BYTE);
 #endif
   
-#if 0
+#if 1
   /* this causes data to always be sent */  
   WriteRegisterData = 0x00;
   AccelerometerWrite(KIONIX_WUF_THRESH,&WriteRegisterData,ONE_BYTE);
@@ -150,7 +171,7 @@ void InitializeAccelerometer(void)
   /* use the real time clock to periodically send a message */
   EnableRtcPrescaleInteruptUser(RTC_TIMER_PEDOMETER);
 #endif
-  
+ 
   PrintString("Accelerometer Init Complete\r\n");
    
 }
@@ -168,7 +189,7 @@ void AccelerometerIsr(void)
    * data when it is in sleep mode
    */
   ACCELEROMETER_INT_DISABLE();
-  
+
   /* can't allocate buffer here so we must go to task to send interrupt
    * occurred message
    */
@@ -178,35 +199,54 @@ void AccelerometerIsr(void)
 
 }
 
+static void ReadInterruptReleaseRegister(void)
+{
+  /* interrupts are rising edge sensitive so clear and enable interrupt
+   * before clearing it in the accelerometer 
+   */
+  ACCELEROMETER_INT_ENABLE();
+  
+  unsigned char temp;
+  AccelerometerRead(KIONIX_INT_REL,&temp,1);
+  
+  DEBUG5_PULSE();
+  
+}
 
 /* Send interrupt notification to the phone or 
  * read data from the accelerometer and send it to the phone
  */
 void AccelerometerSendDataHandler(void)
 {
-  tMessage OutgoingMsg;
-  
-  if ( SidControl == SID_CONTROL_SEND_INTERRUPT )
+  if ( QueryPhoneConnected() )
   {
-    SetupMessageAndAllocateBuffer(&OutgoingMsg,
-                                  AccelerometerHostMsg,
-                                  ACCELEROMETER_HOST_MSG_IS_INTERRUPT_OPTION);
-  }
-  else
-  {
-    SetupMessageAndAllocateBuffer(&OutgoingMsg,
-                                  AccelerometerHostMsg,
-                                  ACCELEROMETER_HOST_MSG_IS_DATA_OPTION);
     
-    OutgoingMsg.Length = SidLength;
+    tMessage OutgoingMsg;
     
-    AccelerometerRead(SidAddr,
-                      OutgoingMsg.pBuffer,
-                      SidLength);
+    if ( SidControl == SID_CONTROL_SEND_INTERRUPT )
+    {
+      SetupMessageAndAllocateBuffer(&OutgoingMsg,
+                                    AccelerometerHostMsg,
+                                    ACCELEROMETER_HOST_MSG_IS_INTERRUPT_OPTION);
+    }
+    else
+    {
+      SetupMessageAndAllocateBuffer(&OutgoingMsg,
+                                    AccelerometerHostMsg,
+                                    ACCELEROMETER_HOST_MSG_IS_DATA_OPTION);
+      
+      OutgoingMsg.Length = SidLength;
+      
+      AccelerometerRead(SidAddr,
+                        OutgoingMsg.pBuffer,
+                        SidLength);
+    }
+    
+    RouteMsg(&OutgoingMsg);
   }
   
-  RouteMsg(&OutgoingMsg);
-    
+  ReadInterruptReleaseRegister();
+  
 }
 
 void AccelerometerEnable(void)
@@ -216,7 +256,7 @@ void AccelerometerEnable(void)
   
   if ( InterruptControl == INTERRUPT_CONTROL_ENABLE_INTERRUPT )
   {
-    ACCELEROMETER_INT_ENABLE();
+    ReadInterruptReleaseRegister();
   } 
 }
 

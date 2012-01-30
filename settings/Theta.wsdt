@@ -3,7 +3,7 @@
 <Workspace>
   <ConfigDictionary>
     
-  <CurrentConfigs><Project>Watch/Devboard</Project></CurrentConfigs></ConfigDictionary>
+  <CurrentConfigs><Project>Watch/Digital</Project></CurrentConfigs></ConfigDictionary>
   <Desktop>
     <Static>
       <Workspace>
@@ -12,7 +12,7 @@
           
           
           
-        <Column0>183</Column0><Column1>27</Column1><Column2>27</Column2><Column3>27</Column3></ColumnWidths>
+        <Column0>226</Column0><Column1>27</Column1><Column2>27</Column2><Column3>27</Column3></ColumnWidths>
       </Workspace>
       <Build>
         
@@ -25,7 +25,7 @@
         
         
       <ColumnWidth0>580</ColumnWidth0><ColumnWidth1>82</ColumnWidth1><ColumnWidth2>994</ColumnWidth2></Find-in-Files>
-    <TerminalIO/></Static>
+    <TerminalIO/><Debug-Log><ColumnWidth0>22</ColumnWidth0><ColumnWidth1>1619</ColumnWidth1></Debug-Log></Static>
     <Windows>
       
       
@@ -55,7 +55,7 @@
             <Factory>Find-in-Files</Factory>
             <Session/>
           </Tab>
-        </Tabs>
+        <Tab><Identity>TabID-9799-10519</Identity><TabName>Debug Log</TabName><Factory>Debug-Log</Factory><Session/></Tab></Tabs>
         
       <SelectedTab>0</SelectedTab></Wnd1></Windows>
     <Editor>
@@ -63,14 +63,14 @@
       
       
       
-    <Pane/><ActivePane>0</ActivePane><Pane><Tab><Factory>TextEditor</Factory><Filename>$WS_DIR$\Common\Application\Messages.h</Filename><XPos>0</XPos><YPos>225</YPos><SelStart>6724</SelStart><SelEnd>6744</SelEnd></Tab><Tab><Factory>TextEditor</Factory><Filename>$WS_DIR$\Watch\Hardware\hal_board_type.h</Filename><XPos>0</XPos><YPos>0</YPos><SelStart>808</SelStart><SelEnd>808</SelEnd></Tab><ActiveTab>1</ActiveTab></Pane><Sizes><Pane><X>500000</X><Y>500000</Y></Pane><Pane><X>500000</X><Y>500000</Y></Pane></Sizes><SplitMode>4</SplitMode></Editor>
+    <Pane><Tab><Factory>TextEditor</Factory><Filename>$WS_DIR$\Watch\Application\LcdDisplay.c</Filename><XPos>0</XPos><YPos>0</YPos><SelStart>0</SelStart><SelEnd>0</SelEnd></Tab><Tab><Factory>TextEditor</Factory><Filename>$WS_DIR$\Watch\Application\Accelerometer.c</Filename><XPos>0</XPos><YPos>132</YPos><SelStart>4571</SelStart><SelEnd>4571</SelEnd></Tab><ActiveTab>1</ActiveTab><Tab><Factory>TextEditor</Factory><Filename>$WS_DIR$\Watch\Hardware\hal_accelerometer.c</Filename><XPos>0</XPos><YPos>153</YPos><SelStart>1179</SelStart><SelEnd>1179</SelEnd></Tab></Pane><ActivePane>0</ActivePane><Sizes><Pane><X>1000000</X><Y>1000000</Y></Pane></Sizes><SplitMode>1</SplitMode></Editor>
     <Positions>
       
       
       
       
       
-    <Top><Row0><Sizes><Toolbar-009f86a0><key>iaridepm.enu1</key></Toolbar-009f86a0></Sizes></Row0></Top><Left><Row0><Sizes><Wnd0><Rect><Top>-2</Top><Left>-2</Left><Bottom>744</Bottom><Right>274</Right><x>-2</x><y>-2</y><xscreen>148</xscreen><yscreen>140</yscreen><sizeHorzCX>88095</sizeHorzCX><sizeHorzCY>143149</sizeHorzCY><sizeVertCX>164286</sizeVertCX><sizeVertCY>762781</sizeVertCY></Rect></Wnd0></Sizes></Row0></Left><Right><Row0><Sizes/></Row0></Right><Bottom><Row0><Sizes><Wnd1><Rect><Top>-2</Top><Left>-2</Left><Bottom>189</Bottom><Right>1682</Right><x>-2</x><y>-2</y><xscreen>1684</xscreen><yscreen>191</yscreen><sizeHorzCX>1002381</sizeHorzCX><sizeHorzCY>195297</sizeHorzCY><sizeVertCX>88095</sizeVertCX><sizeVertCY>143149</sizeVertCY></Rect></Wnd1></Sizes></Row0></Bottom><Float><Sizes/></Float></Positions>
+    <Top><Row0><Sizes><Toolbar-02c58430><key>iaridepm.enu1</key></Toolbar-02c58430></Sizes></Row0><Row1><Sizes/></Row1><Row2><Sizes/></Row2><Row3><Sizes/></Row3><Row4><Sizes/></Row4></Top><Left><Row0><Sizes><Wnd0><Rect><Top>-2</Top><Left>-2</Left><Bottom>745</Bottom><Right>317</Right><x>-2</x><y>-2</y><xscreen>194</xscreen><yscreen>139</yscreen><sizeHorzCX>115476</sizeHorzCX><sizeHorzCY>142127</sizeHorzCY><sizeVertCX>189881</sizeVertCX><sizeVertCY>763804</sizeVertCY></Rect></Wnd0></Sizes></Row0></Left><Right><Row0><Sizes/></Row0></Right><Bottom><Row0><Sizes><Wnd1><Rect><Top>-2</Top><Left>-2</Left><Bottom>188</Bottom><Right>1682</Right><x>-2</x><y>-2</y><xscreen>1684</xscreen><yscreen>190</yscreen><sizeHorzCX>1002381</sizeHorzCX><sizeHorzCY>194274</sizeHorzCY><sizeVertCX>115476</sizeVertCX><sizeVertCY>142127</sizeVertCY></Rect></Wnd1></Sizes></Row0></Bottom><Float><Sizes/></Float></Positions>
   </Desktop>
 </Workspace>
 

@@ -18,6 +18,8 @@
 /******************************************************************************/
 /*! \file hal_accelerometer.c
  *
+ * The accelerometer hardware holds the SCL line low when data has not been
+ * read from the receive register.
  */
 /******************************************************************************/
 
@@ -36,7 +38,7 @@ static unsigned char AccelerometerBusy;
 static unsigned char Count;
 static unsigned char Index;
 static unsigned char* pAccelerometerData;
-  
+
 static xSemaphoreHandle AccelerometerMutex;
 
   
@@ -76,6 +78,8 @@ void AccelerometerWrite(unsigned char RegisterAddress,
   EnableSmClkUser(ACCELEROMETER_USER);
   xSemaphoreTake(AccelerometerMutex,portMAX_DELAY);
   
+  while(UCB1STAT & UCBBUSY);
+  
   AccelerometerBusy = 1;
   Count = Length;
   Index = 0;
@@ -108,22 +112,28 @@ void AccelerometerRead(unsigned char RegisterAddress,
                        unsigned char* pData,
                        unsigned char Length)
 {
+  /* short circuit */
+  if ( Length == 0 )
+  {
+    return;
+  }
+  
   EnableSmClkUser(ACCELEROMETER_USER);
   xSemaphoreTake(AccelerometerMutex,portMAX_DELAY);
+  
+  while(UCB1STAT & UCBBUSY);
   
   AccelerometerBusy = 1;
   Count = Length;
   Index = 0;
   pAccelerometerData = pData;
   
-  while(UCB1STAT & UCBBUSY);
-  
   /* transmit address */
   ACCELEROMETER_IFG = 0;
   ACCELEROMETER_CTL1 |= UCTR + UCTXSTT;
   while(!(ACCELEROMETER_IFG & UCTXIFG));
   
-  /* writing tx register clears address ?*/
+  /* write register address */
   ACCELEROMETER_IFG = 0;
   ACCELEROMETER_TXBUF = RegisterAddress;
   while(!(ACCELEROMETER_IFG & UCTXIFG));
@@ -131,10 +141,36 @@ void AccelerometerRead(unsigned char RegisterAddress,
   /* send a repeated start (same slave address now it is a read command) */
   ACCELEROMETER_IFG = 0;
   ACCELEROMETER_CTL1 &= ~UCTR;
-  ACCELEROMETER_IE |= UCRXIE;
-  ACCELEROMETER_CTL1 |= UCTXSTT;
-  while(AccelerometerBusy);
   
+  /* for a read of a single byte stop must be sent while the byte is being 
+   * received.  in this case don't enable the interrupt
+   */
+  if ( Length == 1 )
+  {
+    ACCELEROMETER_CTL1 |= UCTXSTT;
+  
+    /* GZ: Wait for end of Sr condition and SAD+R acknowledged by slave. */
+    while (ACCELEROMETER_CTL1 & UCTXSTT);
+    
+    /* GZ: When the first data byte is received: 
+     * Send NACK, generate P condition.
+     */
+    ACCELEROMETER_CTL1 |= UCTXSTP;
+    
+    /* wait for the end of the cycle and read the data */
+    while(ACCELEROMETER_CTL1 & UCTXSTP);
+    pAccelerometerData[0] = ACCELEROMETER_RXBUF;
+    AccelerometerBusy = 0;
+    Count = 0;
+  }
+  else
+  {
+    ACCELEROMETER_IE |= UCRXIE;
+    ACCELEROMETER_CTL1 |= UCTXSTT;
+    while(AccelerometerBusy);
+      
+  }
+
   DisableSmClkUser(ACCELEROMETER_USER);
   xSemaphoreGive(AccelerometerMutex);
 
@@ -171,29 +207,24 @@ __interrupt void ACCERLEROMETER_ISR(void)
   case ACCELEROMETER_STPIFG: 
     break; 
   
-  case ACCELEROMETER_RXIFG: 
-  
-    if ( Count > 1 )
-    {
+  case ACCELEROMETER_RXIFG:
+ 
+    if (Count > 0)
+    { 
+      pAccelerometerData[Index++] = ACCELEROMETER_RXBUF;
       Count--;
-      pAccelerometerData[Index++] = ACCELEROMETER_RXBUF;
-    }
-    else if ( Count <= 1 )
-    {
-      /* send nack and stop immediately because RXBUF has not been read */
-      ACCELEROMETER_CTL1 |= UCTXSTP;
-    
-      /* this wait is required for things to work properly (3.125 us) */
-      while(ACCELEROMETER_CTL1 & UCTXSTP);
-      pAccelerometerData[Index++] = ACCELEROMETER_RXBUF;
-      Count = 0;
-      AccelerometerBusy = 0;
-    }
-    else
-    {
-      /* should never get here */
-      ACCELEROMETER_IE &= ~UCRXIE;
-      AccelerometerBusy = 0;
+      
+      if ( Count == 1 )
+      { 
+        /* All but one byte received. Send NACK, generate P condition. */
+        ACCELEROMETER_CTL1 |= UCTXSTP;
+      }
+      else if ( Count == 0 )
+      { 
+        /* Last byte received */
+        ACCELEROMETER_IE &= ~UCRXIE;
+        AccelerometerBusy = 0;
+      }
     }
     break;
     
