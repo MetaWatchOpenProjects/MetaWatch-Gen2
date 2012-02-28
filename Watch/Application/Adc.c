@@ -472,7 +472,9 @@ unsigned int ReadBatterySense(void)
   return BatterySense;
 }
 
-/* returns 0 if the measurement is not valid (yet) */
+/* this used to return 0 if the measurement is not valid (yet) 
+ * but then the display doesn't have a valid value for 80 seconds.
+ */
 unsigned int ReadBatterySenseAverage(void)
 {
   unsigned int SampleTotal = 0;
@@ -487,6 +489,10 @@ unsigned int ReadBatterySenseAverage(void)
     }
     
     Result = SampleTotal/MAX_SAMPLES;
+  }
+  else
+  {
+    Result = BatterySense;  
   }
 
   return Result;

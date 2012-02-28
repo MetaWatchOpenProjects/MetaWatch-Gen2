@@ -10,6 +10,6 @@
 @REM 
 
 
-"C:\Program Files (x86)\IAR Systems\MSP430_5_2\common\bin\cspybat" "C:\Program Files (x86)\IAR Systems\MSP430_5_2\430\bin\430proc.dll" "C:\Program Files (x86)\IAR Systems\MSP430_5_2\430\bin\430fet.dll"  %1 --plugin "C:\Program Files (x86)\IAR Systems\MSP430_5_2\430\bin\430bat.dll" --backend -B "--hardware_multiplier" "32" "--hwmult_type" "8" "-p" "C:\Program Files (x86)\IAR Systems\MSP430_5_2\430\config\MSP430F5438A.ddf" "--core=430Xv2" "--data_model=medium" "--iv_base" "0xFF80" "--no_wrap_around" "-d" "fet" "--erase_main_and_info" "--derivative" "MSP430F5438A" "--protocol" "automatic" "--eem" "EMEX_LARGE_5XX" "--port" "Automatic" "--connection" "ti_usb" "--settlingtime=0" "--msp430_dll" "msp430.dll" "--vccDefault" "3.3" 
+"C:\Program Files (x86)\IAR Systems\MSP430_5_2\common\bin\cspybat" "C:\Program Files (x86)\IAR Systems\MSP430_5_2\430\bin\430proc.dll" "C:\Program Files (x86)\IAR Systems\MSP430_5_2\430\bin\430fet.dll"  %1 --plugin "C:\Program Files (x86)\IAR Systems\MSP430_5_2\430\bin\430bat.dll" --backend -B "--hardware_multiplier" "32" "--hwmult_type" "8" "-p" "C:\Program Files (x86)\IAR Systems\MSP430_5_2\430\config\MSP430F5438A.ddf" "--core=430Xv2" "--data_model=medium" "--iv_base" "0xFF80" "--no_wrap_around" "-d" "fet" "--erase_main_and_info" "--derivative" "MSP430F5438A" "--protocol" "spy-bi-wire" "--eem" "EMEX_LARGE_5XX" "--port" "Automatic" "--connection" "ti_usb" "--settlingtime=0" "--msp430_dll" "msp430.dll" "--vccDefault" "3.3" 
 
 

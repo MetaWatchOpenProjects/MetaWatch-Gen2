@@ -247,9 +247,8 @@ __interrupt void ACCERLEROMETER_ISR(void)
        * Errata USCI30
        * SCL must be low for 3 bit times
        * this solution only applies to 320 kHz I2C clock
+       * this causes bluetooth characters to get lost
        */
-      DEBUG4_HIGH();
-      DisableFlow();
       unsigned char workaround_count = 10;
       
       while ( (workaround_count--) && ( LengthCount > 1 ) )
@@ -259,19 +258,7 @@ __interrupt void ACCERLEROMETER_ISR(void)
         {
           workaround_count = 10;
         }
-        
-        // getting stuck here with UCBBUSY == 0 ?
-        // count == 2 makes sense - cycle has ended
-        // count > 2 ???
-        //
-        // to think about:
-        //
-        // if the interrupt is not disabled then part is susceptible
-        // to the errata (because another byte may be coming in) and
-        // then the read occurs
       }
-      EnableFlow();
-      DEBUG4_LOW();
 #endif
       
       pAccelerometerData[Index++] = ACCELEROMETER_RXBUF;
@@ -279,12 +266,12 @@ __interrupt void ACCERLEROMETER_ISR(void)
       
       if ( LengthCount == 1 )
     {
-        /* All but one byte received. Send stop */
+      /* All but one byte received. Send stop */
       ACCELEROMETER_CTL1 |= UCTXSTP;
     }
       else if ( LengthCount == 0 )
     {
-        /* Last byte received; disable rx interrupt */
+      /* Last byte received; disable rx interrupt */
       ACCELEROMETER_IE &= ~UCRXIE;
       AccelerometerBusy = 0;
     }

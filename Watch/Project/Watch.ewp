@@ -1067,7 +1067,7 @@
           <state>DMA</state>
           <state>LPM_ENABLED</state>
           <state>TASK_DEBUG</state>
-          <state>DEBUG_WATCHDOG_RESET</state>
+          <state>xDEBUG_WATCHDOG_RESET</state>
         </option>
         <option>
           <name>CCPreprocFile</name>
