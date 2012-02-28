@@ -33,6 +33,7 @@
 #include "BufferPool.h" 
 #include "Statistics.h"
 #include "DebugUart.h"
+#include "Utilities.h"
 
 /*! \param buffer is a buffer of HOST_MSG_BUFFER_LENGTH whose address goes
  * onto a queue
@@ -55,7 +56,8 @@ static const unsigned char* HIGH_BUFFER_ADDRESS  = &(BufferPool[NUM_MSG_BUFFERS 
 
 static void SetBufferPoolFailureBit(void)
 {
-  gAppStats.BufferPoolFailure = 1;  
+  PrintString("************Buffer Pool Failure************\r\n");
+  ForceWatchdogReset();  
 }
 
 void InitializeBufferPool( void )
@@ -108,9 +110,9 @@ unsigned char* BPL_AllocMessageBuffer(void)
 }
 
 #if 0
-/* This is slow enough that we don't want to encourage it */
+/* This is too slow to use */
 unsigned char* BPL_AllocMessageBufferFromISR(void)
-{
+{  
   unsigned char * pBuffer = NULL;
 
   signed portBASE_TYPE HigherPriorityTaskWoken;
@@ -123,19 +125,19 @@ unsigned char* BPL_AllocMessageBufferFromISR(void)
     PrintString("Unable to Allocate Buffer from Isr\r\n");
     SetBufferPoolFailureBit();
   }
-    
+  
   if ( HigherPriorityTaskWoken == pdTRUE )
   {
     portYIELD();
   }
-
+  
   return pBuffer;
-    
+  
 }
 #endif
 
 void BPL_FreeMessageBuffer(unsigned char* pBuffer)
-{  
+{
   // make sure the returned pointer is in range
   if (   pBuffer < LOW_BUFFER_ADDRESS 
       || pBuffer > HIGH_BUFFER_ADDRESS )
@@ -143,7 +145,7 @@ void BPL_FreeMessageBuffer(unsigned char* pBuffer)
     PrintString("Free Buffer Corruption\r\n");
     SetBufferPoolFailureBit();
   }
-    
+
   // params are: queue handle, ptr to item to queue, tick to wait if full
   // the queue can't be full unless there is a bug, so don't wait on full
   if( pdTRUE != xQueueSend(QueueHandles[FREE_QINDEX], &pBuffer, DONT_WAIT) )
@@ -176,11 +178,13 @@ void BPL_FreeMessageBufferFromIsr(unsigned char* pBuffer)
     SetBufferPoolFailureBit();
   }
 
-  
+#if 0
+  /* this should never be true when freeing a message buffer */
   if ( HigherPriorityTaskWoken == pdTRUE )
   {
     portYIELD();
-}
-
+  }
+#endif
+  
 }
 

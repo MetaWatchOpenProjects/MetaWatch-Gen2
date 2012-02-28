@@ -60,6 +60,12 @@ unsigned char BatteryChargingControl(void);
  */
 unsigned char QueryBatteryCharging(void);
 
+
+/*!
+ * \return 1 if the power from the charger is present
+ */
+unsigned char QueryPowerGood(void);
+
 /*!
  * \return 1 if the battery charger is enabled
  */

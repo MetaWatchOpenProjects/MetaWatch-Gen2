@@ -38,7 +38,7 @@ typedef enum
   MetaWatch5Oled,
   MetaWatch7Oled,
   MetaWatch16Oled,
-  MetaWatchIconOled,
+  MetaWatchIconOled
   
 } etFontType;
 

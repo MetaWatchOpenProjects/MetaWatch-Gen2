@@ -151,7 +151,7 @@ void InitializeAdc(void)
  
   /* enable the 2.5V reference */
   ADC12CTL0 = ADC12REFON + ADC12REF2_5V;
-
+  
   /* allow conditional request for modosc */
   UCSCTL8 |= MODOSCREQEN;
   
@@ -313,12 +313,14 @@ void LowBatteryMonitor(void)
                                 " Batt Avg: ",BatteryAverage,
                                 " Batt Charge Enable: ", QueryBatteryChargeEnabled());
     
+    PrintStringAndDecimal("Power Good: ",QueryPowerGood());
+    
   }
   
   /* if the battery is charging then ignore the measured voltage
    * and clear the flags
   */
-  if ( QueryBatteryCharging() )
+  if ( QueryPowerGood() )
   {
     /* user must turn radio back on */
     LowBatteryWarningMessageSent = 0;  
@@ -347,7 +349,7 @@ void LowBatteryMonitor(void)
       
       /* now send a vibration to the wearer */
       SetupMessageAndAllocateBuffer(&Msg,SetVibrateMode,NO_MSG_OPTIONS);
-
+      
       tSetVibrateModePayload* pMsgData;
       pMsgData = (tSetVibrateModePayload*) Msg.pBuffer;
       
@@ -379,10 +381,10 @@ void LowBatteryMonitor(void)
       
       /* now send a vibration to the wearer */
       SetupMessageAndAllocateBuffer(&Msg,SetVibrateMode,NO_MSG_OPTIONS);
-
+      
       tSetVibrateModePayload* pMsgData;
       pMsgData = (tSetVibrateModePayload*) Msg.pBuffer;
-
+      
       pMsgData->Enable = 1;
       pMsgData->OnDurationLsb = 0x00;
       pMsgData->OnDurationMsb = 0x02;
@@ -459,7 +461,7 @@ static void EndAdcCycle(void)
 {
   DISABLE_ADC();
   DISABLE_REFERENCE();
- 
+
   /* release the mutex */
   xSemaphoreGive(AdcHardwareMutex);
 
@@ -478,14 +480,15 @@ unsigned int ReadBatterySenseAverage(void)
   
   if ( BatterySenseAverageReady )
   {
-    for (unsigned char i = 0; i < MAX_SAMPLES; i++)
+  	unsigned char i;
+    for (i = 0; i < MAX_SAMPLES; i++)
     {
       SampleTotal += BatterySenseSamples[i];
     }
     
     Result = SampleTotal/MAX_SAMPLES;
   }
-  
+
   return Result;
   
 }
@@ -503,7 +506,8 @@ unsigned int ReadLightSenseAverage(void)
   
   if ( LightSenseAverageReady )
   {
-    for (unsigned char i = 0; i < MAX_SAMPLES; i++)
+    unsigned char i;
+    for (i = 0; i < MAX_SAMPLES; i++)
     {
       SampleTotal += LightSenseSamples[i];
     }

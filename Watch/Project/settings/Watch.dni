@@ -1,22 +1,3 @@
-[DebugChecksum]
-Checksum=-1243863099
-[DisAssemblyWindow]
-NumStates=_ 1
-State 1=_ 1
-[InstructionProfiling]
-Enabled=_ 0
-[CodeCoverage]
-Enabled=_ 0
-[StackPlugin]
-Enabled=1
-OverflowWarningsEnabled=1
-WarningThreshold=90
-SpWarningsEnabled=1
-WarnHow=0
-UseTrigger=1
-TriggerName=main
-LimitSize=0
-ByteLimit=50
 [State Storage]
 Control Register=0
 [Sequencer]
@@ -24,27 +5,17 @@ Control Register=0
 NextState0=0
 NextState1=0
 [Action Register]
-Break=7
+Break=3
 State Storage=0
-[InterruptLog]
-LogEnabled=0
-SumEnabled=0
-GraphEnabled=0
-ShowTimeLog=1
-ShowTimeSum=1
-SumSortOrder=0
-[Interrupts]
-Enabled=1
-[MemoryMap]
-Enabled=0
-Base=0
-UseAuto=0
-TypeViolation=1
-UnspecRange=1
-ActionState=1
-[TraceHelper]
-Enabled=0
-ShowSource=1
+[DebugChecksum]
+Checksum=-1285712661
+[DisAssemblyWindow]
+NumStates=_ 1
+State 1=_ 1
+[InstructionProfiling]
+Enabled=_ 0
+[CodeCoverage]
+Enabled=_ 0
 [Log file]
 LoggingEnabled=_ 0
 LogFile=_ ""
@@ -56,13 +27,12 @@ LogFile=_ ""
 Enabled=0
 [DriverProfiling]
 Enabled=0
-Mode=0
+Mode=180428890
 Graph=0
 Symbiont=0
 [Breakpoints]
-Bp0=_ "STD_CODE" "{$PROJ_DIR$\..\Application\main.c}.66.3@1" 1 0 0 0 "" 0 ""
-Bp1=_ "STD_CODE" "{$PROJ_DIR$\..\Application\LcdDisplay.c}.1717.9@1" 1 0 0 0 "" 0 ""
-Count=2
+Bp0=_ "STD_CODE" "{$PROJ_DIR$\..\Application\MessageQueues.c}.97.28@1" 1 0 0 0 "" 0 ""
+Count=1
 [FET]
 Clock mode=14
 Extended Clock mode=-1

@@ -97,7 +97,7 @@ void halRtcGet(tRtcHostMsgPayload* pRtcData);
 #define RTC_TIMER_VIBRATION       ( BIT0 )
 #define RTC_TIMER_RESERVED        ( BIT1 )
 #define RTC_TIMER_BUTTON          ( BIT2 )
-#define RTC_TIMER_PEDOMETER       ( BIT3 )
+#define RTC_TIMER_RESERVED3       ( BIT3 )
 #define RTC_TIMER_USER_DEBUG_UART ( BIT4 )
 #define RTC_TIMER_USER_BLASTER    ( BIT5 )
 

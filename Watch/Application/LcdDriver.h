@@ -46,8 +46,8 @@ void ClearLcd(void);
 void UpdateMyDisplay(unsigned char * pBuffer,unsigned int TotalLines);
 
 
-/*! Callback from the DMA interrupt service routing that lets LCD task know that 
- * the dma has finished
+/*! Callback from the DMA interrupt service routing that lets LCD task know 
+ * that the dma has finished
  */
 void LcdDmaIsr(void);
 

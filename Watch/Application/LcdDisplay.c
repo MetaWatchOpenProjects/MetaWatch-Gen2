@@ -164,7 +164,7 @@ typedef enum
   Menu3Page,
   ListPairedDevicesPage,
   WatchStatusPage,
-  QrCodePage,
+  QrCodePage
   
 } etIdlePageMode;
 
@@ -203,7 +203,7 @@ static unsigned char gColumn;
 static unsigned char gRow;
 
 static void WriteFontCharacter(unsigned char Character);
-static void WriteFontString(unsigned char* pString);
+static void WriteFontString(tString* pString);
 
 /******************************************************************************/
 
@@ -223,7 +223,7 @@ void InitializeDisplayTask(void)
   
   // task function, task name, stack len , task params, priority, task handle
   xTaskCreate(DisplayTask, 
-              "DISPLAY", 
+              (const signed char *)"DISPLAY", 
               DISPLAY_TASK_STACK_DEPTH, 
               NULL, 
               DISPLAY_TASK_PRIORITY, 
@@ -247,7 +247,7 @@ static void DisplayTask(void *pvParameters)
   {
     PrintString("Display Queue not created!\r\n");  
   }
-  
+      
   LcdPeripheralInit();
   
   DisplayStartupScreen();
@@ -268,20 +268,18 @@ static void DisplayTask(void *pvParameters)
   DefaultApplicationAndNotificationButtonConfiguration();
   SetupNormalIdleScreenButtons();
   
-#if 1
   /* turn the radio on; initialize the serial port profile */
   tMessage Msg;
   SetupMessage(&Msg,TurnRadioOnMsg,NO_MSG_OPTIONS);
   RouteMsg(&Msg);
-#endif
-  
+    
   for(;;)
   {
     if( pdTRUE == xQueueReceive(QueueHandles[DISPLAY_QINDEX], 
                                 &DisplayMsg, portMAX_DELAY) )
     {
       PrintMessageType(&DisplayMsg);
-      
+       
       DisplayQueueMessageHandler(&DisplayMsg);
       
       SendToFreeQueue(&DisplayMsg);
@@ -310,7 +308,7 @@ static void DisplayQueueMessageHandler(tMessage* pMsg)
       
   switch(Type)
   {
-  
+    
   case WriteBuffer:
     WriteBufferHandler(pMsg);
     break;
@@ -421,6 +419,7 @@ static void SetupSplashScreenTimeout(void)
   SetupOneSecondTimer(IdleModeTimerId,
                       ONE_SECOND*3,
                       NO_REPEAT,
+                      DISPLAY_QINDEX,
                       SplashTimeoutMsg,
                       NO_MSG_OPTIONS);
 
@@ -448,7 +447,7 @@ static void IdleUpdateHandler(void)
   
   /* allow rtc to send IdleUpdate every minute (or second) */
   RtcUpdateEnable = 1;
-
+  
   /* determine if the bottom of the screen should be drawn by the watch */  
   if ( QueryFirstContact() )
   {
@@ -488,7 +487,7 @@ static void IdleUpdateHandler(void)
     
     PrepareMyBufferForLcd(STARTING_ROW,NUM_LCD_ROWS);
     SendMyBufferToLcd(NUM_LCD_ROWS);
-
+    
     ConfigureIdleUserInterfaceButtons();
 
   }
@@ -640,6 +639,7 @@ static void ChangeModeHandler(tMessage* pMsg)
       SetupOneSecondTimer(ApplicationModeTimerId,
                           timeout,
                           NO_REPEAT,
+                          DISPLAY_QINDEX,
                           ModeTimeoutMsg,
                           APPLICATION_MODE);
           
@@ -658,12 +658,13 @@ static void ChangeModeHandler(tMessage* pMsg)
         
     if ( timeout )
     {
-    SetupOneSecondTimer(NotificationModeTimerId,
+      SetupOneSecondTimer(NotificationModeTimerId,
                           timeout,
-                        NO_REPEAT,
-                        ModeTimeoutMsg,
-                        NOTIFICATION_MODE);
-        
+                          NO_REPEAT,
+                          DISPLAY_QINDEX,
+                          ModeTimeoutMsg,
+                          NOTIFICATION_MODE);
+      
       StartOneSecondTimer(NotificationModeTimerId);
     }
     
@@ -723,13 +724,13 @@ static void ModeTimeoutHandler(tMessage* pMsg)
   /* send a message to the host indicating that a timeout occurred */
   tMessage OutgoingMsg;
   SetupMessageAndAllocateBuffer(&OutgoingMsg,
-                  StatusChangeEvent, 
+                                StatusChangeEvent,
                                 CurrentMode);
-  
+    
   OutgoingMsg.pBuffer[0] = (unsigned char)eScModeTimeout;
   OutgoingMsg.Length = 1;
   RouteMsg(&OutgoingMsg);
-  
+    
 }
   
 
@@ -754,10 +755,10 @@ static void WatchStatusScreenHandler(void)
   }
   
   CopyColumnsIntoMyBuffer(pIcon,
-                         0,
-                         STATUS_ICON_SIZE_IN_ROWS,
-                         LEFT_STATUS_ICON_COLUMN,
-                         STATUS_ICON_SIZE_IN_COLUMNS);  
+                          0,
+                          STATUS_ICON_SIZE_IN_ROWS,
+                          LEFT_STATUS_ICON_COLUMN,
+                          STATUS_ICON_SIZE_IN_COLUMNS);  
     
   
   if ( QueryPhoneConnected() )
@@ -770,10 +771,10 @@ static void WatchStatusScreenHandler(void)
   }
   
   CopyColumnsIntoMyBuffer(pIcon,
-                         0,
-                         STATUS_ICON_SIZE_IN_ROWS,
-                         CENTER_STATUS_ICON_COLUMN,
-                         STATUS_ICON_SIZE_IN_COLUMNS);  
+                          0,
+                          STATUS_ICON_SIZE_IN_ROWS,
+                          CENTER_STATUS_ICON_COLUMN,
+                          STATUS_ICON_SIZE_IN_COLUMNS);  
   
   unsigned int bV = ReadBatterySenseAverage();
   
@@ -799,14 +800,14 @@ static void WatchStatusScreenHandler(void)
   
   
   CopyColumnsIntoMyBuffer(pIcon,
-                         0,
-                         STATUS_ICON_SIZE_IN_ROWS,
-                         RIGHT_STATUS_ICON_COLUMN,
-                         STATUS_ICON_SIZE_IN_COLUMNS);  
-      
+                          0,
+                          STATUS_ICON_SIZE_IN_ROWS,
+                          RIGHT_STATUS_ICON_COLUMN,
+                          STATUS_ICON_SIZE_IN_COLUMNS);  
+
   /* display battery voltage */
   unsigned char msd = 0;
-
+  
   gRow = 27+2;
   gColumn = 8;
   gBitColumnMask = BIT6;
@@ -863,7 +864,7 @@ static void WatchStatusScreenHandler(void)
   gColumn = 0;
   gBitColumnMask = BIT4;
   WriteFontString("MSP430 Rev ");
-  WriteFontCharacter(GetHardwareRevision());
+  WriteFontCharacter(GetMsp430HardwareRevision());
  
   /* display entire buffer */
   PrepareMyBufferForLcd(STARTING_ROW,NUM_LCD_ROWS);
@@ -876,6 +877,7 @@ static void WatchStatusScreenHandler(void)
   SetupOneSecondTimer(IdleModeTimerId,
                       ONE_SECOND*60,
                       NO_REPEAT,
+                      DISPLAY_QINDEX,
                       WatchStatusMsg,
                       NO_MSG_OPTIONS);
   
@@ -911,14 +913,15 @@ static void ListPairedDevicesHandler(void)
   /* draw entire region */
   FillMyBuffer(STARTING_ROW,NUM_LCD_ROWS,0x00);
   
-  unsigned char pBluetoothAddress[12+1];
-  unsigned char pBluetoothName[12+1];
+  tString pBluetoothAddress[12+1];
+  tString pBluetoothName[12+1];
 
   gRow = 4;
   gColumn = 0;
   SetFont(MetaWatch7);
   
-  for(unsigned char i = 0; i < 3; i++)
+  unsigned char i;
+  for( i = 0; i < 3; i++)
   {
 
     unsigned char j;
@@ -991,14 +994,14 @@ static void DrawConnectionScreen()
   }
   
   CopyRowsIntoMyBuffer(pSwash,WATCH_DRAWN_IDLE_BUFFER_ROWS+1,32);
-    
+  
   /* local bluetooth address */
   gRow = 65;
   gColumn = 0;
   gBitColumnMask = BIT4;
   SetFont(MetaWatch7);
   WriteFontString(GetLocalBluetoothAddressString());
-  
+
   /* add the firmware version */
   gRow = 75;
   gColumn = 0;
@@ -1014,7 +1017,7 @@ static void DrawConnectionScreen()
   WriteFontString(GetStackVersion());
 
 }
-  
+
 /* change the parameter but don't save it into flash */
 static void ConfigureDisplayHandler(tMessage* pMsg)
 {
@@ -1038,20 +1041,20 @@ static void ConfigureDisplayHandler(tMessage* pMsg)
   {
     IdleUpdateHandler();  
   }
-
-}
   
+}
+    
 
 static void ConfigureIdleBuferSizeHandler(tMessage* pMsg)
 {
   nvIdleBufferConfig = pMsg->pBuffer[0] & IDLE_BUFFER_CONFIG_MASK;
-
+  
   if ( CurrentMode == IDLE_MODE )
-{
-  if ( nvIdleBufferConfig == WATCH_CONTROLS_TOP )
   {
-    IdleUpdateHandler();
-  }
+    if ( nvIdleBufferConfig == WATCH_CONTROLS_TOP )
+    {
+      IdleUpdateHandler();
+    }
   }
   
 }
@@ -1367,7 +1370,7 @@ static void DrawSimpleIdleScreen(void)
     WriteFontCharacter(TIME_CHARACTER_SPACE_INDEX);  
   }
   else
-  {  
+  {
     WriteFontCharacter(msd);
   }
   WriteFontCharacter(lsd);
@@ -1672,36 +1675,16 @@ static void MenuButtonHandler(unsigned char MsgOptions)
     /* save all of the non-volatile items */
     SetupMessage(&OutgoingMsg,PairingControlMsg,PAIRING_CONTROL_OPTION_SAVE_SPP);
     RouteMsg(&OutgoingMsg);
-     
+    
     SaveLinkAlarmEnable();
     SaveRstNmiConfiguration();
     SaveIdleBufferInvert();
     SaveDisplaySeconds();
-    
+      
     /* go back to the normal idle screen */
     SetupMessage(&OutgoingMsg,IdleUpdate,NO_MSG_OPTIONS);
     RouteMsg(&OutgoingMsg);
-    
-    
-    /* debug */
-#if 0
-    SetupMessage(&OutgoingMsg,SniffControlMsg,SNIFF_EXIT_OPTION);
-    RouteMsg(&OutgoingMsg);
-#endif
-    
-#if 0
-    while ( 1 == 1 )
-    {
-      SetupMessageAndAllocateBuffer(&OutgoingMsg,DiagnosticLoopback,NO_MSG_OPTIONS);
-      Msg.Length = 26;      
-      CopyHostMsgPayload(Msg.pBuffer,"abcdefghijklmnopqrstuvwxyz",Msg.Length);
-      RouteMsg(&OutgoingMsg);
-      
-      TaskDelayLpmDisable();
-      vTaskDelay(100);
-      TaskDelayLpmEnable();
-    }
-#endif
+
     break;
     
   case MENU_BUTTON_OPTION_TOGGLE_BLUETOOTH:
@@ -2131,7 +2114,8 @@ const unsigned char DaysOfWeek[7][10*4] =
 static void DontChangeButtonConfiguration(void)
 {
   /* assign LED button to all modes */
-  for ( unsigned char i = 0; i < NUMBER_OF_BUTTON_MODES; i++ )
+  unsigned char i;
+  for ( i = 0; i < NUMBER_OF_BUTTON_MODES; i++ )
   {
     /* turn off led 3 seconds after button has been released */
     EnableButtonAction(i,
@@ -2630,10 +2614,12 @@ static void WriteFontCharacter(unsigned char Character)
   }
   
   /* do things bit by bit */
-  unsigned char i = 0;
-  for ( ; i < CharacterWidth && gColumn < NUM_LCD_COL_BYTES; i++ )
+  unsigned char i;
+  unsigned char row;
+ 
+  for (i = 0 ; i < CharacterWidth && gColumn < NUM_LCD_COL_BYTES; i++ )
   {
-    for(unsigned char row = 0; row < CharacterRows; row++)
+  	for(row = 0; row < CharacterRows; row++)
     {
       if ( (CharacterMask & bitmap[row]) != 0 )
       {
@@ -2666,7 +2652,7 @@ static void WriteFontCharacter(unsigned char Character)
        
 }
 
-void WriteFontString(unsigned char *pString)
+void WriteFontString(tString *pString)
 {
   unsigned char i = 0;
    
@@ -2706,7 +2692,7 @@ unsigned char LcdRtcUpdateHandlerIsr(void)
     {
       tMessage Msg;
       SetupMessage(&Msg,IdleUpdate,NO_MSG_OPTIONS);
-      RouteMsgFromIsr(&Msg);
+      SendMessageToQueueFromIsr(DISPLAY_QINDEX,&Msg);
       ExitLpm = 1;  
     }    
   } 

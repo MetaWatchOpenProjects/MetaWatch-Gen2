@@ -107,10 +107,19 @@ void SetupTimerForAnalogDisplay( void )
  *
  * \return Restores the PWM timer to the normal rate when complete.
  */
+ 
 #ifdef ANALOG
+
+#ifndef __IAR_SYSTEMS_ICC__
+#pragma CODE_SECTION(TIMER0_B0_ISR,".text:_isr");
+#endif
+
+
 #pragma vector=TIMER0_B0_VECTOR
 __interrupt void TIMER0_B0_ISR(void)
 {
+  P6OUT |= BIT7;   /* debug4_high */
+  
   NumberOfFastPulses--;
 
   if(0 == NumberOfFastPulses)
@@ -123,5 +132,7 @@ __interrupt void TIMER0_B0_ISR(void)
 
   // Exit LPM3 on interrupt exit (RETI).  
   EXIT_LPM_ISR();
+  
+  P6OUT &= ~BIT7;       /* debug4_low */
 }
 #endif

@@ -20,6 +20,7 @@
 * Fonts for the LCD version
 */
 /******************************************************************************/
+#include "FreeRTOS.h"
 
 #include "Fonts.h"
 #include "DebugUart.h"
@@ -100,7 +101,7 @@ unsigned char MapDigitToIndex(unsigned char Digit)
   
   return Result;
   
-};
+}
 
 
 unsigned char GetCharacterWidth(unsigned char Character)
@@ -110,9 +111,9 @@ unsigned char GetCharacterWidth(unsigned char Character)
   
   switch (CurrentFont.Type)
   {
-  case MetaWatch5:  Width = MetaWatch5width[index];  break;
-  case MetaWatch7:  Width = MetaWatch7width[index];  break;
-  case MetaWatch16: Width = MetaWatch16width[index]; break;
+  case MetaWatch5:    Width = MetaWatch5width[index];    break;
+  case MetaWatch7:    Width = MetaWatch7width[index];    break;
+  case MetaWatch16:   Width = MetaWatch16width[index];   break;
   case MetaWatchTime: Width = MetaWatchTimeWidth[index]; break;
   default : 
     break;
@@ -148,11 +149,11 @@ unsigned char MapCharacterToIndex(unsigned char CharIn)
     break;
     
   default : 
-  // space = 0x20 and 0x7f = delete character
-  if ( (CharIn >= 0x20) && (CharIn < 0x7f) )
-  {
-    Result = CharIn - 0x20;
-  }
+    // space = 0x20 and 0x7f = delete character
+    if ( (CharIn >= 0x20) && (CharIn < 0x7f) )
+    {
+      Result = CharIn - 0x20;
+    }
     break;
   }
   
@@ -165,7 +166,8 @@ void GetCharacterBitmap(unsigned char Character,unsigned int * pBitmap)
 {
   unsigned char index = MapCharacterToIndex(Character);
 
-  for (unsigned char row = 0; row < CurrentFont.Height; row++ )
+  unsigned char row;
+  for (row = 0; row < CurrentFont.Height; row++ )
   {
     switch (CurrentFont.Type)
     {

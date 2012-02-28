@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<projectDescription>
+	<name>Watch</name>
+	<comment></comment>
+	<projects>
+	</projects>
+	<buildSpec>
+		<buildCommand>
+			<name>org.eclipse.cdt.managedbuilder.core.genmakebuilder</name>
+			<arguments>
+			</arguments>
+		</buildCommand>
+	</buildSpec>
+	<natures>
+		<nature>org.eclipse.cdt.core.cnature</nature>
+		<nature>org.eclipse.cdt.managedbuilder.core.managedBuildNature</nature>
+		<nature>org.eclipse.cdt.core.ccnature</nature>
+		<nature>com.ti.ccstudio.managedbuild.core.ccsNature</nature>
+	</natures>
+	<linkedResources>
+		<link>
+			<name>Application</name>
+			<type>2</type>
+			<locationURI>WATCH_ROOT/Watch/Application</locationURI>
+		</link>
+		<link>
+			<name>Hardware</name>
+			<type>2</type>
+			<locationURI>WATCH_ROOT/Watch/Hardware</locationURI>
+		</link>
+		<link>
+			<name>FreeRTOS</name>
+			<type>2</type>
+			<locationURI>WATCH_ROOT/FreeRTOS</locationURI>
+		</link>
+		<link>
+			<name>OSAL</name>
+			<type>2</type>
+			<locationURI>WATCH_ROOT/OSAL</locationURI>
+		</link>
+	</linkedResources>
+</projectDescription>

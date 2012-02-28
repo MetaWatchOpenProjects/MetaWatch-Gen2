@@ -23,7 +23,6 @@
 #include "FreeRTOS.h"           
 #include "queue.h"              
 #include "task.h"
-#include "macro.h"
 
 #include "hal_board_type.h"
 
@@ -33,26 +32,14 @@
 #include "DebugUart.h"
 #include "Statistics.h"
 
-typedef enum
-{
-  Normal,
-  NormalWait,
-  FromIsr,
-  
-} eRouteType;
-
+#ifdef MESSAGE_QUEUE_DEBUG
 static unsigned char AllQueuesReady = 0;
 static void AllQueuesReadyCheck(void);
+#endif
 
-static void SendMessageToQueue(unsigned char Qindex, tMessage* pMsg);
-static void SendMessageToQueueWait(unsigned char Qindex, tMessage* pMsg);
-static void SendMessageToQueueFromIsr(unsigned char Qindex, tMessage* pMsg);
-static void Route(tMessage* pMsg, eRouteType RouteType);
+static void SendMsgToQ(unsigned char Qindex, tMessage* pMsg);
 
 xQueueHandle QueueHandles[TOTAL_QUEUES];
-
-#define NORMAL_CONTEXT ( 0 )
-#define ISR_CONTEXT    ( 1 )
 
 /* most messages do not have a buffer so there really isn't anything to free */
 void SendToFreeQueue(tMessage* pMsg)
@@ -60,7 +47,7 @@ void SendToFreeQueue(tMessage* pMsg)
   if ( pMsg->pBuffer != 0 )
   {
     /* The free queue is different.  
-     * It holds pointers to buffers not messaages 
+     * It holds pointers to buffers not messages 
      */
     BPL_FreeMessageBuffer(pMsg->pBuffer);
   }
@@ -68,49 +55,28 @@ void SendToFreeQueue(tMessage* pMsg)
 }
   
 void SendToFreeQueueIsr(tMessage* pMsg)
-  {
+{
   if ( pMsg->pBuffer != 0 )
   {
     BPL_FreeMessageBufferFromIsr(pMsg->pBuffer);
-  }  
-}
-
-static void SendToFreeQueueContext(tMessage* pMsg, eRouteType RouteType)
-{
-  if ( RouteType == Normal )
-{
-    SendToFreeQueue(pMsg);  
   }
-  else
-  {
-    SendToFreeQueueIsr(pMsg);  
-  }  
 }
 
-
+#ifdef MESSAGE_QUEUE_DEBUG
 static void AllQueuesReadyCheck(void)
 {
   if ( AllQueuesReady == 0 )
   {
     unsigned char Result = 1;
     
-#ifdef DIGITAL
-    for ( unsigned char i = 0; i < TOTAL_QUEUES; i++ )
+    unsigned char i;
+    for (i = 0; i < TOTAL_QUEUES; i++ )
     {
       if ( QueueHandles[i] == NULL )
       {
         Result &= 0; 
       }
     }
-#else
-    if (   QueueHandles[FREE_QINDEX] == 0
-        || QueueHandles[BACKGROUND_QINDEX] == 0
-        || QueueHandles[DISPLAY_QINDEX] == 0
-        || QueueHandles[SPP_TASK_QINDEX] == 0 )
-    {
-      Result = 0;  
-    }
-#endif
   
     if ( Result )
     {
@@ -118,6 +84,7 @@ static void AllQueuesReadyCheck(void)
     }
   }
 }
+#endif
 
 void PrintQueueNameIsFull(unsigned char Qindex)
 {
@@ -137,20 +104,22 @@ void PrintQueueNameIsFull(unsigned char Qindex)
   
 
 /* if the queue is full, don't wait */
-static void SendMessageToQueue(unsigned char Qindex, tMessage* pMsg)
+static void SendMsgToQ(unsigned char Qindex, tMessage* pMsg)
 {
   if ( Qindex == FREE_QINDEX )
   {
     SendToFreeQueue(pMsg);  
   }
   else if ( errQUEUE_FULL ==  xQueueSend(QueueHandles[Qindex],pMsg,DONT_WAIT) )
-  { 
+  {
     PrintQueueNameIsFull(Qindex);
     SendToFreeQueue(pMsg);
   }
   
 }
 
+#if 0
+/* this was kept for reference */
 static void SendMessageToQueueWait(unsigned char Qindex, tMessage* pMsg)
 {
   /* wait */
@@ -159,10 +128,16 @@ static void SendMessageToQueueWait(unsigned char Qindex, tMessage* pMsg)
     PrintQueueNameIsFull(Qindex);
     SendToFreeQueue(pMsg);
   }
-
+  
 }
+#endif
 
-static void SendMessageToQueueFromIsr(unsigned char Qindex, tMessage* pMsg)
+/* send a message to a specific queue from an isr 
+ * routing requires 25 us
+ * putting a message into a queue (in interrupt context) requires 28 us
+ * this requires 1/2 the time of using route
+ */
+void SendMessageToQueueFromIsr(unsigned char Qindex, tMessage* pMsg)
 {
   signed portBASE_TYPE HigherPriorityTaskWoken;
   
@@ -175,14 +150,23 @@ static void SendMessageToQueueFromIsr(unsigned char Qindex, tMessage* pMsg)
                                                &HigherPriorityTaskWoken))
   {
     PrintQueueNameIsFull(Qindex);
-      SendToFreeQueueIsr(pMsg);
+    SendToFreeQueueIsr(pMsg);
   }
   
+  
+#if 0
+  /* This is not used
+   *
+   * we don't want to task switch when in sleep mode
+   * The ISR will exit sleep mode and then the RTOS will run
+   * 
+   */
   if ( HigherPriorityTaskWoken == pdTRUE )
   {
     portYIELD();
   }
-
+#endif
+  
 }
 
 static unsigned char LastMessageType = 0;
@@ -219,133 +203,100 @@ void PrintMessageType(tMessage* pMsg)
   */
   switch (MessageType)
   {
-  case InvalidMessage:             PrintStringAndHex("InvalidMessage 0x",MessageType);         break;
-  case GetDeviceType:              PrintStringAndHex("GetDeviceType 0x",MessageType);          break;
-  case GetDeviceTypeResponse:      PrintStringAndHex("GetDeviceTypeResponse 0x",MessageType);  break;
-  case GetInfoString:              PrintStringAndHex("GetInfoString 0x",MessageType);          break;
-  case GetInfoStringResponse:      PrintStringAndHex("GetInfoStringResponse 0x",MessageType);  break;
-  case DiagnosticLoopback:         PrintStringAndHex("DiagnosticLoopback 0x",MessageType);     break;
-  case EnterShippingModeMsg:       PrintStringAndHex("EnterShippingModeMsg 0x",MessageType);   break;
-  case SoftwareResetMsg:           PrintStringAndHex("SoftwareResetMsg 0x",MessageType);       break;
-  case ConnectionTimeoutMsg:       PrintStringAndHex("ConnectionTimeoutMsg 0x",MessageType);   break;
-  case TurnRadioOnMsg:             PrintStringAndHex("TurnRadioOnMsg 0x",MessageType);         break;
-  case TurnRadioOffMsg:            PrintStringAndHex("TurnRadioOffMsg 0x",MessageType);        break;
-  case ReadRssiMsg:                PrintStringAndHex("ReadRssiMsg 0x",MessageType);                break;
-  case PairingControlMsg:          PrintStringAndHex("PairingControlMsg 0x",MessageType);          break;
-  case ReadRssiResponseMsg:        PrintStringAndHex("ReadRssiResponseMsg 0x",MessageType);        break;
-  case SniffControlMsg:            PrintStringAndHex("SniffControlMsg 0x",MessageType);            break;
-  case LinkAlarmMsg:               PrintStringAndHex("LinkAlarmMsg 0x",MessageType);           break;
-  case OledWriteBufferMsg:         PrintStringAndHex("OledWriteBufferMsg 0x",MessageType);        break;
-  case OledConfigureModeMsg:       PrintStringAndHex("OledConfigureModeMsg 0x",MessageType);      break;
-  case OledChangeModeMsg:          PrintStringAndHex("OledChangeModeMsg 0x",MessageType);         break;
-  case OledWriteScrollBufferMsg:   PrintStringAndHex("OledWriteScrollBufferMsg 0x",MessageType);  break;
-  case OledScrollMsg:              PrintStringAndHex("OledScrollMsg 0x",MessageType);          break;
-  case OledShowIdleBufferMsg:      PrintStringAndHex("OledShowIdleBufferMsg 0x",MessageType);  break;
-  case OledCrownMenuMsg:           PrintStringAndHex("OledCrownMenuMsg 0x",MessageType);       break;
-  case OledCrownMenuButtonMsg:     PrintStringAndHex("OledCrownMenuButtonMsg 0x",MessageType); break;
-  case AdvanceWatchHandsMsg:       PrintStringAndHex("AdvanceWatchHandsMsg 0x",MessageType);   break;
-  case SetVibrateMode:             PrintStringAndHex("SetVibrateMode 0x",MessageType);         break;
-  case ButtonStateMsg:             PrintStringAndHex("ButtonStateMsg 0x",MessageType);             break;
-  case SetRealTimeClock:           PrintStringAndHex("SetRealTimeClock 0x",MessageType);       break;
-  case GetRealTimeClock:           PrintStringAndHex("GetRealTimeClock 0x",MessageType);       break;
-  case GetRealTimeClockResponse:   PrintStringAndHex("GetRealTimeClockResponse 0x",MessageType);break;
-  case StatusChangeEvent:          PrintStringAndHex("StatusChangeEvent 0x",MessageType);       break;
-  case NvalOperationMsg:           PrintStringAndHex("NvalOperationMsg 0x",MessageType);        break;
-  case NvalOperationResponseMsg:   PrintStringAndHex("NvalOperationResponseMsg 0x",MessageType); break;
-  case GeneralPurposePhoneMsg:     PrintStringAndHex("GeneralPurposePhoneMsg 0x",MessageType); break;
-  case GeneralPurposeWatchMsg:     PrintStringAndHex("GeneralPurposeWatchMsg 0x",MessageType); break;
-  case ButtonEventMsg:             PrintStringAndHex("ButtonEventMsg 0x",MessageType);         break;
-  case WriteBuffer:                PrintStringAndHex("WriteBuffer 0x",MessageType);            break;
-  case ConfigureDisplay:           PrintStringAndHex("ConfigureDisplay 0x",MessageType);           break;
-  case ConfigureIdleBufferSize:    PrintStringAndHex("ConfigureIdleBufferSize 0x",MessageType);break;
-  case UpdateDisplay:              PrintStringAndHex("UpdateDisplay 0x",MessageType);          break;
-  case LoadTemplate:               PrintStringAndHex("LoadTemplate 0x",MessageType);           break;
-  case EnableButtonMsg:            PrintStringAndHex("EnableButtonMsg 0x",MessageType);        break;
-  case DisableButtonMsg:           PrintStringAndHex("DisableButtonMsg 0x",MessageType);       break;
-  case ReadButtonConfigMsg:        PrintStringAndHex("ReadButtonConfigMsg 0x",MessageType);    break;
-  case ReadButtonConfigResponse:   PrintStringAndHex("ReadButtonConfigResponse 0x",MessageType);break;
-  case BatteryChargeControl:       PrintStringAndHex("BatteryChargeControl 0x",MessageType);   break;
-  case IdleUpdate:                 PrintStringAndHex("IdleUpdate 0x",MessageType);             break;
-  case WatchDrawnScreenTimeout:    PrintStringAndHex("WatchDrawnScreenTimeout 0x",MessageType);break;
-  case SplashTimeoutMsg:           PrintStringAndHex("SplashTimeoutMsg 0x",MessageType);           break;
-  case ChangeModeMsg:              PrintStringAndHex("ChangeModeMsg 0x",MessageType);             break;
-  case ModeTimeoutMsg:             PrintStringAndHex("ModeTimeoutMsg 0x",MessageType);            break;
-  case WatchStatusMsg:             PrintStringAndHex("WatchStatusMsg 0x",MessageType);         break;
-  case MenuModeMsg:                PrintStringAndHex("MenuModeMsg 0x",MessageType);            break;
-  case BarCode:                    PrintStringAndHex("BarCode 0x",MessageType);                break;
-  case ListPairedDevicesMsg:       PrintStringAndHex("ListPairedDevicesMsg 0x",MessageType);   break;
-  case ConnectionStateChangeMsg:   PrintStringAndHex("ConnectionStateChangeMsg 0x",MessageType);  break;
-  case ModifyTimeMsg:              PrintStringAndHex("ModifyTimeMsg 0x",MessageType);          break;
-  case MenuButtonMsg:              PrintStringAndHex("MenuButtonMsg 0x",MessageType);          break;
-  case ToggleSecondsMsg:           PrintStringAndHex("ToggleSecondsMsg 0x",MessageType);       break;
-  case LedChange:                  PrintStringAndHex("LedChange 0x",MessageType);              break;
-  case AccelerometerHostMsg:       PrintStringAndHex("AccelerometerHostMsg 0x",MessageType);       break;           
-  case AccelerometerEnableMsg:     PrintStringAndHex("AccelerometerEnableMsg 0x",MessageType);     break;           
-  case AccelerometerDisableMsg:    PrintStringAndHex("AccelerometerDisableMsg 0x",MessageType);    break;           
-  case AccelerometerSendDataMsg:   PrintStringAndHex("AccelerometerSendDataMsg 0x",MessageType);   break;           
-  case AccelerometerAccessMsg:     PrintStringAndHex("AccelerometerAccessMsg 0x",MessageType);     break;           
-  case AccelerometerResponseMsg:   PrintStringAndHex("AccelerometerResponseMsg 0x",MessageType);   break;           
-  case AccelerometerSetupMsg:      PrintStringAndHex("AccelerometerSetupMsg 0x",MessageType);      break;
-  case QueryMemoryMsg:             PrintStringAndHex("QueryMemoryMsg 0x",MessageType);         break;
-  case BatteryConfigMsg:           PrintStringAndHex("BatteryConfigMsg 0x",MessageType);       break;
-  case LowBatteryWarningMsgHost:   PrintStringAndHex("LowBatteryWarningMsgHost 0x",MessageType);   break; 
-  case LowBatteryBtOffMsgHost:     PrintStringAndHex("LowBatteryBtOffMsgHost 0x",MessageType);     break; 
-  case ReadBatteryVoltageMsg:      PrintStringAndHex("ReadBatteryVoltageMsg 0x",MessageType);      break;
-  case ReadBatteryVoltageResponse: PrintStringAndHex("ReadBatteryVoltageResponse 0x",MessageType); break;
-  case ReadLightSensorMsg:         PrintStringAndHex("ReadLightSensorMsg 0x",MessageType);      break;
-  case ReadLightSensorResponse:    PrintStringAndHex("ReadLightSensorResponse 0x",MessageType); break;
-  case LowBatteryWarningMsg:       PrintStringAndHex("LowBatteryWarningMsg 0x",MessageType);   break; 
-  case LowBatteryBtOffMsg:         PrintStringAndHex("LowBatteryBtOffMsg 0x",MessageType);     break; 
-  case SniffControlAckMsg:         PrintStringAndHex("SniffControlAckMsg 0x",MessageType);         break; 
-  case SniffStateChangeMsg:        PrintStringAndHex("SniffStateChangeMsg 0x",MessageType);        break; 
+  case InvalidMessage:             PrintStringAndHexByte("InvalidMessage 0x",MessageType);         break;
+  case GetDeviceType:              PrintStringAndHexByte("GetDeviceType 0x",MessageType);          break;
+  case GetDeviceTypeResponse:      PrintStringAndHexByte("GetDeviceTypeResponse 0x",MessageType);  break;
+  case GetInfoString:              PrintStringAndHexByte("GetInfoString 0x",MessageType);          break;
+  case GetInfoStringResponse:      PrintStringAndHexByte("GetInfoStringResponse 0x",MessageType);  break;
+  case DiagnosticLoopback:         PrintStringAndHexByte("DiagnosticLoopback 0x",MessageType);     break;
+  case EnterShippingModeMsg:       PrintStringAndHexByte("EnterShippingModeMsg 0x",MessageType);   break;
+  case SoftwareResetMsg:           PrintStringAndHexByte("SoftwareResetMsg 0x",MessageType);       break;
+  case ConnectionTimeoutMsg:       PrintStringAndHexByte("ConnectionTimeoutMsg 0x",MessageType);   break;
+  case TurnRadioOnMsg:             PrintStringAndHexByte("TurnRadioOnMsg 0x",MessageType);         break;
+  case TurnRadioOffMsg:            PrintStringAndHexByte("TurnRadioOffMsg 0x",MessageType);        break;
+  case ReadRssiMsg:                PrintStringAndHexByte("ReadRssiMsg 0x",MessageType);               break;
+  case PairingControlMsg:          PrintStringAndHexByte("PairingControlMsg 0x",MessageType);         break;
+  case ReadRssiResponseMsg:        PrintStringAndHexByte("ReadRssiResponseMsg 0x",MessageType);       break;
+  case SniffControlMsg:            PrintStringAndHexByte("SniffControlMsg 0x",MessageType);           break;
+  case LinkAlarmMsg:               PrintStringAndHexByte("LinkAlarmMsg 0x",MessageType);              break;
+  case OledWriteBufferMsg:         PrintStringAndHexByte("OledWriteBufferMsg 0x",MessageType);        break;
+  case OledConfigureModeMsg:       PrintStringAndHexByte("OledConfigureModeMsg 0x",MessageType);      break;
+  case OledChangeModeMsg:          PrintStringAndHexByte("OledChangeModeMsg 0x",MessageType);         break;
+  case OledWriteScrollBufferMsg:   PrintStringAndHexByte("OledWriteScrollBufferMsg 0x",MessageType);  break;
+  case OledScrollMsg:              PrintStringAndHexByte("OledScrollMsg 0x",MessageType);          break;
+  case OledShowIdleBufferMsg:      PrintStringAndHexByte("OledShowIdleBufferMsg 0x",MessageType);  break;
+  case OledCrownMenuMsg:           PrintStringAndHexByte("OledCrownMenuMsg 0x",MessageType);       break;
+  case OledCrownMenuButtonMsg:     PrintStringAndHexByte("OledCrownMenuButtonMsg 0x",MessageType); break;
+  case AdvanceWatchHandsMsg:       PrintStringAndHexByte("AdvanceWatchHandsMsg 0x",MessageType);   break;
+  case SetVibrateMode:             PrintStringAndHexByte("SetVibrateMode 0x",MessageType);         break;
+  case ButtonStateMsg:             PrintStringAndHexByte("ButtonStateMsg 0x",MessageType);         break;
+  case SetRealTimeClock:           PrintStringAndHexByte("SetRealTimeClock 0x",MessageType);       break;
+  case GetRealTimeClock:           PrintStringAndHexByte("GetRealTimeClock 0x",MessageType);       break;
+  case GetRealTimeClockResponse:   PrintStringAndHexByte("GetRealTimeClockResponse 0x",MessageType);break;
+  case StatusChangeEvent:          PrintStringAndHexByte("StatusChangeEvent 0x",MessageType);       break;
+  case NvalOperationMsg:           PrintStringAndHexByte("NvalOperationMsg 0x",MessageType);        break;
+  case NvalOperationResponseMsg:   PrintStringAndHexByte("NvalOperationResponseMsg 0x",MessageType); break;
+  case GeneralPurposePhoneMsg:     PrintStringAndHexByte("GeneralPurposePhoneMsg 0x",MessageType); break;
+  case GeneralPurposeWatchMsg:     PrintStringAndHexByte("GeneralPurposeWatchMsg 0x",MessageType); break;
+  case ButtonEventMsg:             PrintStringAndHexByte("ButtonEventMsg 0x",MessageType);         break;
+  case WriteBuffer:                PrintStringAndHexByte("WriteBuffer 0x",MessageType);            break;
+  case ConfigureDisplay:           PrintStringAndHexByte("ConfigureDisplay 0x",MessageType);       break;
+  case ConfigureIdleBufferSize:    PrintStringAndHexByte("ConfigureIdleBufferSize 0x",MessageType);break;
+  case UpdateDisplay:              PrintStringAndHexByte("UpdateDisplay 0x",MessageType);          break;
+  case LoadTemplate:               PrintStringAndHexByte("LoadTemplate 0x",MessageType);           break;
+  case EnableButtonMsg:            PrintStringAndHexByte("EnableButtonMsg 0x",MessageType);        break;
+  case DisableButtonMsg:           PrintStringAndHexByte("DisableButtonMsg 0x",MessageType);       break;
+  case ReadButtonConfigMsg:        PrintStringAndHexByte("ReadButtonConfigMsg 0x",MessageType);    break;
+  case ReadButtonConfigResponse:   PrintStringAndHexByte("ReadButtonConfigResponse 0x",MessageType);break;
+  case BatteryChargeControl:       PrintStringAndHexByte("BatteryChargeControl 0x",MessageType);   break;
+  case IdleUpdate:                 PrintStringAndHexByte("IdleUpdate 0x",MessageType);             break;
+  case WatchDrawnScreenTimeout:    PrintStringAndHexByte("WatchDrawnScreenTimeout 0x",MessageType);break;
+  case SplashTimeoutMsg:           PrintStringAndHexByte("SplashTimeoutMsg 0x",MessageType);       break;
+  case ChangeModeMsg:              PrintStringAndHexByte("ChangeModeMsg 0x",MessageType);          break;
+  case ModeTimeoutMsg:             PrintStringAndHexByte("ModeTimeoutMsg 0x",MessageType);         break;
+  case WatchStatusMsg:             PrintStringAndHexByte("WatchStatusMsg 0x",MessageType);         break;
+  case MenuModeMsg:                PrintStringAndHexByte("MenuModeMsg 0x",MessageType);            break;
+  case BarCode:                    PrintStringAndHexByte("BarCode 0x",MessageType);                break;
+  case ListPairedDevicesMsg:       PrintStringAndHexByte("ListPairedDevicesMsg 0x",MessageType);   break;
+  case ConnectionStateChangeMsg:   PrintStringAndHexByte("ConnectionStateChangeMsg 0x",MessageType);  break;
+  case ModifyTimeMsg:              PrintStringAndHexByte("ModifyTimeMsg 0x",MessageType);          break;
+  case MenuButtonMsg:              PrintStringAndHexByte("MenuButtonMsg 0x",MessageType);          break;
+  case ToggleSecondsMsg:           PrintStringAndHexByte("ToggleSecondsMsg 0x",MessageType);       break;
+  case LedChange:                  PrintStringAndHexByte("LedChange 0x",MessageType);              break;
+  //case AccelerometerHostMsg:       PrintStringAndHexByte("AccelerometerHostMsg 0x",MessageType);       break;           
+  case AccelerometerHostMsg:       PrintString("-");       break;           
+  case AccelerometerEnableMsg:     PrintStringAndHexByte("AccelerometerEnableMsg 0x",MessageType);     break;           
+  case AccelerometerDisableMsg:    PrintStringAndHexByte("AccelerometerDisableMsg 0x",MessageType);    break;           
+  //case AccelerometerSendDataMsg:   PrintStringAndHexByte("AccelerometerSendDataMsg 0x",MessageType);   break;           
+  case AccelerometerSendDataMsg:   PrintString("_");   break;           
+  case AccelerometerAccessMsg:     PrintStringAndHexByte("AccelerometerAccessMsg 0x",MessageType);     break;           
+  case AccelerometerResponseMsg:   PrintStringAndHexByte("AccelerometerResponseMsg 0x",MessageType);   break;           
+  case AccelerometerSetupMsg:      PrintStringAndHexByte("AccelerometerSetupMsg 0x",MessageType);      break;
+  case QueryMemoryMsg:             PrintStringAndHexByte("QueryMemoryMsg 0x",MessageType);         break;
+  case BatteryConfigMsg:           PrintStringAndHexByte("BatteryConfigMsg 0x",MessageType);       break;
+  case LowBatteryWarningMsgHost:   PrintStringAndHexByte("LowBatteryWarningMsgHost 0x",MessageType);   break; 
+  case LowBatteryBtOffMsgHost:     PrintStringAndHexByte("LowBatteryBtOffMsgHost 0x",MessageType);     break; 
+  case ReadBatteryVoltageMsg:      PrintStringAndHexByte("ReadBatteryVoltageMsg 0x",MessageType);      break;
+  case ReadBatteryVoltageResponse: PrintStringAndHexByte("ReadBatteryVoltageResponse 0x",MessageType); break;
+  case ReadLightSensorMsg:         PrintStringAndHexByte("ReadLightSensorMsg 0x",MessageType);      break;
+  case ReadLightSensorResponse:    PrintStringAndHexByte("ReadLightSensorResponse 0x",MessageType); break;
+  case LowBatteryWarningMsg:       PrintStringAndHexByte("LowBatteryWarningMsg 0x",MessageType);   break; 
+  case LowBatteryBtOffMsg:         PrintStringAndHexByte("LowBatteryBtOffMsg 0x",MessageType);     break; 
+  case SniffControlAckMsg:         PrintStringAndHexByte("SniffControlAckMsg 0x",MessageType);         break; 
+  case SniffStateChangeMsg:        PrintStringAndHexByte("SniffStateChangeMsg 0x",MessageType);        break; 
   
-  default:                         PrintStringAndHex("Unknown Message Type 0x",MessageType);   break;
+  default:                         PrintStringAndHexByte("Unknown Message Type 0x",MessageType);   break;
   }  
   
 }
 
-typedef void (*pfSendMessageType) (unsigned char,tMessage*);
-
-static pfSendMessageType SendMsgToQ;
-
 void RouteMsg(tMessage* pMsg)
 {
-  Route(pMsg,Normal); 
-}
-
-void RouteMsgBlocking(tMessage* pMsg)
-{
-  Route(pMsg,NormalWait); 
-}
-
-void RouteMsgFromIsr(tMessage* pMsg)
-{
-  Route(pMsg,FromIsr);
-}
-
-
-static void Route(tMessage* pMsg, eRouteType RouteType)
-{
-  /* pick which function to use */
-  switch (RouteType)
-  {
-  case NormalWait:
-    SendMsgToQ = SendMessageToQueueWait;
-    break;
-  case FromIsr:
-    SendMsgToQ = SendMessageToQueueFromIsr;
-    break;
-  case Normal:
-  default:
-    SendMsgToQ = SendMessageToQueue;
-    break;
-  }
-
+#ifdef MESSAGE_QUEUE_DEBUG
   AllQueuesReadyCheck();
   
   if ( pMsg == 0 )
   {
-    /* if this happens in ISR context that is OK - the system is broke anyway */
     PrintString("ERROR: Invalid message passed to Route function\r\n");  
   }
   else if ( AllQueuesReady == 0 )
@@ -354,8 +305,9 @@ static void Route(tMessage* pMsg, eRouteType RouteType)
     SendToFreeQueueContext(pMsg,RouteType);  
   }
   else
+#endif
   {
-  
+
     switch (pMsg->Type)
     {
     case InvalidMessage:                SendMsgToQ(FREE_QINDEX,pMsg);       break;
@@ -473,12 +425,11 @@ void SetupMessageAndAllocateBuffer(tMessage* pMsg,
 /* \return 1 when all task queues are empty and the part can go into sleep 
  * mode 
  */
-#ifdef DIGITAL
 unsigned char AllTaskQueuesEmpty(void)
 {
   unsigned char result = 0;  
   
-  ENTER_CRITICAL_REGION_QUICK();
+  portENTER_CRITICAL();
       //QueueHandles[FREE_QINDEX]->uxMessagesWaiting == NUM_MSG_BUFFERS 
       //&& 
   if (   QueueHandles[BACKGROUND_QINDEX]->uxMessagesWaiting == 0 
@@ -488,29 +439,8 @@ unsigned char AllTaskQueuesEmpty(void)
     result = 1; 
   }
   
-  LEAVE_CRITICAL_REGION_QUICK();
+  portEXIT_CRITICAL();
        
   return result;
   
 }
-#else
-unsigned char AllTaskQueuesEmpty(void)
-{
-  unsigned char result = 0;  
-  
-  ENTER_CRITICAL_REGION_QUICK();
-      
-  if (   QueueHandles[BACKGROUND_QINDEX]->uxMessagesWaiting == 0 
-      && QueueHandles[DISPLAY_QINDEX]->uxMessagesWaiting == 0 
-      && QueueHandles[SPP_TASK_QINDEX]->uxMessagesWaiting == 0 )
-  {  
-    result = 1; 
-  }
-  
-  LEAVE_CRITICAL_REGION_QUICK();
-       
-  return result;
-  
-}
-#endif
- 

@@ -20,6 +20,7 @@
  * The vertical interval is 16.6 ms.
  */
 /******************************************************************************/
+#include "FreeRTOS.h"
 
 #include "hal_board_type.h"
 #include "hal_clock_control.h"
@@ -96,7 +97,8 @@ void WriteLcdHandler(tLcdMessagePayload* pLcdMessage)
   /* flip bits */
   if ( QueryInvertDisplay() == NORMAL_DISPLAY )
   {
-    for ( unsigned char i = 0; i < 12; i++ )
+  	unsigned char i;
+    for (i = 0; i < 12; i++ )
     {
       pLcdMessage->pLine[i] = ~(pLcdMessage->pLine[i]); 
     }
@@ -141,7 +143,8 @@ static void WriteLineToLcd(unsigned char* pData,unsigned char Size)
     
   __data16_write_addr((unsigned short) &DMA2SA,(unsigned long) pData);
                                             
-  __data16_write_addr((unsigned short) &DMA2DA,(unsigned long) &LCD_SPI_UCBxTXBUF);
+  __data16_write_addr((unsigned short) &DMA2DA,
+                      (unsigned long) &LCD_SPI_UCBxTXBUF);
             
   DMA2SZ = (unsigned int)Size;
   
@@ -196,7 +199,8 @@ void UpdateMyDisplay(unsigned char * pBuffer,unsigned int TotalLines)
   __data16_write_addr((unsigned short) &DMA2SA,
                       (unsigned long) pBuffer);
                                             
-  __data16_write_addr((unsigned short) &DMA2DA,(unsigned long) &LCD_SPI_UCBxTXBUF);
+  __data16_write_addr((unsigned short) &DMA2DA,
+                      (unsigned long) &LCD_SPI_UCBxTXBUF);
             
   DMA2SZ = TotalLines*sizeof(tLcdLine);
   

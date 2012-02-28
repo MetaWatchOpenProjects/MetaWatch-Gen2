@@ -77,7 +77,7 @@ static void HandleButtonEvent(unsigned char ButtonIndex,
                               unsigned char ButtonPressType);
 
 static tMessage OutgoingEventMsg;
-
+        
 /******************************************************************************/
 
 void InitializeButtons(void)
@@ -93,7 +93,8 @@ static void InitializeButtonDataStructures(void)
 {
   // Initalize the button state structures. In this case it ends up being all
   // zeros, but that may not always be the case.
-  for(unsigned char ii = 0; ii < NUMBER_OF_BUTTONS; ii++)
+  unsigned char ii;
+  for(ii = 0; ii < NUMBER_OF_BUTTONS; ii++)
   {
       ButtonData[ii].BtnFilter = 0;
       ButtonData[ii].BtnState = BUTTON_STATE_OFF;
@@ -124,7 +125,8 @@ void ButtonStateHandler(void)
   
   // This is the loop that handles managing the button state machine.
   // because this a state machine the mask must be applied again.
-  for(unsigned char btnIndex = 0; btnIndex < NUMBER_OF_BUTTONS; btnIndex++)
+  unsigned char btnIndex;
+  for(btnIndex = 0; btnIndex < NUMBER_OF_BUTTONS; btnIndex++)
   {
     if ( ButtonData[btnIndex].BtnState != BUTTON_STATE_OFF )
     {
@@ -470,13 +472,20 @@ high.  When the button is pressed, the pin is pulled low and an
 interrupt is generated.
 
 *******************************************************************************/
+#ifndef __IAR_SYSTEMS_ICC__
+#pragma CODE_SECTION(ButtonPortIsr,".text:_isr");
+#endif
+
 #pragma vector=BUTTON_PORT_VECTOR
 __interrupt void ButtonPortIsr(void)
 {
+  P6OUT |= BIT7;   /* debug4_high */
+  
   unsigned char ButtonInterruptFlags = BUTTON_PORT_IFG;
   unsigned char StartDebouncing = 0;
     
-  for (unsigned char i = 0; i < NUMBER_OF_BUTTONS; i++)
+  unsigned char i;
+  for (i = 0; i < NUMBER_OF_BUTTONS; i++)
   {
     /* if the button bit position is one then determine 
      * if the button should be masked 
@@ -499,6 +508,8 @@ __interrupt void ButtonPortIsr(void)
   {
     EnableRtcPrescaleInterruptUser(RTC_TIMER_BUTTON); 
   }
+
+  P6OUT &= ~BIT7;       /* debug4_low */
 
 }
 

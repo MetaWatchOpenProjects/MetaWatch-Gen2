@@ -2,7 +2,7 @@
  * This is a modified copy of SLAA489A from TI for UCS10
  */
 
-#include "FreeRTOSConfig.h"
+#include "FreeRTOS.h"
 #include "hal_board_type.h"
 #include "Statistics.h"
 #include "hal_clock_control.h"
@@ -137,11 +137,19 @@ static void DecrementMod(void)
   PrintString("-");
 }
 
+#ifndef __IAR_SYSTEMS_ICC__
+#pragma CODE_SECTION(TIMER0_B0_VECTOR_ISR,".text:_isr");
+#endif
+
 #pragma vector=TIMER0_B0_VECTOR
 __interrupt void TIMER0_B0_VECTOR_ISR(void)
 {
   __no_operation();  
 }
+
+#ifndef __IAR_SYSTEMS_ICC__
+#pragma CODE_SECTION(TIMER0_B1_VECTOR_ISR,".text:_isr");
+#endif
 
 /* case 12: example seemed stupid .... interrupt every 30 us .... */
 #pragma vector=TIMER0_B1_VECTOR
@@ -157,9 +165,7 @@ __interrupt void TIMER0_B1_VECTOR_ISR(void)
   case 10: break; // CCR5 reserved
   case 12: break; // CCR6 
   case 14:
-    //DEBUG4_HIGH();
     SoftwareFllCycleIsr();
-    //DEBUG4_LOW();
     break;
   default:
     break;

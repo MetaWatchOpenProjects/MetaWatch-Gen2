@@ -231,7 +231,8 @@ void WriteBufferHandler(tMessage* pMsg)
   pWorkingBuffer[2] = (unsigned char) AbsoluteAddress; 
   
   /* copy the data */
-  for(unsigned char i = 0; i < BYTES_PER_LINE; i++)
+  unsigned char i;
+  for( i = 0; i < BYTES_PER_LINE; i++)
   {
     pWorkingBuffer[3+i] = pSerialRamPayload->pLineA[i];
   }
@@ -249,7 +250,8 @@ void WriteBufferHandler(tMessage* pMsg)
     pWorkingBuffer[2] = (unsigned char) AbsoluteAddress; 
   
     /* copy the data ... */
-    for(unsigned char i = 0; i < BYTES_PER_LINE; i++)
+    unsigned char i;
+    for(i = 0; i < BYTES_PER_LINE; i++)
     {
       pWorkingBuffer[3+i] = pSerialRamPayload->pLineB[i];
     }
@@ -430,8 +432,6 @@ static void ClearMemory(void)
 
 void UpdateDisplayHandler(tMessage* pMsg)
 { 
-  //DEBUG4_HIGH();
-  
   unsigned char Options = pMsg->Options;
   
   if ( (Options & DRAW_BUFFER_ACTIVATION_MASK) == ACTIVATE_DRAW_BUFFER )
@@ -439,10 +439,13 @@ void UpdateDisplayHandler(tMessage* pMsg)
     ActivateBuffer(pMsg);
   }
   
+  unsigned char SelectedBuffer = (Options & BUFFER_SELECT_MASK);
+  
   /* premature exit if the idle page is not the normal page */
-  if (   (Options & BUFFER_SELECT_MASK) == IDLE_BUFFER_SELECT 
+  if (   SelectedBuffer  == IDLE_BUFFER_SELECT 
       && QueryIdlePageNormal() == 0 )
   {
+    __no_operation();
     return;
   }
   
@@ -514,11 +517,12 @@ void UpdateDisplayHandler(tMessage* pMsg)
   
   /*
    * now signal that the display task that the operation has completed 
+   * 
+   * When in idle mode this will cause the top portion of the screen to be
+   * drawn
    */
   SetupMessage(&OutgoingMsg,ChangeModeMsg,Options);
   RouteMsg(&OutgoingMsg);
-  
-  //DEBUG4_LOW();
   
 }
 
@@ -574,7 +578,7 @@ void ActivateBuffer(tMessage* pMsg)
 #if 0
   PrintStringAndDecimal("BufferSwap ", BufferSelect);
 #endif
-  
+    
   switch (BufferSelect)
   {
   case 0:
@@ -701,9 +705,15 @@ unsigned int GetDrawBufferStartAddress(unsigned char MsgOptions)
 /* Serial RAM controller uses two dma channels
  * LCD driver task uses one dma channel
  */
+#ifndef __IAR_SYSTEMS_ICC__
+#pragma CODE_SECTION(DMA_ISR,".text:_isr");
+#endif
+ 
 #pragma vector=DMA_VECTOR
 __interrupt void DMA_ISR(void)
 {
+  P6OUT |= BIT7;   /* debug4_high */
+  
   /* 0 is no interrupt and remainder are channels 0-7 */
   switch(__even_in_range(DMAIV,16))
   {
@@ -721,4 +731,6 @@ __interrupt void DMA_ISR(void)
   default: 
     break;
   }
+  
+  P6OUT &= ~BIT7;       /* debug4_low */
 }

@@ -35,6 +35,7 @@ static unsigned char CurrentBatteryState;
 static unsigned char LastBatteryState;
 static unsigned char BatteryChargeEnabled;
 static unsigned char AllowCharge;
+static unsigned char PowerGood;
 
 void ConfigureBatteryPins(void)
 {
@@ -65,9 +66,41 @@ unsigned char BatteryChargingControl(void)
 {
   unsigned char BatteryChargeChange = 0;
 
-  /* put some hysteresis on charge */
+  /* 
+   * first find out if the charger is connected
+   */
+  
+  /* set open drain bit to high */
+  BAT_CHARGE_OUT |= BAT_CHARGE_PWR_GOOD;
+      
+  /* take reading */
+  unsigned char BatteryChargeBits = BAT_CHARGE_IN;
+  
+  /* a wait is required between the two steps */
+  TaskDelayLpmDisable();
+  vTaskDelay(10);
+  TaskDelayLpmEnable();
+    
+  /* Bit 5 is low, which means we have input power == good */
+  unsigned char PowerGoodN = BatteryChargeBits & BAT_CHARGE_PWR_GOOD;
+  if ( PowerGoodN == 0 )
+  {
+    PowerGood = 1;
+  }
+  else
+  {
+    PowerGood = 0;
+  }
+  
+  /* change the open drain bit to low */
+  BAT_CHARGE_OUT &= ~BAT_CHARGE_PWR_GOOD;
+  
+  /* put some hysteresis on charge 
+   * and determine if we should even try to charge
+   * this is a set operation only
+   */
   unsigned int bV = ReadBatterySenseAverage();
-  if ( bV > 0 && bV < 4000 )
+  if ( bV > 0 && bV < 4000 && PowerGood )
   {
     AllowCharge = 1;  
   }
@@ -77,7 +110,9 @@ unsigned char BatteryChargingControl(void)
     /* prepare for measurement */
     BAT_CHARGE_OUT |= BAT_CHARGE_OPEN_DRAIN_BITS;
   
-    /* always enable the charger (it may already be enabled) */
+    /* always enable the charger (it may already be enabled)
+     * status bits are not valid unless charger is enabled 
+     */
     BATTERY_CHARGE_ENABLE();
     BatteryChargeEnabled = 1;
     
@@ -87,26 +122,13 @@ unsigned char BatteryChargingControl(void)
     TaskDelayLpmEnable();
     
     /* take reading */
-    unsigned char BatteryChargeBits = BAT_CHARGE_IN;
-  
-#if 0
-    /* Bit 5 is low, which means we have input power == good */
-    unsigned char PowerGoodN = BatteryChargeBits & BAT_CHARGE_PWR_GOOD;
-    if ( PowerGoodN == 0 )
-    {
-      PowerGood = 1;
-    }
-    else
-    {
-      PowerGood = 0;
-    }
-#endif
+    BatteryChargeBits = BAT_CHARGE_IN;
     
     /*
      * Decode the battery state
      */
     
-    // mask and shift to get the current battery charge status
+    /* mask and shift to get the current battery charge status */
     BatteryChargeBits &= (BAT_CHARGE_STAT1 | BAT_CHARGE_STAT2);
     CurrentBatteryState = BatteryChargeBits >> 3;
   
@@ -131,6 +153,7 @@ unsigned char BatteryChargingControl(void)
         
       }
     }
+    
     /* if the part is in sleep mode or there was a fault then
      * disable the charge control and disable the pullups 
      *
@@ -174,6 +197,11 @@ unsigned char QueryBatteryCharging(void)
     return 0;  
   }
   
+}
+
+unsigned char QueryPowerGood(void)
+{
+  return PowerGood;  
 }
 
 unsigned char QueryBatteryChargeEnabled(void)

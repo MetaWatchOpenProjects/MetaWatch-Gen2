@@ -33,9 +33,9 @@
 #include "hal_rtc.h"
 
 #include "Messages.h"
-#include "MessageQueues.h"
-#include "Utilities.h"      
+#include "MessageQueues.h"     
 #include "DebugUart.h"
+#include "Utilities.h" 
 #include "Accelerometer.h"
 #include "SerialProfile.h"
 
@@ -43,9 +43,7 @@
 
 static unsigned char WriteRegisterData;
 
-#define ACCELEROMETER_DEBUG ( 1 )
-
-#if ACCELEROMETER_DEBUG == 1
+#ifdef ACCELEROMETER_DEBUG
 static unsigned char pReadRegisterData[16];
 #endif
 
@@ -77,7 +75,7 @@ void InitializeAccelerometer(void)
 #endif
  
   PrintString("Accelerometer Initialization\r\n");
-
+ 
 #if 0
   /* reset chip */
   WriteRegisterData = PC1_STANDBY_MODE;
@@ -108,7 +106,7 @@ void InitializeAccelerometer(void)
   WriteRegisterData = XBW | YBW | ZBW;
   AccelerometerWrite(KIONIX_INT_CTRL_REG2,&WriteRegisterData,ONE_BYTE);
 
-#if ACCELEROMETER_DEBUG == 1
+#ifdef ACCELEROMETER_DEBUG
  
   /* single byte read test */
   AccelerometerRead(KIONIX_DCST_RESP,pReadRegisterData,1);
@@ -116,7 +114,7 @@ void InitializeAccelerometer(void)
   
   /* multiple byte read test */
   AccelerometerRead(KIONIX_WHO_AM_I,pReadRegisterData,2);
-  PrintStringAndHex("KIONIX_WHO_AM_I (0x10) = 0x",pReadRegisterData[0]);
+  PrintStringAndHex("KIONIX_WHO_AM_I (0x01) = 0x",pReadRegisterData[0]);
   PrintStringAndHex("KIONIX_TILT_POS_CUR (0x20) = 0x",pReadRegisterData[1]);
   
 #endif
@@ -146,32 +144,31 @@ void InitializeAccelerometer(void)
   SidControl = SID_CONTROL_SEND_DATA;
   SidAddr = KIONIX_XOUT_HPF_L;
   SidLength = 6;
-
+  
   AccelerometerDisable();
    
+#ifdef ACCELEROMETER_DEBUG
+  ACCELEROMETER_INT_ENABLE();
+#endif
+  
   /* 
    * the interrupt from the accelerometer can be used to get periodic data
    *
    * the real time clock can also be used
    */
   
-#if 1
+#ifdef ACCELEROMETER_DEBUG
   /* change to output data rate to 25 Hz */
   WriteRegisterData = WUF_ODR_25HZ;
   AccelerometerWrite(KIONIX_CTRL_REG3,&WriteRegisterData,ONE_BYTE);
 #endif
   
-#if 1
+#ifdef ACCELEROMETER_DEBUG
   /* this causes data to always be sent */  
   WriteRegisterData = 0x00;
   AccelerometerWrite(KIONIX_WUF_THRESH,&WriteRegisterData,ONE_BYTE);
 #endif
   
-#if 0
-  /* use the real time clock to periodically send a message */
-  EnableRtcPrescaleInteruptUser(RTC_TIMER_PEDOMETER);
-#endif
- 
   PrintString("Accelerometer Init Complete\r\n");
    
 }
@@ -184,69 +181,97 @@ void InitializeAccelerometer(void)
  */
 void AccelerometerIsr(void)
 {
+  
+#if 0
   /* disabling the interrupt is the easiest way to make sure that
    * the stack does not get blasted with
    * data when it is in sleep mode
    */
   ACCELEROMETER_INT_DISABLE();
-
+#endif
+  
   /* can't allocate buffer here so we must go to task to send interrupt
    * occurred message
    */
   tMessage Msg;
   SetupMessage(&Msg,AccelerometerSendDataMsg,NO_MSG_OPTIONS);  
-  RouteMsgFromIsr(&Msg); 
-
+  SendMessageToQueueFromIsr(BACKGROUND_QINDEX,&Msg);
 }
 
 static void ReadInterruptReleaseRegister(void)
 {
+#if 0
   /* interrupts are rising edge sensitive so clear and enable interrupt
    * before clearing it in the accelerometer 
    */
   ACCELEROMETER_INT_ENABLE();
+#endif
   
   unsigned char temp;
   AccelerometerRead(KIONIX_INT_REL,&temp,1);
-  
-  DEBUG5_PULSE();
-  
+
 }
+
 
 /* Send interrupt notification to the phone or 
  * read data from the accelerometer and send it to the phone
  */
 void AccelerometerSendDataHandler(void)
 {
+  
+    
+#ifdef ACCELEROMETER_DEBUG
+
+  /* burst read */
+  AccelerometerRead(KIONIX_TDT_TIMER,pReadRegisterData,6);
+  
+  if (   pReadRegisterData[0] != 0x78 
+      || pReadRegisterData[1] != 0xCB /* b6 */ 
+      || pReadRegisterData[2] != 0x1A 
+      || pReadRegisterData[3] != 0xA2 
+      || pReadRegisterData[4] != 0x24 
+      || pReadRegisterData[5] != 0x28 )
+  {
+    PrintString("Invalid i2c burst read\r\n");  
+  }
+          
+  /* single read */
+  AccelerometerRead(KIONIX_DCST_RESP,pReadRegisterData,1);
+  
+  if ( pReadRegisterData[0] != 0x55 )
+  {
+    PrintString("Invalid i2c Read\r\n"); 
+  }
+     
+#endif
+
   if ( QueryPhoneConnected() )
   {
+  tMessage OutgoingMsg;
+  
+  if ( SidControl == SID_CONTROL_SEND_INTERRUPT )
+  {
+    SetupMessageAndAllocateBuffer(&OutgoingMsg,
+                                  AccelerometerHostMsg,
+                                  ACCELEROMETER_HOST_MSG_IS_INTERRUPT_OPTION);
+  }
+  else
+  {
+    SetupMessageAndAllocateBuffer(&OutgoingMsg,
+                                  AccelerometerHostMsg,
+                                  ACCELEROMETER_HOST_MSG_IS_DATA_OPTION);
     
-    tMessage OutgoingMsg;
+    OutgoingMsg.Length = SidLength;
     
-    if ( SidControl == SID_CONTROL_SEND_INTERRUPT )
-    {
-      SetupMessageAndAllocateBuffer(&OutgoingMsg,
-                                    AccelerometerHostMsg,
-                                    ACCELEROMETER_HOST_MSG_IS_INTERRUPT_OPTION);
-    }
-    else
-    {
-      SetupMessageAndAllocateBuffer(&OutgoingMsg,
-                                    AccelerometerHostMsg,
-                                    ACCELEROMETER_HOST_MSG_IS_DATA_OPTION);
-      
-      OutgoingMsg.Length = SidLength;
-      
-      AccelerometerRead(SidAddr,
-                        OutgoingMsg.pBuffer,
-                        SidLength);
-    }
+      AccelerometerRead(SidAddr,OutgoingMsg.pBuffer,6);
     
-    RouteMsg(&OutgoingMsg);
+  }
+  
+  RouteMsg(&OutgoingMsg);
   }
   
   ReadInterruptReleaseRegister();
-  
+    
 }
 
 void AccelerometerEnable(void)

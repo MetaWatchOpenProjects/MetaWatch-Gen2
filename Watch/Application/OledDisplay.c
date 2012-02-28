@@ -37,8 +37,8 @@
 
 #include "Buttons.h"
 #include "OledDriver.h"
-#include "Utilities.h"
 #include "DebugUart.h"
+#include "Utilities.h"
 #include "Adc.h"
 #include "SerialProfile.h"
 #include "OneSecondTimers.h"
@@ -95,7 +95,7 @@ static void StartBuildingOledScreen(etOledPosition OledPosition);
 static void StartBuildingOledScreenAlternate(tImageBuffer* pBuffer);
 static void BuildOledScreenChangeDisplayTimeout(unsigned int Timeout);
 static void BuildOledScreenAddCharacter(unsigned char Character);
-static void BuildOledScreenAddString(unsigned char * const pString);
+static void BuildOledScreenAddString(tString* const pString);
 static void BuildOledScreenNewlineCheck(void);
 static void BuildOledScreenAddNewline(void);
 //static void BuildOledScreenAddSpace(void);
@@ -231,8 +231,8 @@ typedef enum
   ReservedButtonMode,
   IdleButtonMode,
   MenuButtonMode,
-  CrownMenuButtonMode,   
-
+  CrownMenuButtonMode
+  
 } tOledButtonMode;
 
 static tOledButtonMode CurrentButtonConfiguration = ReservedButtonMode;
@@ -256,7 +256,7 @@ void InitializeDisplayTask(void)
   
   // prams are: task function, task name, stack len , task params, priority, task handle
   xTaskCreate(DisplayTask, 
-              "DISPLAY", 
+              (const signed char *)"DISPLAY", 
               DISPLAY_TASK_STACK_DEPTH, 
               NULL, 
               DISPLAY_TASK_PRIORITY, 
@@ -598,7 +598,8 @@ static void WriteBufferHandler(tMessage* pMsg)
   unsigned char Index = pWriteOledBufferPayload->Column;
   
   /* copy the data into the buffer */
-  for(unsigned char i = 0; i < pWriteOledBufferPayload->Size; i++)
+  unsigned char i;
+  for(i = 0; i < pWriteOledBufferPayload->Size; i++)
   {
     if ( Index < DISPLAY_BUFFER_SIZE )
     {
@@ -648,7 +649,8 @@ static void WriteScrollBufferHandler(tMessage* pMsg)
     (tWriteScrollBufferPayload*)pMsg->pBuffer;
 
   /* copy the data into the buffer */
-  for(unsigned char i = 0; i < pWriteScrollBufferPayload->Size; i++)
+  unsigned char i;
+  for(i = 0; i < pWriteScrollBufferPayload->Size; i++)
   {
     pScrollBuffer[ScrollWriteIndex] = 
       BitReverse(pWriteScrollBufferPayload->pPayload[i]);
@@ -692,7 +694,8 @@ static void CopyBufferToDisplay(tImageBuffer* pBuffer)
   /* set the i2c address once per operation */
   SetOledDeviceAddress(pBuffer->OledPosition);
 
-  for(unsigned char row = 0; row < NUMBER_OF_ROWS; row++)
+  unsigned char row;
+  for(row = 0; row < NUMBER_OF_ROWS; row++)
   {
     SetRowInOled(row,pBuffer->OledPosition);
     WriteOledData((unsigned char*)&pBuffer->pPixelData[row*ROW_SIZE],ROW_SIZE);
@@ -802,6 +805,7 @@ static void ScrollHandler(void)
     SetupOneSecondTimer(ScreenTimerId,
                         ONE_SECOND*2,
                         NO_REPEAT,
+                        DISPLAY_QINDEX,
                         WatchDrawnScreenTimeout,
                         NO_MSG_OPTIONS);
       
@@ -830,8 +834,8 @@ static void DisplayBuffer(tImageBuffer* pBuffer)
 {
   if ( pBuffer->Valid )
   {
-    CopyBufferToDisplay(pBuffer);
     TurnDisplayOn(pBuffer);
+    CopyBufferToDisplay(pBuffer);
   }
 }
 
@@ -906,7 +910,7 @@ static void StartBuildingOledScreenAlternate(tImageBuffer* pBuffer)
 /*! todo - handle the case where the string goes to the next line, but the 
  * character is a space
  */
-static void BuildOledScreenAddString(unsigned char * const pString)
+static void BuildOledScreenAddString(tString * pString)
 {
   
   /* 
@@ -927,7 +931,8 @@ static void BuildOledScreenAddCharacter(unsigned char Character)
   unsigned char width = GetCharacterWidth(Character);
   GetCharacterBitmap(Character,(unsigned int*)pBitmap);
   
-  for(unsigned char slice = 0; slice < width && BuildColumn < NUMBER_OF_COLUMNS; slice++)
+  unsigned char slice;
+  for(slice = 0; slice < width && BuildColumn < NUMBER_OF_COLUMNS; slice++)
   {
     
     if ( GetCharacterHeight() > COLUMN_HEIGHT )
@@ -938,13 +943,13 @@ static void BuildOledScreenAddCharacter(unsigned char Character)
       
       if ( pBuildBuffer->OledPosition == TopOled )
       {
-        pBuildSlice[BuildColumn] = BitReverse(pBitmap[slice].byte1);
-        pBuildSlice[ROW_SIZE+BuildColumn] = BitReverse(pBitmap[slice].byte0);
+        pBuildSlice[BuildColumn] = BitReverse(pBitmap[slice].Bytes.byte1);
+        pBuildSlice[ROW_SIZE+BuildColumn] = BitReverse(pBitmap[slice].Bytes.byte0);
       }
       else
       {
-        pBuildSlice[BuildColumn] = pBitmap[slice].byte1; 
-        pBuildSlice[ROW_SIZE+BuildColumn] = pBitmap[slice].byte0; 
+        pBuildSlice[BuildColumn] = pBitmap[slice].Bytes.byte1; 
+        pBuildSlice[ROW_SIZE+BuildColumn] = pBitmap[slice].Bytes.byte0; 
       }
 
     }
@@ -952,11 +957,11 @@ static void BuildOledScreenAddCharacter(unsigned char Character)
     {
       if ( pBuildBuffer->OledPosition == TopOled )
       {
-        pBuildSlice[BuildRow*ROW_SIZE+BuildColumn] = BitReverse(pBitmap[slice].byte0);
+        pBuildSlice[BuildRow*ROW_SIZE+BuildColumn] = BitReverse(pBitmap[slice].Bytes.byte0);
       }
       else
       {
-        pBuildSlice[BuildRow*ROW_SIZE+BuildColumn] = pBitmap[slice].byte0; 
+        pBuildSlice[BuildRow*ROW_SIZE+BuildColumn] = pBitmap[slice].Bytes.byte0; 
       }
       
     }
@@ -1013,7 +1018,7 @@ static void BuildOledScreenAddNewline(void)
 
 static void BuildOledScreenAddInteger(unsigned int Value)
 {
-  unsigned char pTemporaryBuildString[6];
+  tString pTemporaryBuildString[6];
   ToDecimalString(Value,(char*)&pTemporaryBuildString);
   BuildOledScreenAddString(pTemporaryBuildString); 
 }
@@ -1093,6 +1098,7 @@ static void TurnDisplayOn(tImageBuffer* pBuffer)
   SetupOneSecondTimer(ScreenTimerId,
                       DisplayTimeoutInSeconds,
                       NO_REPEAT,
+                      DISPLAY_QINDEX,
                       WatchDrawnScreenTimeout,
                       NO_MSG_OPTIONS);
   
@@ -1147,7 +1153,8 @@ static void TurnDisplayOff(etOledPosition OledPosition)
 
 static void FillDisplayBuffer(tImageBuffer* pBuffer,unsigned char FillByte)
 {
-  for(unsigned char i = 0; i < DISPLAY_BUFFER_SIZE; i++ )
+  unsigned char i;	
+  for( i = 0; i < DISPLAY_BUFFER_SIZE; i++ )
   {  
     pBuffer->pPixelData[i] = FillByte;
   }
@@ -1495,7 +1502,7 @@ static void DisplayVersionsFace(void)
   StartBuildingOledScreen(TopOled);
   SetFont(MetaWatch7Oled);
   BuildOledScreenAddString("MSP430 Rev ");
-  BuildOledScreenAddCharacter(GetHardwareRevision());
+  BuildOledScreenAddCharacter(GetMsp430HardwareRevision());
   BuildOledScreenSendToDisplay();
   
   DisplayAppAndStackVersionsOnBottomOled();    
@@ -1506,7 +1513,7 @@ static void DisplayDateAndTimeFace(void)
   StartBuildingOledScreen(TopOled);
   SetFont(MetaWatch16Oled);
   BuildColumn = 15;
-  BuildOledScreenAddString((unsigned char*)DaysOfTheWeek[RTCDOW]);
+  BuildOledScreenAddString((tString*)DaysOfTheWeek[RTCDOW]);
   BuildOledScreenAddCharacter(' ');
   
   /* determine if month or day is displayed first */
@@ -1596,7 +1603,7 @@ static void DisplayConnectionStatusFace(void)
   SetFont(MetaWatch5Oled);
   
   /* print the string with ':' between two characters */
-  unsigned char * pBtAddr = GetLocalBluetoothAddressString();
+  tString* pBtAddr = GetLocalBluetoothAddressString();
   BuildOledScreenAddCharacter(pBtAddr[0]);
   BuildOledScreenAddCharacter(pBtAddr[1]);
   BuildOledScreenAddCharacter(':');
@@ -2100,6 +2107,7 @@ static void InitializeDisplayTimers(void)
   SetupOneSecondTimer(ScreenTimerId,
                       ONE_SECOND*2,
                       NO_REPEAT,
+                      DISPLAY_QINDEX,
                       WatchDrawnScreenTimeout,
                       NO_MSG_OPTIONS);
     
@@ -2213,6 +2221,7 @@ static void ChangeModeHandler(unsigned char Mode)
     SetupOneSecondTimer(ModeTimerId,
                         QueryApplicationModeTimeout(),
                         NO_REPEAT,
+                        DISPLAY_QINDEX,
                         ModeTimeoutMsg,
                         APPLICATION_MODE);
     
@@ -2229,6 +2238,7 @@ static void ChangeModeHandler(unsigned char Mode)
     SetupOneSecondTimer(ModeTimerId,
                         QueryNotificationModeTimeout(),
                         NO_REPEAT,
+                        DISPLAY_QINDEX,
                         ModeTimeoutMsg,
                         NOTIFICATION_MODE);
     
@@ -2516,7 +2526,8 @@ static void ShowIdleBufferHandler(void)
  */
 static void GetNextActiveBufferIndex(void)
 {
-  for(unsigned char i = 0; i < TOTAL_IDLE_BUFFERS; i++)
+  unsigned char i;
+  for(i = 0; i < TOTAL_IDLE_BUFFERS; i++)
   {
     IdlePageIndex++;
     if ( IdlePageIndex >= TOTAL_IDLE_BUFFERS )
@@ -2700,7 +2711,7 @@ unsigned char ScrollTimerCallbackIsr(void)
 
   tMessage Msg;
   SetupMessage(&Msg,OledScrollMsg,NO_MSG_OPTIONS);
-  RouteMsgFromIsr(&Msg);
+  SendMessageToQueueFromIsr(DISPLAY_QINDEX,&Msg);
   
   return ExitLpm;
 }

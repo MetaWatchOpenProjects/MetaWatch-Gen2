@@ -31,10 +31,9 @@
 #include "hal_rtc.h"
 #include "hal_lpm.h"
 #include "hal_calibration.h"
-#include "macro.h"
 
-#include "Utilities.h"
 #include "DebugUart.h"
+#include "Utilities.h"
 #include "Statistics.h"
 #include "OneSecondTimers.h"
 #include "SerialProfile.h"
@@ -122,8 +121,8 @@ void halRtcSet(tRtcHostMsgPayload* pRtcData)
 
   // These calls are to asm level patch functions provided by TI for the MSP430F5438
   tWordByteUnion temp;
-  temp.byte0 = pRtcData->YearLsb; 
-  temp.byte1 = pRtcData->YearMsb;
+  temp.Bytes.byte0 = pRtcData->YearLsb; 
+  temp.Bytes.byte1 = pRtcData->YearMsb;
   RTCYEAR = (unsigned int) temp.word;
   RTCMON = (unsigned int) pRtcData->Month;
   RTCDAY = (unsigned int) pRtcData->DayOfMonth;
@@ -140,8 +139,8 @@ void halRtcGet(tRtcHostMsgPayload* pRtcData)
 {
   tWordByteUnion temp;
   temp.word = RTCYEAR;
-  pRtcData->YearLsb = temp.byte0;
-  pRtcData->YearMsb = temp.byte1;
+  pRtcData->YearLsb = temp.Bytes.byte0;
+  pRtcData->YearMsb = temp.Bytes.byte1;
   pRtcData->Month = RTCMON;
   pRtcData->DayOfMonth = RTCDAY; 
   pRtcData->DayOfWeek = RTCDOW;
@@ -155,7 +154,7 @@ void halRtcGet(tRtcHostMsgPayload* pRtcData)
 
 void EnableRtcPrescaleInterruptUser(unsigned char UserMask)
 {
-  ENTER_CRITICAL_REGION_QUICK();
+  portENTER_CRITICAL();
    
   // If not currently enabled, enable the timer ISR
   if( RtcInUseMask == 0 )
@@ -165,14 +164,14 @@ void EnableRtcPrescaleInterruptUser(unsigned char UserMask)
   
   RtcInUseMask |= UserMask;
    
-  LEAVE_CRITICAL_REGION_QUICK();
+  portEXIT_CRITICAL();
 
 }
 
 void DisableRtcPrescaleInterruptUser(unsigned char UserMask)
 {
 
-  ENTER_CRITICAL_REGION_QUICK();
+  portENTER_CRITICAL();
   
   RtcInUseMask &= ~UserMask;
       
@@ -182,7 +181,7 @@ void DisableRtcPrescaleInterruptUser(unsigned char UserMask)
     RTCPS0CTL &= ~RT0PSIE;
   }
   
-  LEAVE_CRITICAL_REGION_QUICK();
+  portEXIT_CRITICAL();
 
 }
 
@@ -206,6 +205,8 @@ static unsigned char DivideByFour = 0;
 #pragma vector = RTC_VECTOR
 __interrupt void RTC_ISR(void)
 {
+  P6OUT |= BIT7;   /* debug4_high */
+  
   unsigned char ExitLpm = 0;
   tMessage Msg;
         
@@ -232,7 +233,7 @@ __interrupt void RTC_ISR(void)
       if( QueryRtcUserActive(RTC_TIMER_BUTTON) )
       {
         SetupMessage(&Msg,ButtonStateMsg,NO_MSG_OPTIONS);
-        RouteMsgFromIsr(&Msg); 
+        SendMessageToQueueFromIsr(BACKGROUND_QINDEX,&Msg); 
         
         ExitLpm = 1;
       }
@@ -269,6 +270,9 @@ __interrupt void RTC_ISR(void)
   {
     EXIT_LPM_ISR();  
   }
+  
+  P6OUT &= ~BIT7;       /* debug4_low */
+  
 }
 
 

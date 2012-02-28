@@ -27,6 +27,7 @@
 
 #include "Messages.h"
 #include "MessageQueues.h"
+#include "DebugUart.h"
 #include "Display.h"
 #include "OSAL_Nv.h"
 #include "NvIds.h"
@@ -34,8 +35,8 @@
 #include "OneSecondTimers.h"
 
 /* these have the null character added at the end */
-unsigned char pLocalBluetoothAddressString[] = "000000000000";
-unsigned char pRemoteBluetoothAddressString[] = "000000000000";
+tString pLocalBluetoothAddressString[] = "000000000000";
+tString pRemoteBluetoothAddressString[] = "000000000000";
 
 /* LocalBluetoothAddress == watch */
 void SetLocalBluetoothAddressString(unsigned char* pData)
@@ -64,12 +65,12 @@ void SetRemoteBluetoothAddressString(unsigned char* pData)
   
 }
 
-unsigned char* GetLocalBluetoothAddressString(void)
+tString* GetLocalBluetoothAddressString(void)
 {
   return pLocalBluetoothAddressString;
 }
 
-unsigned char* GetRemoteBluetoothAddressString(void)
+tString* GetRemoteBluetoothAddressString(void)
 {
   return pRemoteBluetoothAddressString;  
 }
@@ -78,9 +79,11 @@ unsigned char* GetRemoteBluetoothAddressString(void)
 
 #define HARDWARE_REVISION_ADDRESS (0x1a07)
 
-unsigned char GetHardwareRevision(void)
+unsigned char GetMsp430HardwareRevision(void)
 {
-  unsigned char *pDeviceType = (unsigned char *)(unsigned char *)HARDWARE_REVISION_ADDRESS;
+  unsigned char *pDeviceType = 
+    (unsigned char *)(unsigned char *)HARDWARE_REVISION_ADDRESS;
+  
   return pDeviceType[0]+'1';                         
 }
 
@@ -90,7 +93,7 @@ unsigned char GetHardwareRevision(void)
 unsigned char * QueryConnectionStateAndGetString(void)
 {
   etConnectionState cs = QueryConnectionState();
-  unsigned char * pString;
+  char * pString;
   
   /* Initializing is the longest word that can fit on the LCD */
   switch (cs) 
@@ -106,7 +109,7 @@ unsigned char * QueryConnectionStateAndGetString(void)
   default:                 pString = "Unknown";      break;  
   }
   
-  return pString;
+  return (unsigned char*)pString;
 }
 
 /******************************************************************************/
@@ -134,12 +137,12 @@ unsigned char QueryFirstContact(void)
  * these are setup to match RTC 
  * days of week are 0-6 and months are 1-12 
  */
-const unsigned char DaysOfTheWeek[][7] = 
+const tString DaysOfTheWeek[][7] = 
 {
   "Sun","Mon","Tue","Wed","Thu","Fri","Sat"
 };
 
-const unsigned char MonthsOfYear[][13] = 
+const tString MonthsOfYear[][13] = 
 {
   "???","Jan","Feb","Mar","Apr","May","June",
   "July","Aug","Sep","Oct","Nov","Dec"
@@ -247,6 +250,7 @@ static unsigned int nvNotificationModeTimeout;
 
 void InitializeModeTimeouts(void)
 {
+  
 #ifdef ANALOG
   nvApplicationModeTimeout  = ONE_SECOND*60*10;
   nvNotificationModeTimeout = ONE_SECOND*30;

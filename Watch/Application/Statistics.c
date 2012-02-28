@@ -19,11 +19,13 @@
 *
 */
 /******************************************************************************/
+#include "FreeRTOS.h"
 
 #include "portmacro.h"
 
 #include "Messages.h"
 #include "Statistics.h"
+#include "DebugUart.h"
 #include "SerialProfile.h"
 
 /* Global application statistics */

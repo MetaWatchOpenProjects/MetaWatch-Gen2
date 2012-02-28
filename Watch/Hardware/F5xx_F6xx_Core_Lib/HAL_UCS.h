@@ -159,13 +159,5 @@ extern void XT2_Stop(void);
  ******************************************************************************/
 extern void Init_FLL_Settle(unsigned int fsystem, unsigned int ratio);
 
-/*******************************************************************************
- * \brief   Initializes FLL of the UCS
- *
- * \param fsystem  Required system frequency (MCLK) in kHz
- * \param ratio    Ratio between fsystem and FLLREFCLK
- ******************************************************************************/
-extern void Init_FLL(unsigned int fsystem, unsigned int ratio);
-
 
 #endif /* HAL_UCS_H */

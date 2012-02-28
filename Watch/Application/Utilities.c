@@ -30,7 +30,6 @@
 #include "MessageQueues.h"
 
 #include "DebugUart.h"
-#include "hal_crc.h"
 #include "Messages.h"
 #include "Utilities.h"
 
@@ -59,6 +58,7 @@ unsigned char UTL_RegisterFreeRtosTask(void * TaskHandle,
   {
     taskInfoArray[TaskIndex].taskHandle = TaskHandle;
     taskInfoArray[TaskIndex].Depth = StackDepth;
+    taskInfoArray[TaskIndex].FreeEntries =  0xffff;
     
 	/* if this is true then there are big problems */
     if ( StackDepth > 1000 )
@@ -82,14 +82,15 @@ static unsigned char PrintTaskIndex = 0;
 
 void UTL_FreeRtosTaskStackCheck( void )
 {
-  unsigned int FreeEntries = 0;
 
-  FreeEntries = uxTaskGetStackHighWaterMark( taskInfoArray[PrintTaskIndex].taskHandle );
+  taskInfoArray[PrintTaskIndex].FreeEntries = 
+    uxTaskGetStackHighWaterMark( taskInfoArray[PrintTaskIndex].taskHandle );
   
   /* free, used, total */
-  PrintStringSpaceAndThreeDecimals((char*)pcTaskGetTaskName( taskInfoArray[PrintTaskIndex].taskHandle ),
-                                   FreeEntries,
-                                   taskInfoArray[PrintTaskIndex].Depth - FreeEntries,
+  PrintStringSpaceAndThreeDecimals
+    ((char*)pcTaskGetTaskName( taskInfoArray[PrintTaskIndex].taskHandle ),
+     taskInfoArray[PrintTaskIndex].FreeEntries,
+     taskInfoArray[PrintTaskIndex].Depth - taskInfoArray[PrintTaskIndex].FreeEntries,
                                    taskInfoArray[PrintTaskIndex].Depth);
                                  
                
@@ -107,31 +108,12 @@ void UTL_FreeRtosTaskStackCheck( void )
 
 #endif /* TASK_DEBUG */
 
-
-void GenerateHostMsgCrc(tMessage* pMsg,unsigned int PayloadLength)
-{
-  tWordByteUnion Crc;
-  
-  halCrcInit();
-  halCrcAddByte(HOST_MSG_START_FLAG);
-  halCrcAddByte(pMsg->Length);
-  halCrcAddByte(pMsg->Type);
-  halCrcAddByte(pMsg->Options);
-  Crc.word = halCrcCalculate(pMsg->pBuffer,PayloadLength);
-  halCrcGiveMutex();
-  
-  /* now put the crc into the message buffer */
-  pMsg->pBuffer[pMsg->Length-1] = Crc.byte1;
-  pMsg->pBuffer[pMsg->Length-2] = Crc.byte0;
-  
-}
-
-
 void CopyHostMsgPayload(unsigned char* pBuffer, 
                         unsigned char* pSource, 
                         unsigned char Size)
 {
-  for(unsigned char i = 0; i < Size; i++)
+  unsigned char i;
+  for(i = 0; i < Size; i++)
   {
     pBuffer[i] = pSource[i];
   }
@@ -139,18 +121,18 @@ void CopyHostMsgPayload(unsigned char* pBuffer,
 
 unsigned char * GetDeviceNameString(void)
 {
-  return SPP_DEVICE_NAME;  
+  return (unsigned char *)SPP_DEVICE_NAME;  
 }
 
 unsigned char * GetSoftwareVersionString(void)
 {
-  return VERSION_STRING;  
+  return (unsigned char *)VERSION_STRING;  
 }
 
 
 
 /* called in each task but currently disabled */
-void CheckStackUsage(xTaskHandle TaskHandle,signed char* TaskName)
+void CheckStackUsage(xTaskHandle TaskHandle,tString * TaskName)
 {
 #ifdef CHECK_STACK_USAGE
 
@@ -162,10 +144,11 @@ void CheckStackUsage(xTaskHandle TaskHandle,signed char* TaskName)
   
 }
 
-void vApplicationStackOverflowHook( xTaskHandle *pxTask, signed char *pcTaskName )
+void vApplicationStackOverflowHook( xTaskHandle *pxTask, char *pcTaskName )
 {
   /* try to print task name */
-  PrintString2("Stack overflow for ",(char*)pcTaskName);
+  PrintString2("Stack overflow for ",(tString*)pcTaskName);
+  ForceWatchdogReset();
 }
 
 /******************************************************************************/
@@ -209,3 +192,33 @@ void CheckQueueUsage(xQueueHandle Qhandle)
 #endif
 }
      
+/******************************************************************************/
+
+#if 0
+/* set watchdog for 16 second timeout */
+static void SetWatchdogReset(void)
+{
+  /* write password, select aclk, divide by 512*1024 = 16 ms */
+  WDTCTL = WDTPW + WDTSSEL__ACLK + WDTIS_3;
+}
+#endif
+
+/* write the inverse of the password and force reset */
+void ForceWatchdogReset(void)
+{
+  __disable_interrupt();
+  __delay_cycles(100000);
+  
+#ifdef DEBUG_WATCHDOG_RESET
+
+  /* wait here forever */
+  ENABLE_LCD_LED();
+  while(1);
+
+#else
+
+  WDTCTL = ~WDTPW; 
+
+#endif
+
+}

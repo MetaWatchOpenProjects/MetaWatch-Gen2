@@ -21,14 +21,12 @@
 */
 /******************************************************************************/
 
-#include "portmacro.h"
-#include "FreeRTOSConfig.h"
+#include "FreeRTOS.h"
 
 #include "hal_board_type.h"
 #include "hal_rtos_timer.h"
 #include "hal_crystal_timers.h"
 #include "hal_lpm.h"
-#include "macro.h"
 
 #include "DebugUart.h"
 
@@ -41,7 +39,7 @@ static unsigned char (*pCrystalCallback2)(void);
 static unsigned char (*pCrystalCallback3)(void);
 static unsigned char (*pCrystalCallback4)(void);
 
-//static unsigned char Timer0Users;
+static unsigned char Timer0Users;
 
 #define TIMER0_RTOS_USER ( 0 )
 #define TIMER0_USER1     ( 1 )
@@ -69,14 +67,10 @@ void SetupRtosTimer(void)
    */
   TA0EX0 = 0x7;
 
-  //Timer0Users = 0;
+  Timer0Users = 0;
   
   EnableRtosTick();
 
-  //TA0CTL |= TAIE;
-
-  TA0CTL |= TASSEL_1 | MC_2 | ID_2;
-  
 }
 
 /* the timer is not stopped unless the rtos is off and all of the other timers
@@ -96,7 +90,7 @@ void DisableRtosTick(void)
 
 static void AddUser(unsigned char User,unsigned int CrystalTicks)
 {
-  ENTER_CRITICAL_REGION_QUICK();
+  portENTER_CRITICAL();
   
   /* minimum value of 1 tick */
   if ( CrystalTicks < 1 )
@@ -119,21 +113,21 @@ static void AddUser(unsigned char User,unsigned int CrystalTicks)
   }
   
   /* start counting up in continuous mode if not already doing so */
-//  if ( Timer0Users == 0 )
-//  {
-//    TA0CTL |= TASSEL_1 | MC_2 | ID_2; 
-//  }
+  if ( Timer0Users == 0 )
+  {
+    TA0CTL |= TASSEL_1 | MC_2 | ID_2; 
+  }
   
   /* keep track of users */
-  //Timer0Users |= (1 << User);
+  Timer0Users |= (1 << User);
   
-  LEAVE_CRITICAL_REGION_QUICK();
+  portEXIT_CRITICAL();
   
 }
 
 static void RemoveUser(unsigned char User)
 {
-  ENTER_CRITICAL_REGION_QUICK();
+  portENTER_CRITICAL();
 
   switch (User)
   {
@@ -147,15 +141,15 @@ static void RemoveUser(unsigned char User)
   }
   
   /* remove a user */
-  //Timer0Users &= ~(1 << User);
+  Timer0Users &= ~(1 << User);
     
   /* disable timer if no one is using it */
-//  if ( Timer0Users == 0 )
-//  {
-//    TA0CTL = 0;  
-//  }
+  if ( Timer0Users == 0 )
+  {
+    TA0CTL = 0;  
+  }
   
-  LEAVE_CRITICAL_REGION_QUICK();
+  portEXIT_CRITICAL();
   
 }
 
@@ -198,19 +192,27 @@ void StopCrystalTimer(unsigned char TimerId)
 /* 
  * timer0 ccr0 has its own interrupt (TIMER0_A0) 
  */
+#ifndef __IAR_SYSTEMS_ICC__
+#pragma CODE_SECTION(TIMER0_A1_VECTOR_ISR,".text:_isr");
+#endif
+ 
+ 
 #pragma vector=TIMER0_A1_VECTOR
 __interrupt void TIMER0_A1_VECTOR_ISR(void)
 {
+  P6OUT |= BIT7;   /* debug4_high */
+  
   unsigned char ExitLpm = 0;
   
   /* callback when timer expires */
   switch(__even_in_range(TA0IV,8))
   {
+  /* remove the user first in case the callback is re-enabling this user */
   case 0: break;                  
-  case 2: ExitLpm = pCrystalCallback1(); RemoveUser(1); break;
-  case 4: ExitLpm = pCrystalCallback2(); RemoveUser(2); break;
-  case 6: ExitLpm = pCrystalCallback3(); RemoveUser(3); break;                         
-  case 8: ExitLpm = pCrystalCallback4(); RemoveUser(4); break;                         
+  case 2: RemoveUser(1); ExitLpm = pCrystalCallback1(); break;
+  case 4: RemoveUser(2); ExitLpm = pCrystalCallback2(); break;
+  case 6: RemoveUser(3); ExitLpm = pCrystalCallback3(); break;
+  case 8: RemoveUser(4); ExitLpm = pCrystalCallback4(); break;
   default: break;
   }
   
@@ -218,4 +220,7 @@ __interrupt void TIMER0_A1_VECTOR_ISR(void)
   {
     EXIT_LPM_ISR();  
   }
+  
+  P6OUT &= ~BIT7;       /* debug4_low */
+  
 }

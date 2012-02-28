@@ -39,12 +39,12 @@
 
 #include "Buttons.h"
 #include "Background.h"
+#include "DebugUart.h"
 #include "Utilities.h"     
 #include "SerialProfile.h"
 #include "Adc.h"
 #include "OneSecondTimers.h"
 #include "Vibration.h"
-#include "DebugUart.h"
 #include "Statistics.h"
 #include "OSAL_Nv.h"
 #include "NvIds.h"
@@ -68,7 +68,7 @@ static void NvalOperationHandler(tMessage* pMsg);
 static void SoftwareResetHandler(tMessage* pMsg);
 
 #define BACKGROUND_MSG_QUEUE_LEN   8    
-#define BACKGROUND_STACK_DEPTH	    (configMINIMAL_STACK_DEPTH + 50)
+#define BACKGROUND_STACK_DEPTH	   (configMINIMAL_STACK_DEPTH + 100)
 #define BACKGROUND_TASK_PRIORITY   (tskIDLE_PRIORITY + 1)
 
 xTaskHandle xBkgTaskHandle;
@@ -107,9 +107,9 @@ void InitializeBackgroundTask( void )
   
   // prams are: task function, task name, stack len , task params, priority, task handle
   xTaskCreate(BackgroundTask, 
-              "BACKGROUND", 
+              (const signed char *)"BACKGROUND", 
               BACKGROUND_STACK_DEPTH, 
-              (void *) NULL, 
+              NULL, 
               BACKGROUND_TASK_PRIORITY, 
               &xBkgTaskHandle);
 
@@ -128,12 +128,9 @@ static void BackgroundTask(void *pvParameters)
     PrintString("Background Queue not created!\r\n");
   }
   
-  portENTER_CRITICAL();
-  /* let the names print out nicely */
   PrintString(SPP_DEVICE_NAME);
   PrintString2("\r\nSoftware Version ",VERSION_STRING);
   PrintString("\r\n\r\n");
-  portEXIT_CRITICAL();
   
   InitializeRstNmiConfiguration();
   
@@ -143,7 +140,7 @@ static void BackgroundTask(void *pvParameters)
   ConfigureBatteryPins();
   BatteryChargingControl();
   BatterySenseCycle();
-    
+  
   /*
    * now set up a timer that will cause the battery to be checked at
    * a regular frequency.
@@ -155,6 +152,7 @@ static void BackgroundTask(void *pvParameters)
   SetupOneSecondTimer(BatteryMonitorTimerId,
                       nvBatteryMonitorIntervalInSeconds,
                       REPEAT_FOREVER,
+                      BACKGROUND_QINDEX,
                       BatteryChargeControl,
                       NO_MSG_OPTIONS);
   
@@ -168,14 +166,16 @@ static void BackgroundTask(void *pvParameters)
   SetupOneSecondTimer(LedTimerId,
                       ONE_SECOND*3,
                       NO_REPEAT,
+                      BACKGROUND_QINDEX,
                       LedChange,
                       LED_OFF_OPTION);
-
+  
   /****************************************************************************/
   
   InitializeAccelerometer();
   
-  /* debug */
+#ifdef ACCELEROMETER_DEBUG
+
   SetupMessageAndAllocateBuffer(&BackgroundMsg,
                                 AccelerometerSetupMsg,
                                 ACCELEROMETER_SETUP_INTERRUPT_CONTROL_OPTION);
@@ -183,12 +183,13 @@ static void BackgroundTask(void *pvParameters)
   BackgroundMsg.pBuffer[0] = INTERRUPT_CONTROL_ENABLE_INTERRUPT;
   BackgroundMsg.Length = 1;
   RouteMsg(&BackgroundMsg);
-    
+
   /* don't call AccelerometerEnable() directly use a message*/
   SetupMessage(&BackgroundMsg,AccelerometerEnableMsg,NO_MSG_OPTIONS);
   RouteMsg(&BackgroundMsg);
   
-  /* end debug */
+#endif 
+
   
   /****************************************************************************/
   
@@ -204,7 +205,7 @@ static void BackgroundTask(void *pvParameters)
       SendToFreeQueue(&BackgroundMsg);
       
       CheckStackUsage(xBkgTaskHandle,"Background Task");
-
+      
       CheckQueueUsage(QueueHandles[BACKGROUND_QINDEX]);
 
     }
@@ -217,7 +218,7 @@ static void BackgroundTask(void *pvParameters)
 static void BackgroundMessageHandler(tMessage* pMsg)
 {  
   tMessage OutgoingMsg;    
-      
+
   switch(pMsg->Type)
   {
   case GetDeviceType:
@@ -282,12 +283,18 @@ static void BackgroundMessageHandler(tMessage* pMsg)
       RouteMsg(&OutgoingMsg);  
     }
 #endif 
+    //DEBUG4_HIGH();
     BatterySenseCycle();
+    //DEBUG4_LOW();
     LowBatteryMonitor();
 #ifdef TASK_DEBUG
     UTL_FreeRtosTaskStackCheck();
 #endif
+
+#if 0
     LightSenseCycle();
+#endif
+
     break;
 
   case LedChange:
@@ -317,7 +324,7 @@ static void BackgroundMessageHandler(tMessage* pMsg)
   case GeneralPurposeWatchMsg:
     /* insert handler here */
     break;
-    
+      
   case ButtonStateMsg:
     ButtonStateHandler(); 
     break;
@@ -511,7 +518,7 @@ static void ReadBatteryVoltageHandler(void)
                                 NO_MSG_OPTIONS);
   
   /* if the battery is not present then these values are meaningless */
-  OutgoingMsg.pBuffer[0] = 0;
+  OutgoingMsg.pBuffer[0] = QueryPowerGood();
   OutgoingMsg.pBuffer[1] = QueryBatteryCharging();
   
   unsigned int bv = ReadBatterySense();
@@ -598,8 +605,8 @@ static void NvalOperationHandler(tMessage* pMsg)
   /* add identifier to outgoing message */
   tWordByteUnion Identifier;
   Identifier.word = pNvPayload->NvalIdentifier;
-  OutgoingMsg.pBuffer[0] = Identifier.byte0;
-  OutgoingMsg.pBuffer[1] = Identifier.byte1;
+  OutgoingMsg.pBuffer[0] = Identifier.Bytes.byte0;
+  OutgoingMsg.pBuffer[1] = Identifier.Bytes.byte1;
   OutgoingMsg.Length = 2;
   
   /* option byte in return message is status */
@@ -616,8 +623,8 @@ static void NvalOperationHandler(tMessage* pMsg)
     
     /* read the value and update the length */
     OutgoingMsg.Options = OsalNvRead(pNvPayload->NvalIdentifier,
-                                       NV_ZERO_OFFSET,
-                                       pNvPayload->Size,
+                                     NV_ZERO_OFFSET,
+                                     pNvPayload->Size,
                                      &OutgoingMsg.pBuffer[2]);
     
     OutgoingMsg.Length += pNvPayload->Size;
@@ -630,9 +637,9 @@ static void NvalOperationHandler(tMessage* pMsg)
     if ( OsalNvItemLength(pNvPayload->NvalIdentifier) == pNvPayload->Size )
     {
       OutgoingMsg.Options = OsalNvWrite(pNvPayload->NvalIdentifier,
-                                          NV_ZERO_OFFSET,
-                                          pNvPayload->Size,
-                                          (void*)(&pNvPayload->DataStartByte));
+                                        NV_ZERO_OFFSET,
+                                        pNvPayload->Size,
+                                        (void*)(&pNvPayload->DataStartByte));
     }
      
     /* update the copy in ram */

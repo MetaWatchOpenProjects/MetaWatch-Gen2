@@ -31,6 +31,7 @@
 #include "hal_vibe.h"
 #include "hal_rtc.h"
 
+#include "DebugUart.h"
 #include "Background.h"
 #include "Utilities.h"
 
@@ -79,12 +80,12 @@ void SetVibrateModeHandler(tMessage* pMsg)
   motorOn = pMsgData->Enable;
 
   tWordByteUnion temp;
-  temp.byte0 = pMsgData->OnDurationLsb; 
-  temp.byte1 = pMsgData->OnDurationMsb;
+  temp.Bytes.byte0 = pMsgData->OnDurationLsb; 
+  temp.Bytes.byte1 = pMsgData->OnDurationMsb;
   timeOn = temp.word / RTC_TIMER_MS_PER_TICK;
 
-  temp.byte0 = pMsgData->OffDurationLsb; 
-  temp.byte1 = pMsgData->OffDurationMsb;
+  temp.Bytes.byte0 = pMsgData->OffDurationLsb; 
+  temp.Bytes.byte1 = pMsgData->OffDurationMsb;
   timeOff = temp.word / RTC_TIMER_MS_PER_TICK;
 
   cycleCount = pMsgData->NumberOfCycles;

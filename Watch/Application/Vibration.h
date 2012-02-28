@@ -17,8 +17,8 @@
 /******************************************************************************/
 /*! \file Vibration.h
  *
- * This was its own task but now it is part of the control task.  The vibrator is
- * controlled by a PWM output that is cycle on and off based on a timer. 
+ * This was its own task but now it is part of the control task.  The vibrator 
+ * is controlled by a PWM output that is cycle on and off based on a timer. 
  */
 /******************************************************************************/
 

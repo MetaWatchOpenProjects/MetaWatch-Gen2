@@ -39,6 +39,7 @@
 #include "hal_miscellaneous.h"
 #include "hal_calibration.h"
 
+#include "DebugUart.h"
 #include "Adc.h"
 #include "SerialProfile.h"
 #include "Background.h"         
@@ -50,15 +51,12 @@
 #include "Buttons.h"
 #include "Vibration.h"
 #include "OneSecondTimers.h"
-#include "DebugUart.h"
 #include "Statistics.h"
 
 #include "OSAL_Nv.h"
 #include "NvIds.h"
 
 static void ConfigureHardware(void);
-static void Housekeeping(void);
-static void ForceWatchdogReset(void);
 
 void main(void)
 {
@@ -71,13 +69,15 @@ void main(void)
   /* disable DMA during read-modify-write cycles */
   DMACTL4 = DMARMWDIS;
   
+  unsigned char MspVersion = GetMsp430HardwareRevision();
+    
   InitializeCalibrationData();
   
   ConfigureHardware();
 
   OsalNvInit(0);
   
-  InitializeDebugFlags();
+  InitializeDebugFlags();      
   InitializeButtons();
   InitializeVibration();
   InitializeOneSecondTimers();
@@ -93,7 +93,7 @@ void main(void)
   InitializeDisplayTask();   
 
   InitializeAdc();
-
+  
 #if 0
   /* timeout is 16 seconds */
   hal_SetWatchdogTimeout(16); 
@@ -104,7 +104,13 @@ void main(void)
   while ( PMM15Check() );
 #endif
   
-  PrintString("Starting Task Scheduler.\r\n");
+  /* Errata PMM17 - automatic prolongation mechanism 
+   * SVSLOW is disabled
+   */
+  *(unsigned int*)(0x0110) = 0x9602;
+  *(unsigned int*)(0x0112) |= 0x0800;
+  
+  PrintString("Starting Task Scheduler\r\n");
   vTaskStartScheduler();
 
   /* if vTaskStartScheduler exits an error occured. */
@@ -151,7 +157,6 @@ static unsigned char AllTaskQueuesEmptyFlag;
 
 void vApplicationIdleHook(void)
 {
-  Housekeeping();
   
   /* Put the processor to sleep if the serial port indicates it is OK and 
    * all of the queues are empty.
@@ -163,6 +168,7 @@ void vApplicationIdleHook(void)
   TaskDelayLockCount = GetTaskDelayLockCount();
   AllTaskQueuesEmptyFlag = AllTaskQueuesEmpty();
   
+#if 0
   if ( SppReadyToSleep )
   {
     DEBUG3_HIGH();  
@@ -171,7 +177,8 @@ void vApplicationIdleHook(void)
   {
     DEBUG3_LOW();
   }
-  
+#endif
+
   if (   SppReadyToSleep
       && TaskDelayLockCount == 0
       && AllTaskQueuesEmptyFlag )
@@ -188,46 +195,6 @@ void vApplicationIdleHook(void)
   }
   
 }
-
-/* when debugging one may want to disable this 
- * the reset may not always occur (if code gets messed up enough it won't
- * get here)
- */
-static void Housekeeping(void)
-{
-  if (   gBtStats.MallocFailed
-      || gBtStats.RxDataOverrun
-      || gBtStats.RxInvalidStartCallback )
-  {
-    PrintString("************Bluetooth Failure************\r\n");
-    __delay_cycles(100000);
-    ForceWatchdogReset();
-  }
-  
-  if ( gAppStats.BufferPoolFailure )
-  {
-    PrintString("************Application Failure************\r\n");
-    __delay_cycles(100000);
-    ForceWatchdogReset();
-  }
-  
-}
-
-#if 0
-/* set watchdog for 16 second timeout */
-static void SetWatchdogReset(void)
-{
-  /* write password, select aclk, divide by 512*1024 = 16 ms */
-  WDTCTL = WDTPW + WDTSSEL__ACLK + WDTIS_3;
-}
-#endif
-
-/* write the inverse of the password and force reset */
-static void ForceWatchdogReset(void)
-{
-  WDTCTL = ~WDTPW; 
-}
-
 
 /*
  * Callbacks are for debug signals and nothing else!
@@ -248,20 +215,9 @@ void SniffModeEntryAttemptCallback(void)
   //DEBUG3_PULSE();  
 }
 
-void DebugCallback3(void)
+void DebugBtUartError(void)
 {
-  //DEBUG3_PULSE();  
-}
-
-void DebugCallback4(void)
-{
-  //DEBUG4_PULSE();  
-}
-          
-          
-void Debug5Callback(void)
-{
-  //DEBUG5_PULSE();  
+  DEBUG5_HIGH();  
 }
 
 void MsgHandlerDebugCallback(void)
@@ -269,17 +225,10 @@ void MsgHandlerDebugCallback(void)
   //DEBUG5_PULSE();
 }
 
-/* This interrupt port is used by the stack. Do not change the name of this
- * function.
- *
- * Place a call to your interrupt routine here.
+/* This interrupt port is used by the Bluetooth stack. 
+ * Do not change the name of this function because it is externed.
  */
 void AccelerometerPinIsr(void)
 {
   AccelerometerIsr();
 }
-
-     
-
-
-

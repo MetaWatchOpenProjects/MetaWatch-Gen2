@@ -27,7 +27,6 @@
 #include "hal_board_type.h"
 #include "hal_oled.h"
 #include "hal_clock_control.h"
-#include "macro.h"
 #include "DebugUart.h"
 
 /******************************************************************************/
@@ -116,6 +115,8 @@ void OledWrite(unsigned char Command,unsigned char* pData,unsigned char Length)
 #pragma vector = USCI_OLED_I2C_VECTOR
 __interrupt void OLED_I2C_ISR(void)
 {
+  P6OUT |= BIT7;   /* debug4_high */
+  
   switch(__even_in_range(USCI_OLED_I2C_IV,12))
   {
   case OLED_I2C_NO_INTERRUPTS: 
@@ -152,6 +153,9 @@ __interrupt void OLED_I2C_ISR(void)
   default: 
     break;
   }  
+  
+  P6OUT &= ~BIT7;       /* debug4_low */
+  
 }
 
 

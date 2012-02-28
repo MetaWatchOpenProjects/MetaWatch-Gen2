@@ -20,8 +20,8 @@
 */
 /******************************************************************************/
 
+#include "portmacro.h"
 #include "hal_board_type.h"
-#include "macro.h"
 
 /* resetting the UARTs did not solve the power consumption problem */
 static unsigned char SmClkRequests;
@@ -30,7 +30,7 @@ static unsigned char SmClkRequests;
 void EnableSmClkUser(unsigned char User)
 {
 
-  ENTER_CRITICAL_REGION_QUICK();
+  portENTER_CRITICAL();
   
 #ifdef CLOCK_CONTROL_DEBUG
   DEBUG5_HIGH();
@@ -40,14 +40,14 @@ void EnableSmClkUser(unsigned char User)
   
   UCSCTL8 |= SMCLKREQEN;
   
-  LEAVE_CRITICAL_REGION_QUICK();
+  portEXIT_CRITICAL();
   
 }  
 
 /* remove a user and disable clock if there are 0 users */
 void DisableSmClkUser(unsigned char User)
 {
-  ENTER_CRITICAL_REGION_QUICK();
+  portENTER_CRITICAL();
   
   SmClkRequests &= ~User;
     
@@ -60,6 +60,6 @@ void DisableSmClkUser(unsigned char User)
 #endif
   };
   
-  LEAVE_CRITICAL_REGION_QUICK();
+  portEXIT_CRITICAL();
   
 }

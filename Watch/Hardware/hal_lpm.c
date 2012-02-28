@@ -19,12 +19,11 @@
  *
  */
 /******************************************************************************/
-
+#include "portmacro.h"
 #include "hal_board_type.h"
 #include "hal_rtos_timer.h"
 #include "hal_lpm.h"
 #include "HAL_UCS.h"
-#include "macro.h"
 
 static void EnterLpm3(void);
 static void EnterShippingMode(void);
@@ -62,6 +61,7 @@ static void EnterLpm3(void)
   __disable_interrupt();
   __no_operation();
   DisableRtosTick();
+  
   /* errata PMM11 divide MCLK by two before going to sleep */
   MCLK_DIV(2);
   DEBUG1_HIGH();
@@ -74,8 +74,6 @@ static void EnterLpm3(void)
   /* errata PMM11 - wait to put MCLK into normal mode */
   __delay_cycles(100);
   MCLK_DIV(1);
-  
-
   
   /* Generate a vTickIsr by setting the flag to trigger an interrupt
    * You can't call vTaskIncrementTick and vTaskSwitchContext from within a
@@ -161,19 +159,19 @@ void SoftwareReset(void)
 
 void TaskDelayLpmDisable(void)
 {
-  ENTER_CRITICAL_REGION_QUICK();
+  portENTER_CRITICAL();
   TaskDelayLpmLockCount++;
-  LEAVE_CRITICAL_REGION_QUICK();
+  portEXIT_CRITICAL();
 }
 
 void TaskDelayLpmEnable(void)
 {
-  ENTER_CRITICAL_REGION_QUICK();
+  portENTER_CRITICAL();
   if ( TaskDelayLpmLockCount )
   {
     TaskDelayLpmLockCount--;
   }
-  LEAVE_CRITICAL_REGION_QUICK();
+  portEXIT_CRITICAL();
 }
 
 unsigned char GetTaskDelayLockCount(void)
