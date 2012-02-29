@@ -268,11 +268,13 @@ static void DisplayTask(void *pvParameters)
   DefaultApplicationAndNotificationButtonConfiguration();
   SetupNormalIdleScreenButtons();
   
+#if 1  
   /* turn the radio on; initialize the serial port profile */
   tMessage Msg;
   SetupMessage(&Msg,TurnRadioOnMsg,NO_MSG_OPTIONS);
   RouteMsg(&Msg);
-    
+#endif
+  
   for(;;)
   {
     if( pdTRUE == xQueueReceive(QueueHandles[DISPLAY_QINDEX], 
