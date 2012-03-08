@@ -64,9 +64,7 @@ static void SendMyBufferToLcd(unsigned char TotalRows);
 
 static tMessage DisplayMsg;
 
-static tTimerId IdleModeTimerId;
-static tTimerId ApplicationModeTimerId;
-static tTimerId NotificationModeTimerId;
+static tTimerId DisplayTimerId;
 static unsigned char RtcUpdateEnable;
 
 /* Message handlers */
@@ -93,7 +91,7 @@ static void InitMyBuffer(void);
 static void DisplayStartupScreen(void);
 static void SetupSplashScreenTimeout(void);
 static void AllocateDisplayTimers(void);
-static void StopAllDisplayTimers(void);
+static void StopDisplayTimer(void);
 static void DetermineIdlePage(void);
 
 static void DrawMenu1(void);
@@ -398,6 +396,11 @@ static void DisplayQueueMessageHandler(tMessage* pMsg)
       GenerateLinkAlarm();  
     }
     break;
+    
+  case RamTestMsg:
+    RamTestHandler(pMsg);
+    break;
+    
   default:
     PrintStringAndHex("<<Unhandled Message>> in Lcd Display Task: Type 0x", Type);
     break;
@@ -408,36 +411,28 @@ static void DisplayQueueMessageHandler(tMessage* pMsg)
 /*! Allocate ids and setup timers for the display modes */
 static void AllocateDisplayTimers(void)
 {
-  IdleModeTimerId = AllocateOneSecondTimer();
-
-  ApplicationModeTimerId = AllocateOneSecondTimer();
-
-  NotificationModeTimerId = AllocateOneSecondTimer();
-
+  DisplayTimerId = AllocateOneSecondTimer();
 }
 
 static void SetupSplashScreenTimeout(void)
 {
-  SetupOneSecondTimer(IdleModeTimerId,
+  SetupOneSecondTimer(DisplayTimerId,
                       ONE_SECOND*3,
                       NO_REPEAT,
                       DISPLAY_QINDEX,
                       SplashTimeoutMsg,
                       NO_MSG_OPTIONS);
 
-  StartOneSecondTimer(IdleModeTimerId);
+  StartOneSecondTimer(DisplayTimerId);
   
   AllowConnectionStateChangeToUpdateScreen = 0;
   
 }
 
-static void StopAllDisplayTimers(void)
+static inline void StopDisplayTimer(void)
 {
   RtcUpdateEnable = 0;
-  StopOneSecondTimer(IdleModeTimerId);
-  StopOneSecondTimer(ApplicationModeTimerId);
-  StopOneSecondTimer(NotificationModeTimerId);
-   
+  StopOneSecondTimer(DisplayTimerId);
 }
 
 /*! Draw the Idle screen and cause the remainder of the display to be updated
@@ -445,7 +440,7 @@ static void StopAllDisplayTimers(void)
  */
 static void IdleUpdateHandler(void)
 {
-  StopAllDisplayTimers();
+  StopDisplayTimer();
   
   /* allow rtc to send IdleUpdate every minute (or second) */
   RtcUpdateEnable = 1;
@@ -614,7 +609,7 @@ static void ChangeModeHandler(tMessage* pMsg)
     /* this check is so that the watch apps don't mess up the timer */
     if ( LastMode != CurrentMode )
     {
-      /* idle update handler will stop all display clocks */
+      /* idle update handler will stop display timer */
       IdleUpdateHandler();
       PrintString("Changing mode to Idle\r\n");
     }
@@ -626,11 +621,9 @@ static void ChangeModeHandler(tMessage* pMsg)
   
   case APPLICATION_MODE:
     
-    StopAllDisplayTimers();
+    StopDisplayTimer();
     
     timeout = QueryApplicationModeTimeout();
-    
-
     
     /* don't start the timer if the timeout == 0 
      * this invites things that look like lock ups...
@@ -638,14 +631,14 @@ static void ChangeModeHandler(tMessage* pMsg)
      */
     if ( timeout )
     {
-      SetupOneSecondTimer(ApplicationModeTimerId,
+      SetupOneSecondTimer(DisplayTimerId,
                           timeout,
                           NO_REPEAT,
                           DISPLAY_QINDEX,
                           ModeTimeoutMsg,
                           APPLICATION_MODE);
           
-      StartOneSecondTimer(ApplicationModeTimerId);
+      StartOneSecondTimer(DisplayTimerId);
     }
     
     PrintString("Changing mode to Application\r\n");
@@ -653,21 +646,20 @@ static void ChangeModeHandler(tMessage* pMsg)
   
   case NOTIFICATION_MODE:
     
-    StopAllDisplayTimers();
+    StopDisplayTimer();
     
     timeout = QueryNotificationModeTimeout();
-      
         
     if ( timeout )
     {
-      SetupOneSecondTimer(NotificationModeTimerId,
+      SetupOneSecondTimer(DisplayTimerId,
                           timeout,
                           NO_REPEAT,
                           DISPLAY_QINDEX,
                           ModeTimeoutMsg,
                           NOTIFICATION_MODE);
       
-      StartOneSecondTimer(NotificationModeTimerId);
+      StartOneSecondTimer(DisplayTimerId);
     }
     
     PrintString("Changing mode to Notification\r\n");
@@ -738,7 +730,7 @@ static void ModeTimeoutHandler(tMessage* pMsg)
 
 static void WatchStatusScreenHandler(void)
 {
-  StopAllDisplayTimers();
+  StopDisplayTimer();
   
   FillMyBuffer(STARTING_ROW,NUM_LCD_ROWS,0x00);
     
@@ -876,14 +868,14 @@ static void WatchStatusScreenHandler(void)
   ConfigureIdleUserInterfaceButtons();
   
   /* refresh the status page once a minute */  
-  SetupOneSecondTimer(IdleModeTimerId,
+  SetupOneSecondTimer(DisplayTimerId,
                       ONE_SECOND*60,
                       NO_REPEAT,
                       DISPLAY_QINDEX,
                       WatchStatusMsg,
                       NO_MSG_OPTIONS);
   
-  StartOneSecondTimer(IdleModeTimerId);
+  StartOneSecondTimer(DisplayTimerId);
   
 }
 
@@ -893,7 +885,7 @@ static void WatchStatusScreenHandler(void)
  */
 static void BarCodeHandler(tMessage* pMsg)
 {
-  StopAllDisplayTimers();
+  StopDisplayTimer();
     
   FillMyBuffer(STARTING_ROW,NUM_LCD_ROWS,0x00);
   
@@ -910,7 +902,7 @@ static void BarCodeHandler(tMessage* pMsg)
 
 static void ListPairedDevicesHandler(void)
 {  
-  StopAllDisplayTimers();
+  StopDisplayTimer();
   
   /* draw entire region */
   FillMyBuffer(STARTING_ROW,NUM_LCD_ROWS,0x00);
@@ -1409,7 +1401,7 @@ static void DrawSimpleIdleScreen(void)
 
 static void MenuModeHandler(unsigned char MsgOptions)
 {
-  StopAllDisplayTimers();
+  StopDisplayTimer();
   
   /* draw entire region */
   FillMyBuffer(STARTING_ROW,PHONE_IDLE_BUFFER_ROWS,0x00);
@@ -1641,7 +1633,7 @@ static void DrawCommonMenuIcons(void)
 
 static void MenuButtonHandler(unsigned char MsgOptions)
 {
-  StopAllDisplayTimers();
+  StopDisplayTimer();
 
   tMessage OutgoingMsg;
   

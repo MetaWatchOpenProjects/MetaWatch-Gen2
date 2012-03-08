@@ -200,8 +200,6 @@ void StopCrystalTimer(unsigned char TimerId)
 #pragma vector=TIMER0_A1_VECTOR
 __interrupt void TIMER0_A1_VECTOR_ISR(void)
 {
-  P6OUT |= BIT7;   /* debug4_high */
-  
   unsigned char ExitLpm = 0;
   
   /* callback when timer expires */
@@ -220,7 +218,5 @@ __interrupt void TIMER0_A1_VECTOR_ISR(void)
   {
     EXIT_LPM_ISR();  
   }
-  
-  P6OUT &= ~BIT7;       /* debug4_low */
   
 }

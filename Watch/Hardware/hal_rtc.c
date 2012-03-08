@@ -205,8 +205,6 @@ static unsigned char DivideByFour = 0;
 #pragma vector = RTC_VECTOR
 __interrupt void RTC_ISR(void)
 {
-  P6OUT |= BIT7;   /* debug4_high */
-  
   unsigned char ExitLpm = 0;
   tMessage Msg;
         
@@ -270,8 +268,6 @@ __interrupt void RTC_ISR(void)
   {
     EXIT_LPM_ISR();  
   }
-  
-  P6OUT &= ~BIT7;       /* debug4_low */
   
 }
 

@@ -272,16 +272,17 @@ void PrintMessageType(tMessage* pMsg)
   case AccelerometerAccessMsg:     PrintStringAndHexByte("AccelerometerAccessMsg 0x",MessageType);     break;           
   case AccelerometerResponseMsg:   PrintStringAndHexByte("AccelerometerResponseMsg 0x",MessageType);   break;           
   case AccelerometerSetupMsg:      PrintStringAndHexByte("AccelerometerSetupMsg 0x",MessageType);      break;
-  case QueryMemoryMsg:             PrintStringAndHexByte("QueryMemoryMsg 0x",MessageType);         break;
-  case BatteryConfigMsg:           PrintStringAndHexByte("BatteryConfigMsg 0x",MessageType);       break;
+  case QueryMemoryMsg:             PrintStringAndHexByte("QueryMemoryMsg 0x",MessageType);             break;
+  case RamTestMsg:                 PrintStringAndHexByte("RamTestMsg 0x",MessageType);                 break;
+  case BatteryConfigMsg:           PrintStringAndHexByte("BatteryConfigMsg 0x",MessageType);           break;
   case LowBatteryWarningMsgHost:   PrintStringAndHexByte("LowBatteryWarningMsgHost 0x",MessageType);   break; 
   case LowBatteryBtOffMsgHost:     PrintStringAndHexByte("LowBatteryBtOffMsgHost 0x",MessageType);     break; 
   case ReadBatteryVoltageMsg:      PrintStringAndHexByte("ReadBatteryVoltageMsg 0x",MessageType);      break;
   case ReadBatteryVoltageResponse: PrintStringAndHexByte("ReadBatteryVoltageResponse 0x",MessageType); break;
-  case ReadLightSensorMsg:         PrintStringAndHexByte("ReadLightSensorMsg 0x",MessageType);      break;
-  case ReadLightSensorResponse:    PrintStringAndHexByte("ReadLightSensorResponse 0x",MessageType); break;
-  case LowBatteryWarningMsg:       PrintStringAndHexByte("LowBatteryWarningMsg 0x",MessageType);   break; 
-  case LowBatteryBtOffMsg:         PrintStringAndHexByte("LowBatteryBtOffMsg 0x",MessageType);     break; 
+  case ReadLightSensorMsg:         PrintStringAndHexByte("ReadLightSensorMsg 0x",MessageType);         break;
+  case ReadLightSensorResponse:    PrintStringAndHexByte("ReadLightSensorResponse 0x",MessageType);    break;
+  case LowBatteryWarningMsg:       PrintStringAndHexByte("LowBatteryWarningMsg 0x",MessageType);       break; 
+  case LowBatteryBtOffMsg:         PrintStringAndHexByte("LowBatteryBtOffMsg 0x",MessageType);         break; 
   case SniffControlAckMsg:         PrintStringAndHexByte("SniffControlAckMsg 0x",MessageType);         break; 
   case SniffStateChangeMsg:        PrintStringAndHexByte("SniffStateChangeMsg 0x",MessageType);        break; 
   
@@ -378,6 +379,7 @@ void RouteMsg(tMessage* pMsg)
     case AccelerometerResponseMsg:      SendMsgToQ(BACKGROUND_QINDEX,pMsg); break;        
     case AccelerometerSetupMsg:         SendMsgToQ(BACKGROUND_QINDEX,pMsg); break;
     case QueryMemoryMsg:                SendMsgToQ(SPP_TASK_QINDEX,pMsg);   break;
+    case RamTestMsg:                    SendMsgToQ(DISPLAY_QINDEX,pMsg);    break;
     case BatteryConfigMsg:              SendMsgToQ(BACKGROUND_QINDEX,pMsg); break;
     case LowBatteryWarningMsgHost:      SendMsgToQ(SPP_TASK_QINDEX,pMsg);   break;
     case LowBatteryBtOffMsgHost:        SendMsgToQ(SPP_TASK_QINDEX,pMsg);   break;

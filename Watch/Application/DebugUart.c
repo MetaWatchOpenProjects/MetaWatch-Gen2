@@ -159,8 +159,6 @@ void DisableUartSmClkIsr(void)
 #pragma vector=USCI_A3_VECTOR
 __interrupt void USCI_A3_ISR(void)
 {
-  P6OUT |= BIT7;   /* debug4_high */
-  
   switch(__even_in_range(UCA3IV,4))
   {
   case 0:break;                             // Vector 0 - no interrupt
@@ -188,8 +186,6 @@ __interrupt void USCI_A3_ISR(void)
     
   default: break;
   }
-  
-  P6OUT &= ~BIT7;       /* debug4_low */
   
 }
 

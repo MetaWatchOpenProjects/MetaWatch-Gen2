@@ -44,6 +44,7 @@
 #define SPI_RDSR  ( 0x05 )
 #define SPI_WRSR  ( 0x01 )
 
+/* the 256Kbit part does not have a 1 in bit position 1 */
 #define DEFAULT_SR_VALUE ( 0x02 )
 #define FINAL_SR_VALUE   ( 0x43 )
 
@@ -712,8 +713,6 @@ unsigned int GetDrawBufferStartAddress(unsigned char MsgOptions)
 #pragma vector=DMA_VECTOR
 __interrupt void DMA_ISR(void)
 {
-  P6OUT |= BIT7;   /* debug4_high */
-  
   /* 0 is no interrupt and remainder are channels 0-7 */
   switch(__even_in_range(DMAIV,16))
   {
@@ -731,6 +730,22 @@ __interrupt void DMA_ISR(void)
   default: 
     break;
   }
+}
+
+
+void RamTestHandler(tMessage* pMsg)
+{
+  unsigned int i;
   
-  P6OUT &= ~BIT7;       /* debug4_low */
+  PrintString("***************************************************************"); 
+  PrintString("Starting Ram Test\r\n");
+  PrintString("***************************************************************"); 
+  
+  for ( i = 0; i < 0xffff; i++ )
+  {
+    ClearBufferInSram(0x0,0x0,1000); 
+  }
+  
+  PrintString("Ram Test Complete");
+  
 }

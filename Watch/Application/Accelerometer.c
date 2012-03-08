@@ -125,16 +125,16 @@ void InitializeAccelerometer(void)
    * 50 Hz
   */
 #if 0  
-  /* 300 uA */
+  /* KTXF9 300 uA; KTXI9 165 uA */
   WriteRegisterData = PC1_OPERATING_MODE | TAP_ENABLE_TDTE;
   
-  /* 180 uA */
+  /* 180 uA; KTXI9 115 uA */
   WriteRegisterData = PC1_OPERATING_MODE | RESOLUTION_8BIT | WUF_ENABLE;
 
-  /* 180 uA */
+  /* 180 uA; KTXI9 8.7 uA */
   WriteRegisterData = PC1_OPERATING_MODE | TILT_ENABLE_TPE;
 
-  /* 720 uA */  
+  /* 720 uA; KTXI9 330 uA */  
   WriteRegisterData = PC1_OPERATING_MODE | RESOLUTION_12BIT | WUF_ENABLE;
 #endif
   

@@ -217,7 +217,7 @@ void SniffModeEntryAttemptCallback(void)
 
 void DebugBtUartError(void)
 {
-  DEBUG5_HIGH();  
+  //DEBUG5_HIGH();  
 }
 
 void MsgHandlerDebugCallback(void)

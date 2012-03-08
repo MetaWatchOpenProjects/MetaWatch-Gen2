@@ -118,8 +118,6 @@ void SetupTimerForAnalogDisplay( void )
 #pragma vector=TIMER0_B0_VECTOR
 __interrupt void TIMER0_B0_ISR(void)
 {
-  P6OUT |= BIT7;   /* debug4_high */
-  
   NumberOfFastPulses--;
 
   if(0 == NumberOfFastPulses)
@@ -133,6 +131,5 @@ __interrupt void TIMER0_B0_ISR(void)
   // Exit LPM3 on interrupt exit (RETI).  
   EXIT_LPM_ISR();
   
-  P6OUT &= ~BIT7;       /* debug4_low */
 }
 #endif

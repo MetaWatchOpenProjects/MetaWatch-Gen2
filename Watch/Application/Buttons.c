@@ -479,8 +479,6 @@ interrupt is generated.
 #pragma vector=BUTTON_PORT_VECTOR
 __interrupt void ButtonPortIsr(void)
 {
-  P6OUT |= BIT7;   /* debug4_high */
-  
   unsigned char ButtonInterruptFlags = BUTTON_PORT_IFG;
   unsigned char StartDebouncing = 0;
     
@@ -508,8 +506,6 @@ __interrupt void ButtonPortIsr(void)
   {
     EnableRtcPrescaleInterruptUser(RTC_TIMER_BUTTON); 
   }
-
-  P6OUT &= ~BIT7;       /* debug4_low */
 
 }
 

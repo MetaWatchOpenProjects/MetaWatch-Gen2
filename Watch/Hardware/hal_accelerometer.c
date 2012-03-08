@@ -220,8 +220,6 @@ void AccelerometerRead(unsigned char RegisterAddress,
 #pragma vector = USCI_ACCELEROMETER_VECTOR
 __interrupt void ACCERLEROMETER_ISR(void)
 {
-  P6OUT |= BIT7;   /* debug4_high */
-  
   switch(__even_in_range(USCI_ACCELEROMETER_IV,12))
   {
   case ACCELEROMETER_NO_INTERRUPTS: 
@@ -296,8 +294,6 @@ __interrupt void ACCERLEROMETER_ISR(void)
   default: 
     break;
   }  
-  
-  P6OUT &= ~BIT7;       /* debug4_low */
   
 }
 

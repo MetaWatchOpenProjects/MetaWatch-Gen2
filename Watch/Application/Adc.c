@@ -158,13 +158,11 @@ void InitializeAdc(void)
   /* select ADC12SC bit as sample and hold source (00) 
    * and use pulse mode
    * use modosc / 2 because frequency must be 0.45 MHz to 2.7 MHz
-  */
+   */
   ADC12CTL1 = ADC12CSTARTADD_0 + ADC12SHP + ADC12SSEL_0 + ADC12DIV_2;
 
-  /* 12 bit resolution, only use reference when doing a conversion, 
-  * todo: use low power mode because sample rate is < 50 ksps 
-  */
-  ADC12CTL2 = ADC12TCOFF + ADC12RES_2 + ADC12REFBURST;// + ADC12SR;
+  /* 12 bit resolution, only use reference when doing a conversion */
+  ADC12CTL2 = ADC12TCOFF + ADC12RES_2 + ADC12REFBURST;
 
   /* setup input channels */
   ADC12MCTL0 = HARDWARE_CFG_INPUT_CHANNEL + ADC12EOS;
@@ -189,15 +187,9 @@ void InitializeAdc(void)
   
 }
 
-/* switch context if we are waiting */
 static void WaitForAdcBusy(void)
 {
-  TaskDelayLpmDisable();
-  while(ADC12CTL1 & ADC12BUSY)
-  {
-    vTaskDelay(0);  
-  }
-  TaskDelayLpmEnable();
+  while(ADC12CTL1 & ADC12BUSY);
 }
 
 /*
@@ -241,8 +233,9 @@ static void FinishHardwareCfgCycle(void)
 
 }
 
+/* 60 us */
 void BatterySenseCycle(void)
-{
+{ 
   xSemaphoreTake(AdcHardwareMutex,portMAX_DELAY);
   
   BATTERY_SENSE_ENABLE();
@@ -253,9 +246,9 @@ void BatterySenseCycle(void)
   StartBatterySenseConversion();
   WaitForAdcBusy();
   FinishBatterySenseCycle();
+ 
 }
 
-/* battery sense cycle requires 630 us using ACLK */
 static void StartBatterySenseConversion(void)
 {
   AdcCheck();

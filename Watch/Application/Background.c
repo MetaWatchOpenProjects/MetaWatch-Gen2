@@ -96,6 +96,14 @@ static void NvUpdater(unsigned int NvId);
 
 /******************************************************************************/
 
+#ifdef RAM_TEST
+
+static tTimerId RamTestTimerId;
+
+#endif
+
+/******************************************************************************/
+
 /*! Does the initialization and allocates the resources for the background task
  *
  */
@@ -169,6 +177,23 @@ static void BackgroundTask(void *pvParameters)
                       BACKGROUND_QINDEX,
                       LedChange,
                       LED_OFF_OPTION);
+  
+  /****************************************************************************/
+  
+#ifdef RAM_TEST
+  
+  RamTestTimerId = AllocateOneSecondTimer();
+  
+  SetupOneSecondTimer(RamTestTimerId,
+                      ONE_SECOND*20,
+                      NO_REPEAT,
+                      DISPLAY_QINDEX,
+                      RamTestMsg,
+                      NO_MSG_OPTIONS);
+  
+  StartOneSecondTimer(RamTestTimerId);
+  
+#endif
   
   /****************************************************************************/
   
@@ -283,10 +308,10 @@ static void BackgroundMessageHandler(tMessage* pMsg)
       RouteMsg(&OutgoingMsg);  
     }
 #endif 
-    //DEBUG4_HIGH();
+
     BatterySenseCycle();
-    //DEBUG4_LOW();
     LowBatteryMonitor();
+
 #ifdef TASK_DEBUG
     UTL_FreeRtosTaskStackCheck();
 #endif

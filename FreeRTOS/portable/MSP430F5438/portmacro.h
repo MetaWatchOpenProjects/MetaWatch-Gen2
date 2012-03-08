@@ -94,7 +94,6 @@ typedef char tString;
    extern volatile unsigned portSHORT usCriticalNesting;                      \
    __disable_interrupt();                                                     \
    __no_operation();                                                          \
-   P6OUT |= BIT7;   /* debug4_high */                                         \
                                                                               \
    /* Now interrupts are disabled usCriticalNesting can be accessed      */   \
    /* directly.  Increment ulCriticalNesting to keep a count of how many */   \
@@ -114,7 +113,6 @@ typedef char tString;
       /* re-enabled. */                                                       \
       if( usCriticalNesting == portNO_CRITICAL_SECTION_NESTING )              \
       {                                                                       \
-        P6OUT &= ~BIT7;       /* debug4_low */                                \
         __enable_interrupt();                                                 \
       }                                                                       \
    }                                                                          \
@@ -131,24 +129,6 @@ typedef char tString;
 extern void vPortYield( void );
 
 #define portYIELD() vPortYield();
-
-#if 0
-/* Debug4 is used to indicate that interrupts are turned off
- * modify this function to handle the case in which the 
- * rtos is task switching
- */
-#define portYIELD()                                     \
-{                                                       \
-  extern volatile unsigned portSHORT usCriticalNesting; \
-  P6OUT &= ~BIT7;  /* debug4_low */                     \
-  vPortYield();                                         \
-                                                        \
-  if ( usCriticalNesting )                              \
-  {                                                     \
-    P6OUT |= BIT7;   /* debug4_high */                  \
-  }                                                     \
-}
-#endif
 
 /*-----------------------------------------------------------*/
 

@@ -277,7 +277,8 @@ typedef enum
   LedChange = 0xc0,
   
   QueryMemoryMsg = 0xd0,
-    
+  RamTestMsg = 0xd1,
+  
   AccelerometerHostMsg = 0xe0,
   AccelerometerEnableMsg  = 0xe1,
   AccelerometerDisableMsg = 0xe2,

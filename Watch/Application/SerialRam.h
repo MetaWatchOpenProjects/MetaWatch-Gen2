@@ -41,4 +41,7 @@ void LoadTemplateHandler(tMessage* pMsg);
 /*! Handle the write buffer message */
 void WriteBufferHandler(tMessage* pMsg);
 
+
+void RamTestHandler(tMessage* pMsg);
+
 #endif /* SERIAL_RAM_H */
