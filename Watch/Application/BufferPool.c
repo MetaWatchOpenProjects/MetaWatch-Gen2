@@ -40,7 +40,11 @@
 */
 typedef struct
 {
-  unsigned char buffer[HOST_MSG_BUFFER_LENGTH];  
+  /* ~hack
+   * add bytes for the header so that a single call to SPP_write can be made
+   */
+  unsigned char header[HOST_MSG_HEADER_LENGTH];
+  unsigned char buffer[HOST_MSG_BUFFER_LENGTH-HOST_MSG_HEADER_LENGTH];  
 
 } tBufferPoolBuffer;    
 
