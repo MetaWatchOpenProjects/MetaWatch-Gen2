@@ -44,7 +44,7 @@
 #ifndef HAL_UCS_H
 #define HAL_UCS_H
 
-#include "hal_macros.h"
+#include "HAL_MACROS.h"
 
 /*******************************************************************************
  * Macros
