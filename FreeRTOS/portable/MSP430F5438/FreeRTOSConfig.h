@@ -148,4 +148,8 @@ to exclude the API function. */
 
 #define INCLUDE_pcTaskGetTaskName 1
 
+
+/* when clock is 16 MHz then each cycle is 62.5 ns */
+#define __delay_us(x) __delay_cycles(x*16)
+
 #endif /* FREERTOS_CONFIG_H */

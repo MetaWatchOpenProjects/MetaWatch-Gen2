@@ -23,9 +23,6 @@
 #ifndef SERIAL_PROFILE_H
 #define SERIAL_PROFILE_H
 
-/* Number of seconds of inactivity before attempting to enter sniff mode */
-#define SNIFF_INACTIVITY_TIMEOUT_SECONDS ( 5 )
-
 /*! Initaliaze the serial port profile task.  This should be called from main.
 *
 * This task opens the stack which in turn creates 3 more tasks that create and 

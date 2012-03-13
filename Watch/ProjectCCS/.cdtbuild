@@ -125,6 +125,7 @@
 <listOptionValue builtIn="false" value="LPM_ENABLED"/>
 <listOptionValue builtIn="false" value="xTASK_DEBUG"/>
 <listOptionValue builtIn="false" value="xDEBUG_WATCHDOG_RESET"/>
+<listOptionValue builtIn="false" value="ACCELEROMETER_DEBUG"/>
 <listOptionValue builtIn="false" value="xCHECK_FOR_PMM15"/>
 <listOptionValue builtIn="false" value="xCHECK_STACK_USAGE"/>
 <listOptionValue builtIn="false" value="xCHECK_QUEUE_USAGE"/>

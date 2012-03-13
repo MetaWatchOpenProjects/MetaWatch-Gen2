@@ -337,3 +337,39 @@ unsigned int GetPairingModeDurationInSeconds(void)
 {
   return nvPairingModeDurationInSeconds;  
 }
+
+/******************************************************************************/
+
+static unsigned char nvSavePairingInfo;
+
+void InitializeSavePairingInfo(void)
+{
+  nvSavePairingInfo = SAVE_PAIRING_INFO_DEFAULT;
+  OsalNvItemInit(NVID_SAVE_PAIRING_INFO, 
+                 sizeof(nvSavePairingInfo), 
+                 &nvSavePairingInfo);
+}
+
+unsigned char QuerySavePairingInfo(void)
+{
+  return nvSavePairingInfo;  
+}
+
+/******************************************************************************/
+
+static unsigned char nvEnableSniffEntry;
+
+void InitializeEnableSniffEntry(void)
+{
+  nvEnableSniffEntry = ENABLE_SNIFF_ENTRY_DEFAULT;
+  OsalNvItemInit(NVID_ENABLE_SNIFF_ENTRY, 
+                 sizeof(nvEnableSniffEntry), 
+                 &nvEnableSniffEntry);
+}
+
+unsigned char QueryEnableSniffEntry(void)
+{
+  return nvEnableSniffEntry;  
+}
+
+/******************************************************************************/

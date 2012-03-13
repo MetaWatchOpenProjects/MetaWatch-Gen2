@@ -24,6 +24,23 @@
 #ifndef DISPLAY_H
 #define DISPLAY_H
 
+/******************************************************************************/
+
+#define SNIFF_DEBUG_DEFAULT      ( 0 )
+
+#define BATTERY_DEBUG_DEFAULT    ( 0 ) 
+
+#define CONNECTION_DEBUG_DEFAULT ( 0 ) 
+
+/* if 0 then don't ever time out */
+#define PAIRING_MODE_TIMEOUT_IN_SECONDS ( 600 )
+
+#define SAVE_PAIRING_INFO_DEFAULT   ( 1 )
+
+#define ENABLE_SNIFF_ENTRY_DEFAULT  ( 1 )
+
+
+/******************************************************************************/
 
 /*! Copies the local bluetooth address string (from SerialProfile) 
  * so that the display task can put it on the screen
@@ -147,9 +164,6 @@ unsigned int QueryNotificationModeTimeout(void);
 
 /******************************************************************************/
 
-#define SNIFF_DEBUG_DEFAULT      ( 0 )
-#define BATTERY_DEBUG_DEFAULT    ( 0 ) 
-#define CONNECTION_DEBUG_DEFAULT ( 0 ) 
 
 /*! Initialize flags stored in nval used for debugging (controlling print statements */
 void InitializeDebugFlags(void);
@@ -165,11 +179,39 @@ unsigned char QueryConnectionDebug(void);
 
 /******************************************************************************/
 
-/* if 0 then don't ever time out */
-#define PAIRING_MODE_TIMEOUT_IN_SECONDS ( 600 )
-
+/* ! Initialize nv value that determines how long watch should stay in pairing
+ * mode.
+ *
+ * \note Called by stack wrapper 
+ */
 void InitializePairingModeDuration(void);
 
+/* \return pairing duration in seconds, 0 means pair forever */
 unsigned int GetPairingModeDurationInSeconds(void);
+
+/******************************************************************************/
+
+/*! Initialize nv value that determines if pairing information should be saved
+ * 
+ * \note Called by stack wrapper 
+ */
+void InitializeSavePairingInfo(void);
+
+/*! \return 1 when pairing information should be saved */
+unsigned char QuerySavePairingInfo(void);
+
+/******************************************************************************/
+
+/*! Initialize nv value that determines if sniff entry is enabled 
+ *
+ * \note Called by stack wrapper 
+ *
+ */
+void InitializeEnableSniffEntry(void);
+
+/*! \return 1 when sniff entry is enabled */
+unsigned char QueryEnableSniffEntry(void);
+
+/******************************************************************************/
 
 #endif /* DISPLAY_H */

@@ -115,7 +115,8 @@ void main(void)
 
   /* if vTaskStartScheduler exits an error occured. */
   PrintString("Program Error\r\n");
-
+  ForceWatchdogReset();
+  
 }
 
 

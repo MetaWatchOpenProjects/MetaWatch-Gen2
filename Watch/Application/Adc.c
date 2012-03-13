@@ -44,10 +44,10 @@
 #define BATTERY_SENSE_INPUT_CHANNEL ( ADC12INCH_15 )
 #define LIGHT_SENSE_INPUT_CHANNEL   ( ADC12INCH_1 )
 
-#define ENABLE_REFERENCE()  { }
-#define DISABLE_REFERENCE() { }
-  
-// start conversion
+#define ENABLE_REFERENCE()  {  }
+#define DISABLE_REFERENCE() {  }
+
+/* start conversion */
 #define ENABLE_ADC()       { ADC12CTL0 |= ADC12ON; ADC12CTL0 |= ADC12ENC + ADC12SC; }
 #define DISABLE_ADC()      { ADC12CTL0 &= ~ADC12ENC; ADC12CTL0 &= ~ADC12ON; }
 #define CLEAR_START_ADDR() { ADC12CTL1 &= 0x0FFF; }
@@ -94,6 +94,7 @@ static void EndAdcCycle(void);
 /*! the voltage from the battery is divided
  * before it goes to ADC (so that it is less than
  * 2.5 volt reference)
+ *
  * 
  * The output of this function is Voltage * 1000
  */
@@ -137,8 +138,14 @@ static void AdcCheck(void)
 static void VoltageReferenceInit(void)
 {
   /* 
-   * slaug208 it says the voltage reference is not available in this part
-   */  
+   * the internal voltage reference is not used ( AVcc is used )
+   * reference is controlled by ADC12MCTLx register
+   *
+   * 2.5 volt reference cannot be used because it requires external AVcc of 2.8
+   * 
+   * disable temperature sensor 
+   */
+  REFCTL0 = REFMSTR | REFTCOFF; 
 }
 
 void InitializeAdc(void)
@@ -149,17 +156,14 @@ void InitializeAdc(void)
   BATTERY_SENSE_INIT();
   HARDWARE_CFG_SENSE_INIT();
  
-  /* enable the 2.5V reference */
-  ADC12CTL0 = ADC12REFON + ADC12REF2_5V;
-  
   /* allow conditional request for modosc */
   UCSCTL8 |= MODOSCREQEN;
   
   /* select ADC12SC bit as sample and hold source (00) 
    * and use pulse mode
-   * use modosc / 2 because frequency must be 0.45 MHz to 2.7 MHz
+   * use modosc / 8 because frequency must be 0.45 MHz to 2.7 MHz (0.625 MHz)
    */
-  ADC12CTL1 = ADC12CSTARTADD_0 + ADC12SHP + ADC12SSEL_0 + ADC12DIV_2;
+  ADC12CTL1 = ADC12CSTARTADD_0 + ADC12SHP + ADC12SSEL_0 + ADC12DIV_7; 
 
   /* 12 bit resolution, only use reference when doing a conversion */
   ADC12CTL2 = ADC12TCOFF + ADC12RES_2 + ADC12REFBURST;
@@ -233,7 +237,11 @@ static void FinishHardwareCfgCycle(void)
 
 }
 
-/* 60 us */
+/* 80 us 
+ * 
+ * conversion time = 13 * ADC12DIV *  1/FreqAdcClock
+ * 13 * 8 * 1/5e6 = 20.8 us
+ */
 void BatterySenseCycle(void)
 { 
   xSemaphoreTake(AdcHardwareMutex,portMAX_DELAY);
@@ -246,7 +254,7 @@ void BatterySenseCycle(void)
   StartBatterySenseConversion();
   WaitForAdcBusy();
   FinishBatterySenseCycle();
- 
+  
 }
 
 static void StartBatterySenseConversion(void)
