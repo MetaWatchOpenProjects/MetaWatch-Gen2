@@ -263,16 +263,16 @@ __interrupt void ACCERLEROMETER_ISR(void)
       LengthCount--;
       
       if ( LengthCount == 1 )
-    {
-      /* All but one byte received. Send stop */
-      ACCELEROMETER_CTL1 |= UCTXSTP;
-    }
-      else if ( LengthCount == 0 )
-    {
-      /* Last byte received; disable rx interrupt */
-      ACCELEROMETER_IE &= ~UCRXIE;
-      AccelerometerBusy = 0;
-    }
+        {
+          /* All but one byte received. Send stop */
+          ACCELEROMETER_CTL1 |= UCTXSTP;
+        }
+          else if ( LengthCount == 0 )
+        {
+          /* Last byte received; disable rx interrupt */
+          ACCELEROMETER_IE &= ~UCRXIE;
+          AccelerometerBusy = 0;
+        }
     }
     break;
     

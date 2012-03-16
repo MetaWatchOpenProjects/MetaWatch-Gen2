@@ -142,7 +142,7 @@ void InitializeAccelerometer(void)
   OperatingModeRegister = PC1_OPERATING_MODE | RESOLUTION_12BIT | WUF_ENABLE;
   InterruptControl = INTERRUPT_CONTROL_DISABLE_INTERRUPT; 
   SidControl = SID_CONTROL_SEND_DATA;
-  SidAddr = KIONIX_XOUT_HPF_L;
+  SidAddr = KIONIX_XOUT_L;
   SidLength = 6;
   
   AccelerometerDisable();
