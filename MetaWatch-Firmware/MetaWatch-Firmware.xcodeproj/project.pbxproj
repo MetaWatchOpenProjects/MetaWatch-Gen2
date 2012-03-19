@@ -1,0 +1,72 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 46;
+	objects = {
+
+/* Begin PBXFileReference section */
+		8E942D961517DDE000456953 /* MetaWatch-Firmware */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "MetaWatch-Firmware"; path = ..; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		8E942D8D1517DD5A00456953 = {
+			isa = PBXGroup;
+			children = (
+				8E942D961517DDE000456953 /* MetaWatch-Firmware */,
+			);
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXProject section */
+		8E942D8F1517DD5A00456953 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				LastUpgradeCheck = 0430;
+			};
+			buildConfigurationList = 8E942D921517DD5A00456953 /* Build configuration list for PBXProject "MetaWatch-Firmware" */;
+			compatibilityVersion = "Xcode 3.2";
+			developmentRegion = English;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+			);
+			mainGroup = 8E942D8D1517DD5A00456953;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+			);
+		};
+/* End PBXProject section */
+
+/* Begin XCBuildConfiguration section */
+		8E942D941517DD5A00456953 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+			};
+			name = Debug;
+		};
+		8E942D951517DD5A00456953 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		8E942D921517DD5A00456953 /* Build configuration list for PBXProject "MetaWatch-Firmware" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				8E942D941517DD5A00456953 /* Debug */,
+				8E942D951517DD5A00456953 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 8E942D8F1517DD5A00456953 /* Project object */;
+}

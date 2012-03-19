@@ -118,6 +118,14 @@
 #define YBW ( 1 << 6 )
 #define ZBW ( 1 << 5 )
 
+/* INT_CNTRL_REG3 */
+#define TLEM (1 << 5 )
+#define TRIM (1 << 4 )
+#define TDOM (1 << 3 )
+#define TUPM (1 << 2 )
+#define TFDM (1 << 1 )
+#define TFUM (1 << 0 )
+
 /* for readability */
 #define ONE_BYTE ( 1 )
 

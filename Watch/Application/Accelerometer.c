@@ -106,6 +106,10 @@ void InitializeAccelerometer(void)
   WriteRegisterData = XBW | YBW | ZBW;
   AccelerometerWrite(KIONIX_INT_CTRL_REG2,&WriteRegisterData,ONE_BYTE);
 
+  /* enable tap interrupt for all three axes */
+  WriteRegisterData = TLEM | TRIM | TDOM | TUPM | TFDM | TFUM;
+  AccelerometerWrite(KIONIX_INT_CTRL_REG3,&WriteRegisterData,ONE_BYTE);
+    
 #ifdef ACCELEROMETER_DEBUG
  
   /* single byte read test */
@@ -139,7 +143,8 @@ void InitializeAccelerometer(void)
 #endif
   
   /* setup the default for the AccelerometerEnable command */
-  OperatingModeRegister = PC1_OPERATING_MODE | RESOLUTION_12BIT | WUF_ENABLE;
+  OperatingModeRegister = PC1_OPERATING_MODE | RESOLUTION_12BIT | WUF_ENABLE | 
+    TAP_ENABLE_TDTE | TILT_ENABLE_TPE;
   InterruptControl = INTERRUPT_CONTROL_DISABLE_INTERRUPT; 
   SidControl = SID_CONTROL_SEND_DATA;
   SidAddr = KIONIX_XOUT_L;
@@ -238,40 +243,41 @@ void AccelerometerSendDataHandler(void)
   /* single read */
   AccelerometerRead(KIONIX_DCST_RESP,pReadRegisterData,1);
   
-  if ( pReadRegisterData[0] != 0x55 )
+  if (pReadRegisterData[0] != 0x55)
   {
     PrintString("Invalid i2c Read\r\n"); 
   }
      
 #endif
 
-  if ( QueryPhoneConnected() )
-  {
-  tMessage OutgoingMsg;
-  
-  if ( SidControl == SID_CONTROL_SEND_INTERRUPT )
-  {
-    SetupMessageAndAllocateBuffer(&OutgoingMsg,
+    if (QueryPhoneConnected())
+    {
+        tMessage OutgoingMsg;
+
+        if (SidControl == SID_CONTROL_SEND_INTERRUPT)
+        {
+            SetupMessageAndAllocateBuffer(&OutgoingMsg,
                                   AccelerometerHostMsg,
                                   ACCELEROMETER_HOST_MSG_IS_INTERRUPT_OPTION);
-  }
-  else
-  {
-    SetupMessageAndAllocateBuffer(&OutgoingMsg,
-                                  AccelerometerHostMsg,
-                                  ACCELEROMETER_HOST_MSG_IS_DATA_OPTION);
-    
-    OutgoingMsg.Length = SidLength;
-    
-      AccelerometerRead(SidAddr,OutgoingMsg.pBuffer,6);
-    
-  }
+        }
+        else
+        {
+            SetupMessageAndAllocateBuffer(&OutgoingMsg,
+                                      AccelerometerHostMsg,
+                                      ACCELEROMETER_HOST_MSG_IS_DATA_OPTION);
+
+            OutgoingMsg.Length = SidLength + 2;
+            AccelerometerRead(SidAddr, OutgoingMsg.pBuffer, SidLength);
+
+            // read orientation and tap status starting
+            AccelerometerReadSingle(KIONIX_INT_SRC_REG1, OutgoingMsg.pBuffer + SidLength);
+            AccelerometerReadSingle(KIONIX_INT_SRC_REG2, OutgoingMsg.pBuffer + SidLength + 1);
+        }
+
+        RouteMsg(&OutgoingMsg);
+    }
   
-  RouteMsg(&OutgoingMsg);
-  }
-  
-  ReadInterruptReleaseRegister();
-    
+    ReadInterruptReleaseRegister();
 }
 
 void AccelerometerEnable(void)
