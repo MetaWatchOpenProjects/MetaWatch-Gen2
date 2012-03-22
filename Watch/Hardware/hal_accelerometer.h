@@ -83,13 +83,22 @@
 /******************************************************************************/
 
 /* CTRL_REG1 */
-#define PC1_STANDBY_MODE   ( 0 << 7 )
-#define PC1_OPERATING_MODE ( 1 << 7 )
-#define RESOLUTION_8BIT    ( 0 << 6 )
-#define RESOLUTION_12BIT   ( 1 << 6 )
-#define WUF_ENABLE         ( 1 << 1 )
-#define TAP_ENABLE_TDTE    ( 1 << 2 ) 
-#define TILT_ENABLE_TPE    ( 1 << 0 )
+#define PC1_STANDBY_MODE     ( 0 << 7 )
+#define PC1_OPERATING_MODE   ( 1 << 7 )
+#define RESOLUTION_8BIT      ( 0 << 6 )
+#define RESOLUTION_12BIT     ( 1 << 6 )
+#define DRDYE_DATA_AVAILABLE ( 1 << 5 )
+#define WUF_ENABLE           ( 1 << 1 )
+#define TAP_ENABLE_TDTE      ( 1 << 2 ) 
+#define TILT_ENABLE_TPE      ( 1 << 0 )
+
+/* CTRL_REG2 */
+#define TILT_LEM (1 << 5 )
+#define TILT_RIM (1 << 4 )
+#define TILT_DOM (1 << 3 )
+#define TILT_UPM (1 << 2 )
+#define TILT_FDM (1 << 1 )
+#define TILT_FUM (1 << 0 )
 
 /* CTRL_REG3 */
 #define SRST               ( 1 << 7 )

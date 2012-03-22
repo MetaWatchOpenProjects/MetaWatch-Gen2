@@ -95,19 +95,27 @@ void InitializeAccelerometer(void)
    * be changed when the part is not active.
    */
   WriteRegisterData = PC1_STANDBY_MODE;
-  AccelerometerWrite(KIONIX_CTRL_REG1,&WriteRegisterData,ONE_BYTE);
+  AccelerometerWrite(KIONIX_CTRL_REG1, &WriteRegisterData, ONE_BYTE);
 
+  WriteRegisterData = TILT_FDM | TILT_FUM;
+  AccelerometerWrite(KIONIX_CTRL_REG2, &WriteRegisterData, ONE_BYTE);
+    
   /* enable interrupt and make it active high */
   WriteRegisterData = IEN | IEA;
   AccelerometerWrite(KIONIX_INT_CTRL_REG1,&WriteRegisterData,ONE_BYTE);
   
-  /* enable interrupt for all three axes */
+  /* enable motion detection interrupt for all three axis */
   WriteRegisterData = XBW | YBW | ZBW;
-  AccelerometerWrite(KIONIX_INT_CTRL_REG2,&WriteRegisterData,ONE_BYTE);
+  AccelerometerWrite(KIONIX_INT_CTRL_REG2, &WriteRegisterData, ONE_BYTE);
 
-  /* enable tap interrupt for all three axes */
+  /* enable tap interrupt for Z-axis */
   WriteRegisterData = TLEM | TRIM | TDOM | TUPM | TFDM | TFUM;
-  AccelerometerWrite(KIONIX_INT_CTRL_REG3,&WriteRegisterData,ONE_BYTE);
+  AccelerometerWrite(KIONIX_INT_CTRL_REG3, &WriteRegisterData, ONE_BYTE);
+    
+  /* set WUF_TIMER counter */
+  WriteRegisterData = 10;
+  AccelerometerWrite(KIONIX_WUF_TIMER, &WriteRegisterData, ONE_BYTE);
+    
     
 #ifdef ACCELEROMETER_DEBUG
  
@@ -142,11 +150,11 @@ void InitializeAccelerometer(void)
 #endif
   
   /* setup the default for the AccelerometerEnable command */
-  OperatingModeRegister = PC1_OPERATING_MODE | RESOLUTION_12BIT | WUF_ENABLE | 
+  OperatingModeRegister = PC1_OPERATING_MODE | RESOLUTION_12BIT | 
     TAP_ENABLE_TDTE | TILT_ENABLE_TPE;
   InterruptControl = INTERRUPT_CONTROL_DISABLE_INTERRUPT; 
   SidControl = SID_CONTROL_SEND_DATA;
-  SidAddr = KIONIX_XOUT_L;
+  SidAddr = KIONIX_XOUT_HPF_L;
   SidLength = 6;
   
   AccelerometerDisable();
@@ -163,14 +171,14 @@ void InitializeAccelerometer(void)
   
 #ifdef ACCELEROMETER_DEBUG
   /* change to output data rate to 25 Hz */
-  WriteRegisterData = WUF_ODR_25HZ;
-  AccelerometerWrite(KIONIX_CTRL_REG3,&WriteRegisterData,ONE_BYTE);
+  WriteRegisterData = WUF_ODR_25HZ | TAP_ODR_400HZ;
+  AccelerometerWrite(KIONIX_CTRL_REG3, &WriteRegisterData, ONE_BYTE);
 #endif
   
 #ifdef ACCELEROMETER_DEBUG
   /* this causes data to always be sent */  
-  WriteRegisterData = 0x00;
-  AccelerometerWrite(KIONIX_WUF_THRESH,&WriteRegisterData,ONE_BYTE);
+  WriteRegisterData = 0x08;
+  AccelerometerWrite(KIONIX_WUF_THRESH, &WriteRegisterData,ONE_BYTE);
 #endif
   
   PrintString("Accelerometer Init Complete\r\n");
@@ -265,12 +273,12 @@ void AccelerometerSendDataHandler(void)
                                       AccelerometerHostMsg,
                                       ACCELEROMETER_HOST_MSG_IS_DATA_OPTION);
 
-            OutgoingMsg.Length = SidLength + 2;
+            OutgoingMsg.Length = SidLength + 1;
             AccelerometerRead(SidAddr, OutgoingMsg.pBuffer, SidLength);
 
             // read orientation and tap status starting
-            AccelerometerReadSingle(KIONIX_INT_SRC_REG1, OutgoingMsg.pBuffer + SidLength);
-            AccelerometerReadSingle(KIONIX_INT_SRC_REG2, OutgoingMsg.pBuffer + SidLength + 1);
+            // AccelerometerReadSingle(KIONIX_INT_SRC_REG1, OutgoingMsg.pBuffer + SidLength);
+            AccelerometerReadSingle(KIONIX_INT_SRC_REG2, OutgoingMsg.pBuffer + SidLength);
         }
 
         RouteMsg(&OutgoingMsg);
