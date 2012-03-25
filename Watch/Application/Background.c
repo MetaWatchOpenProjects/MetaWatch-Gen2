@@ -270,7 +270,7 @@ static void BackgroundMessageHandler(tMessage* pMsg)
     halRtcSet((tRtcHostMsgPayload*)pMsg->pBuffer);
     
 #ifdef DIGITAL
-    SetupMessage(&OutgoingMsg,IdleUpdate,NO_MSG_OPTIONS);
+    SetupMessage(&OutgoingMsg, IdleUpdate, NO_MSG_OPTIONS);
     RouteMsg(&OutgoingMsg);
 #endif
     break;

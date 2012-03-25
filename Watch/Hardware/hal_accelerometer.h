@@ -122,18 +122,22 @@
 #define IEL ( 1 << 3 )
 #define IEU ( 1 << 2 )
 
-/* INT_CNTRL_REG2 */
+/* INT_CTRL_REG2 */
 #define XBW ( 1 << 7 ) 
 #define YBW ( 1 << 6 )
 #define ZBW ( 1 << 5 )
 
-/* INT_CNTRL_REG3 */
-#define TLEM (1 << 5 )
-#define TRIM (1 << 4 )
-#define TDOM (1 << 3 )
-#define TUPM (1 << 2 )
-#define TFDM (1 << 1 )
-#define TFUM (1 << 0 )
+/* INT_CTRL_REG3 */
+#define TLEM (1 << 5)
+#define TRIM (1 << 4)
+#define TDOM (1 << 3)
+#define TUPM (1 << 2)
+#define TFDM (1 << 1)
+#define TFUM (1 << 0)
+
+/* INT_SRC_REG2 */
+#define INT_TAP_SINGLE (0x04)
+#define INT_TAP_DOUBLE (0x08)
 
 /* for readability */
 #define ONE_BYTE ( 1 )
