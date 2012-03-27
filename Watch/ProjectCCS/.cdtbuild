@@ -98,6 +98,9 @@
 <resourceConfiguration exclude="true" id="com.ti.ccstudio.buildDefinitions.MSP430.Debug.879591448./Watch/Hardware/hal_oled.c" name="hal_oled.c" rcbsApplicability="disable" resourcePath="/Watch/Hardware/hal_oled.c" toolsToInvoke="com.ti.ccstudio.buildDefinitions.MSP430_3.3.exe.compilerDebug.1714750234./Watch/Hardware/hal_oled.c">
 <tool id="com.ti.ccstudio.buildDefinitions.MSP430_3.3.exe.compilerDebug.1714750234./Watch/Hardware/hal_oled.c" name="MSP430 Compiler" superClass="com.ti.ccstudio.buildDefinitions.MSP430_3.3.exe.compilerDebug.1714750234"/>
 </resourceConfiguration>
+<resourceConfiguration exclude="true" id="com.ti.ccstudio.buildDefinitions.MSP430.Debug.879591448./Watch/FreeRTOS/portable/MSP430F5438/Lowinit.c" name="Lowinit.c" rcbsApplicability="disable" resourcePath="/Watch/FreeRTOS/portable/MSP430F5438/Lowinit.c" toolsToInvoke="com.ti.ccstudio.buildDefinitions.MSP430_3.3.exe.compilerDebug.1714750234./Watch/FreeRTOS/portable/MSP430F5438/Lowinit.c">
+<tool id="com.ti.ccstudio.buildDefinitions.MSP430_3.3.exe.compilerDebug.1714750234./Watch/FreeRTOS/portable/MSP430F5438/Lowinit.c" name="MSP430 Compiler" superClass="com.ti.ccstudio.buildDefinitions.MSP430_3.3.exe.compilerDebug.1714750234"/>
+</resourceConfiguration>
 </configuration>
 <configuration artifactExtension="out" artifactName="Digital" description="" id="com.ti.ccstudio.buildDefinitions.MSP430.Debug.86286695" name="Digital" parent="com.ti.ccstudio.buildDefinitions.MSP430.Debug">
 <toolChain id="com.ti.ccstudio.buildDefinitions.MSP430.Debug.ToolchainPlaceholder.1872855555" superClass="com.ti.ccstudio.buildDefinitions.MSP430_3.3.exe.DebugToolchain" targetTool="com.ti.ccstudio.buildDefinitions.MSP430_3.3.exe.linkerDebug.979245295">
