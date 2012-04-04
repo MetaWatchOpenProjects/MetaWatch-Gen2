@@ -142,7 +142,7 @@ void InitializeAccelerometer(void)
   OperatingModeRegister = PC1_OPERATING_MODE | RESOLUTION_12BIT | WUF_ENABLE;
   InterruptControl = INTERRUPT_CONTROL_DISABLE_INTERRUPT; 
   SidControl = SID_CONTROL_SEND_DATA;
-  SidAddr = KIONIX_XOUT_HPF_L;
+  SidAddr = KIONIX_XOUT_L;
   SidLength = 6;
   
   AccelerometerDisable();
@@ -219,9 +219,8 @@ static void ReadInterruptReleaseRegister(void)
 void AccelerometerSendDataHandler(void)
 {
   
-    
 #ifdef ACCELEROMETER_DEBUG
-
+  
   /* burst read */
   AccelerometerRead(KIONIX_TDT_TIMER,pReadRegisterData,6);
   
@@ -247,27 +246,27 @@ void AccelerometerSendDataHandler(void)
 
   if ( QueryPhoneConnected() )
   {
-  tMessage OutgoingMsg;
-  
-  if ( SidControl == SID_CONTROL_SEND_INTERRUPT )
-  {
-    SetupMessageAndAllocateBuffer(&OutgoingMsg,
-                                  AccelerometerHostMsg,
-                                  ACCELEROMETER_HOST_MSG_IS_INTERRUPT_OPTION);
-  }
-  else
-  {
-    SetupMessageAndAllocateBuffer(&OutgoingMsg,
-                                  AccelerometerHostMsg,
-                                  ACCELEROMETER_HOST_MSG_IS_DATA_OPTION);
+    tMessage OutgoingMsg;
     
-    OutgoingMsg.Length = SidLength;
-    
+    if ( SidControl == SID_CONTROL_SEND_INTERRUPT )
+    {
+      SetupMessageAndAllocateBuffer(&OutgoingMsg,
+                                    AccelerometerHostMsg,
+                                    ACCELEROMETER_HOST_MSG_IS_INTERRUPT_OPTION);
+    }
+    else
+    {
+      SetupMessageAndAllocateBuffer(&OutgoingMsg,
+                                    AccelerometerHostMsg,
+                                    ACCELEROMETER_HOST_MSG_IS_DATA_OPTION);
+      
+      OutgoingMsg.Length = SidLength;
+      
       AccelerometerRead(SidAddr,OutgoingMsg.pBuffer,6);
-    
-  }
+      
+    }
   
-  RouteMsg(&OutgoingMsg);
+    RouteMsg(&OutgoingMsg);
   }
   
   ReadInterruptReleaseRegister();

@@ -382,10 +382,6 @@ static void DisplayQueueMessageHandler(tMessage* pMsg)
     IdleUpdateHandler();
     break;
     
-  case SniffControlAckMsg:
-  case SniffStateChangeMsg:
-    break;
-  
   case LowBatteryWarningMsg:
   case LowBatteryBtOffMsg:
     break;

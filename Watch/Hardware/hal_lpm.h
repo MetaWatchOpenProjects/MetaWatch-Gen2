@@ -66,7 +66,4 @@ void EnableRstPin(void);
 /*! Disable the Rst pin (don't let it reset the MSP430) */
 void DisableRstPin(void);
 
-/* ! Put the radio into reset and drive the RTS and CTS pins */
-void ResetRadioAndDriveRtsCts(void);
-
 #endif /* HAL_LPM_H */

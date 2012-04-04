@@ -297,6 +297,10 @@ void ByteToHexString(unsigned char Value, tString * pString)
 
 }
 /******************************************************************************/
+void PrintCharacter(char Character)
+{
+  WriteTxBuffer((tString *)&Character);  
+}
 
 void PrintString(tString * const pString)
 {
@@ -336,9 +340,9 @@ void PrintSignedDecimalAndNewline(signed int Value)
   if ( Value < 0 )
   {
     Value = ~Value + 1;
+    WriteTxBuffer("-");
   }
   ToDecimalString(Value,ConversionString);
-  WriteTxBuffer("-");
   WriteTxBuffer(ConversionString);
   WriteTxBuffer("\r\n");  
 }

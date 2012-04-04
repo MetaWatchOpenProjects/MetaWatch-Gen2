@@ -35,12 +35,6 @@
 */
 void InitializeAdc(void);
 
-/*! Start an ADC cycle to read the hardware configuration.  This function must
- * be called from a task.  It will return when finished.  The result can be 
- * read using the command ReadHardwareConfiguration
- */
-void HardwareCfgCycle(void);
-
 /*! Start an ADC cycle to read battery voltage.  This function must
  * be called from a task.  It will return when finished.  The result can be 
  * read using the command ReadBatterySense.
@@ -53,9 +47,6 @@ void BatterySenseCycle(void);
  * ReadLightSense.
  */
 void LightSenseCycle(void);
-
-/*! Returns the result of the last Hardware Configuration ADC Cycle */
-unsigned int ReadHardwareConfiguration(void);
 
 /*! Returns the last Battery Sense value
  *
@@ -107,5 +98,15 @@ void LowBatteryMonitor(void);
  * into a variable in ram
  */
 void InitializeLowBatteryLevels(void);
+
+/******************************************************************************/
+
+/*! The board revision is used to determine what patch should be loaded onto
+ * the radio
+ *
+ * If board configuration is >= 4 the CC2564 or CC2567 radio is present
+ *
+ */
+unsigned char GetBoardConfiguration(void);
 
 #endif // ADC_H

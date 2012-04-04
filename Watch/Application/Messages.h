@@ -287,8 +287,7 @@ typedef enum
   AccelerometerResponseMsg = 0xe5,
   AccelerometerSetupMsg = 0xe6,
   
-  SniffControlAckMsg = 0xf0,
-  SniffStateChangeMsg = 0xf1
+  RadioPowerControlMsg = 0xf0
   
 } eMessageType;
 

@@ -450,10 +450,6 @@ static void DisplayQueueMessageHandler(tMessage* pMsg)
       GenerateLinkAlarm();  
     }
     break;
-       
-  case SniffControlAckMsg:
-  //case StateMachineMsg:
-    break;
     
   default:
     PrintStringAndHex("<<Unhandled Message>> in Oled Display Task: Type 0x", Type);

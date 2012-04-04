@@ -150,7 +150,7 @@ void AccelerometerReadSingle(unsigned char RegisterAddress,
   ACCELEROMETER_CTL1 &= ~UCTR;
     
   /* for a read of a single byte the stop must be sent while the byte is being 
-   * received.  if this is interrupted an extra byte may be read.
+   * received. If this is interrupted an extra byte may be read.
    * however, it will be discarded during the next read
    */
   if ( LengthCount == 1 )
@@ -191,12 +191,6 @@ void AccelerometerRead(unsigned char RegisterAddress,
                        unsigned char* pData,
                        unsigned char Length)
 {
-  /* short circuit */
-  if ( Length == 0 )
-  {
-    return;
-  }
-  
   unsigned char i;
   for ( i = 0; i < Length; i++ )
   {
@@ -263,16 +257,16 @@ __interrupt void ACCERLEROMETER_ISR(void)
       LengthCount--;
       
       if ( LengthCount == 1 )
-    {
-      /* All but one byte received. Send stop */
-      ACCELEROMETER_CTL1 |= UCTXSTP;
-    }
-      else if ( LengthCount == 0 )
-    {
-      /* Last byte received; disable rx interrupt */
-      ACCELEROMETER_IE &= ~UCRXIE;
-      AccelerometerBusy = 0;
-    }
+      {
+        /* All but one byte received. Send stop */
+        ACCELEROMETER_CTL1 |= UCTXSTP;
+      }
+        else if ( LengthCount == 0 )
+      {
+        /* Last byte received; disable rx interrupt */
+        ACCELEROMETER_IE &= ~UCRXIE;
+        AccelerometerBusy = 0;
+      }
     }
     break;
     

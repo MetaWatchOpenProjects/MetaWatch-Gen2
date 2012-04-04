@@ -31,6 +31,9 @@
 /*! Initialize the uart peripheral and create mutex */
 void InitDebugUart(void);
 
+/*! Print a  character */
+void PrintCharacter(char Character);
+
 /*! Print a string */
 void PrintString(tString * const pString);
 
