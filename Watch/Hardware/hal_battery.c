@@ -52,6 +52,7 @@ void ConfigureBatteryPins(void)
   
   BATTERY_CHARGE_DISABLE();
   BatteryChargeEnabled = 0;
+  CurrentBatteryState = BATTERY_CHARGE_OFF_FAULT_SLEEP;
   
   CurrentBatteryState = 0x00;
   LastBatteryState = 0xff;
@@ -97,12 +98,16 @@ unsigned char BatteryChargingControl(void)
     /* the charger automatically shuts down when power is not good
      * need to make sure pullups aren't enabled.
      */
+    if ( BatteryChargeEnabled == 1 )
+    {
+      BatteryChargeEnabled = 0;
+      BatteryChargeChange = 1;
+    }
+    
     BATTERY_CHARGE_DISABLE();
-    BatteryChargeEnabled = 0;
     CurrentBatteryState = BATTERY_CHARGE_OFF_FAULT_SLEEP; 
     BAT_CHARGE_OUT &= ~BAT_CHARGE_OPEN_DRAIN_BITS;
-    BatteryChargeChange = 1;
-    
+      
   }
   else
   {
