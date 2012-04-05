@@ -498,7 +498,7 @@ void UpdateDisplayHandler(tMessage* pMsg)
       WriteLineBuffer.LcdCommand = (unsigned char)(AbsoluteDrawAddress >> 8);
       WriteLineBuffer.RowNumber = (unsigned char)AbsoluteDrawAddress;
       
-      WriteBlockToSram((unsigned char*)&WriteLineBuffer,15);
+      WriteBlockToSram((unsigned char*)&(WriteLineBuffer.Reserved1),15);
       
       WaitForDmaEnd();
     }
