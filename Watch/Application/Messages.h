@@ -425,6 +425,9 @@ typedef struct
 #define NOTIFICATION_BUFFER_SELECT ( 0x02 )
 #define SCROLL_BUFFER_SELECT       ( 0x03 )
 #define BUFFER_SELECT_MASK         ( 0x0F )
+#define NUMBER_OF_BUFFERS          ( 2 )
+#define BUFFER_CLEAN               ( 0 )
+#define BUFFER_DIRTY               ( 1 )
 
 /* make mode definitions the same as buffer definitions */
 #define IDLE_MODE         ( IDLE_BUFFER_SELECT )
