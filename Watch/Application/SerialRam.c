@@ -87,18 +87,6 @@ unsigned char GetBufferIndex(unsigned char Mode, unsigned char Type);
 unsigned int GetBufferAddress(unsigned Index);
 void SetBufferStatus(unsigned char Index, unsigned char Status);
 
-static unsigned char IdleActiveBuffer;
-static unsigned char IdleDrawBuffer;
-
-static unsigned char ApplicationActiveBuffer;
-static unsigned char ApplicationDrawBuffer;
-
-static unsigned char NotificationActiveBuffer;
-static unsigned char NotificationDrawBuffer;
-
-static unsigned char ScrollActiveBuffer;
-static unsigned char ScrollDrawBuffer;
-
 // each bit represents status of two buffers of four display mode. 
 // 1: dirty; 0: clean
 unsigned char BufferStatus;
@@ -294,6 +282,7 @@ void SetBufferStatus(unsigned char Index, unsigned char Status)
 	BufferStatus &= ~Mask;
 	BufferStatus |= Status << Index;
   }
+  PrintStringAndTwoDecimal("MY: SetBufferStatus: ", Index, " ", Status);
 }
 
 static void ClearBufferInSram(unsigned int Address,
@@ -451,6 +440,7 @@ void UpdateDisplayHandler(tMessage* pMsg)
   
   /* get the buffer address */
   unsigned int DirtyBufferIndex = GetBufferIndex(SelectedBuffer, BUFFER_DIRTY);
+  if (DirtyBufferIndex == BUFFER_UNAVAILABLE) return;
   
   /* now calculate the absolute address */
   unsigned int AbsoluteAddress = GetBufferAddress(DirtyBufferIndex);
@@ -492,6 +482,7 @@ void UpdateDisplayHandler(tMessage* pMsg)
   
   /* now that the screen has been drawn put the LCD into a lower power mode */
   PutLcdIntoStaticMode();
+  PrintString("MY: Update Display Done.\r\n");
   
   /*
    * now signal that the display task that the operation has completed 
@@ -570,16 +561,16 @@ unsigned char GetBufferIndex(unsigned char Mode, unsigned char Type)
 {
   unsigned char Index = Mode << 1;
   unsigned char Status = (BufferStatus & (1 << Index)) >> Index;
-  // select the clean buffer for drawing
-  if (Status != BUFFER_CLEAN)
+  // if the buffer status is NOT expected as Type, check the other buffer
+  if (Status != Type)
   {
-	Status = (BufferStatus & (1 << Index + 1)) >> Index + 1;
-    if (Status  == BUFFER_CLEAN) Index ++;
+    Status = (BufferStatus & (1 << Index + 1)) >> Index + 1;
+    // if both dirty, return the first; if both clean, dirty one not available 
+    if (Status != Type && Type == BUFFER_CLEAN)
+    {
+      Index = BUFFER_UNAVAILABLE;
+    }
   }
-  // if Index is odd or even
-  if (Type == BUFFER_DIRTY)
-    Index = (Index & 0x1) ? Index -- : Index ++;
-
   PrintStringAndDecimal("MY: GetBufferIndex: ", Index);
   return Index;
 }

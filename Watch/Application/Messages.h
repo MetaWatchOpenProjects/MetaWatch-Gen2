@@ -428,6 +428,7 @@ typedef struct
 #define NUMBER_OF_BUFFERS          ( 2 )
 #define BUFFER_CLEAN               ( 0 )
 #define BUFFER_DIRTY               ( 1 )
+#define BUFFER_UNAVAILABLE         (0xFF)
 
 /* make mode definitions the same as buffer definitions */
 #define IDLE_MODE         ( IDLE_BUFFER_SELECT )
