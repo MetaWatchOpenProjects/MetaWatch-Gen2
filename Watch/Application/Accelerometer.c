@@ -42,10 +42,8 @@
 
 static unsigned char WriteRegisterData;
 
-#ifdef ACCELEROMETER_DEBUG
 static unsigned char pReadRegisterData[16];
 static unsigned char InvertOption;
-#endif
 
 /******************************************************************************/
 
