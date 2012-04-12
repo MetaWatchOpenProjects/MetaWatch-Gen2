@@ -87,9 +87,15 @@ unsigned char GetBufferIndex(unsigned char Mode, unsigned char Type);
 unsigned int GetBufferAddress(unsigned Index);
 void SetBufferStatus(unsigned char Index, unsigned char Status);
 
-// each bit represents status of two buffers of four display mode. 
-// 1: dirty; 0: clean
-unsigned char BufferStatus;
+// Status of buffers (2 for each of 4 display modes): 
+// 0: clean; 1: buffer is read; 2: buffer is writing; 3: buffer is written
+unsigned char BufferStatus[NUMBER_OF_MODES][NUMBER_OF_BUFFERS];
+
+// Rules for deciding which of the two buffers to read and write
+unsigned char BufSelRule[2][3] =
+  {{BUFFER_WRITTEN, BUFFER_WRITING},
+   {BUFFER_WRITING, BUFFER_CLEAN, BUFFER_WRITTEN}
+  };
 
 /******************************************************************************/
 
@@ -203,9 +209,15 @@ void WriteBufferHandler(tMessage* pMsg)
    * get the buffer address
    * then add in the row number for the absolute address
    */
-  unsigned char BufIndex = GetBufferIndex(MsgOptions & BUFFER_SELECT_MASK,
-                                          BUFFER_CLEAN);
-  unsigned int BufferAddress = GetBufferAddress(BufIndex);
+  unsigned char Index = GetBufferIndex(MsgOptions & BUFFER_SELECT_MASK,
+                                          BUFFER_TYPE_WRITE);
+  PrintStringAndDecimal("-- MY: WriteBuffer: ", Index);
+  PrintStringAndHexByte("   MY: Buffer0 status: ", 
+                        BufferStatus[MsgOptions & BUFFER_SELECT_MASK][0]);
+  PrintStringAndHexByte("   MY: Buffer1 status: ", 
+                        BufferStatus[MsgOptions & BUFFER_SELECT_MASK][1]);
+  
+  unsigned int BufferAddress = GetBufferAddress(Index);
   unsigned int AbsoluteAddress = BufferAddress + (RowA*BYTES_PER_LINE);
   
   pWorkingBuffer[0] = SPI_WRITE;
@@ -242,7 +254,13 @@ void WriteBufferHandler(tMessage* pMsg)
     WriteBlockToSram(pWorkingBuffer,15);
   }
   
-  SetBufferStatus(BufIndex, BUFFER_DIRTY);
+  SetBufferStatus(Index, (MsgOptions & BUFFER_WRITTEN_MASK) ?
+                  BUFFER_WRITTEN : BUFFER_WRITING);
+  PrintString("   MY: WriteBuffer done.\r\n");
+  PrintStringAndHexByte("   MY: Buffer0 status: ", 
+                        BufferStatus[MsgOptions & BUFFER_SELECT_MASK][0]);
+  PrintStringAndHexByte("   MY: Buffer1 status: ", 
+                        BufferStatus[MsgOptions & BUFFER_SELECT_MASK][1]);
 }
 
 /* use DMA to write a block of data to the serial ram */
@@ -271,18 +289,6 @@ static void WriteBlockToSram(unsigned char* pData,unsigned int Size)
   
   WaitForDmaEnd();
 
-}
-
-void SetBufferStatus(unsigned char Index, unsigned char Status)
-{
-  unsigned char Mask = (1 << Index); 
-  unsigned char Current = (BufferStatus & Mask) >> Index;
-  if (Status != Current)
-  {
-	BufferStatus &= ~Mask;
-	BufferStatus |= Status << Index;
-  }
-  PrintStringAndTwoDecimal("MY: SetBufferStatus: ", Index, " ", Status);
 }
 
 static void ClearBufferInSram(unsigned int Address,
@@ -439,11 +445,16 @@ void UpdateDisplayHandler(tMessage* pMsg)
   }
   
   /* get the buffer address */
-  unsigned int DirtyBufferIndex = GetBufferIndex(SelectedBuffer, BUFFER_DIRTY);
-  if (DirtyBufferIndex == BUFFER_UNAVAILABLE) return;
+  unsigned int Index = GetBufferIndex(SelectedBuffer, BUFFER_TYPE_READ);
+  PrintStringAndHexByte("----- MY: Update Display: ", Index);
+  PrintStringAndHexByte("   MY: Buffer0 status: ", BufferStatus[SelectedBuffer][0]);
+  PrintStringAndHexByte("   MY: Buffer1 status: ", BufferStatus[SelectedBuffer][1]);
+  
+  if (Index == BUFFER_UNAVAILABLE) return;
+  SetBufferStatus(Index, BUFFER_READING);
   
   /* now calculate the absolute address */
-  unsigned int AbsoluteAddress = GetBufferAddress(DirtyBufferIndex);
+  unsigned int AbsoluteAddress = GetBufferAddress(Index);
   
   /* if it is the idle buffer then determine starting line */
   unsigned char LcdRow = GetStartingRow(Options);
@@ -480,9 +491,11 @@ void UpdateDisplayHandler(tMessage* pMsg)
     AbsoluteAddress += BYTES_PER_LINE;
   }
   
+  SetBufferStatus(Index, BUFFER_CLEAN);
+  PrintString("----- MY: Update Display Done.\r\n");
+  
   /* now that the screen has been drawn put the LCD into a lower power mode */
   PutLcdIntoStaticMode();
-  PrintString("MY: Update Display Done.\r\n");
   
   /*
    * now signal that the display task that the operation has completed 
@@ -501,11 +514,11 @@ void UpdateDisplayHandler(tMessage* pMsg)
  */
 void LoadTemplateHandler(tMessage* pMsg)
 {
-  unsigned char BufferIndex = 
-    GetBufferIndex(pMsg->Options & BUFFER_SELECT_MASK, BUFFER_CLEAN);
+  unsigned char Index = 
+    GetBufferIndex(pMsg->Options & BUFFER_SELECT_MASK, BUFFER_TYPE_WRITE);
                                                     
   /* now calculate the absolute address */
-  unsigned int AbsoluteAddress = GetBufferAddress(BufferIndex);
+  unsigned int AbsoluteAddress = GetBufferAddress(Index);
   
   /* 
    * templates don't have extra space in them for additional 3 bytes of 
@@ -536,7 +549,7 @@ void LoadTemplateHandler(tMessage* pMsg)
     }
   }
   
-  SetBufferStatus(BufferIndex, BUFFER_DIRTY);
+  SetBufferStatus(Index, BUFFER_WRITTEN);
 }
 
 /* determine if the phone is controlling all of the idle screen */
@@ -559,20 +572,50 @@ unsigned char GetStartingRow(unsigned char MsgOptions)
 
 unsigned char GetBufferIndex(unsigned char Mode, unsigned char Type)
 {
-  unsigned char Index = Mode << 1;
-  unsigned char Status = (BufferStatus & (1 << Index)) >> Index;
-  // if the buffer status is NOT expected as Type, check the other buffer
-  if (Status != Type)
+  unsigned char j, i;
+  unsigned char NumberOfRules = (Type == BUFFER_TYPE_READ) ?
+    NUMBER_OF_READ_BUFFER_SEL_RULES : NUMBER_OF_WRITE_BUFFER_SEL_RULES;
+  
+  for (j = 0; i < NumberOfRules; j++)
   {
-    Status = (BufferStatus & (1 << Index + 1)) >> Index + 1;
-    // if both dirty, return the first; if both clean, dirty one not available 
-    if (Status != Type && Type == BUFFER_CLEAN)
+    for (i = 0; i < NUMBER_OF_BUFFERS; i++)
     {
-      Index = BUFFER_UNAVAILABLE;
+      if (BufferStatus[Mode][i] == BufSelRule[Type][j]) break;
     }
   }
-  PrintStringAndDecimal("MY: GetBufferIndex: ", Index);
-  return Index;
+
+  return (j < NumberOfRules ? (Mode << 1) + i : BUFFER_UNAVAILABLE);
+  
+  
+//  unsigned char Index = Mode << 1;
+//  unsigned char Status = (BufferStatus & (1 << Index)) >> Index;
+//  // if the buffer status is NOT expected as Type, check the other buffer
+//  if (Status != Type)
+//  {
+//    Status = (BufferStatus & (1 << Index + 1)) >> Index + 1;
+//    // if both dirty, return the first; if both clean, dirty one not available 
+//    if (Status != Type && Type == BUFFER_CLEAN)
+//    {
+//      Index = BUFFER_UNAVAILABLE;
+//    }
+//  }
+//  PrintStringAndDecimal("MY: GetBufferIndex: ", Index);
+//  return Index;
+}
+
+void SetBufferStatus(unsigned char Index, unsigned char Status)
+{
+  //[Mode][0|1]
+  BufferStatus[Index >> 1][Index & 1] = Status;
+//  unsigned char Mask = (1 << Index); 
+//  unsigned char Current = (BufferStatus & Mask) >> Index;
+//  if (Status != Current)
+//  {
+//    BufferStatus &= ~Mask;
+//    BufferStatus |= Status << Index;
+//  }
+  PrintStringAndHexByte("   MY: Buffer0 status: ", BufferStatus[Index >> 1][0]);
+  PrintStringAndHexByte("   MY: Buffer1 status: ", BufferStatus[Index >> 1][1]);
 }
 
 unsigned int GetBufferAddress(unsigned Index)
