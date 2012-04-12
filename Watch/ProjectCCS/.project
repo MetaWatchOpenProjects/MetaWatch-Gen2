@@ -38,5 +38,10 @@
 			<type>2</type>
 			<locationURI>WATCH_ROOT/OSAL</locationURI>
 		</link>
+		<link>
+			<name>Patch</name>
+			<type>2</type>
+			<locationURI>WATCH_ROOT/Patch</locationURI>
+		</link>
 	</linkedResources>
 </projectDescription>

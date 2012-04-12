@@ -36,9 +36,9 @@
 
 #define TX_BUFFER_SIZE ( 255 )
 static unsigned char TxBuffer[TX_BUFFER_SIZE];
-static unsigned char WriteIndex;
-static unsigned char ReadIndex;
-static unsigned char TxCount;
+static unsigned int WriteIndex;
+static unsigned int ReadIndex;
+static unsigned int TxCount;
 static unsigned char TxBusy;
 
 static void WriteTxBuffer(tString * const pBuf);
@@ -80,7 +80,7 @@ void InitDebugUart(void)
 static void WriteTxBuffer(tString * const pBuf)
 {
   unsigned char i = 0;
-  unsigned char LocalCount = TxCount;
+  unsigned int LocalCount = TxCount;
  
   /* if there isn't enough room in the buffer then characters are lost */
   while ( pBuf[i] != 0 && LocalCount < TX_BUFFER_SIZE )

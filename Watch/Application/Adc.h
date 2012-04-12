@@ -101,10 +101,7 @@ void InitializeLowBatteryLevels(void);
 
 /******************************************************************************/
 
-/*! The board revision is used to determine what patch should be loaded onto
- * the radio
- *
- * If board configuration is >= 4 the CC2564 or CC2567 radio is present
+/*! The board revision was going to be used to determine what patch to load
  *
  */
 unsigned char GetBoardConfiguration(void);

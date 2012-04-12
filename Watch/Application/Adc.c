@@ -571,7 +571,7 @@ void InitializeLowBatteryLevels(void)
  *
  * 2.5 * 3.9e3/103.9e3 = 0.09384 volts ( Config 5 - Rev C digital - CC2564 )
  * 2.5 * 4.7/104.7 = 0.1122            ( future )
- * 2.5 * 1.5/101.5 = 0.03694           ( Config 4  - Rev B8 - CC2564 )
+ * 2.5 * 1.5/101.5 = 0.03694           ( Config 4  - Rev B8 - CC2564 or CC2560 )
  * 2.5 * 1.2/101.2 = 0.02964           ( Config 3  - CC2560 )
  * 
  * comparision could also be done in ADC counts

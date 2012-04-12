@@ -166,9 +166,10 @@
           <name>CCDefines</name>
           <state>DIGITAL</state>
           <state>HW_DEVBOARD_V2</state>
+          <state>INCLUDE_BOTH_PATCHES</state>
           <state>DMA</state>
           <state>LPM_ENABLED</state>
-          <state>TASK_DEBUG</state>
+          <state>xTASK_DEBUG</state>
           <state>xACCELEROMETER_DEBUG</state>
           <state>DEBUG_WATCHDOG_RESET</state>
           <state>xCHECK_FOR_PMM15</state>
@@ -330,6 +331,7 @@
           <state>$PROJ_DIR$\..\..\FreeRTOS\include</state>
           <state>$PROJ_DIR$\..\..\FreeRTOS\portable\MSP430F5438</state>
           <state>$PROJ_DIR$\..\..\OSAL</state>
+          <state>$PROJ_DIR$\..\..\Patch</state>
           <state>$PROJ_DIR$\..\Hardware</state>
           <state>$PROJ_DIR$\..\Hardware\F5xx_F6xx_Core_Lib\</state>
           <state>$PROJ_DIR$\..\Application</state>
@@ -1124,10 +1126,14 @@
           <name>CCDefines</name>
           <state>DIGITAL</state>
           <state>WATCH</state>
+          <state>INCLUDE_BOTH_PATCHES</state>
+          <state>xINCLUDE_1315_PATCH</state>
+          <state>xINCLUDE_1316_PATCH</state>
           <state>DMA</state>
           <state>LPM_ENABLED</state>
-          <state>TASK_DEBUG</state>
-          <state>xDEBUG_WATCHDOG_RESET</state>
+          <state>xTASK_DEBUG</state>
+          <state>xACCELEROMETER_DEBUG</state>
+          <state>DEBUG_WATCHDOG_RESET</state>
         </option>
         <option>
           <name>CCPreprocFile</name>
@@ -2077,6 +2083,7 @@
           <name>CCDefines</name>
           <state>ANALOG</state>
           <state>HW_DEVBOARD_V2</state>
+          <state>INCLUDE_BOTH_PATCHES</state>
           <state>DMA</state>
           <state>LPM_ENABLED</state>
           <state>xTASK_DEBUG</state>
@@ -3029,6 +3036,7 @@
           <name>CCDefines</name>
           <state>ANALOG</state>
           <state>WATCH</state>
+          <state>INCLUDE_BOTH_PATCHES</state>
           <state>DMA</state>
           <state>LPM_ENABLED</state>
           <state>xTASK_DEBUG</state>
@@ -3981,10 +3989,11 @@
           <name>CCDefines</name>
           <state>DIGITAL</state>
           <state>HW_DEVBOARD_V2</state>
+          <state>INCLUDE_BOTH_PATCHES</state>
           <state>DMA</state>
           <state>LPM_ENABLED</state>
-          <state>TASK_DEBUG</state>
-          <state>xACCELEROMETER_DEBUG</state>
+          <state>xTASK_DEBUG</state>
+          <state>ACCELEROMETER_DEBUG</state>
           <state>DEBUG_WATCHDOG_RESET</state>
           <state>xCHECK_FOR_PMM15</state>
           <state>xCHECK_STACK_USAGE</state>
@@ -4479,7 +4488,7 @@
         </option>
         <option>
           <name>OutputFile</name>
-          <state>DigitalDevboard.d43</state>
+          <state>Devboard.txt</state>
         </option>
         <option>
           <name>OutputFormat</name>
@@ -4665,7 +4674,7 @@
         </option>
         <option>
           <name>GenerateExtraOutput</name>
-          <state>0</state>
+          <state>1</state>
         </option>
         <option>
           <name>XExtraOutOverride</name>
@@ -4965,7 +4974,7 @@
         <name>$PROJ_DIR$\..\Hardware\F5xx_F6xx_Core_Lib\HAL_FLASH.h</name>
       </file>
       <file>
-        <name>$PROJ_DIR$\..\Hardware\F5xx_F6xx_Core_Lib\hal_macros.h</name>
+        <name>$PROJ_DIR$\..\Hardware\F5xx_F6xx_Core_Lib\HAL_MACROS.h</name>
       </file>
       <file>
         <name>$PROJ_DIR$\..\Hardware\F5xx_F6xx_Core_Lib\HAL_PMAP.c</name>
@@ -5072,6 +5081,21 @@
     </file>
     <file>
       <name>$PROJ_DIR$\..\..\OSAL\OSAL_Nv.c</name>
+    </file>
+  </group>
+  <group>
+    <name>Patch</name>
+    <file>
+      <name>$PROJ_DIR$\..\..\Patch\Patch_PAN1315.h</name>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\..\..\Patch\Patch_PAN1316.h</name>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\..\..\Patch\PatchSelection.c</name>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\..\..\Patch\PatchSelection.h</name>
     </file>
   </group>
 </project>

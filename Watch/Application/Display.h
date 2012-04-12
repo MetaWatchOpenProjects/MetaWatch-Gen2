@@ -43,7 +43,7 @@
 /*! when 0 pairing information is not saved into Nval.  Set this to 0 when
  * using a BT sniffer 
  */
-#define SAVE_PAIRING_INFO_DEFAULT   ( 0 )
+#define SAVE_PAIRING_INFO_DEFAULT   ( 1 )
 
 /*! when 1 then the watch will try to enter sniff mode */
 #define ENABLE_SNIFF_ENTRY_DEFAULT  ( 1 )
@@ -239,6 +239,11 @@ void InitializeExitSniffOnReceive(void);
 
 /*! \return 1 when sniff entry is enabled */
 unsigned char QueryExitSniffOnReceive(void);
+
+/******************************************************************************/
+
+/*! \return 1 if this is the analog watch, 0 otherwise */
+unsigned char QueryAnalogWatch(void);
 
 /******************************************************************************/
 

@@ -393,3 +393,17 @@ unsigned char QueryExitSniffOnReceive(void)
 
 /******************************************************************************/
 
+
+unsigned char QueryAnalogWatch(void)
+{
+  unsigned char result = 0;
+  
+#if defined(WATCH)
+  #if defined(ANALOG)
+    result = 1;
+  #endif
+#endif
+    
+  return result;
+    
+}

@@ -36,15 +36,21 @@ static unsigned char LastBatteryState;
 static unsigned char BatteryChargeEnabled;
 static unsigned char PowerGood;
 
+#define BAT_CHARGE_OPEN_DRAIN_BITS \
+  ( BAT_CHARGE_STAT1 + BAT_CHARGE_STAT2 + BAT_CHARGE_PWR_GOOD )
+
+#define BAT_CHARGE_STATUS_OPEN_DRAIN_BITS \
+  ( BAT_CHARGE_STAT1 + BAT_CHARGE_STAT2 )
+
 void ConfigureBatteryPins(void)
 {
   // enable the resistor on the interface pins to the battery charger
   BAT_CHARGE_REN |= BAT_CHARGE_OPEN_DRAIN_BITS;
   
-  // Start with these are pull downs so we use less current
+  // Start with these as pull downs so we use less current
   BAT_CHARGE_OUT &= ~BAT_CHARGE_OPEN_DRAIN_BITS;
   
-  // Set these bits a inputs
+  // Set these bits as inputs
   BAT_CHARGE_DIR &= ~BAT_CHARGE_OPEN_DRAIN_BITS;
   
   // charge enable output
@@ -69,7 +75,7 @@ unsigned char BatteryChargingControl(void)
    * first find out if the charger is connected
    */
   
-  /* set open drain bit to high */
+  /* turn on the pullup in the MSP430 for the open drain bit of the charger */
   BAT_CHARGE_OUT |= BAT_CHARGE_PWR_GOOD;
     
   TaskDelayLpmDisable();
@@ -90,7 +96,7 @@ unsigned char BatteryChargingControl(void)
     PowerGood = 0;
   }
   
-  /* change the open drain bit to low */
+  /* turn off the pullup */
   BAT_CHARGE_OUT &= ~BAT_CHARGE_PWR_GOOD;
   
   if ( PowerGood == 0 )
@@ -106,13 +112,13 @@ unsigned char BatteryChargingControl(void)
     
     BATTERY_CHARGE_DISABLE();
     CurrentBatteryState = BATTERY_CHARGE_OFF_FAULT_SLEEP; 
-    BAT_CHARGE_OUT &= ~BAT_CHARGE_OPEN_DRAIN_BITS;
+    BAT_CHARGE_OUT &= ~BAT_CHARGE_STATUS_OPEN_DRAIN_BITS;
       
   }
   else
   {
     /* prepare to read status bits */
-    BAT_CHARGE_OUT |= BAT_CHARGE_OPEN_DRAIN_BITS;
+    BAT_CHARGE_OUT |= BAT_CHARGE_STATUS_OPEN_DRAIN_BITS;
   
     /* always enable the charger (it may already be enabled)
      * status bits are not valid unless charger is enabled 
@@ -174,7 +180,7 @@ unsigned char BatteryChargingControl(void)
     case BATTERY_CHARGE_OFF_FAULT_SLEEP: 
       BATTERY_CHARGE_DISABLE();
       BatteryChargeEnabled = 0;
-      BAT_CHARGE_OUT &= ~BAT_CHARGE_OPEN_DRAIN_BITS;
+      BAT_CHARGE_OUT &= ~BAT_CHARGE_STATUS_OPEN_DRAIN_BITS;
       break;
     
     default:   

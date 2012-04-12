@@ -3,7 +3,7 @@
 
 <ManagedProjectBuildInfo>
 <project id="MetaWatch.com.ti.ccstudio.buildDefinitions.MSP430.ProjectType.101950804" name="MSP430" projectType="com.ti.ccstudio.buildDefinitions.MSP430.ProjectType">
-<configuration artifactExtension="out" artifactName="DigitalDevboard" description="" id="com.ti.ccstudio.buildDefinitions.MSP430.Debug.879591448" name="Devboard" parent="com.ti.ccstudio.buildDefinitions.MSP430.Debug" postannouncebuildStep="Create flash image: Intel-HEX" postbuildStep="&quot;${CG_TOOL_ROOT}/bin/hex${CG_TOOL_SUFFIX}.exe&quot; -i &quot;${BuildArtifactFileName}&quot; -o &quot;${BuildArtifactFileBaseName}.hex&quot; -order MS -romwidth 16">
+<configuration artifactExtension="out" artifactName="DigitalDevboard" description="" id="com.ti.ccstudio.buildDefinitions.MSP430.Debug.879591448" name="Devboard" parent="com.ti.ccstudio.buildDefinitions.MSP430.Debug" postannouncebuildStep="Create flash image: TI-TXT" postbuildStep="&quot;${CG_TOOL_ROOT}/bin/hex${CG_TOOL_SUFFIX}.exe&quot; --ti_txt &quot;${BuildArtifactFileName}&quot; -o &quot;${BuildArtifactFileBaseName}.txt&quot; -order MS -romwidth 16">
 <toolChain id="com.ti.ccstudio.buildDefinitions.MSP430_3.3.exe.DebugToolchain.2033141927" name="TI Code Generation Tools" superClass="com.ti.ccstudio.buildDefinitions.MSP430_3.3.exe.DebugToolchain" targetTool="com.ti.ccstudio.buildDefinitions.MSP430_3.3.exe.linkerDebug.979245295">
 <option id="com.ti.ccstudio.buildDefinitions.core.OPT_TAGS.1669150845" superClass="com.ti.ccstudio.buildDefinitions.core.OPT_TAGS" valueType="stringList">
 <listOptionValue builtIn="false" value="DEVICE_CONFIGURATION_ID=MSP430F5438A"/>
@@ -25,9 +25,10 @@
 <listOptionValue builtIn="false" value="__MSP430F5438A__"/>
 <listOptionValue builtIn="false" value="DIGITAL"/>
 <listOptionValue builtIn="false" value="HW_DEVBOARD_V2"/>
+<listOptionValue builtIn="false" value="INCLUDE_BOTH_PATCHES"/>
 <listOptionValue builtIn="false" value="DMA"/>
 <listOptionValue builtIn="false" value="LPM_ENABLED"/>
-<listOptionValue builtIn="false" value="TASK_DEBUG"/>
+<listOptionValue builtIn="false" value="xTASK_DEBUG"/>
 <listOptionValue builtIn="false" value="DEBUG_WATCHDOG_RESET"/>
 <listOptionValue builtIn="false" value="xCHECK_FOR_PMM15"/>
 <listOptionValue builtIn="false" value="xCHECK_STACK_USAGE"/>
@@ -62,8 +63,8 @@
 <option id="com.ti.ccstudio.buildDefinitions.MSP430_3.3.linkerID.OUTPUT_FILE.377528841" superClass="com.ti.ccstudio.buildDefinitions.MSP430_3.3.linkerID.OUTPUT_FILE" value="&quot;DigitalDevboard.out&quot;" valueType="string"/>
 <option id="com.ti.ccstudio.buildDefinitions.MSP430_3.3.linkerID.MAP_FILE.1777620069" superClass="com.ti.ccstudio.buildDefinitions.MSP430_3.3.linkerID.MAP_FILE" value="&quot;MetaWatch.map&quot;" valueType="string"/>
 <option id="com.ti.ccstudio.buildDefinitions.MSP430_3.3.linkerID.LIBRARY.1031160170" superClass="com.ti.ccstudio.buildDefinitions.MSP430_3.3.linkerID.LIBRARY" valueType="libs">
-<listOptionValue builtIn="false" value="&quot;${PROJECT_ROOT}\..\..\Stack\Api\CCS\Stack2.lib&quot;"/>
 <listOptionValue builtIn="false" value="&quot;${PROJECT_ROOT}\..\..\Stack\Api\CCS\Wrapper.lib&quot;"/>
+<listOptionValue builtIn="false" value="&quot;${PROJECT_ROOT}\..\..\Stack\Api\CCS\Stack2.lib&quot;"/>
 </option>
 <option id="com.ti.ccstudio.buildDefinitions.MSP430_3.3.linkerID.SEARCH_PATH.1602938592" superClass="com.ti.ccstudio.buildDefinitions.MSP430_3.3.linkerID.SEARCH_PATH" valueType="stringList">
 <listOptionValue builtIn="false" value="&quot;${CCS_INSTALL_ROOT}/msp430/include&quot;"/>
@@ -71,6 +72,7 @@
 <listOptionValue builtIn="false" value="&quot;${CG_TOOL_ROOT}/include&quot;"/>
 </option>
 <option id="com.ti.ccstudio.buildDefinitions.MSP430_3.3.linkerID.REREAD_LIBS.1967998269" superClass="com.ti.ccstudio.buildDefinitions.MSP430_3.3.linkerID.REREAD_LIBS" value="true" valueType="boolean"/>
+<option id="com.ti.ccstudio.buildDefinitions.MSP430_3.3.linkerID.INITIALIZATION_MODEL.1512825991" superClass="com.ti.ccstudio.buildDefinitions.MSP430_3.3.linkerID.INITIALIZATION_MODEL" value="com.ti.ccstudio.buildDefinitions.MSP430_3.3.linkerID.INITIALIZATION_MODEL.ROM_MODEL" valueType="enumerated"/>
 </tool>
 <macros expandEnvironmentMacros="true"/>
 </toolChain>
@@ -124,11 +126,11 @@
 <listOptionValue builtIn="false" value="__MSP430F5438A__"/>
 <listOptionValue builtIn="false" value="DIGITAL"/>
 <listOptionValue builtIn="false" value="WATCH"/>
+<listOptionValue builtIn="false" value="INCLUDE_BOTH_PATCHES"/>
 <listOptionValue builtIn="false" value="DMA"/>
 <listOptionValue builtIn="false" value="LPM_ENABLED"/>
 <listOptionValue builtIn="false" value="xTASK_DEBUG"/>
 <listOptionValue builtIn="false" value="xDEBUG_WATCHDOG_RESET"/>
-<listOptionValue builtIn="false" value="ACCELEROMETER_DEBUG"/>
 <listOptionValue builtIn="false" value="xCHECK_FOR_PMM15"/>
 <listOptionValue builtIn="false" value="xCHECK_STACK_USAGE"/>
 <listOptionValue builtIn="false" value="xCHECK_QUEUE_USAGE"/>
@@ -220,10 +222,11 @@
 <listOptionValue builtIn="false" value="__MSP430F5438A__"/>
 <listOptionValue builtIn="false" value="ANALOG"/>
 <listOptionValue builtIn="false" value="HW_DEVBOARD_V2"/>
+<listOptionValue builtIn="false" value="INCLUDE_BOTH_PATCHES"/>
 <listOptionValue builtIn="false" value="DMA"/>
 <listOptionValue builtIn="false" value="LPM_ENABLED"/>
-<listOptionValue builtIn="false" value="TASK_DEBUG"/>
-<listOptionValue builtIn="false" value="DEBUG_WATCHDOG_RESET"/>
+<listOptionValue builtIn="false" value="xTASK_DEBUG"/>
+<listOptionValue builtIn="false" value="xDEBUG_WATCHDOG_RESET"/>
 <listOptionValue builtIn="false" value="xCHECK_FOR_PMM15"/>
 <listOptionValue builtIn="false" value="xCHECK_STACK_USAGE"/>
 <listOptionValue builtIn="false" value="xCHECK_QUEUE_USAGE"/>
@@ -327,6 +330,7 @@
 <listOptionValue builtIn="false" value="__MSP430F5438A__"/>
 <listOptionValue builtIn="false" value="ANALOG"/>
 <listOptionValue builtIn="false" value="WATCH"/>
+<listOptionValue builtIn="false" value="INCLUDE_BOTH_PATCHES"/>
 <listOptionValue builtIn="false" value="DMA"/>
 <listOptionValue builtIn="false" value="LPM_ENABLED"/>
 <listOptionValue builtIn="false" value="xTASK_DEBUG"/>

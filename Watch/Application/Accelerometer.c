@@ -66,13 +66,10 @@ void InitializeAccelerometer(void)
 {
   InitAccelerometerPeripheral();
   
-  CONFIG_ACCELEROMETER_PINS_FOR_USE();
-  
-#if 0
+  /* make sure accelerometer has had 20 ms to power up */
   TaskDelayLpmDisable();
-  vTaskDelay(10000);
+  vTaskDelay(ACCELEROMETER_POWER_UP_TIME_MS);
   TaskDelayLpmEnable();
-#endif
  
   PrintString("Accelerometer Initialization\r\n");
  
