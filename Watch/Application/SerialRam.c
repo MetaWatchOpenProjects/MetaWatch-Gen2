@@ -196,7 +196,7 @@ void WriteBufferHandler(tMessage* pMsg)
   /* 
    * save the parameters that are going to get written over 
    */
-  unsigned char MsgOptions = pMsg->Options;
+  unsigned char Mode = pMsg->Options & BUFFER_SELECT_MASK;
   
   /* map the payload */
   tSerialRamPayload* pSerialRamPayload = (tSerialRamPayload*)pMsg->pBuffer;
@@ -209,13 +209,10 @@ void WriteBufferHandler(tMessage* pMsg)
    * get the buffer address
    * then add in the row number for the absolute address
    */
-  unsigned char Index = GetBufferIndex(MsgOptions & BUFFER_SELECT_MASK,
-                                          BUFFER_TYPE_WRITE);
-  PrintStringAndDecimal("-- MY: WriteBuffer: ", Index);
-  PrintStringAndHexByte("   MY: Buffer0 status: ", 
-                        BufferStatus[MsgOptions & BUFFER_SELECT_MASK][0]);
-  PrintStringAndHexByte("   MY: Buffer1 status: ", 
-                        BufferStatus[MsgOptions & BUFFER_SELECT_MASK][1]);
+  unsigned char Index = GetBufferIndex(Mode, BUFFER_TYPE_WRITE);
+  PrintStringAndHexByte("----->> MY: WriteBufferHandler: index: ", Index);
+  PrintStringAndTwoHexBytes("   Buffers []: ",
+		  BufferStatus[Mode][0], BufferStatus[Mode][1]);
   
   unsigned int BufferAddress = GetBufferAddress(Index);
   unsigned int AbsoluteAddress = BufferAddress + (RowA*BYTES_PER_LINE);
@@ -234,7 +231,7 @@ void WriteBufferHandler(tMessage* pMsg)
   WriteBlockToSram(pWorkingBuffer,15);
   
   /* if the bit is one then only draw one line */
-  if ( (MsgOptions & WRITE_BUFFER_ONE_LINE_MASK) == 0 )
+  if ( (pMsg->Options & WRITE_BUFFER_ONE_LINE_MASK) == 0 )
   {
     /* calculate address for second row */
     AbsoluteAddress = BufferAddress + (RowB*BYTES_PER_LINE);
@@ -254,13 +251,9 @@ void WriteBufferHandler(tMessage* pMsg)
     WriteBlockToSram(pWorkingBuffer,15);
   }
   
-  SetBufferStatus(Index, (MsgOptions & BUFFER_WRITTEN_MASK) ?
+  SetBufferStatus(Index, (pMsg->Options & BUFFER_WRITTEN_MASK) ?
                   BUFFER_WRITTEN : BUFFER_WRITING);
   PrintString("   MY: WriteBuffer done.\r\n");
-  PrintStringAndHexByte("   MY: Buffer0 status: ", 
-                        BufferStatus[MsgOptions & BUFFER_SELECT_MASK][0]);
-  PrintStringAndHexByte("   MY: Buffer1 status: ", 
-                        BufferStatus[MsgOptions & BUFFER_SELECT_MASK][1]);
 }
 
 /* use DMA to write a block of data to the serial ram */
@@ -433,22 +426,29 @@ static void ClearMemory(void)
 
 void UpdateDisplayHandler(tMessage* pMsg)
 { 
-  unsigned char Options = pMsg->Options;
-  unsigned char SelectedBuffer = (Options & BUFFER_SELECT_MASK);
+  unsigned char Mode = pMsg->Options & BUFFER_SELECT_MASK;
   
+  PrintString("-----<< MY: Update Display\r\n");
   /* premature exit if the idle page is not the normal page */
-  if (   SelectedBuffer  == IDLE_BUFFER_SELECT 
+  if ( Mode  == IDLE_MODE 
       && QueryIdlePageNormal() == 0 )
   {
     __no_operation();
     return;
   }
-  
   /* get the buffer address */
-  unsigned int Index = GetBufferIndex(SelectedBuffer, BUFFER_TYPE_READ);
-  PrintStringAndHexByte("----- MY: Update Display: ", Index);
-  PrintStringAndHexByte("   MY: Buffer0 status: ", BufferStatus[SelectedBuffer][0]);
-  PrintStringAndHexByte("   MY: Buffer1 status: ", BufferStatus[SelectedBuffer][1]);
+  unsigned int Index;
+//  if (pMsg->Options & BUFFER_FORCE_UPDATE)
+//  {
+//    Index = GetBufferIndex(Mode, BUFFER_TYPE_RECENT);
+//    PrintString("    Force update\r\n");
+//  }
+//  else
+    Index = GetBufferIndex(Mode, BUFFER_TYPE_READ);
+    
+  PrintStringAndHexByte("    Buffer Index: ", Index);
+  PrintStringAndTwoHexBytes("   Buffers []: ", 
+    BufferStatus[Mode][0], BufferStatus[Mode][1]);
   
   if (Index == BUFFER_UNAVAILABLE) return;
   SetBufferStatus(Index, BUFFER_READING);
@@ -457,7 +457,7 @@ void UpdateDisplayHandler(tMessage* pMsg)
   unsigned int AbsoluteAddress = GetBufferAddress(Index);
   
   /* if it is the idle buffer then determine starting line */
-  unsigned char LcdRow = GetStartingRow(Options);
+  unsigned char LcdRow = GetStartingRow(Mode);
 
   /* update address because of possible starting row change */
   AbsoluteAddress += BYTES_PER_LINE*LcdRow;
@@ -503,7 +503,7 @@ void UpdateDisplayHandler(tMessage* pMsg)
    * When in idle mode this will cause the top portion of the screen to be
    * drawn
    */
-  SetupMessage(&OutgoingMsg,ChangeModeMsg,Options);
+  SetupMessage(&OutgoingMsg, ChangeModeMsg, pMsg->Options);
   RouteMsg(&OutgoingMsg);
   
 }
@@ -553,38 +553,39 @@ void LoadTemplateHandler(tMessage* pMsg)
 }
 
 /* determine if the phone is controlling all of the idle screen */
-unsigned char GetStartingRow(unsigned char MsgOptions)
+unsigned char GetStartingRow(unsigned char Mode)
 {
-  unsigned char StartingRow = 0;
-
-  if (   (MsgOptions & BUFFER_SELECT_MASK) == IDLE_BUFFER_SELECT 
-      && GetIdleBufferConfiguration() == WATCH_CONTROLS_TOP )
-  {
-    StartingRow = 30;
-  }
-  else
-  {
-    StartingRow = 0;  
-  }
-  
-  return StartingRow;
+  return (Mode == IDLE_BUFFER_SELECT 
+    && GetIdleBufferConfiguration() == WATCH_CONTROLS_TOP) ? 30 : 0;
 }
 
 unsigned char GetBufferIndex(unsigned char Mode, unsigned char Type)
 {
+//  if (Type == BUFFER_TYPE_RECENT) 
+//  {
+//    return (BufferStatus[Mode][0] & BUFFER_STATUS_RECENT) ?
+//      Mode << 1 : (Mode << 1) + 1;
+//  }
+  
   unsigned char j, i;
   unsigned char NumberOfRules = (Type == BUFFER_TYPE_READ) ?
     NUMBER_OF_READ_BUFFER_SEL_RULES : NUMBER_OF_WRITE_BUFFER_SEL_RULES;
   
-  for (j = 0; i < NumberOfRules; j++)
+  PrintStringSpaceAndTwoDecimals("----- MY: GetBufferIndex: Mode, Type: ", Mode, Type);
+  for (j = 0; j < NumberOfRules; j++)
   {
     for (i = 0; i < NUMBER_OF_BUFFERS; i++)
     {
-      if (BufferStatus[Mode][i] == BufSelRule[Type][j]) break;
+      if ((BufferStatus[Mode][i] & BUFFER_STATUS_MASK) == BufSelRule[Type][j]) {
+        PrintStringAndHexByte("    MY: Rule j: ", j);
+        return (Mode << 1) + i;
+      }
     }
   }
 
-  return (j < NumberOfRules ? (Mode << 1) + i : BUFFER_UNAVAILABLE);
+  return (BufferStatus[Mode][0] & BUFFER_STATUS_RECENT) ?
+    Mode << 1 : (Mode << 1) + 1;
+//  return BUFFER_UNAVAILABLE;
   
   
 //  unsigned char Index = Mode << 1;
@@ -606,7 +607,9 @@ unsigned char GetBufferIndex(unsigned char Mode, unsigned char Type)
 void SetBufferStatus(unsigned char Index, unsigned char Status)
 {
   //[Mode][0|1]
-  BufferStatus[Index >> 1][Index & 1] = Status;
+  // Mark the buffer "current" and remove the "current" flag of the other buffer
+  BufferStatus[Index >> 1][Index & 1] = Status | BUFFER_STATUS_RECENT;
+  BufferStatus[Index >> 1][1 - (Index & 1)] &= BUFFER_STATUS_MASK;
 //  unsigned char Mask = (1 << Index); 
 //  unsigned char Current = (BufferStatus & Mask) >> Index;
 //  if (Status != Current)
@@ -614,8 +617,8 @@ void SetBufferStatus(unsigned char Index, unsigned char Status)
 //    BufferStatus &= ~Mask;
 //    BufferStatus |= Status << Index;
 //  }
-  PrintStringAndHexByte("   MY: Buffer0 status: ", BufferStatus[Index >> 1][0]);
-  PrintStringAndHexByte("   MY: Buffer1 status: ", BufferStatus[Index >> 1][1]);
+  PrintStringAndTwoHexBytes("   Set Buffers[]: ", 
+    BufferStatus[Index >> 1][0], BufferStatus[Index >> 1][1]);
 }
 
 unsigned int GetBufferAddress(unsigned Index)

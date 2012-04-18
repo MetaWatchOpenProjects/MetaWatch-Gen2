@@ -180,7 +180,7 @@ void PrintMessageType(tMessage* pMsg)
   /* if the message is the same as the last then print an asterix */
   if ( MessageType == LastMessageType )
   {
-    PrintString("*");
+    PrintString("*\r\n");
     AddNewline = 1;
     return;
   }

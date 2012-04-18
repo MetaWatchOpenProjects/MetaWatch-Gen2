@@ -61,6 +61,10 @@ void PrintStringAndHex(tString * const pString,unsigned int Value);
 /*! Print a string and an 8 bit value represented in hexadecimal */
 void PrintStringAndHexByte(tString * const pString,unsigned char Value);
 
+/*! Print a string and two 8 bit values represented in hexadecimal */
+void PrintStringAndTwoHexBytes(tString * const pString,
+                               unsigned char Value1,
+                               unsigned char Value2);
 
 /*! Print a string 16 bit value, and another string and 16 bit value */
 void PrintStringAndTwoDecimals(tString * const pString1,

@@ -435,6 +435,9 @@ typedef struct
 #define BUFFER_WRITTEN_MASK        ( BIT5 )
 #define BUFFER_TYPE_READ           ( 0 )
 #define BUFFER_TYPE_WRITE          ( 1 )
+#define BUFFER_TYPE_RECENT         ( 2 )
+#define BUFFER_STATUS_MASK         ( 0x7F )
+#define BUFFER_STATUS_RECENT       ( 0x80 )
 #define NUMBER_OF_READ_BUFFER_SEL_RULES ( 2 )
 #define NUMBER_OF_WRITE_BUFFER_SEL_RULES ( 3 )
 
@@ -458,11 +461,12 @@ typedef struct
 
 #define UPDATE_COPY_MASK                       ( BIT4 )
 #define COPY_ACTIVE_TO_DRAW_DURING_UPDATE      ( BIT4 )
+#define BUFFER_FORCE_UPDATE                    ( BIT5 )
 #define NO_COPY_DURING_UPDATE                  ( 0    )
 
 #define DRAW_BUFFER_ACTIVATION_MASK ( BIT5 )
-#define ACTIVATE_DRAW_BUFFER        ( 0 )
-#define DONT_ACTIVATE_DRAW_BUFFER   ( BIT5 )
+//#define ACTIVATE_DRAW_BUFFER        ( 0 )
+#define FORCE_UPDATE                ( BIT5 )
 
 #define IDLE_TIMER_UPDATE_TYPE_MASK ( BIT6 )
 #define RESTART_IDLE_TIMER          ( BIT6 )

@@ -432,6 +432,18 @@ void PrintStringAndHexByte(tString * const pString,unsigned char Value)
   WriteTxBuffer("\r\n");
 }
 
+void PrintStringAndTwoHexBytes(tString * const pString,
+                               unsigned char Value1,
+                               unsigned char Value2)
+{
+  WriteTxBuffer(pString);  
+  ByteToHexString(Value1,ConversionString);
+  WriteTxBuffer(ConversionString);   
+  WriteTxBuffer(" ");
+  ByteToHexString(Value2,ConversionString);
+  WriteTxBuffer(ConversionString);   
+  WriteTxBuffer("\r\n");
+}
 
 void PrintTimeStamp(void)
 {
