@@ -25,9 +25,9 @@
 #define PRE_INCLUDE_H
 
 /* patch selection (select one) */
-#define INCLUDE_BOTH_PATCHES
+#undef INCLUDE_BOTH_PATCHES
 #undef  INCLUDE_1316_PATCH
-#undef  INCLUDE_1315_PATCH
+#define INCLUDE_1315_PATCH
 
 /* add patch support for BLE */
 #undef SUPPORT_LOW_ENERGY

@@ -3860,6 +3860,9 @@
       <name>$PROJ_DIR$\..\Application\MessageQueues.c</name>
     </file>
     <file>
+      <name>$PROJ_DIR$\..\Application\Messages.h</name>
+    </file>
+    <file>
       <name>$PROJ_DIR$\..\Application\OledDisplay.c</name>
       <excluded>
         <configuration>Devboard</configuration>
