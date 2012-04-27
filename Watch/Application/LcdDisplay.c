@@ -2480,6 +2480,24 @@ static void ConfigureIdleUserInterfaceButtons(void)
                          IdleUpdate,
                          RESET_DISPLAY_TIMER);
       
+
+
+      tMessage AccRawData;       // msg definition
+         SetupMessageAndAllocateBuffer(&AccRawData,
+                                       AccelerometerHostMsg,
+                                       ACCELEROMETER_HOST_MSG_IS_DATA_OPTION);
+
+           AccRawData.Length = 7;   // length of data
+
+
+           // puts data into msg
+           int i;
+           for(i = 0; i < 7; i++)
+           {
+             AccRawData.pBuffer[i] = i;
+           }
+
+           RouteMsg(&AccRawData);           // sends msg via bluetooth
       break;
       
       
