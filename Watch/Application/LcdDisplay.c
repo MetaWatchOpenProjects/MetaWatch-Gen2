@@ -1785,8 +1785,12 @@ static void DisplayDayOfWeek(void)
   int DayOfWeek = RTCDOW;
   
   unsigned char const *pFoo = DaysOfWeek[DayOfWeek];
-    
-  WriteFoo(pFoo,10,8);
+  
+  int pos = 10;
+  if ( GetTimeFormat() == TWENTY_FOUR_HOUR )
+    pos = 0;
+  
+  WriteFoo(pFoo,pos,8);
   
 }
 
@@ -1811,9 +1815,28 @@ static void DisplayDate(void)
     
     /* make it line up with AM/PM and Day of Week */
     gRow = 22;
-    gColumn = 8;
-    gBitColumnMask = BIT1;
     SetFont(MetaWatch7);
+    
+    if ( GetTimeFormat() == TWENTY_FOUR_HOUR )
+    {
+      int year = RTCYEAR;
+      
+      gBitColumnMask = BIT1;
+      gColumn = 8;
+      
+      WriteFontCharacter(year/1000+'0');
+      year %= 1000;
+      WriteFontCharacter(year/100+'0');
+      year %= 100;
+      WriteFontCharacter(year/10+'0');
+      year %= 10;
+      WriteFontCharacter(year+'0');
+      
+      gRow = 12;
+    }
+    
+    gBitColumnMask = BIT1;
+    gColumn = 8;
     WriteFontCharacter(First/10+'0');
     WriteFontCharacter(First%10+'0');
     WriteFontCharacter('/');
