@@ -373,3 +373,37 @@ unsigned char QueryEnableSniffEntry(void)
 }
 
 /******************************************************************************/
+
+static unsigned char nvExitSniffOnReceive;
+
+void InitializeExitSniffOnReceive(void)
+{
+  nvExitSniffOnReceive = EXIT_SNIFF_ON_RECEIVE_DEFAULT;
+  OsalNvItemInit(NVID_EXIT_SNIFF_ON_RECEIVE, 
+                 sizeof(nvExitSniffOnReceive), 
+                 &nvExitSniffOnReceive);
+}
+
+unsigned char QueryExitSniffOnReceive(void)
+{
+  return nvExitSniffOnReceive;  
+}
+
+
+
+/******************************************************************************/
+
+
+unsigned char QueryAnalogWatch(void)
+{
+  unsigned char result = 0;
+  
+#if defined(WATCH)
+  #if defined(ANALOG)
+    result = 1;
+  #endif
+#endif
+    
+  return result;
+    
+}

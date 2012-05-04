@@ -146,7 +146,6 @@ static void ConfigureHardware(void)
   CONFIG_SRAM_PINS();
   APPLE_CONFIG();
 
-  /* the accelerometer may not be used so configure its pins here */  
   CONFIG_ACCELEROMETER_PINS();
   
 }

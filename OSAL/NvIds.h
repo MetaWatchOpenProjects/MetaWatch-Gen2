@@ -48,13 +48,14 @@
 #define NVID_RESERVED_DISPLAY_TIMEOUT     ( 0x000b )
 
 /* single byte debug control */
-#define NVID_SNIFF_DEBUG          ( 0x1001 )
-#define NVID_BATTERY_DEBUG        ( 0x1002 )
-#define NVID_CONNECTION_DEBUG     ( 0x1003 )
-#define NVID_RSTNMI_CONFIGURATION ( 0x1004 )
-#define NVID_MASTER_RESET         ( 0x1005 )
-#define NVID_SAVE_PAIRING_INFO    ( 0x1006 )
-#define NVID_ENABLE_SNIFF_ENTRY   ( 0x1007 )
+#define NVID_SNIFF_DEBUG           ( 0x1001 )
+#define NVID_BATTERY_DEBUG         ( 0x1002 )
+#define NVID_CONNECTION_DEBUG      ( 0x1003 )
+#define NVID_RSTNMI_CONFIGURATION  ( 0x1004 )
+#define NVID_MASTER_RESET          ( 0x1005 )
+#define NVID_SAVE_PAIRING_INFO     ( 0x1006 )
+#define NVID_ENABLE_SNIFF_ENTRY    ( 0x1007 )
+#define NVID_EXIT_SNIFF_ON_RECEIVE ( 0x1008 )
 
 /* */
 #define NVID_LOW_BATTERY_WARNING_LEVEL    ( 0x2001 )

@@ -55,7 +55,7 @@
 static xSemaphoreHandle AdcHardwareMutex;
 
 #define MAX_SAMPLES ( 10 )
-static unsigned int HardwareConfiguration = 0;
+static unsigned int HardwareConfigurationVolts = 0;
 static unsigned int BatterySense = 0;
 static unsigned int LightSense = 0;
 static unsigned int BatterySenseSamples[MAX_SAMPLES];
@@ -79,6 +79,7 @@ static unsigned int LowBatteryBtOffLevel;
 static void AdcCheck(void);
 static void VoltageReferenceInit(void);
 
+static void HardwareCfgCycle(void);
 static void StartHardwareCfgConversion(void);
 static void FinishHardwareCfgCycle(void);
 
@@ -111,13 +112,13 @@ unsigned int AdcCountsToBatteryVoltage(unsigned int Counts)
   return ((unsigned int)(CONVERSION_FACTOR_BATTERY*(double)Counts));
 }
 
-/*! Light sensor conversion factor */
+/*! conversion factor */
 const double CONVERSION_FACTOR =  2.5*10000.0/4096.0;
 
 /*! Convert ADC counts to a voltage (truncates)
  *
  * \param Counts Voltage in ADC counts
- * \return Voltage in millivolts
+ * \return Voltage in millivolts*10
  */
 unsigned int AdcCountsToVoltage(unsigned int Counts)
 {
@@ -175,7 +176,7 @@ void InitializeAdc(void)
 
   BatterySenseSampleIndex = 0;
   LightSenseSampleIndex = 0;
-  HardwareConfiguration = 0;
+  HardwareConfigurationVolts = 0;
   BatterySense = 0;
   LightSense = 0;
   BatterySenseAverageReady = 0;
@@ -198,9 +199,9 @@ static void WaitForAdcBusy(void)
 
 /*
  * A voltage divider on the board is populated differently
- * for each revision of the board.  This may be deprecated.
+ * for each revision of the board.
  */
-void HardwareCfgCycle(void)
+static void HardwareCfgCycle(void)
 {
   xSemaphoreTake(AdcHardwareMutex,portMAX_DELAY);
   
@@ -228,7 +229,7 @@ static void StartHardwareCfgConversion(void)
 
 static void FinishHardwareCfgCycle(void)
 {
-  HardwareConfiguration = AdcCountsToVoltage(ADC12MEM0);
+  HardwareConfigurationVolts = AdcCountsToVoltage(ADC12MEM0);
   HARDWARE_CFG_SENSE_DISABLE();
   DISABLE_ADC();
   DISABLE_REFERENCE();
@@ -397,8 +398,7 @@ void LowBatteryMonitor(void)
       
     }
   
-
-  }
+  } /* QueryPowerGood() */
   
 }
 
@@ -529,11 +529,6 @@ unsigned int ReadLightSenseAverage(void)
   return Result;
 }
 
-unsigned int ReadHardwareConfiguration(void)
-{
-  return HardwareConfiguration;
-}
-
 /* Set new low battery levels and save them to flash */
 void SetBatteryLevels(unsigned char * pData)
 {
@@ -564,5 +559,58 @@ void InitializeLowBatteryLevels(void)
   OsalNvItemInit(NVID_LOW_BATTERY_BTOFF_LEVEL, 
                  sizeof(LowBatteryBtOffLevel), 
                  &LowBatteryBtOffLevel);
+  
+}
+
+/******************************************************************************/
+
+
+/* Hardware Configuration is done using a voltage divider
+ *
+ * Vin * R2/(R1+R2)
+ *
+ * 2.5 * 3.9e3/103.9e3 = 0.09384 volts ( Config 5 - Rev C digital - CC2564 )
+ * 2.5 * 4.7/104.7 = 0.1122            ( future )
+ * 2.5 * 1.5/101.5 = 0.03694           ( Config 4  - Rev B8 - CC2564 or CC2560 )
+ * 2.5 * 1.2/101.2 = 0.02964           ( Config 3  - CC2560 )
+ * 
+ * comparision could also be done in ADC counts
+ * 
+ */
+
+#define CFG_WINDOW      ( 50 )
+#define CONFIGURATION_1 ( 369 )
+#define CONFIGURATION_4 ( 296 )
+#define CONFIGURATION_5 ( 938 )
+
+static unsigned char BoardConfiguration = 0;
+  
+unsigned char GetBoardConfiguration(void)
+{
+  /* only perform the ADC cycle once */
+  if ( HardwareConfigurationVolts == 0 )
+  {
+    HardwareCfgCycle();
+      
+    if ( HardwareConfigurationVolts > (CONFIGURATION_5 - CFG_WINDOW) )
+    {
+      BoardConfiguration = 5;    
+    }
+    else if ( HardwareConfigurationVolts > (CONFIGURATION_1 - CFG_WINDOW) )
+    {
+      BoardConfiguration = 1;  
+    }
+    else if ( HardwareConfigurationVolts > (CONFIGURATION_4 - CFG_WINDOW) )
+    {
+      BoardConfiguration = 4;  
+    }
+    
+#if 1
+    PrintStringAndDecimal("Board Configuration ",BoardConfiguration);
+#endif
+  
+  }
+
+  return BoardConfiguration;
   
 }

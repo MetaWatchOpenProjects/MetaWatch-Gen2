@@ -45,10 +45,8 @@ unsigned char QueryCalibrationValid(void);
 unsigned char GetBatteryCalibrationValue(void);
 
 
-/*!
- * \return XTAL calibration value in the form of XCAP_0 to XCAP_3
- */
-unsigned char GetXtalCalibrationValue(void);
+/*! Set the values for the capacitors connected to XT1 */
+void SetOscillatorCapacitorValues(void);
 
 
 /*!

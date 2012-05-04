@@ -58,7 +58,7 @@ unsigned char UTL_RegisterFreeRtosTask(void * TaskHandle,
   {
     taskInfoArray[TaskIndex].taskHandle = TaskHandle;
     taskInfoArray[TaskIndex].Depth = StackDepth;
-    taskInfoArray[TaskIndex].FreeEntries =  0xffff;
+    taskInfoArray[TaskIndex].FreeEntries =  StackDepth;
     
 	/* if this is true then there are big problems */
     if ( StackDepth > 1000 )

@@ -26,19 +26,32 @@
 
 /******************************************************************************/
 
+/*! turn extra prints on/off for entering/exiting sniff mode */
 #define SNIFF_DEBUG_DEFAULT      ( 0 )
 
+/*! turn extra prints on/off for displaying battery voltage and charging info */
 #define BATTERY_DEBUG_DEFAULT    ( 0 ) 
 
+/*! turn extra prints on/off for troubleshooting BT connection */
 #define CONNECTION_DEBUG_DEFAULT ( 0 ) 
 
-/* if 0 then don't ever time out */
+/*! if 0 then don't ever time out 
+ * set a time limit for how long the watch remains in pairing mode
+ */
 #define PAIRING_MODE_TIMEOUT_IN_SECONDS ( 600 )
 
+/*! when 0 pairing information is not saved into Nval.  Set this to 0 when
+ * using a BT sniffer 
+ */
 #define SAVE_PAIRING_INFO_DEFAULT   ( 1 )
 
+/*! when 1 then the watch will try to enter sniff mode */
 #define ENABLE_SNIFF_ENTRY_DEFAULT  ( 1 )
 
+/*! When 0 the stack wrapper will not request to exit sniff mode when a 
+ * message is received.
+ */
+#define EXIT_SNIFF_ON_RECEIVE_DEFAULT  ( 1 )
 
 /******************************************************************************/
 
@@ -211,6 +224,26 @@ void InitializeEnableSniffEntry(void);
 
 /*! \return 1 when sniff entry is enabled */
 unsigned char QueryEnableSniffEntry(void);
+
+/******************************************************************************/
+
+/******************************************************************************/
+
+/*! Initialize nv value that determines if sniff should be exited when receiving
+ * a message
+ * 
+ * \note Called by stack wrapper 
+ *
+ */
+void InitializeExitSniffOnReceive(void);
+
+/*! \return 1 when sniff entry is enabled */
+unsigned char QueryExitSniffOnReceive(void);
+
+/******************************************************************************/
+
+/*! \return 1 if this is the analog watch, 0 otherwise */
+unsigned char QueryAnalogWatch(void);
 
 /******************************************************************************/
 

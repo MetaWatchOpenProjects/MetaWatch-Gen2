@@ -99,10 +99,18 @@ unsigned char GetBatteryCalibrationValue(void)
   return CalibrationData.batteryCal; 
 }
 
-unsigned char GetXtalCalibrationValue(void)
+
+void SetOscillatorCapacitorValues(void)
 {
-  /* we know the value is valid so shift it to the right position */
-  return (CalibrationData.xtalCap << 2);  
+  if ( ValidCalibration )
+  {
+    /* zero XCAP bits */
+    UCSCTL6 &= ~(XCAP0+XCAP1);
+    
+    /* we know the value is valid so shift it to the right position */
+    UCSCTL6 |= (CalibrationData.xtalCap << 2);
+    
+  }  
 }
 
 signed char GetRtcCalibrationValue(void)

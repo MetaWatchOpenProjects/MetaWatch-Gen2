@@ -114,7 +114,10 @@ static void EnterShippingMode(void)
   __disable_interrupt();
   __no_operation();
   
-  ResetRadioAndDriveRtsCts();
+  /* 
+   * the radio draws more current in reset than it does after 
+   * the patch is loaded
+   */
   
   DISABLE_DISPLAY_POWER();
   DISABLE_LCD_ENABLE();
@@ -217,14 +220,4 @@ void EnableRstPin(void)
 void DisableRstPin(void)
 {
   ConfigureResetPinFunction(RST_PIN_DISABLED);  
-}
-
-void ResetRadioAndDriveRtsCts(void)
-{
-  /* reset radio and drive rts and cts */
-  P10OUT &= ~BIT3;
-  
-  //P1DIR |= BIT0 + BIT3;
-  //P1OUT |= BIT0 + BIT3;
-  
 }
