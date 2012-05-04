@@ -1782,11 +1782,11 @@ static void DisplayAmPm(void)
 
 static void DisplayDayOfWeek(void)
 {
-  int DayOfWeek = RTCDOW;
+  //int DayOfWeek = RTCDOW;
   
-  unsigned char const *pFoo = DaysOfWeek[DayOfWeek];
+  //unsigned char const *pFoo = DaysOfWeek[DayOfWeek];
     
-  WriteFoo(pFoo,10,8);
+  WriteFoo(DaysOfWeek[RTCDOW], GetTimeFormat() == TWENTY_FOUR_HOUR ? 0 : 10, 8);
   
 }
 
@@ -1814,12 +1814,27 @@ static void DisplayDate(void)
     gColumn = 8;
     gBitColumnMask = BIT1;
     SetFont(MetaWatch7);
+
+    if ( GetTimeFormat() == TWENTY_FOUR_HOUR )
+    {
+      int year = RTCYEAR;
+      WriteFontCharacter(year/1000+'0');
+      year %= 1000;
+      WriteFontCharacter(year/100+'0');
+      year %= 100;
+      WriteFontCharacter(year/10+'0');
+      year %= 10;
+      WriteFontCharacter(year+'0');
+      gRow = 12;
+    }
+
+    gColumn = 8;
+    gBitColumnMask = BIT1;
     WriteFontCharacter(First/10+'0');
     WriteFontCharacter(First%10+'0');
     WriteFontCharacter('/');
     WriteFontCharacter(Second/10+'0');
     WriteFontCharacter(Second%10+'0');
-    
   }
 }
 
