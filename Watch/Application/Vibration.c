@@ -141,11 +141,11 @@ void VibrationMotorStateMachineIsr(void)
         motorOn = pdFALSE;
         nextActionTime +=  timeOff;
         
-        if ( cycleCount > 0 )
+        if ( cycleCount > 1 )
         {
           cycleCount -= 1;
         }
-        else /* the count is zero */
+        else /* last cycle */
         {
           VibeEventActive = pdFALSE;
           DisableRtcPrescaleInterruptUser(RTC_TIMER_VIBRATION);
