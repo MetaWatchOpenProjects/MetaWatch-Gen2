@@ -34,7 +34,7 @@
 #include "DebugUart.h"
 #include "Statistics.h"
 
-#define TX_BUFFER_SIZE ( 255 )
+#define TX_BUFFER_SIZE ( 256 )
 static unsigned char TxBuffer[TX_BUFFER_SIZE];
 static unsigned int WriteIndex;
 static unsigned int ReadIndex;
@@ -54,11 +54,10 @@ void InitDebugUart(void)
 {
   UCA3CTL1 = UCSWRST;
   
+  /* set the baud rate to 115200 (from table 32-5 in slau208j) */
   UCA3CTL1 |= UCSSEL__SMCLK;
-  
-  /* from table 26-5 */
-  UCA3BR0 = 8;
-  UCA3MCTL = UCOS16 + UCBRS_0 + UCBRF_11;
+  UCA3BR0 = 145;
+  UCA3MCTL = UCBRS_5 + UCBRF_0;
   
   /* configure tx and rx pins (rx is not used) */
   P10SEL |= BIT4;

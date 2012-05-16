@@ -23,6 +23,8 @@
  * PAN1315 - CC2560
  * PAN1316 - CC2560A, CC2564, CC2567
  * 
+ * todo update for new patch
+ *
  * CC2560       - 39150 bytes
  * CC2564       - 8948 bytes 
  * CC2564 + LE  - 9975 bytes (+1027) 
@@ -101,5 +103,17 @@ unsigned char const __data20 * GetPatchAddress(void);
 	#endif
 
 #endif
+
+/******************************************************************************/
+
+void MovePatchBytes(unsigned int offset, unsigned char *dest, unsigned int length);
+
+/******************************************************************************/
+
+/*! \return 1 if low energy is supported */
+unsigned char QuerySupportLowEnergy(void);     
+
+/******************************************************************************/
+     
 
 #endif /* PATCH_SELECTION_H */

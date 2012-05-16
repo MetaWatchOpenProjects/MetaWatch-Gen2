@@ -278,6 +278,7 @@ typedef enum
   
   QueryMemoryMsg = 0xd0,
   RamTestMsg = 0xd1,
+  RateTestMsg = 0xd2,
   
   AccelerometerHostMsg = 0xe0,
   AccelerometerEnableMsg  = 0xe1,

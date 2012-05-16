@@ -274,6 +274,7 @@ void PrintMessageType(tMessage* pMsg)
   case AccelerometerSetupMsg:      PrintStringAndHexByte("AccelerometerSetupMsg 0x",MessageType);      break;
   case QueryMemoryMsg:             PrintStringAndHexByte("QueryMemoryMsg 0x",MessageType);             break;
   case RamTestMsg:                 PrintStringAndHexByte("RamTestMsg 0x",MessageType);                 break;
+  case RateTestMsg:                PrintStringAndHexByte("RateTestMsg 0x",MessageType);                break;
   case BatteryConfigMsg:           PrintStringAndHexByte("BatteryConfigMsg 0x",MessageType);           break;
   case LowBatteryWarningMsgHost:   PrintStringAndHexByte("LowBatteryWarningMsgHost 0x",MessageType);   break; 
   case LowBatteryBtOffMsgHost:     PrintStringAndHexByte("LowBatteryBtOffMsgHost 0x",MessageType);     break; 
@@ -379,6 +380,7 @@ void RouteMsg(tMessage* pMsg)
     case AccelerometerSetupMsg:         SendMsgToQ(BACKGROUND_QINDEX,pMsg); break;
     case QueryMemoryMsg:                SendMsgToQ(SPP_TASK_QINDEX,pMsg);   break;
     case RamTestMsg:                    SendMsgToQ(DISPLAY_QINDEX,pMsg);    break;
+    case RateTestMsg:                   SendMsgToQ(BACKGROUND_QINDEX,pMsg); break;
     case BatteryConfigMsg:              SendMsgToQ(BACKGROUND_QINDEX,pMsg); break;
     case LowBatteryWarningMsgHost:      SendMsgToQ(SPP_TASK_QINDEX,pMsg);   break;
     case LowBatteryBtOffMsgHost:        SendMsgToQ(SPP_TASK_QINDEX,pMsg);   break;

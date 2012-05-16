@@ -36,6 +36,7 @@
 #include "hal_miscellaneous.h"
 #include "hal_clock_control.h"
 #include "hal_lpm.h"
+#include "hal_crystal_timers.h"
 
 #include "Buttons.h"
 #include "Background.h"
@@ -99,6 +100,16 @@ static void NvUpdater(unsigned int NvId);
 #ifdef RAM_TEST
 
 static tTimerId RamTestTimerId;
+
+#endif
+
+/******************************************************************************/
+
+#ifdef RATE_TEST
+
+static unsigned char RateTestCallback(void);
+
+#define RATE_TEST_INTERVAL_MS ( 1000 )
 
 #endif
 
@@ -215,6 +226,13 @@ static void BackgroundTask(void *pvParameters)
   
 #endif 
 
+  /****************************************************************************/
+  
+#ifdef RATE_TEST
+  
+  StartCrystalTimer(CRYSTAL_TIMER_ID3,RateTestCallback,RATE_TEST_INTERVAL_MS);
+  
+#endif
   
   /****************************************************************************/
   
@@ -377,6 +395,16 @@ static void BackgroundMessageHandler(tMessage* pMsg)
     AccelerometerSetupHandler(pMsg);
     break;
    
+  /*
+   *
+   */
+  case RateTestMsg:
+    SetupMessageAndAllocateBuffer(&OutgoingMsg,DiagnosticLoopback,NO_MSG_OPTIONS);
+    /* don't care what data is */
+    OutgoingMsg.Length = 10;
+    RouteMsg(&OutgoingMsg);
+    break;
+    
   /*
    *
    */
@@ -805,3 +833,33 @@ static void NvUpdater(unsigned int NvId)
       
   }
 }
+
+#ifdef RATE_TEST
+
+static unsigned char RateTestCallback(void)
+{
+  unsigned char ExitLpm = 0;
+
+  StartCrystalTimer(CRYSTAL_TIMER_ID3,
+                    RateTestCallback,
+                    RATE_TEST_INTERVAL_MS);
+    
+  /* send messages once we are connected and sniff mode */
+  if (   QueryConnectionState() == Connected
+      && QuerySniffState() == Sniff )
+  {
+    
+    DEBUG5_PULSE();
+  
+    tMessage Msg;
+    SetupMessage(&Msg,RateTestMsg,NO_MSG_OPTIONS);
+    SendMessageToQueueFromIsr(BACKGROUND_QINDEX,&Msg);
+    ExitLpm = 1;
+    
+  }
+  
+  return ExitLpm;
+  
+}
+
+#endif

@@ -49,10 +49,10 @@ void InitAccelerometerPeripheral(void)
   /* enable reset before configuration */
   ACCELEROMETER_CTL1 |= UCSWRST;
   
-  /* configure as master using smclk / 40 = 400 kHz */
+  /* configure as master using smclk / 40 = 399.5 kHz */
   ACCELEROMETER_CTL0 = UCMST + UCMODE_3 + UCSYNC;     
   ACCELEROMETER_CTL1 = UCSSEL__SMCLK + UCSWRST;            
-  ACCELEROMETER_BR0 = 40;                
+  ACCELEROMETER_BR0 = 42;                
   ACCELEROMETER_BR1 = 0;
   ACCELEROMETER_I2CSA = KIONIX_DEVICE_ADDRESS; 
   

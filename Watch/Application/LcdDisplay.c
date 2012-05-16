@@ -117,9 +117,9 @@ static void CopyColumnsIntoMyBuffer(unsigned char const* pImage,
                                     unsigned char StartingColumn,
                                     unsigned char NumberOfColumns);
 
-static void WriteFoo(unsigned char const * pFoo,
-                     unsigned char RowOffset,
-                     unsigned char ColumnOffset);
+static void WriteIcon4w10h(unsigned char const * pIcon,
+                           unsigned char RowOffset,
+                           unsigned char ColumnOffset);
 
 static void DisplayAmPm(void);
 static void DisplayDayOfWeek(void);
@@ -1764,30 +1764,26 @@ static void DisplayAmPm(void)
   {
     int Hour = RTCHOUR;
     
-    unsigned char const *pFoo;
+    unsigned char const *pIcon;
     
     if ( Hour >= 12 )
     {
-      pFoo = Pm;  
+      pIcon = Pm;  
     }
     else
     {
-      pFoo = Am;  
+      pIcon = Am;  
     }
     
-    WriteFoo(pFoo,0,8);
+    WriteIcon4w10h(pIcon,0,8);
   }
   
 }
 
 static void DisplayDayOfWeek(void)
 {
-  //int DayOfWeek = RTCDOW;
-  
-  //unsigned char const *pFoo = DaysOfWeek[DayOfWeek];
-    
-  WriteFoo(DaysOfWeek[RTCDOW], GetTimeFormat() == TWENTY_FOUR_HOUR ? 0 : 10, 8);
-  
+  /* row offset = 10 , column offset = 8 */
+  WriteIcon4w10h(DaysOfWeek[RTCDOW],10,8);
 }
 
 static void DisplayDate(void)
@@ -1815,6 +1811,7 @@ static void DisplayDate(void)
     gBitColumnMask = BIT1;
     SetFont(MetaWatch7);
 
+    /* add year when time is in 24 hour mode */
     if ( GetTimeFormat() == TWENTY_FOUR_HOUR )
     {
       int year = RTCYEAR;
@@ -1835,13 +1832,14 @@ static void DisplayDate(void)
     WriteFontCharacter('/');
     WriteFontCharacter(Second/10+'0');
     WriteFontCharacter(Second%10+'0');
+    
   }
 }
 
-/* these items are 4w*10h */
-static void WriteFoo(unsigned char const * pFoo,
-                     unsigned char RowOffset,
-                     unsigned char ColumnOffset)
+/* these items are 4w by 10h */
+static void WriteIcon4w10h(unsigned char const * pIcon,
+                           unsigned char RowOffset,
+                           unsigned char ColumnOffset)
 {
   
   /* copy digit into correct position */
@@ -1853,7 +1851,7 @@ static void WriteFoo(unsigned char const * pFoo,
     for ( RowNumber = 0; RowNumber < 10; RowNumber++ )
     {
       pMyBuffer[RowNumber+RowOffset].Data[Column+ColumnOffset] = 
-        pFoo[RowNumber+(Column*10)];
+        pIcon[RowNumber+(Column*10)];
     }
   }
   
@@ -2599,6 +2597,8 @@ unsigned char QueryInvertDisplay(void)
   return nvIdleBufferInvert; 
 }
 
+/******************************************************************************/
+
 static unsigned int CharacterMask;
 static unsigned char CharacterRows;
 static unsigned char CharacterWidth;
@@ -2668,7 +2668,7 @@ void WriteFontString(tString *pString)
 
 }
 
-
+/******************************************************************************/
 
 unsigned char QueryIdlePageNormal(void)
 {

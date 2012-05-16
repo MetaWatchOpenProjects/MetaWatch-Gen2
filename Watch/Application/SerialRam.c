@@ -121,7 +121,7 @@ void SerialRamInit(void)
                       
   UCA0CTL1 |= UCSSEL__SMCLK;
 
-  /* spi clock of 8 MHz */
+  /* spi clock of 8.39 MHz (chip can run at 16 MHz max)*/
   UCA0BR0 = 0x02;               
   UCA0BR1 = 0x00;               
 

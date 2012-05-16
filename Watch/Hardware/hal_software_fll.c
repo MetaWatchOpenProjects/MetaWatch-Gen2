@@ -42,7 +42,7 @@ void SoftwareFllInit(void)
 
   // Start a timer to Re-adjust fll , using SMCLK in continous mode
   // will interrupt on every input capture
-  TB0CTL = TBSSEL__SMCLK + MC__CONTINOUS + TBIE + ID__8;
+  TB0CTL = TBSSEL__SMCLK + MC__CONTINUOUS + TBIE + ID__8;
 
   // 262.144 ms
   // above / 0.9765625 = 268.43

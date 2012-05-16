@@ -20,6 +20,7 @@
 * Set pins to outputs and setup clock
 */
 /******************************************************************************/
+#include "FreeRTOSConfig.h"
 
 #include "hal_board_type.h"
 #include "hal_miscellaneous.h"
@@ -80,8 +81,8 @@ void SetupClockAndPowerManagementModule(void)
   SELECT_ACLK(SELA__XT1CLK);                
   SELECT_FLLREF(SELREF__XT1CLK);           
   
-  // second parameter is 16000/32768 = 488
-  Init_FLL_Settle(16000,488);                 
+  // second parameter is 512*32768 = 16777216
+  Init_FLL_Settle(16777216/1000,ACLK_MULTIPLIER);
   SoftwareFllInit();
 
   // setup for quick wake up from interrupt and

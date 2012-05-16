@@ -106,9 +106,12 @@ occurs.
 
 #define TOTAL_TASKS ( 7 )
 
+/* the mulitplier is used by the FLL to generate the CLK */
 #define ACLK_FREQUENCY_HZ                   ((unsigned int)32768)
-#define configCPU_CLOCK_HZ                  ((unsigned portLONG) 16000000L)
-#define configTICK_RATE_HZ                  ((portTickType)1000)
+#define ACLK_MULTIPLIER    ((unsigned int)512)
+#define configCPU_CLOCK_HZ ((unsigned portLONG) 16777216) /* 512*32768 */
+#define configTICK_RATE_HZ ((portTickType)1024)
+
 /* SPP threads use priority of 3 */
 #define configMAX_PRIORITIES                ((unsigned portBASE_TYPE)4)
 #define configMINIMAL_STACK_DEPTH           ((unsigned portSHORT)90)
@@ -149,7 +152,9 @@ to exclude the API function. */
 #define INCLUDE_pcTaskGetTaskName 1
 
 
-/* when clock is 16 MHz then each cycle is 62.5 ns */
-#define __delay_us(x) __delay_cycles(x*16)
+/* when clock is 16777261 MHz then each cycle is 59.6 ns
+ * -> 1013.28 us
+ */
+#define __delay_us(x) __delay_cycles(x*17)
 
 #endif /* FREERTOS_CONFIG_H */
