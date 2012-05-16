@@ -1,22 +1,3 @@
-[DebugChecksum]
-Checksum=-612248125
-[DisAssemblyWindow]
-NumStates=_ 1
-State 1=_ 1
-[InstructionProfiling]
-Enabled=_ 0
-[CodeCoverage]
-Enabled=_ 0
-[StackPlugin]
-Enabled=1
-OverflowWarningsEnabled=1
-WarningThreshold=90
-SpWarningsEnabled=1
-WarnHow=0
-UseTrigger=1
-TriggerName=main
-LimitSize=0
-ByteLimit=50
 [State Storage]
 Control Register=0
 [Sequencer]
@@ -24,27 +5,17 @@ Control Register=0
 NextState0=0
 NextState1=0
 [Action Register]
-Break=1
+Break=3
 State Storage=0
-[InterruptLog]
-LogEnabled=0
-SumEnabled=0
-GraphEnabled=0
-ShowTimeLog=1
-ShowTimeSum=1
-SumSortOrder=0
-[Interrupts]
-Enabled=1
-[MemoryMap]
-Enabled=0
-Base=0
-UseAuto=0
-TypeViolation=1
-UnspecRange=1
-ActionState=1
-[TraceHelper]
-Enabled=0
-ShowSource=1
+[DebugChecksum]
+Checksum=-1285712661
+[DisAssemblyWindow]
+NumStates=_ 1
+State 1=_ 1
+[InstructionProfiling]
+Enabled=_ 0
+[CodeCoverage]
+Enabled=_ 0
 [Log file]
 LoggingEnabled=_ 0
 LogFile=_ ""
@@ -56,9 +27,19 @@ LogFile=_ ""
 Enabled=0
 [DriverProfiling]
 Enabled=0
-Mode=151400460
+Mode=180428890
 Graph=0
 Symbiont=0
+[Stack]
+FillEnabled=0
+OverflowWarningsEnabled=1
+WarningThreshold=90
+SpWarningsEnabled=1
+WarnLogOnly=1
+UseTrigger=1
+TriggerName=main
+LimitSize=0
+ByteLimit=50
 [Breakpoints]
 Count=0
 [FET]

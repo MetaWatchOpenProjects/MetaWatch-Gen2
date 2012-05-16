@@ -30,9 +30,11 @@
 /*! the first LCD line is one NOT zero */
 #define FIRST_LCD_LINE_OFFSET  1
 
+#define LCD_STATIC_CMD      0x00
 #define LCD_WRITE_CMD       0x01     
 #define LCD_CLEAR_CMD       0x04     
 #define LCD_CLEAR_CMD_SIZE  0x03     
+#define LCD_STATIC_CMD_SIZE 0x03
 
 /*! This structure is organized so that the entire
  * display can be sent by the dma engine

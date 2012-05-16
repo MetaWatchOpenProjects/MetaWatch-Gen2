@@ -27,7 +27,6 @@
 #include "hal_board_type.h"
 #include "hal_oled.h"
 #include "hal_clock_control.h"
-#include "macro.h"
 #include "DebugUart.h"
 
 /******************************************************************************/
@@ -152,6 +151,7 @@ __interrupt void OLED_I2C_ISR(void)
   default: 
     break;
   }  
+  
 }
 
 

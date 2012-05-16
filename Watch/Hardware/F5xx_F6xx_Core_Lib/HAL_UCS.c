@@ -99,10 +99,7 @@ void LFXT_Start(unsigned int xtdrive)
 unsigned int LFXT_Start_Timeout(unsigned int xtdrive, unsigned int timeout)
 {
   // add in capacitor setting
-  if ( QueryCalibrationValid() )
-  {
-    UCSCTL6 |= GetXtalCalibrationValue();
-  }
+  SetOscillatorCapacitorValues();
   
   // If the drive setting is not already set to maximum
   // Set it to max for LFXT startup
@@ -118,10 +115,7 @@ unsigned int LFXT_Start_Timeout(unsigned int xtdrive, unsigned int timeout)
   UCSCTL6 = (UCSCTL6 & ~(XT1DRIVE_3)) |(xtdrive); // set Drive mode
   
   // add in capacitor setting
-  if ( QueryCalibrationValid() )
-  {
-    UCSCTL6 |= GetXtalCalibrationValue();
-  }
+  SetOscillatorCapacitorValues();
   
   if (timeout)
     return (UCS_STATUS_OK);

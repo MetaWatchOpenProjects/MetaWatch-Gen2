@@ -17,8 +17,8 @@
 /******************************************************************************/
 /*! \file Vibration.h
  *
- * This was its own task but now it is part of the control task.  The vibrator is
- * controlled by a PWM output that is cycle on and off based on a timer. 
+ * This was its own task but now it is part of the control task.  The vibrator 
+ * is controlled by a PWM output that is cycle on and off based on a timer. 
  */
 /******************************************************************************/
 
@@ -33,12 +33,12 @@ void InitializeVibration(void);
 /*! The function is called periodically by the control task to control the
  * pulsing of the vibration motor on and off.
  */
-void VibrationMotorStateMachine(void);
+void VibrationMotorStateMachineIsr(void);
 
 /*! Parse the message from the phone
  *
  * \param pMsg - Message from the host containing vibration information
  */
-void SetVibrateModeHandler(tHostMsg* pMsg);
+void SetVibrateModeHandler(tMessage* pMsg);
 
 #endif /* VIBRATION_H */ 

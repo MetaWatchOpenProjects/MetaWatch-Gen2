@@ -23,10 +23,11 @@
 
 #include "FreeRTOS.h"
 #include "queue.h"
+#include "portmacro.h"
 
 #include "Messages.h"
-#include "BufferPool.h"
 #include "MessageQueues.h"
+#include "DebugUart.h"
 #include "Display.h"
 #include "OSAL_Nv.h"
 #include "NvIds.h"
@@ -34,8 +35,8 @@
 #include "OneSecondTimers.h"
 
 /* these have the null character added at the end */
-unsigned char pLocalBluetoothAddressString[] = "000000000000";
-unsigned char pRemoteBluetoothAddressString[] = "000000000000";
+tString pLocalBluetoothAddressString[] = "000000000000";
+tString pRemoteBluetoothAddressString[] = "000000000000";
 
 /* LocalBluetoothAddress == watch */
 void SetLocalBluetoothAddressString(unsigned char* pData)
@@ -64,12 +65,12 @@ void SetRemoteBluetoothAddressString(unsigned char* pData)
   
 }
 
-unsigned char* GetLocalBluetoothAddressString(void)
+tString* GetLocalBluetoothAddressString(void)
 {
   return pLocalBluetoothAddressString;
 }
 
-unsigned char* GetRemoteBluetoothAddressString(void)
+tString* GetRemoteBluetoothAddressString(void)
 {
   return pRemoteBluetoothAddressString;  
 }
@@ -78,9 +79,11 @@ unsigned char* GetRemoteBluetoothAddressString(void)
 
 #define HARDWARE_REVISION_ADDRESS (0x1a07)
 
-unsigned char GetHardwareRevision(void)
+unsigned char GetMsp430HardwareRevision(void)
 {
-  unsigned char *pDeviceType = (unsigned char *)(unsigned char *)HARDWARE_REVISION_ADDRESS;
+  unsigned char *pDeviceType = 
+    (unsigned char *)(unsigned char *)HARDWARE_REVISION_ADDRESS;
+  
   return pDeviceType[0]+'1';                         
 }
 
@@ -90,7 +93,7 @@ unsigned char GetHardwareRevision(void)
 unsigned char * QueryConnectionStateAndGetString(void)
 {
   etConnectionState cs = QueryConnectionState();
-  unsigned char * pString;
+  char * pString;
   
   /* Initializing is the longest word that can fit on the LCD */
   switch (cs) 
@@ -106,7 +109,7 @@ unsigned char * QueryConnectionStateAndGetString(void)
   default:                 pString = "Unknown";      break;  
   }
   
-  return pString;
+  return (unsigned char*)pString;
 }
 
 /******************************************************************************/
@@ -134,12 +137,12 @@ unsigned char QueryFirstContact(void)
  * these are setup to match RTC 
  * days of week are 0-6 and months are 1-12 
  */
-const unsigned char DaysOfTheWeek[][7] = 
+const tString DaysOfTheWeek[][7] = 
 {
   "Sun","Mon","Tue","Wed","Thu","Fri","Sat"
 };
 
-const unsigned char MonthsOfYear[][13] = 
+const tString MonthsOfYear[][13] = 
 {
   "???","Jan","Feb","Mar","Apr","May","June",
   "July","Aug","Sep","Oct","Nov","Dec"
@@ -223,13 +226,12 @@ void SaveLinkAlarmEnable(void)
 /* send a vibration to the wearer */
 void GenerateLinkAlarm(void)
 {
-  tHostMsg* pMsg;
+  tMessage Msg;
   
-  BPL_AllocMessageBuffer(&pMsg);
-  pMsg->Type = SetVibrateMode;
+  SetupMessageAndAllocateBuffer(&Msg,SetVibrateMode,NO_MSG_OPTIONS);
   
   tSetVibrateModePayload* pMsgData;
-  pMsgData = (tSetVibrateModePayload*) pMsg->pPayload;
+  pMsgData = (tSetVibrateModePayload*) Msg.pBuffer;
   
   pMsgData->Enable = 1;
   pMsgData->OnDurationLsb = 0x00;
@@ -238,7 +240,7 @@ void GenerateLinkAlarm(void)
   pMsgData->OffDurationMsb = 0x01;
   pMsgData->NumberOfCycles = 5;
   
-  RouteMsg(&pMsg);
+  RouteMsg(&Msg);
 }
 
 /******************************************************************************/
@@ -248,6 +250,7 @@ static unsigned int nvNotificationModeTimeout;
 
 void InitializeModeTimeouts(void)
 {
+  
 #ifdef ANALOG
   nvApplicationModeTimeout  = ONE_SECOND*60*10;
   nvNotificationModeTimeout = ONE_SECOND*30;
@@ -314,4 +317,93 @@ unsigned char QueryBatteryDebug(void)
 unsigned char QueryConnectionDebug(void)
 {
   return nvConnectionDebug;  
+}
+
+/******************************************************************************/
+
+unsigned int nvPairingModeDurationInSeconds;
+
+void InitializePairingModeDuration(void)
+{
+  nvPairingModeDurationInSeconds = PAIRING_MODE_TIMEOUT_IN_SECONDS;
+  OsalNvItemInit(NVID_PAIRING_MODE_DURATION, 
+                 sizeof(nvPairingModeDurationInSeconds), 
+                 &nvPairingModeDurationInSeconds);
+  
+  
+}
+
+unsigned int GetPairingModeDurationInSeconds(void)
+{
+  return nvPairingModeDurationInSeconds;  
+}
+
+/******************************************************************************/
+
+static unsigned char nvSavePairingInfo;
+
+void InitializeSavePairingInfo(void)
+{
+  nvSavePairingInfo = SAVE_PAIRING_INFO_DEFAULT;
+  OsalNvItemInit(NVID_SAVE_PAIRING_INFO, 
+                 sizeof(nvSavePairingInfo), 
+                 &nvSavePairingInfo);
+}
+
+unsigned char QuerySavePairingInfo(void)
+{
+  return nvSavePairingInfo;  
+}
+
+/******************************************************************************/
+
+static unsigned char nvEnableSniffEntry;
+
+void InitializeEnableSniffEntry(void)
+{
+  nvEnableSniffEntry = ENABLE_SNIFF_ENTRY_DEFAULT;
+  OsalNvItemInit(NVID_ENABLE_SNIFF_ENTRY, 
+                 sizeof(nvEnableSniffEntry), 
+                 &nvEnableSniffEntry);
+}
+
+unsigned char QueryEnableSniffEntry(void)
+{
+  return nvEnableSniffEntry;  
+}
+
+/******************************************************************************/
+
+static unsigned char nvExitSniffOnReceive;
+
+void InitializeExitSniffOnReceive(void)
+{
+  nvExitSniffOnReceive = EXIT_SNIFF_ON_RECEIVE_DEFAULT;
+  OsalNvItemInit(NVID_EXIT_SNIFF_ON_RECEIVE, 
+                 sizeof(nvExitSniffOnReceive), 
+                 &nvExitSniffOnReceive);
+}
+
+unsigned char QueryExitSniffOnReceive(void)
+{
+  return nvExitSniffOnReceive;  
+}
+
+
+
+/******************************************************************************/
+
+
+unsigned char QueryAnalogWatch(void)
+{
+  unsigned char result = 0;
+  
+#if defined(WATCH)
+  #if defined(ANALOG)
+    result = 1;
+  #endif
+#endif
+    
+  return result;
+    
 }

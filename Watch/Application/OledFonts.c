@@ -19,7 +19,7 @@
 *
 */
 /******************************************************************************/
-
+#include "FreeRTOS.h"
 #include "Fonts.h"
 #include "OledFonts.h"
 #include "DebugUart.h"
@@ -105,7 +105,7 @@ unsigned char MapDigitToIndex(unsigned char Digit)
   
   return Result;
   
-};
+}
 
 
 unsigned char GetCharacterWidth(unsigned char Character)
@@ -193,7 +193,8 @@ void GetCharacterBitmap(unsigned char Character,unsigned int * pBitmap)
   unsigned char width = GetCharacterWidth(Character);
   unsigned int offset = GetCharacterOffset(Character);
   
-  for (unsigned char col = 0; col < width; col++ )
+  unsigned char col;
+  for (col = 0; col < width; col++ )
   {
     switch (CurrentFont.Type)
     {

@@ -35,7 +35,6 @@ void VibeDisable(void)
   VibeEnableControl = 0;  
 }
 
-
 #ifdef HW_DEVBOARD_V2
 #ifdef DIGITAL
 
@@ -86,6 +85,8 @@ void DisableVibratorPwm(void)
 
 #else
 
+/* todo:?! I don't understand why this mode causes a line on the LCD */
+
 void SetVibeMotorState(unsigned char motorOn) 
 {
 
@@ -93,23 +94,24 @@ void SetVibeMotorState(unsigned char motorOn)
 
 void SetupVibrationMotorTimerAndPwm(void)
 {
-  ;
+//  P4OUT &= ~BIT3;   
+//  P4SEL &= ~BIT3;   
+//  P4DIR |=  BIT3;
 }
 
 void EnableVibratorPwm(void)
 {
-  ;
+
 }
 
 void DisableVibratorPwm(void)
 {
-  ;
+
 }
 
 #endif  // DIGITAL
 
 #else // not the devboard
-
 
 #define START_VIBE_PWM_TIMER() { TA1CTL |= TASSEL__ACLK | MC__UPDOWN | ID_0; }
 #define STOP_VIBE_PWM_TIMER()  { TA1CTL = 0; }

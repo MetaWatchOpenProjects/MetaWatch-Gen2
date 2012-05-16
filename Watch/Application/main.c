@@ -24,6 +24,7 @@
 #include "semphr.h"              
 #include "task.h"                
 #include "queue.h"
+#include "portmacro.h"
 
 #include "Messages.h"
 #include "MessageQueues.h"
@@ -38,6 +39,7 @@
 #include "hal_miscellaneous.h"
 #include "hal_calibration.h"
 
+#include "DebugUart.h"
 #include "Adc.h"
 #include "SerialProfile.h"
 #include "Background.h"         
@@ -45,24 +47,16 @@
 #include "LcdDisplay.h"
 #include "Display.h"
 #include "Utilities.h"
-#include "Pedometer.h"
-#include "SerialRam.h"
-#include "LcdTask.h"
+#include "Accelerometer.h"
 #include "Buttons.h"
 #include "Vibration.h"
 #include "OneSecondTimers.h"
-#include "DebugUart.h"
-#include "CommandTask.h"
 #include "Statistics.h"
 
 #include "OSAL_Nv.h"
 #include "NvIds.h"
 
 static void ConfigureHardware(void);
-static void Housekeeping(void);
-
-static unsigned char FreeBuffers;
-
 
 void main(void)
 {
@@ -75,19 +69,22 @@ void main(void)
   /* disable DMA during read-modify-write cycles */
   DMACTL4 = DMARMWDIS;
   
+  unsigned char MspVersion = GetMsp430HardwareRevision();
+    
   InitializeCalibrationData();
   
   ConfigureHardware();
 
-  osal_nv_init(0);
+  OsalNvInit(0);
   
-  InitializeDebugFlags();
+  InitializeDebugFlags();      
+  InitializeButtons();
+  InitializeVibration();
+  InitializeOneSecondTimers();
   
   InitializeBufferPool();    
 
   InitializeSppTask();
-  
-  InitializeCommandTask();
   
   InitializeRealTimeClock();       
 
@@ -96,50 +93,30 @@ void main(void)
   InitializeDisplayTask();   
 
   InitializeAdc();
-
-#ifdef DIGITAL
-
-  InitializeSerialRamTask();
-  
-  InitializeLcdTask();
-
-#else
-  
-  unsigned char QueueOfZeroLength = 0;
-  QueueHandles[SRAM_QINDEX] = 
-    xQueueCreate( QueueOfZeroLength, MESSAGE_QUEUE_ITEM_SIZE );
-  
-  QueueHandles[LCD_TASK_QINDEX] = 
-    xQueueCreate( QueueOfZeroLength, MESSAGE_QUEUE_ITEM_SIZE );
-  
-#endif
-  
-#if 0
-  InitializePedometerTask();
-#endif
   
 #if 0
   /* timeout is 16 seconds */
   hal_SetWatchdogTimeout(16); 
 #endif
 
-  extern xSemaphoreHandle CrcMutex;
-  CrcMutex = xSemaphoreCreateMutex();
-  xSemaphoreGive(CrcMutex);
-
-#if 0
-  SetSniffSlotParameter(MaxInterval, 8);
-  SetSniffSlotParameter(MinInterval, 6);
-  SetSniffModeEntryDelay(200);
+#ifdef CHECK_FOR_PMM15
+  /* make sure error pmm15 does not exist */
+  while ( PMM15Check() );
 #endif
   
+  /* Errata PMM17 - automatic prolongation mechanism 
+   * SVSLOW is disabled
+   */
+  *(unsigned int*)(0x0110) = 0x9602;
+  *(unsigned int*)(0x0112) |= 0x0800;
   
-  /* Start the Task Scheduler. */
+  PrintString("Starting Task Scheduler\r\n");
   vTaskStartScheduler();
 
   /* if vTaskStartScheduler exits an error occured. */
   PrintString("Program Error\r\n");
-
+  ForceWatchdogReset();
+  
 }
 
 
@@ -169,31 +146,42 @@ static void ConfigureHardware(void)
   CONFIG_SRAM_PINS();
   APPLE_CONFIG();
 
-  /* the accelerometer may not be used so configure its pins here */  
   CONFIG_ACCELEROMETER_PINS();
-  CONFIG_ACCELEROMETER_PINS_FOR_SLEEP();
   
 }
 
 /* The following function exists to put the MCU to sleep when in the idle task. */
+static unsigned char SppReadyToSleep;
+static unsigned char TaskDelayLockCount;
+static unsigned char AllTaskQueuesEmptyFlag;
+
 void vApplicationIdleHook(void)
 {
   
-  Housekeeping();
-  
-  /* Put the processor to sleep if the serial port indicates it is OK, 
-   * the command task does not have anything to process, and
+  /* Put the processor to sleep if the serial port indicates it is OK and 
    * all of the queues are empty.
    *
    * This will stop the OS scheduler.
    */
 
-  FreeBuffers = QueueHandles[FREE_QINDEX]->uxMessagesWaiting;
+  SppReadyToSleep = SerialPortReadyToSleep();
+  TaskDelayLockCount = GetTaskDelayLockCount();
+  AllTaskQueuesEmptyFlag = AllTaskQueuesEmpty();
   
-  if (   SerialPortReadyToSleep()
-      && CommandTaskReadyToSleep()
-      && GetTaskDelayLockCount() == 0
-      && (FreeBuffers == NUM_MSG_BUFFERS) )
+#if 0
+  if ( SppReadyToSleep )
+  {
+    DEBUG3_HIGH();  
+  }
+  else
+  {
+    DEBUG3_LOW();
+  }
+#endif
+
+  if (   SppReadyToSleep
+      && TaskDelayLockCount == 0
+      && AllTaskQueuesEmptyFlag )
       
   {
     extern xTaskHandle IdleTaskHandle;
@@ -204,27 +192,6 @@ void vApplicationIdleHook(void)
     /* to wake us up from here.   */
     MSP430_LPM_ENTER();
     
-  }
-  
-}
-
-/* when debugging one may want to disable this */
-static void Housekeeping(void)
-{
-  if (   gBtStats.MallocFailed
-      || gBtStats.RxDataOverrun
-      || gBtStats.RxInvalidStartCallback )
-  {
-    PrintString("************Bluetooth Failure************\r\n");
-    __delay_cycles(100000);
-    ForceWatchdogReset();
-  }
-  
-  if ( gAppStats.BufferPoolFailure )
-  {
-    PrintString("************Application Failure************\r\n");
-    __delay_cycles(100000);
-    ForceWatchdogReset();
   }
   
 }
@@ -248,20 +215,9 @@ void SniffModeEntryAttemptCallback(void)
   //DEBUG3_PULSE();  
 }
 
-void DebugCallback3(void)
+void DebugBtUartError(void)
 {
-  //DEBUG3_PULSE();  
-}
-
-void DebugCallback4(void)
-{
-  //DEBUG4_PULSE();  
-}
-          
-          
-void DebugCallback5(void)
-{
-  //DEBUG5_PULSE();  
+  //DEBUG5_HIGH();  
 }
 
 void MsgHandlerDebugCallback(void)
@@ -269,6 +225,10 @@ void MsgHandlerDebugCallback(void)
   //DEBUG5_PULSE();
 }
 
-
-
-
+/* This interrupt port is used by the Bluetooth stack. 
+ * Do not change the name of this function because it is externed.
+ */
+void AccelerometerPinIsr(void)
+{
+  AccelerometerIsr();
+}

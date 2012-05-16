@@ -25,7 +25,6 @@
 #include "queue.h"              
 
 #include "Messages.h"
-#include "BufferPool.h"         
 
 #include "hal_board_type.h"
 #include "hal_rtc.h"
@@ -36,7 +35,7 @@
 #include "DebugUart.h"      
 #include "Messages.h"
 #include "Utilities.h"
-#include "LcdTask.h"
+#include "LcdDriver.h"
 #include "SerialProfile.h"
 #include "MessageQueues.h"
 #include "SerialRam.h"
@@ -60,25 +59,25 @@ xTaskHandle DisplayHandle;
 
 static void DisplayTask(void *pvParameters);
 
-static void DisplayQueueMessageHandler(tHostMsg* pMsg);
+static void DisplayQueueMessageHandler(tMessage* pMsg);
 static void SendMyBufferToLcd(unsigned char TotalRows);
 
-static tHostMsg* pDisplayMsg;
+static tMessage DisplayMsg;
 
-static tTimerId IdleModeTimerId;
-static tTimerId ApplicationModeTimerId;
-static tTimerId NotificationModeTimerId;
+static tTimerId DisplayTimerId;
+static unsigned char RtcUpdateEnable;
 
 /* Message handlers */
 
 static void IdleUpdateHandler(void);
-static void ChangeModeHandler(tHostMsg* pMsg);
-static void ModeTimeoutHandler(tHostMsg* pMsg);
+static void ChangeModeHandler(tMessage* pMsg);
+static void ModeTimeoutHandler(tMessage* pMsg);
 static void WatchStatusScreenHandler(void);
-static void BarCodeHandler(tHostMsg* pMsg);
+static void BarCodeHandler(tMessage* pMsg);
 static void ListPairedDevicesHandler(void);
-static void ConfigureIdleBuferSizeHandler(tHostMsg* pMsg);
-static void ModifyTimeHandler(tHostMsg* pMsg);
+static void ConfigureDisplayHandler(tMessage* pMsg);
+static void ConfigureIdleBuferSizeHandler(tMessage* pMsg);
+static void ModifyTimeHandler(tMessage* pMsg);
 static void MenuModeHandler(unsigned char MsgOptions);
 static void MenuButtonHandler(unsigned char MsgOptions);
 static void ToggleSecondsHandler(unsigned char MsgOptions);
@@ -92,7 +91,7 @@ static void InitMyBuffer(void);
 static void DisplayStartupScreen(void);
 static void SetupSplashScreenTimeout(void);
 static void AllocateDisplayTimers(void);
-static void StopAllDisplayTimers(void);
+static void StopDisplayTimer(void);
 static void DetermineIdlePage(void);
 
 static void DrawMenu1(void);
@@ -118,41 +117,6 @@ static void CopyColumnsIntoMyBuffer(unsigned char const* pImage,
                                     unsigned char StartingColumn,
                                     unsigned char NumberOfColumns);
 
-static void AddDecimalPoint8w10h(unsigned char RowOffset,
-                                 unsigned char ColumnOffset);
-
-static unsigned char const* GetSpritePointerForChar(unsigned char CharIn);
-static unsigned char const* GetSpritePointerForDigit(unsigned char Digit);
-static unsigned char const* GetPointerForTimeDigit(unsigned char Digit,
-                                                   unsigned char Offset);
-
-unsigned char WriteString(unsigned char* pString,
-                          unsigned char RowOffset,
-                          unsigned char ColumnOffset,
-                          unsigned char AddSpace);
-
-#define ADD_SPACE_AT_END      ( 1 )
-#define DONT_ADD_SPACE_AT_END ( 0 )
-
-static void WriteSpriteChar(unsigned char Char,
-                            unsigned char RowOffset,
-                            unsigned char ColumnOffset);
-
-static void WriteSpriteDigit(unsigned char Digit,
-                             unsigned char RowOffset,
-                             unsigned char ColumnOffset,
-                             signed char ShiftAmount);
-
-
-static void WriteTimeDigit(unsigned char Digit,
-                           unsigned char RowOffset,
-                           unsigned char ColumnOffset,
-                           unsigned char JustificationOffset);
-
-static void WriteTimeColon(unsigned char RowOffset,
-                           unsigned char ColumnOffset,
-                           unsigned char Justification);
-
 static void WriteFoo(unsigned char const * pFoo,
                      unsigned char RowOffset,
                      unsigned char ColumnOffset);
@@ -160,9 +124,6 @@ static void WriteFoo(unsigned char const * pFoo,
 static void DisplayAmPm(void);
 static void DisplayDayOfWeek(void);
 static void DisplayDate(void);
-
-static void DisplayDataSeparator(unsigned char RowOffset,
-                                 unsigned char ColumnOffset);
 
 /* the internal buffer */
 #define STARTING_ROW                  ( 0 )
@@ -176,15 +137,11 @@ static tLcdLine pMyBuffer[NUM_LCD_ROWS];
 static unsigned char nvIdleBufferConfig;
 static unsigned char nvIdleBufferInvert;
 
-static void InitialiazeIdleBufferConfig(void);
-static void InitializeIdleBufferInvert(void);
-
 static void SaveIdleBufferInvert(void);
 
 /******************************************************************************/
 
 unsigned char nvDisplaySeconds = 0;
-static void InitializeDisplaySeconds(void);
 static void SaveDisplaySeconds(void);
 
 /******************************************************************************/
@@ -205,7 +162,7 @@ typedef enum
   Menu3Page,
   ListPairedDevicesPage,
   WatchStatusPage,
-  QrCodePage,
+  QrCodePage
   
 } etIdlePageMode;
 
@@ -225,19 +182,9 @@ static void SetupNormalIdleScreenButtons(void);
 //
 const unsigned char pBarCodeImage[NUM_LCD_ROWS*NUM_LCD_COL_BYTES];
 const unsigned char pMetaWatchSplash[NUM_LCD_ROWS*NUM_LCD_COL_BYTES];
-const unsigned char Alphabet8w10h[96][10];
-const unsigned char pTimeDigit[10*2][19*2];
-const unsigned char pTimeColonR[1][19*1];
-const unsigned char pTimeColonL[1][19*1];
 const unsigned char Am[10*4];
 const unsigned char Pm[10*4];
 const unsigned char DaysOfWeek[7][10*4];
-
-#define TIME_DIGIT_HEIGHT ( 19 )
-/* actual width is 11 but they are stored in 16 bit container */
-#define TIME_DIGIT_WIDTH       ( 16 )
-#define LEFT_JUSTIFIED         ( 0 )
-#define RIGHT_JUSTIFIED        ( 10 )
 
 /******************************************************************************/
 
@@ -246,21 +193,15 @@ static unsigned char CurrentMode = IDLE_MODE;
 
 //static unsigned char ReturnToApplicationMode;
 
-/******************************************************************************/
-
-static unsigned char pBluetoothAddress[12+1];
-static unsigned char pBluetoothName[12+1];
 
 /******************************************************************************/
 
-#ifdef FONT_TESTING
 static unsigned char gBitColumnMask;
 static unsigned char gColumn;
 static unsigned char gRow;
 
 static void WriteFontCharacter(unsigned char Character);
-static void WriteFontString(unsigned char* pString);
-#endif
+static void WriteFontString(tString* pString);
 
 /******************************************************************************/
 
@@ -280,7 +221,7 @@ void InitializeDisplayTask(void)
   
   // task function, task name, stack len , task params, priority, task handle
   xTaskCreate(DisplayTask, 
-              "DISPLAY", 
+              (const signed char *)"DISPLAY", 
               DISPLAY_TASK_STACK_DEPTH, 
               NULL, 
               DISPLAY_TASK_PRIORITY, 
@@ -304,13 +245,18 @@ static void DisplayTask(void *pvParameters)
   {
     PrintString("Display Queue not created!\r\n");  
   }
+      
+  LcdPeripheralInit();
   
   DisplayStartupScreen();
   
-  InitialiazeIdleBufferConfig();
+  SerialRamInit();
+  
+  InitializeIdleBufferConfig();
   InitializeIdleBufferInvert();
   InitializeDisplaySeconds();
   InitializeLinkAlarmEnable();
+  InitializeModeTimeouts();
   InitializeTimeFormat();
   InitializeDateFormat();
   AllocateDisplayTimers();
@@ -320,16 +266,28 @@ static void DisplayTask(void *pvParameters)
   DefaultApplicationAndNotificationButtonConfiguration();
   SetupNormalIdleScreenButtons();
   
+#if 1  
+  /* turn the radio on; initialize the serial port profile */
+  tMessage Msg;
+  SetupMessage(&Msg,TurnRadioOnMsg,NO_MSG_OPTIONS);
+  RouteMsg(&Msg);
+#endif
+  
   for(;;)
   {
     if( pdTRUE == xQueueReceive(QueueHandles[DISPLAY_QINDEX], 
-                                &pDisplayMsg, portMAX_DELAY) )
+                                &DisplayMsg, portMAX_DELAY) )
     {
-      DisplayQueueMessageHandler(pDisplayMsg);
+      PrintMessageType(&DisplayMsg);
+       
+      DisplayQueueMessageHandler(&DisplayMsg);
       
-      BPL_FreeMessageBuffer(&pDisplayMsg);
+      SendToFreeQueue(&DisplayMsg);
       
       CheckStackUsage(DisplayHandle,"Display");
+      
+      CheckQueueUsage(QueueHandles[DISPLAY_QINDEX]);
+      
     }
   }
 }
@@ -337,18 +295,31 @@ static void DisplayTask(void *pvParameters)
 /*! Display the startup image or Splash Screen */
 static void DisplayStartupScreen(void)
 {
+  /* draw metawatch logo */
   CopyRowsIntoMyBuffer(pMetaWatchSplash,STARTING_ROW,NUM_LCD_ROWS);
   PrepareMyBufferForLcd(STARTING_ROW,NUM_LCD_ROWS);
   SendMyBufferToLcd(NUM_LCD_ROWS);
 }
 
 /*! Handle the messages routed to the display queue */
-static void DisplayQueueMessageHandler(tHostMsg* pMsg)
+static void DisplayQueueMessageHandler(tMessage* pMsg)
 {
   unsigned char Type = pMsg->Type;
       
   switch(Type)
   {
+    
+  case WriteBuffer:
+    WriteBufferHandler(pMsg);
+    break;
+
+  case LoadTemplate:
+    LoadTemplateHandler(pMsg);
+    break;
+  
+  case UpdateDisplay:
+    UpdateDisplayHandler(pMsg);
+    break;
   
   case IdleUpdate:
     IdleUpdateHandler(); 
@@ -378,7 +349,8 @@ static void DisplayQueueMessageHandler(tHostMsg* pMsg)
     IdleUpdateHandler();
     break;
     
-  case ConfigureMode:
+  case ConfigureDisplay:
+    ConfigureDisplayHandler(pMsg);
     break;
   
   case ConfigureIdleBufferSize:
@@ -410,12 +382,21 @@ static void DisplayQueueMessageHandler(tHostMsg* pMsg)
     IdleUpdateHandler();
     break;
     
+  case LowBatteryWarningMsg:
+  case LowBatteryBtOffMsg:
+    break;
+    
   case LinkAlarmMsg:
     if ( QueryLinkAlarmEnable() )
     {
       GenerateLinkAlarm();  
     }
     break;
+    
+  case RamTestMsg:
+    RamTestHandler(pMsg);
+    break;
+    
   default:
     PrintStringAndHex("<<Unhandled Message>> in Lcd Display Task: Type 0x", Type);
     break;
@@ -426,34 +407,28 @@ static void DisplayQueueMessageHandler(tHostMsg* pMsg)
 /*! Allocate ids and setup timers for the display modes */
 static void AllocateDisplayTimers(void)
 {
-  IdleModeTimerId = AllocateOneSecondTimer();
-
-  ApplicationModeTimerId = AllocateOneSecondTimer();
-
-  NotificationModeTimerId = AllocateOneSecondTimer();
-
+  DisplayTimerId = AllocateOneSecondTimer();
 }
 
 static void SetupSplashScreenTimeout(void)
 {
-  SetupOneSecondTimer(IdleModeTimerId,
+  SetupOneSecondTimer(DisplayTimerId,
                       ONE_SECOND*3,
                       NO_REPEAT,
+                      DISPLAY_QINDEX,
                       SplashTimeoutMsg,
                       NO_MSG_OPTIONS);
 
-  StartOneSecondTimer(IdleModeTimerId);
+  StartOneSecondTimer(DisplayTimerId);
   
   AllowConnectionStateChangeToUpdateScreen = 0;
   
 }
 
-static void StopAllDisplayTimers(void)
+static inline void StopDisplayTimer(void)
 {
-  StopOneSecondTimer(IdleModeTimerId);
-  StopOneSecondTimer(ApplicationModeTimerId);
-  StopOneSecondTimer(NotificationModeTimerId);
-   
+  RtcUpdateEnable = 0;
+  StopOneSecondTimer(DisplayTimerId);
 }
 
 /*! Draw the Idle screen and cause the remainder of the display to be updated
@@ -461,28 +436,11 @@ static void StopAllDisplayTimers(void)
  */
 static void IdleUpdateHandler(void)
 {
-  StopAllDisplayTimers();
+  StopDisplayTimer();
   
-  /* select between 1 second and 1 minute */
-  int IdleUpdateTime;
-  if ( nvDisplaySeconds )
-  {
-    IdleUpdateTime = ONE_SECOND;
-  }
-  else
-  {
-    IdleUpdateTime = 60 - GetRTCSEC();
-  }
+  /* allow rtc to send IdleUpdate every minute (or second) */
+  RtcUpdateEnable = 1;
   
-  /* setup a timer to determine when to draw the screen again */
-  SetupOneSecondTimer(IdleModeTimerId,
-                      IdleUpdateTime,
-                      REPEAT_FOREVER,
-                      IdleUpdate,
-                      NO_MSG_OPTIONS);
-  
-  StartOneSecondTimer(IdleModeTimerId);
-
   /* determine if the bottom of the screen should be drawn by the watch */  
   if ( QueryFirstContact() )
   {
@@ -502,11 +460,11 @@ static void IdleUpdateHandler(void)
     /*! make a dirty flag for the idle page drawn by the phone
      * set it whenever watch uses whole screen
      */
-    tHostMsg* pOutgoingMsg;
-    BPL_AllocMessageBuffer(&pOutgoingMsg);
-    pOutgoingMsg->Type = UpdateDisplay;
-    pOutgoingMsg->Options = IDLE_MODE | DONT_ACTIVATE_DRAW_BUFFER;
-    RouteMsg(&pOutgoingMsg);
+    tMessage OutgoingMsg;
+    SetupMessage(&OutgoingMsg,
+                 UpdateDisplay,
+                 (IDLE_MODE | DONT_ACTIVATE_DRAW_BUFFER));
+    RouteMsg(&OutgoingMsg);
    
     CurrentIdlePage = NormalPage;
     ConfigureIdleUserInterfaceButtons();
@@ -522,7 +480,7 @@ static void IdleUpdateHandler(void)
     
     PrepareMyBufferForLcd(STARTING_ROW,NUM_LCD_ROWS);
     SendMyBufferToLcd(NUM_LCD_ROWS);
-
+    
     ConfigureIdleUserInterfaceButtons();
 
   }
@@ -632,11 +590,12 @@ unsigned char QueryButtonMode(void)
   
   return result;  
 }
-
-static void ChangeModeHandler(tHostMsg* pMsg)
+static void ChangeModeHandler(tMessage* pMsg)
 {
   LastMode = CurrentMode;    
   CurrentMode = (pMsg->Options & MODE_MASK);
+  
+  unsigned int timeout;
   
   switch ( CurrentMode )
   {
@@ -646,7 +605,7 @@ static void ChangeModeHandler(tHostMsg* pMsg)
     /* this check is so that the watch apps don't mess up the timer */
     if ( LastMode != CurrentMode )
     {
-      /* idle update handler will stop all display clocks */
+      /* idle update handler will stop display timer */
       IdleUpdateHandler();
       PrintString("Changing mode to Idle\r\n");
     }
@@ -658,38 +617,45 @@ static void ChangeModeHandler(tHostMsg* pMsg)
   
   case APPLICATION_MODE:
     
-    StopAllDisplayTimers();
+    StopDisplayTimer();
     
-    SetupOneSecondTimer(ApplicationModeTimerId,
-                        QueryApplicationModeTimeout(),
-                        NO_REPEAT,
-                        ModeTimeoutMsg,
-                        APPLICATION_MODE);
+    timeout = QueryApplicationModeTimeout();
     
     /* don't start the timer if the timeout == 0 
      * this invites things that look like lock ups...
      * it is preferred to make this a large value
      */
-    if ( QueryApplicationModeTimeout() )
+    if ( timeout )
     {
-      StartOneSecondTimer(ApplicationModeTimerId);
+      SetupOneSecondTimer(DisplayTimerId,
+                          timeout,
+                          NO_REPEAT,
+                          DISPLAY_QINDEX,
+                          ModeTimeoutMsg,
+                          APPLICATION_MODE);
+          
+      StartOneSecondTimer(DisplayTimerId);
     }
     
     PrintString("Changing mode to Application\r\n");
     break;
   
   case NOTIFICATION_MODE:
-    StopAllDisplayTimers();
     
-    SetupOneSecondTimer(NotificationModeTimerId,
-                        QueryNotificationModeTimeout(),
-                        NO_REPEAT,
-                        ModeTimeoutMsg,
-                        NOTIFICATION_MODE);
+    StopDisplayTimer();
+    
+    timeout = QueryNotificationModeTimeout();
         
-    if ( QueryNotificationModeTimeout() )
+    if ( timeout )
     {
-      StartOneSecondTimer(NotificationModeTimerId);
+      SetupOneSecondTimer(DisplayTimerId,
+                          timeout,
+                          NO_REPEAT,
+                          DISPLAY_QINDEX,
+                          ModeTimeoutMsg,
+                          NOTIFICATION_MODE);
+      
+      StartOneSecondTimer(DisplayTimerId);
     }
     
     PrintString("Changing mode to Notification\r\n");
@@ -705,11 +671,14 @@ static void ChangeModeHandler(tHostMsg* pMsg)
    */
   if ( LastMode != CurrentMode )
   {
-    tHostMsg* pOutgoingMsg;
-    BPL_AllocMessageBuffer(&pOutgoingMsg);
-    unsigned char data = (unsigned char)eScUpdateComplete;
-    UTL_BuildHstMsg(pOutgoingMsg, StatusChangeEvent, IDLE_MODE, &data, sizeof(data));
-    RouteMsg(&pOutgoingMsg);
+    tMessage OutgoingMsg;
+    SetupMessageAndAllocateBuffer(&OutgoingMsg,
+                                  StatusChangeEvent,
+                                  IDLE_MODE);
+    
+    OutgoingMsg.pBuffer[0] = (unsigned char)eScUpdateComplete;
+    OutgoingMsg.Length = 1;
+    RouteMsg(&OutgoingMsg);
     
 //    if ( LastMode == APPLICATION_MODE )
 //    {    
@@ -723,10 +692,8 @@ static void ChangeModeHandler(tHostMsg* pMsg)
   
 }
 
-static void ModeTimeoutHandler(tHostMsg* pMsg)
+static void ModeTimeoutHandler(tMessage* pMsg)
 {
-  tHostMsg* pOutgoingMsg;
-  
   switch ( CurrentMode )
   {
   
@@ -744,22 +711,22 @@ static void ModeTimeoutHandler(tHostMsg* pMsg)
     break;
   }  
   
-  /* send a message to the host */
-  BPL_AllocMessageBuffer(&pOutgoingMsg);
-  unsigned char data = (unsigned char)eScModeTimeout;
-  UTL_BuildHstMsg(pOutgoingMsg, 
-                  StatusChangeEvent, 
-                  NO_MSG_OPTIONS, 
-                  &data, sizeof(data));
-  
-  RouteMsg(&pOutgoingMsg);
-  
+  /* send a message to the host indicating that a timeout occurred */
+  tMessage OutgoingMsg;
+  SetupMessageAndAllocateBuffer(&OutgoingMsg,
+                                StatusChangeEvent,
+                                CurrentMode);
+    
+  OutgoingMsg.pBuffer[0] = (unsigned char)eScModeTimeout;
+  OutgoingMsg.Length = 1;
+  RouteMsg(&OutgoingMsg);
+    
 }
   
 
 static void WatchStatusScreenHandler(void)
 {
-  StopAllDisplayTimers();
+  StopDisplayTimer();
   
   FillMyBuffer(STARTING_ROW,NUM_LCD_ROWS,0x00);
     
@@ -778,10 +745,10 @@ static void WatchStatusScreenHandler(void)
   }
   
   CopyColumnsIntoMyBuffer(pIcon,
-                         0,
-                         STATUS_ICON_SIZE_IN_ROWS,
-                         LEFT_STATUS_ICON_COLUMN,
-                         STATUS_ICON_SIZE_IN_COLUMNS);  
+                          0,
+                          STATUS_ICON_SIZE_IN_ROWS,
+                          LEFT_STATUS_ICON_COLUMN,
+                          STATUS_ICON_SIZE_IN_COLUMNS);  
     
   
   if ( QueryPhoneConnected() )
@@ -794,10 +761,10 @@ static void WatchStatusScreenHandler(void)
   }
   
   CopyColumnsIntoMyBuffer(pIcon,
-                         0,
-                         STATUS_ICON_SIZE_IN_ROWS,
-                         CENTER_STATUS_ICON_COLUMN,
-                         STATUS_ICON_SIZE_IN_COLUMNS);  
+                          0,
+                          STATUS_ICON_SIZE_IN_ROWS,
+                          CENTER_STATUS_ICON_COLUMN,
+                          STATUS_ICON_SIZE_IN_COLUMNS);  
   
   unsigned int bV = ReadBatterySenseAverage();
   
@@ -823,35 +790,39 @@ static void WatchStatusScreenHandler(void)
   
   
   CopyColumnsIntoMyBuffer(pIcon,
-                         0,
-                         STATUS_ICON_SIZE_IN_ROWS,
-                         RIGHT_STATUS_ICON_COLUMN,
-                         STATUS_ICON_SIZE_IN_COLUMNS);  
-      
-  unsigned char row = 27;
-  unsigned char col = 8;
+                          0,
+                          STATUS_ICON_SIZE_IN_ROWS,
+                          RIGHT_STATUS_ICON_COLUMN,
+                          STATUS_ICON_SIZE_IN_COLUMNS);  
+
+  /* display battery voltage */
   unsigned char msd = 0;
+  
+  gRow = 27+2;
+  gColumn = 8;
+  gBitColumnMask = BIT6;
+  SetFont(MetaWatch7);
+  
 
   msd = bV / 1000;
   bV = bV % 1000;
-  WriteSpriteDigit(msd,row,col++,0);
+  WriteFontCharacter(msd+'0');
+  WriteFontCharacter('.');
   
   msd = bV / 100;
   bV = bV % 100;
-  WriteSpriteDigit(msd,row,col++,0);
-  AddDecimalPoint8w10h(row,col-2);
+  WriteFontCharacter(msd+'0');
   
   msd = bV / 10;
   bV = bV % 10;
-  WriteSpriteDigit(msd,row,col++,0); 
-  
-  WriteSpriteDigit(bV,row,col++,0);
+  WriteFontCharacter(msd+'0');
+  WriteFontCharacter(bV+'0'); 
    
   /*
    * Add Wavy line
    */
-  row += 12;
-  CopyRowsIntoMyBuffer(pWavyLine,row,NUMBER_OF_ROWS_IN_WAVY_LINE);
+  gRow += 12;
+  CopyRowsIntoMyBuffer(pWavyLine,gRow,NUMBER_OF_ROWS_IN_WAVY_LINE);
   
   
   /*
@@ -859,27 +830,31 @@ static void WatchStatusScreenHandler(void)
    */
 
   /* add MAC address */
-  row += NUMBER_OF_ROWS_IN_WAVY_LINE+2;
-  col = 0;
-  WriteString(GetLocalBluetoothAddressString(),row,col,DONT_ADD_SPACE_AT_END);
+  gRow += NUMBER_OF_ROWS_IN_WAVY_LINE+2;
+  gColumn = 0;
+  gBitColumnMask = BIT4;
+  WriteFontString(GetLocalBluetoothAddressString());
 
   /* add the firmware version */
-  row += 12;
-  col = 0;
-  col = WriteString("App",row,col,ADD_SPACE_AT_END);
-  col = WriteString(VERSION_STRING,row,col,ADD_SPACE_AT_END);
+  gRow += 12;
+  gColumn = 0;
+  gBitColumnMask = BIT4;
+  WriteFontString("App ");
+  WriteFontString(VERSION_STRING);
 
   /* stack version */
-  row += 12;
-  col = 0;
-  col = WriteString("Stack",row,col,ADD_SPACE_AT_END);
-  col = WriteString(GetStackVersion(),row,col,ADD_SPACE_AT_END);
+  gRow += 12;
+  gColumn = 0;
+  gBitColumnMask = BIT4;
+  WriteFontString("Stack ");
+  WriteFontString(GetStackVersion());
 
   /* add msp430 revision */
-  row +=12;
-  col = 0;
-  col = WriteString("MSP430 Rev",row,col,DONT_ADD_SPACE_AT_END);
-  WriteSpriteChar(GetHardwareRevision(),row,col++);
+  gRow +=12;
+  gColumn = 0;
+  gBitColumnMask = BIT4;
+  WriteFontString("MSP430 Rev ");
+  WriteFontCharacter(GetMsp430HardwareRevision());
  
   /* display entire buffer */
   PrepareMyBufferForLcd(STARTING_ROW,NUM_LCD_ROWS);
@@ -889,25 +864,24 @@ static void WatchStatusScreenHandler(void)
   ConfigureIdleUserInterfaceButtons();
   
   /* refresh the status page once a minute */  
-  SetupOneSecondTimer(IdleModeTimerId,
+  SetupOneSecondTimer(DisplayTimerId,
                       ONE_SECOND*60,
                       NO_REPEAT,
+                      DISPLAY_QINDEX,
                       WatchStatusMsg,
                       NO_MSG_OPTIONS);
   
-  StartOneSecondTimer(IdleModeTimerId);
-  
-  
+  StartOneSecondTimer(DisplayTimerId);
   
 }
 
 
 /* the bar code should remain displayed until the button is pressed again
- * or another mode is started */
-
-static void BarCodeHandler(tHostMsg* pMsg)
+ * or another mode is started 
+ */
+static void BarCodeHandler(tMessage* pMsg)
 {
-  StopAllDisplayTimers();
+  StopDisplayTimer();
     
   FillMyBuffer(STARTING_ROW,NUM_LCD_ROWS,0x00);
   
@@ -924,15 +898,20 @@ static void BarCodeHandler(tHostMsg* pMsg)
 
 static void ListPairedDevicesHandler(void)
 {  
-  StopAllDisplayTimers();
-  
-  unsigned char row = 0;
-  unsigned char col = 0;
+  StopDisplayTimer();
   
   /* draw entire region */
   FillMyBuffer(STARTING_ROW,NUM_LCD_ROWS,0x00);
   
-  for(unsigned char i = 0; i < 3; i++)
+  tString pBluetoothAddress[12+1];
+  tString pBluetoothName[12+1];
+
+  gRow = 4;
+  gColumn = 0;
+  SetFont(MetaWatch7);
+  
+  unsigned char i;
+  for( i = 0; i < 3; i++)
   {
 
     unsigned char j;
@@ -956,11 +935,15 @@ static void ListPairedDevicesHandler(void)
     
     QueryLinkKeys(i,pBluetoothAddress,pBluetoothName,12);
     
-    WriteString(pBluetoothName,row,col,DONT_ADD_SPACE_AT_END);
-    row += 12;
+    gColumn = 0;
+    gBitColumnMask = BIT4;
+    WriteFontString(pBluetoothName);
+    gRow += 12;
     
-    WriteString(pBluetoothAddress,row,col,DONT_ADD_SPACE_AT_END);
-    row += 12+5;
+    gColumn = 0;
+    gBitColumnMask = BIT4;
+    WriteFontString(pBluetoothAddress);
+    gRow += 12+5;
       
   }
   
@@ -1001,88 +984,92 @@ static void DrawConnectionScreen()
   }
   
   CopyRowsIntoMyBuffer(pSwash,WATCH_DRAWN_IDLE_BUFFER_ROWS+1,32);
-    
-#ifdef FONT_TESTING
   
+  /* local bluetooth address */
   gRow = 65;
   gColumn = 0;
-  gBitColumnMask = BIT0;
-  
-  SetFont(MetaWatch5);
-  WriteFontString("Peanut Butter");
-  
-  gRow = 72;
-  gColumn = 0;
-  gBitColumnMask = BIT0;
-  
+  gBitColumnMask = BIT4;
   SetFont(MetaWatch7);
-  //WriteFontString("ABCDEFGHIJKLMNOP");
-  WriteFontString("Peanut Butter W");
-  
-  gRow = 80;
-  gColumn = 0;
-  gBitColumnMask = BIT0;
-  SetFont(MetaWatch16);
-  WriteFontString("ABC pqr StuVw");
-
-#else
-  
-  unsigned char row;
-  unsigned char col;
-
-  /* characters are 10h then add space of 2 lines */
-  row = 65;
-  col = 0;
-  col = WriteString(GetLocalBluetoothAddressString(),row,col,DONT_ADD_SPACE_AT_END);
+  WriteFontString(GetLocalBluetoothAddressString());
 
   /* add the firmware version */
-  row = 75;
-  col = 0;
-  col = WriteString("App",row,col,ADD_SPACE_AT_END);
-  col = WriteString(VERSION_STRING,row,col,ADD_SPACE_AT_END);
+  gRow = 75;
+  gColumn = 0;
+  gBitColumnMask = BIT4;
+  WriteFontString("App ");
+  WriteFontString(VERSION_STRING);
   
   /* and the stack version */
-  row = 85;
-  col = 0;
-  col = WriteString("Stack",row,col,ADD_SPACE_AT_END);
-  col = WriteString(GetStackVersion(),row,col,ADD_SPACE_AT_END);
+  gRow = 85;
+  gColumn = 0;
+  gBitColumnMask = BIT4;
+  WriteFontString("Stack ");
+  WriteFontString(GetStackVersion());
 
-#endif
-  
 }
 
-static void ConfigureIdleBuferSizeHandler(tHostMsg* pMsg)
+/* change the parameter but don't save it into flash */
+static void ConfigureDisplayHandler(tMessage* pMsg)
 {
-  nvIdleBufferConfig = pMsg->pPayload[0] & IDLE_BUFFER_CONFIG_MASK;
-  
-  if ( nvIdleBufferConfig == WATCH_CONTROLS_TOP )
+  switch (pMsg->Options)
   {
-    IdleUpdateHandler();
+  case CONFIGURE_DISPLAY_OPTION_DONT_DISPLAY_SECONDS:
+    nvDisplaySeconds = 0x00;
+    break;
+  case CONFIGURE_DISPLAY_OPTION_DISPLAY_SECONDS:
+    nvDisplaySeconds = 0x01;
+    break;
+  case CONFIGURE_DISPLAY_OPTION_DONT_INVERT_DISPLAY:
+    nvIdleBufferInvert = 0x00;
+    break;
+  case CONFIGURE_DISPLAY_OPTION_INVERT_DISPLAY:
+    nvIdleBufferInvert = 0x01;
+    break;
+  }
+
+  if ( CurrentMode == IDLE_MODE )
+  {
+    IdleUpdateHandler();  
+  }
+  
+}
+    
+
+static void ConfigureIdleBuferSizeHandler(tMessage* pMsg)
+{
+  nvIdleBufferConfig = pMsg->pBuffer[0] & IDLE_BUFFER_CONFIG_MASK;
+  
+  if ( CurrentMode == IDLE_MODE )
+  {
+    if ( nvIdleBufferConfig == WATCH_CONTROLS_TOP )
+    {
+      IdleUpdateHandler();
+    }
   }
   
 }
 
-static void ModifyTimeHandler(tHostMsg* pMsg)
+static void ModifyTimeHandler(tMessage* pMsg)
 {
   int time;
   switch (pMsg->Options)
   {
   case MODIFY_TIME_INCREMENT_HOUR:
     /*! todo - make these functions */
-    time = GetRTCHOUR();
+    time = RTCHOUR;
     time++; if ( time == 24 ) time = 0;
-    SetRTCHOUR(time);
+    RTCHOUR = time;
     break;
   case MODIFY_TIME_INCREMENT_MINUTE:
-    time = GetRTCMIN();
+    time = RTCMIN;
     time++; if ( time == 60 ) time = 0;
-    SetRTCMIN(time);
+    RTCMIN = time;
     break;
   case MODIFY_TIME_INCREMENT_DOW:
     /* modify the day of the week (not the day of the month) */
-    time = GetRTCDOW();
+    time = RTCDOW;
     time++; if ( time == 7 ) time = 0;
-    SetRTCDOW(time);
+    RTCDOW = time;
     break;
   }
   
@@ -1099,24 +1086,7 @@ unsigned char GetIdleBufferConfiguration(void)
 
 static void SendMyBufferToLcd(unsigned char TotalRows)
 {
-  tHostMsg* pOutgoingMsg;
-  
-#if 0
-  BPL_AllocMessageBuffer(&pOutgoingMsg);
-  ((tUpdateMyDisplayMsg*)pOutgoingMsg)->Type = ClearLcdSpecial;
-  RouteMsg(&pOutgoingMsg);
-#endif
-  
-  
-  /* 
-   * since my buffer is in MSP430 memory it can go directly to the Lcd BUT
-   * to preserve draw order it goes to the sram queue first
-   */
-  BPL_AllocMessageBuffer(&pOutgoingMsg);
-  ((tUpdateMyDisplayMsg*)pOutgoingMsg)->Type = UpdateMyDisplaySram;
-  ((tUpdateMyDisplayMsg*)pOutgoingMsg)->TotalLines = TotalRows;
-  ((tUpdateMyDisplayMsg*)pOutgoingMsg)->pMyDisplay = (unsigned char*)pMyBuffer;
-  RouteMsg(&pOutgoingMsg);
+  UpdateMyDisplay((unsigned char*)pMyBuffer,TotalRows);
 }
 
 
@@ -1126,8 +1096,7 @@ static void InitMyBuffer(void)
   int col;
   
   // Clear the display buffer.  Step through the rows
-  for(row = STARTING_ROW; 
-      ((row < NUM_LCD_ROWS) && (row < NUM_LCD_ROWS)); row++)
+  for(row = STARTING_ROW; row < NUM_LCD_ROWS; row++)
   {
       // clear a horizontal line
       for(col = 0; col < NUM_LCD_COL_BYTES; col++)
@@ -1242,127 +1211,13 @@ static void CopyColumnsIntoMyBuffer(unsigned char const* pImage,
 
 }
 
-
-/* sprites are in the form row,row,row */
-static void WriteSpriteChar(unsigned char Char,
-                            unsigned char RowOffset,
-                            unsigned char ColumnOffset)
-{
-  
-  /* copy Char into correct position */
-  unsigned char const * pChar = GetSpritePointerForChar(Char);
-  unsigned char RowNumber;
-  unsigned char left = 0;
-  
-  for ( RowNumber = 0; RowNumber < 10; RowNumber++ )
-  {
-    pMyBuffer[RowNumber+RowOffset].Data[left+ColumnOffset] = pChar[RowNumber];
-  }
-  
-}
-
-/* sprites are in the form row,row,row */
-
-/* shift only works for blank pixels 
- * a real shift will require an OR operation
- */
-static void WriteSpriteDigit(unsigned char Digit,
-                             unsigned char RowOffset,
-                             unsigned char ColumnOffset,
-                             signed char ShiftAmount)
-{
-  
-  /* copy digit into correct position */
-  unsigned char const * pDigit = GetSpritePointerForDigit(Digit);
-  unsigned char RowNumber;
-  unsigned char left = 0;
-  unsigned char BitMap;
-  
-  for ( RowNumber = 0; RowNumber < 10; RowNumber++ )
-  {
-    if ( ShiftAmount >= 0 )
-    {
-      BitMap = (pDigit[RowNumber] << ShiftAmount);
-    }
-    else
-    {
-      BitMap = (pDigit[RowNumber] >> (ShiftAmount*-1));
-    }
-    
-    pMyBuffer[RowNumber+RowOffset].Data[left+ColumnOffset] = BitMap;
-  }
-  
-}
-
-
-/* 
- * the system font for the digits used for time are 19 high
- */
-static void WriteTimeDigit(unsigned char Digit,
-                           unsigned char RowOffset,
-                           unsigned char ColumnOffset,
-                           unsigned char JustificationOffset)
-{
-  
-  /* copy digit into correct position */
-  unsigned char const * pDigit = GetPointerForTimeDigit(Digit,JustificationOffset);
-  unsigned char RowNumber;
-  unsigned char Column;
-  
-  for ( Column = 0; Column < 2; Column++ )
-  {
-    /* RowNumber is the row in the pDigit */
-    for ( RowNumber = 0; RowNumber < TIME_DIGIT_HEIGHT; RowNumber++ )
-    {
-      /* data is ORED in because the 11 bit wide letters are right or left
-       * justified in 16 bit containers */
-      pMyBuffer[RowNumber+RowOffset].Data[Column+ColumnOffset] |= 
-        pDigit[RowNumber+(Column*TIME_DIGIT_HEIGHT)];
-    }
-  }
-  
-}
-
-static void WriteTimeColon(unsigned char RowOffset,
-                           unsigned char ColumnOffset,
-                           unsigned char Justification)
-{
-  
-  /* copy digit into correct position */
-  unsigned char const * pDigit;
-  if ( Justification == LEFT_JUSTIFIED )
-  {
-    pDigit = pTimeColonL[0];
-  }
-  else
-  {
-    pDigit = pTimeColonR[0];
-  }
-  
-  unsigned char RowNumber;
-  unsigned char Column = 0;
-  
-  /* colon has only one column of non-zero data*/
-  for ( RowNumber = 0; RowNumber < TIME_DIGIT_HEIGHT; RowNumber++ )
-  {
-    /* data is ORED in because the 11 bit wide letters are right or left
-     * justified in 16 bit containers */
-    pMyBuffer[RowNumber+RowOffset].Data[Column+ColumnOffset] |= 
-      pDigit[RowNumber+(Column*TIME_DIGIT_HEIGHT)];
-  }
-  
-}
-
 static void DrawIdleScreen(void)
 {
   unsigned char msd;
   unsigned char lsd;
     
-  unsigned char Row = 6;
-  unsigned char Col = 0;
-  
   /* display hour */
-  int Hour = GetRTCHOUR();
+  int Hour = RTCHOUR;
   
   /* if required convert to twelve hour format */
   if ( GetTimeFormat() == TWELVE_HOUR )
@@ -1380,40 +1235,41 @@ static void DrawIdleScreen(void)
   msd = Hour / 10;
   lsd = Hour % 10;
 
-  /* if first digit is zero then leave location blank */
-  if ( msd != 0 )
-  {  
-    WriteTimeDigit(msd,Row,Col,LEFT_JUSTIFIED);
-  }
-  Col += 1;
-  WriteTimeDigit(lsd,Row,Col,RIGHT_JUSTIFIED);
-  Col += 2;
+  gRow = 6;
+  gColumn = 0;
+  gBitColumnMask = BIT4;
+  SetFont(MetaWatchTime);
   
-  /* the colon takes the first 5 bits on the byte*/
-  WriteTimeColon(Row,Col,RIGHT_JUSTIFIED);
-  Col+=1;
+  /* if first digit is zero then leave location blank */
+  if ( msd == 0 && GetTimeFormat() == TWELVE_HOUR )
+  {  
+    WriteFontCharacter(TIME_CHARACTER_SPACE_INDEX);  
+  }
+  else
+  {
+    WriteFontCharacter(msd);
+  }
+  
+  WriteFontCharacter(lsd);
+  
+  WriteFontCharacter(TIME_CHARACTER_COLON_INDEX);
   
   /* display minutes */
-  int Minutes = GetRTCMIN();
+  int Minutes = RTCMIN;
   msd = Minutes / 10;
   lsd = Minutes % 10;
-  WriteTimeDigit(msd,Row,Col,RIGHT_JUSTIFIED);
-  Col += 2;
-  WriteTimeDigit(lsd,Row,Col,LEFT_JUSTIFIED);
+  WriteFontCharacter(msd);
+  WriteFontCharacter(lsd);
     
   if ( nvDisplaySeconds )
   {
-    /* the final colon's spacing isn't quite the same */
-    int Seconds = GetRTCSEC();
+    int Seconds = RTCSEC;
     msd = Seconds / 10;
     lsd = Seconds % 10;    
     
-    Col +=2;
-    WriteTimeColon(Row,Col,LEFT_JUSTIFIED);
-    Col += 1;
-    WriteTimeDigit(msd,Row,Col,LEFT_JUSTIFIED);
-    Col += 1;
-    WriteTimeDigit(lsd,Row,Col,RIGHT_JUSTIFIED);    
+    WriteFontCharacter(TIME_CHARACTER_COLON_INDEX);
+    WriteFontCharacter(msd);
+    WriteFontCharacter(lsd);
     
   }
   else /* now things starting getting fun....*/
@@ -1474,11 +1330,8 @@ static void DrawSimpleIdleScreen(void)
   unsigned char msd;
   unsigned char lsd;
     
-  unsigned char Row = 6;
-  unsigned char Col = 0;
-  
   /* display hour */
-  int Hour = GetRTCHOUR();
+  int Hour = RTCHOUR;
   
   /* if required convert to twelve hour format */
   if ( GetTimeFormat() == TWELVE_HOUR )
@@ -1496,40 +1349,40 @@ static void DrawSimpleIdleScreen(void)
   msd = Hour / 10;
   lsd = Hour % 10;
 
-  /* if first digit is zero then leave location blank */
-  if ( msd != 0 )
-  {  
-    WriteTimeDigit(msd,Row,Col,LEFT_JUSTIFIED);
-  }
-  Col += 1;
-  WriteTimeDigit(lsd,Row,Col,RIGHT_JUSTIFIED);
-  Col += 2;
+  gRow = 6;
+  gColumn = 0;
+  gBitColumnMask = BIT4;
+  SetFont(MetaWatchTime);
   
-  /* the colon takes the first 5 bits on the byte*/
-  WriteTimeColon(Row,Col,RIGHT_JUSTIFIED);
-  Col+=1;
+  /* if first digit is zero then leave location blank */
+  if ( msd == 0 && GetTimeFormat() == TWELVE_HOUR )
+  {  
+    WriteFontCharacter(TIME_CHARACTER_SPACE_INDEX);  
+  }
+  else
+  {
+    WriteFontCharacter(msd);
+  }
+  WriteFontCharacter(lsd);
+  
+  WriteFontCharacter(TIME_CHARACTER_COLON_INDEX);
   
   /* display minutes */
-  int Minutes = GetRTCMIN();
+  int Minutes = RTCMIN;
   msd = Minutes / 10;
   lsd = Minutes % 10;
-  WriteTimeDigit(msd,Row,Col,RIGHT_JUSTIFIED);
-  Col += 2;
-  WriteTimeDigit(lsd,Row,Col,LEFT_JUSTIFIED);
+  WriteFontCharacter(msd);
+  WriteFontCharacter(lsd);
     
   if ( nvDisplaySeconds )
   {
-    /* the final colon's spacing isn't quite the same */
-    int Seconds = GetRTCSEC();
+    int Seconds = RTCSEC;
     msd = Seconds / 10;
     lsd = Seconds % 10;    
     
-    Col +=2;
-    WriteTimeColon(Row,Col,LEFT_JUSTIFIED);
-    Col += 1;
-    WriteTimeDigit(msd,Row,Col,LEFT_JUSTIFIED);
-    Col += 1;
-    WriteTimeDigit(lsd,Row,Col,RIGHT_JUSTIFIED);    
+    WriteFontCharacter(TIME_CHARACTER_COLON_INDEX);
+    WriteFontCharacter(msd);
+    WriteFontCharacter(lsd);
     
   }
   else 
@@ -1544,7 +1397,7 @@ static void DrawSimpleIdleScreen(void)
 
 static void MenuModeHandler(unsigned char MsgOptions)
 {
-  StopAllDisplayTimers();
+  StopDisplayTimer();
   
   /* draw entire region */
   FillMyBuffer(STARTING_ROW,PHONE_IDLE_BUFFER_ROWS,0x00);
@@ -1776,9 +1629,9 @@ static void DrawCommonMenuIcons(void)
 
 static void MenuButtonHandler(unsigned char MsgOptions)
 {
-  StopAllDisplayTimers();
+  StopDisplayTimer();
 
-  tHostMsg* pOutgoingMsg;
+  tMessage OutgoingMsg;
   
   switch (MsgOptions)
   {
@@ -1786,19 +1639,18 @@ static void MenuButtonHandler(unsigned char MsgOptions)
     
     if ( QueryConnectionState() != Initializing )
     {
-      BPL_AllocMessageBuffer(&pOutgoingMsg);
-      pOutgoingMsg->Type = PariringControlMsg;
+      SetupMessage(&OutgoingMsg,PairingControlMsg,NO_MSG_OPTIONS);
         
       if ( QueryDiscoverable() )
       {
-        pOutgoingMsg->Options = PAIRING_CONTROL_OPTION_DISABLE_PAIRING;
+        OutgoingMsg.Options = PAIRING_CONTROL_OPTION_DISABLE_PAIRING;
       }
       else
       {
-        pOutgoingMsg->Options = PAIRING_CONTROL_OPTION_ENABLE_PAIRING;  
+        OutgoingMsg.Options = PAIRING_CONTROL_OPTION_ENABLE_PAIRING;  
       }
       
-      RouteMsg(&pOutgoingMsg);
+      RouteMsg(&OutgoingMsg);
     }
     /* screen will be updated with a message from spp */
     break;
@@ -1811,39 +1663,34 @@ static void MenuButtonHandler(unsigned char MsgOptions)
   case MENU_BUTTON_OPTION_EXIT:          
     
     /* save all of the non-volatile items */
-    BPL_AllocMessageBuffer(&pOutgoingMsg);
-    pOutgoingMsg->Type = PariringControlMsg;
-    pOutgoingMsg->Options = PAIRING_CONTROL_OPTION_SAVE_SPP;
-    RouteMsg(&pOutgoingMsg);
-     
+    SetupMessage(&OutgoingMsg,PairingControlMsg,PAIRING_CONTROL_OPTION_SAVE_SPP);
+    RouteMsg(&OutgoingMsg);
+    
     SaveLinkAlarmEnable();
     SaveRstNmiConfiguration();
     SaveIdleBufferInvert();
     SaveDisplaySeconds();
-    
+      
     /* go back to the normal idle screen */
-    BPL_AllocMessageBuffer(&pOutgoingMsg);
-    pOutgoingMsg->Type = IdleUpdate;
-    RouteMsg(&pOutgoingMsg);
-    
+    SetupMessage(&OutgoingMsg,IdleUpdate,NO_MSG_OPTIONS);
+    RouteMsg(&OutgoingMsg);
+
     break;
     
   case MENU_BUTTON_OPTION_TOGGLE_BLUETOOTH:
     
     if ( QueryConnectionState() != Initializing )
     {
-      BPL_AllocMessageBuffer(&pOutgoingMsg);
-        
       if ( QueryBluetoothOn() )
       {
-        pOutgoingMsg->Type = TurnRadioOffMsg;
+        SetupMessage(&OutgoingMsg,TurnRadioOffMsg,NO_MSG_OPTIONS);
       }
       else
       {
-        pOutgoingMsg->Type = TurnRadioOnMsg;
+        SetupMessage(&OutgoingMsg,TurnRadioOnMsg,NO_MSG_OPTIONS);
       }
       
-      RouteMsg(&pOutgoingMsg);
+      RouteMsg(&OutgoingMsg);
     }
     /* screen will be updated with a message from spp */
     break;
@@ -1851,10 +1698,8 @@ static void MenuButtonHandler(unsigned char MsgOptions)
   case MENU_BUTTON_OPTION_TOGGLE_SECURE_SIMPLE_PAIRING:
     if ( QueryConnectionState() != Initializing )
     {
-      BPL_AllocMessageBuffer(&pOutgoingMsg);
-      pOutgoingMsg->Type = PariringControlMsg;
-      pOutgoingMsg->Options = PAIRING_CONTROL_OPTION_TOGGLE_SSP;
-      RouteMsg(&pOutgoingMsg);
+      SetupMessage(&OutgoingMsg,PairingControlMsg,PAIRING_CONTROL_OPTION_TOGGLE_SSP);
+      RouteMsg(&OutgoingMsg);
     }
     /* screen will be updated with a message from spp */
     break;
@@ -1912,41 +1757,12 @@ static void ToggleSecondsHandler(unsigned char Options)
   
 }
 
-static void AddDecimalPoint8w10h(unsigned char RowOffset,
-                                 unsigned char ColumnOffset)
-{
-  /* right most pixel is most significant bit */
-  pMyBuffer[RowOffset+8].Data[ColumnOffset+1] |= 0x01;
-  
-}
-
-static unsigned char const* GetSpritePointerForChar(unsigned char CharIn)
-{
-  return (Alphabet8w10h[MapCharacterToIndex(CharIn)]);
-}
-
-static unsigned char const* GetSpritePointerForDigit(unsigned char Digit)
-{
-  return (Alphabet8w10h[MapDigitToIndex(Digit)]);
-}
-
-static unsigned char const* GetPointerForTimeDigit(unsigned char Digit,
-                                                   unsigned char Offset)
-{
-  if ( Digit > 10 )
-  {
-    PrintString("Invalid input to GetPointerForTimeDigit\r\n");
-  }
-                
-  return (pTimeDigit[Digit+Offset]); 
-}
-
 static void DisplayAmPm(void)
 {  
   /* don't display am/pm in 24 hour mode */
   if ( GetTimeFormat() == TWELVE_HOUR ) 
   {
-    int Hour = GetRTCHOUR();
+    int Hour = RTCHOUR;
     
     unsigned char const *pFoo;
     
@@ -1966,29 +1782,11 @@ static void DisplayAmPm(void)
 
 static void DisplayDayOfWeek(void)
 {
-  int DayOfWeek = GetRTCDOW();
+  //int DayOfWeek = RTCDOW;
   
-  unsigned char const *pFoo = DaysOfWeek[DayOfWeek];
+  //unsigned char const *pFoo = DaysOfWeek[DayOfWeek];
     
-  WriteFoo(pFoo,10,8);
-  
-}
-
-/* add a '/' between the month and day */
-static void DisplayDataSeparator(unsigned char RowOffset,
-                                 unsigned char ColumnOffset)
-{
-  /* right most pixel is most significant bit */
-  pMyBuffer[RowOffset+0].Data[ColumnOffset+1] |= 0x04;
-  pMyBuffer[RowOffset+1].Data[ColumnOffset+1] |= 0x02;
-  pMyBuffer[RowOffset+2].Data[ColumnOffset+1] |= 0x02;
-  pMyBuffer[RowOffset+3].Data[ColumnOffset+1] |= 0x02;
-  pMyBuffer[RowOffset+4].Data[ColumnOffset+1] |= 0x02;
-  pMyBuffer[RowOffset+5].Data[ColumnOffset+1] |= 0x01;
-  pMyBuffer[RowOffset+6].Data[ColumnOffset+1] |= 0x01;
-  pMyBuffer[RowOffset+7].Data[ColumnOffset+1] |= 0x01;
-  pMyBuffer[RowOffset+8].Data[ColumnOffset+1] |= 0x01;
-  pMyBuffer[RowOffset+9].Data[ColumnOffset]   |= 0x80;
+  WriteFoo(DaysOfWeek[RTCDOW], GetTimeFormat() == TWENTY_FOUR_HOUR ? 0 : 10, 8);
   
 }
 
@@ -2002,22 +1800,41 @@ static void DisplayDate(void)
     /* determine if month or day is displayed first */
     if ( GetDateFormat() == MONTH_FIRST )
     {
-      First = GetRTCMON();
-      Second = GetRTCDAY();
+      First = RTCMON;
+      Second = RTCDAY;
     }
     else
     {
-      First = GetRTCDAY();
-      Second = GetRTCMON();
+      First = RTCDAY;
+      Second = RTCMON;
     }
     
-    /* shift bit so that it lines up with AM/PM and Day of Week */
-    WriteSpriteDigit(First/10,20,8,-1);
-    /* shift the bits so we can fit a / in the middle */
-    WriteSpriteDigit(First%10,20,9,-1);
-    WriteSpriteDigit(Second/10,20,10,1);
-    WriteSpriteDigit(Second%10,20,11,0);
-    DisplayDataSeparator(20,9);
+    /* make it line up with AM/PM and Day of Week */
+    gRow = 22;
+    gColumn = 8;
+    gBitColumnMask = BIT1;
+    SetFont(MetaWatch7);
+
+    if ( GetTimeFormat() == TWENTY_FOUR_HOUR )
+    {
+      int year = RTCYEAR;
+      WriteFontCharacter(year/1000+'0');
+      year %= 1000;
+      WriteFontCharacter(year/100+'0');
+      year %= 100;
+      WriteFontCharacter(year/10+'0');
+      year %= 10;
+      WriteFontCharacter(year+'0');
+      gRow = 12;
+    }
+
+    gColumn = 8;
+    gBitColumnMask = BIT1;
+    WriteFontCharacter(First/10+'0');
+    WriteFontCharacter(First%10+'0');
+    WriteFontCharacter('/');
+    WriteFontCharacter(Second/10+'0');
+    WriteFontCharacter(Second%10+'0');
   }
 }
 
@@ -2248,165 +2065,7 @@ const unsigned char pMetaWatchSplash[NUM_LCD_ROWS*NUM_LCD_COL_BYTES] =
 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
 };
 
-const unsigned char Alphabet8w10h[96][10] =  
-{
-0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
-0x00,0x00,0x10,0x38,0x38,0x10,0x10,0x00,0x10,0x00,
-0x00,0x00,0x6C,0x6C,0x24,0x00,0x00,0x00,0x00,0x00,
-0x00,0x00,0x00,0x28,0x7C,0x28,0x28,0x7C,0x28,0x00,
-0x00,0x00,0x10,0x70,0x08,0x30,0x40,0x38,0x20,0x00,
-0x00,0x00,0x4C,0x4C,0x20,0x10,0x08,0x64,0x64,0x00,
-0x00,0x00,0x08,0x14,0x14,0x08,0x54,0x24,0x58,0x00,
-0x00,0x00,0x18,0x18,0x10,0x08,0x00,0x00,0x00,0x00,
-0x00,0x00,0x10,0x08,0x08,0x08,0x08,0x08,0x10,0x00,
-0x00,0x00,0x10,0x20,0x20,0x20,0x20,0x20,0x10,0x00,
-0x00,0x00,0x92,0x54,0x38,0xFE,0x38,0x54,0x92,0x00,
-0x00,0x00,0x00,0x10,0x10,0x7C,0x10,0x10,0x00,0x00,
-0x00,0x00,0x00,0x00,0x00,0x00,0x18,0x18,0x10,0x08,
-0x00,0x00,0x00,0x00,0x00,0x7C,0x00,0x00,0x00,0x00,
-0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x18,0x18,0x00,
-0x00,0x00,0x00,0x40,0x20,0x10,0x08,0x04,0x00,0x00,
-0x00,0x00,0x38,0x44,0x64,0x54,0x4C,0x44,0x38,0x00,
-0x00,0x00,0x10,0x18,0x10,0x10,0x10,0x10,0x38,0x00,
-0x00,0x00,0x38,0x44,0x40,0x30,0x08,0x04,0x7C,0x00,
-0x00,0x00,0x38,0x44,0x40,0x38,0x40,0x44,0x38,0x00,
-0x00,0x00,0x20,0x30,0x28,0x24,0x7C,0x20,0x20,0x00,
-0x00,0x00,0x7C,0x04,0x04,0x3C,0x40,0x44,0x38,0x00,
-0x00,0x00,0x30,0x08,0x04,0x3C,0x44,0x44,0x38,0x00,
-0x00,0x00,0x7C,0x40,0x20,0x10,0x08,0x08,0x08,0x00,
-0x00,0x00,0x38,0x44,0x44,0x38,0x44,0x44,0x38,0x00,
-0x00,0x00,0x38,0x44,0x44,0x78,0x40,0x20,0x18,0x00,
-0x00,0x00,0x00,0x00,0x18,0x18,0x00,0x18,0x18,0x00,
-0x00,0x00,0x00,0x00,0x18,0x18,0x00,0x18,0x18,0x10,
-0x00,0x00,0x20,0x10,0x08,0x04,0x08,0x10,0x20,0x00,
-0x00,0x00,0x00,0x00,0x7C,0x00,0x00,0x7C,0x00,0x00,
-0x00,0x00,0x08,0x10,0x20,0x40,0x20,0x10,0x08,0x00,
-0x00,0x00,0x38,0x44,0x40,0x30,0x10,0x00,0x10,0x00,
-0x00,0x00,0x38,0x44,0x74,0x54,0x74,0x04,0x38,0x00,
-0x00,0x00,0x38,0x44,0x44,0x44,0x7C,0x44,0x44,0x00,
-0x00,0x00,0x3C,0x44,0x44,0x3C,0x44,0x44,0x3C,0x00,
-0x00,0x00,0x38,0x44,0x04,0x04,0x04,0x44,0x38,0x00,
-0x00,0x00,0x3C,0x44,0x44,0x44,0x44,0x44,0x3C,0x00,
-0x00,0x00,0x7C,0x04,0x04,0x3C,0x04,0x04,0x7C,0x00,
-0x00,0x00,0x7C,0x04,0x04,0x3C,0x04,0x04,0x04,0x00,
-0x00,0x00,0x38,0x44,0x04,0x74,0x44,0x44,0x78,0x00,
-0x00,0x00,0x44,0x44,0x44,0x7C,0x44,0x44,0x44,0x00,
-0x00,0x00,0x38,0x10,0x10,0x10,0x10,0x10,0x38,0x00,
-0x00,0x00,0x40,0x40,0x40,0x40,0x44,0x44,0x38,0x00,
-0x00,0x00,0x44,0x24,0x14,0x0C,0x14,0x24,0x44,0x00,
-0x00,0x00,0x04,0x04,0x04,0x04,0x04,0x04,0x7C,0x00,
-0x00,0x00,0x44,0x6C,0x54,0x44,0x44,0x44,0x44,0x00,
-0x00,0x00,0x44,0x4C,0x54,0x64,0x44,0x44,0x44,0x00,
-0x00,0x00,0x38,0x44,0x44,0x44,0x44,0x44,0x38,0x00,
-0x00,0x00,0x3C,0x44,0x44,0x3C,0x04,0x04,0x04,0x00,
-0x00,0x00,0x38,0x44,0x44,0x44,0x54,0x24,0x58,0x00,
-0x00,0x00,0x3C,0x44,0x44,0x3C,0x24,0x44,0x44,0x00,
-0x00,0x00,0x38,0x44,0x04,0x38,0x40,0x44,0x38,0x00,
-0x00,0x00,0x7C,0x10,0x10,0x10,0x10,0x10,0x10,0x00,
-0x00,0x00,0x44,0x44,0x44,0x44,0x44,0x44,0x38,0x00,
-0x00,0x00,0x44,0x44,0x44,0x44,0x44,0x28,0x10,0x00,
-0x00,0x00,0x44,0x44,0x54,0x54,0x54,0x54,0x28,0x00,
-0x00,0x00,0x44,0x44,0x28,0x10,0x28,0x44,0x44,0x00,
-0x00,0x00,0x44,0x44,0x44,0x28,0x10,0x10,0x10,0x00,
-0x00,0x00,0x7C,0x40,0x20,0x10,0x08,0x04,0x7C,0x00,
-0x00,0x00,0x38,0x08,0x08,0x08,0x08,0x08,0x38,0x00,
-0x00,0x00,0x00,0x04,0x08,0x10,0x20,0x40,0x00,0x00,
-0x00,0x00,0x38,0x20,0x20,0x20,0x20,0x20,0x38,0x00,
-0x00,0x00,0x10,0x28,0x44,0x00,0x00,0x00,0x00,0x00,
-0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0xFE,0x00,
-0x00,0x18,0x18,0x08,0x10,0x00,0x00,0x00,0x00,0x00,
-0x00,0x00,0x00,0x00,0x38,0x40,0x78,0x44,0x78,0x00,
-0x00,0x00,0x04,0x04,0x3C,0x44,0x44,0x44,0x3C,0x00,
-0x00,0x00,0x00,0x00,0x38,0x44,0x04,0x44,0x38,0x00,
-0x00,0x00,0x40,0x40,0x78,0x44,0x44,0x44,0x78,0x00,
-0x00,0x00,0x00,0x00,0x38,0x44,0x3C,0x04,0x38,0x00,
-0x00,0x00,0x60,0x10,0x10,0x78,0x10,0x10,0x10,0x00,
-0x00,0x00,0x00,0x78,0x44,0x44,0x78,0x40,0x38,0x00,
-0x00,0x00,0x08,0x08,0x38,0x48,0x48,0x48,0x48,0x00,
-0x00,0x00,0x10,0x00,0x10,0x10,0x10,0x10,0x10,0x00,
-0x00,0x00,0x40,0x00,0x60,0x40,0x40,0x40,0x48,0x30,
-0x00,0x00,0x08,0x08,0x48,0x28,0x18,0x28,0x48,0x00,
-0x00,0x00,0x10,0x10,0x10,0x10,0x10,0x10,0x10,0x00,
-0x00,0x00,0x00,0x00,0x2C,0x54,0x54,0x44,0x44,0x00,
-0x00,0x00,0x00,0x00,0x38,0x48,0x48,0x48,0x48,0x00,
-0x00,0x00,0x00,0x00,0x38,0x44,0x44,0x44,0x38,0x00,
-0x00,0x00,0x00,0x00,0x3C,0x44,0x44,0x3C,0x04,0x04,
-0x00,0x00,0x00,0x00,0x78,0x44,0x44,0x78,0x40,0x40,
-0x00,0x00,0x00,0x00,0x34,0x48,0x08,0x08,0x1C,0x00,
-0x00,0x00,0x00,0x00,0x38,0x04,0x38,0x40,0x38,0x00,
-0x00,0x00,0x00,0x10,0x78,0x10,0x10,0x50,0x20,0x00,
-0x00,0x00,0x00,0x00,0x48,0x48,0x48,0x68,0x50,0x00,
-0x00,0x00,0x00,0x00,0x44,0x44,0x44,0x28,0x10,0x00,
-0x00,0x00,0x00,0x00,0x44,0x44,0x54,0x7C,0x28,0x00,
-0x00,0x00,0x00,0x00,0x44,0x28,0x10,0x28,0x44,0x00,
-0x00,0x00,0x00,0x00,0x48,0x48,0x48,0x70,0x40,0x70,
-0x00,0x00,0x00,0x00,0x78,0x40,0x30,0x08,0x78,0x00,
-0x00,0x00,0x30,0x08,0x08,0x0C,0x08,0x08,0x30,0x00,
-0x00,0x00,0x10,0x10,0x10,0x00,0x10,0x10,0x10,0x00,
-0x00,0x00,0x18,0x20,0x20,0x60,0x20,0x20,0x18,0x00,
-0x00,0x00,0x00,0x50,0x28,0x00,0x00,0x00,0x00,0x00,
-0x00,0x00,0x00,0x48,0x00,0x00,0x48,0x30,0x00,0x00,
-};
 
-/* This is the system font for the time
- * The characters are 11w*19h but they are
- * in 16 bit containers the first are 
- * left justified and the second group are right justified.
- * 10*2*2 = 40 rows of 19
- */
-const unsigned char pTimeDigit[10*2][19*2] =
-{
-0xFC,0xFE,0xFF,0xFF,0x8F,0x8F,0x8F,0x8F,0x8F,0x8F,0x8F,0x8F,0x8F,0x8F,0x8F,0xFF,0xFF,0xFE,0xFC,
-0x01,0x03,0x07,0x07,0x07,0x07,0x07,0x07,0x07,0x07,0x07,0x07,0x07,0x07,0x07,0x07,0x07,0x03,0x01,
-0xE0,0xF0,0xFC,0xFC,0xFC,0xFC,0xF0,0xF0,0xF0,0xF0,0xF0,0xF0,0xF0,0xF0,0xF0,0xF0,0xF0,0xF0,0xF0,
-0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
-0xFC,0xFE,0xFF,0xFF,0x8F,0x8F,0x80,0xC0,0xE0,0xF0,0xF8,0xFC,0x7E,0x3F,0x1F,0xFF,0xFF,0xFF,0xFF,
-0x01,0x03,0x07,0x07,0x07,0x07,0x07,0x07,0x07,0x03,0x01,0x00,0x00,0x00,0x00,0x07,0x07,0x07,0x07,
-0xFC,0xFE,0xFF,0xFF,0x8F,0x8F,0x80,0xC0,0xF0,0xF0,0xF0,0xC0,0x80,0x8F,0x8F,0xFF,0xFF,0xFE,0xFC,
-0x01,0x03,0x07,0x07,0x07,0x07,0x07,0x07,0x03,0x01,0x03,0x07,0x07,0x07,0x07,0x07,0x07,0x03,0x01,
-0x3C,0xBC,0xBC,0x9E,0x9E,0x8F,0x8F,0xFF,0xFF,0xFF,0xFF,0x80,0x80,0x80,0x80,0x80,0x80,0x80,0x00,
-0x00,0x07,0x07,0x07,0x07,0x07,0x07,0x07,0x07,0x07,0x07,0x07,0x07,0x07,0x07,0x07,0x07,0x07,0x00,
-0xFF,0xFF,0xFF,0xFF,0x0F,0x0F,0x0F,0xFF,0xFF,0xFF,0xFF,0x80,0x80,0x80,0xC0,0xFF,0xFF,0xFF,0xFF,
-0x07,0x07,0x07,0x07,0x00,0x00,0x00,0x03,0x07,0x07,0x07,0x07,0x07,0x07,0x07,0x07,0x03,0x03,0x00,
-0xF0,0xFC,0xFE,0xFE,0x1F,0x0F,0x0F,0xFF,0xFF,0xFF,0xFF,0x8F,0x8F,0x8F,0x8F,0xFF,0xFF,0xFE,0xFC,
-0x01,0x01,0x01,0x01,0x00,0x00,0x00,0x01,0x03,0x07,0x07,0x07,0x07,0x07,0x07,0x07,0x07,0x03,0x01,
-0xFF,0xFF,0xFF,0xFF,0x80,0xC0,0xC0,0xE0,0xE0,0xF0,0xF0,0xF8,0x78,0x78,0x78,0x78,0x78,0x78,0x78,
-0x07,0x07,0x07,0x07,0x07,0x07,0x03,0x03,0x01,0x01,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
-0xFC,0xFE,0xFF,0xFF,0x8F,0x8F,0x8F,0xFF,0xFF,0xFE,0xFF,0x8F,0x8F,0x8F,0x8F,0xFF,0xFF,0xFE,0xFC,
-0x01,0x03,0x07,0x07,0x07,0x07,0x07,0x07,0x07,0x03,0x07,0x07,0x07,0x07,0x07,0x07,0x07,0x03,0x01,
-0xFC,0xFE,0xFF,0xFF,0x8F,0x8F,0x8F,0x8F,0xFF,0xFF,0xFE,0xFC,0x80,0x80,0xC0,0xFC,0xFC,0xFC,0x7C,
-0x01,0x03,0x07,0x07,0x07,0x07,0x07,0x07,0x07,0x07,0x07,0x07,0x07,0x07,0x07,0x03,0x03,0x01,0x00,
-0xC0,0xE0,0xF0,0xF0,0xF0,0xF0,0xF0,0xF0,0xF0,0xF0,0xF0,0xF0,0xF0,0xF0,0xF0,0xF0,0xF0,0xE0,0xC0,
-0x1F,0x3F,0x7F,0x7F,0x78,0x78,0x78,0x78,0x78,0x78,0x78,0x78,0x78,0x78,0x78,0x7F,0x7F,0x3F,0x1F,
-0x00,0x00,0xC0,0xC0,0xC0,0xC0,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
-0x0E,0x0F,0x0F,0x0F,0x0F,0x0F,0x0F,0x0F,0x0F,0x0F,0x0F,0x0F,0x0F,0x0F,0x0F,0x0F,0x0F,0x0F,0x0F,
-0xC0,0xE0,0xF0,0xF0,0xF0,0xF0,0x00,0x00,0x00,0x00,0x80,0xC0,0xE0,0xF0,0xF0,0xF0,0xF0,0xF0,0xF0,
-0x1F,0x3F,0x7F,0x7F,0x78,0x78,0x78,0x7C,0x7E,0x3F,0x1F,0x0F,0x07,0x03,0x01,0x7F,0x7F,0x7F,0x7F,
-0xC0,0xE0,0xF0,0xF0,0xF0,0xF0,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0xF0,0xF0,0xF0,0xF0,0xE0,0xC0,
-0x1F,0x3F,0x7F,0x7F,0x78,0x78,0x78,0x7C,0x3F,0x1F,0x3F,0x7C,0x78,0x78,0x78,0x7F,0x7F,0x3F,0x1F,
-0xC0,0xC0,0xC0,0xC0,0xE0,0xE0,0xF0,0xF0,0xF0,0xF0,0xF0,0xF0,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
-0x03,0x03,0x7B,0x7B,0x79,0x79,0x78,0x78,0x7F,0x7F,0x7F,0x7F,0x78,0x78,0x78,0x78,0x78,0x78,0x78,
-0xF0,0xF0,0xF0,0xF0,0xF0,0xF0,0xF0,0xF0,0xF0,0xF0,0xF0,0x00,0x00,0x00,0x00,0xF0,0xF0,0xF0,0xF0,
-0x7F,0x7F,0x7F,0x7F,0x00,0x00,0x00,0x3F,0x7F,0x7F,0x7F,0x78,0x78,0x78,0x7C,0x7F,0x3F,0x3F,0x0F,
-0x00,0xC0,0xE0,0xE0,0xF0,0xF0,0xF0,0xF0,0xF0,0xF0,0xF0,0xF0,0xF0,0xF0,0xF0,0xF0,0xF0,0xE0,0xC0,
-0x1F,0x1F,0x1F,0x1F,0x01,0x00,0x00,0x1F,0x3F,0x7F,0x7F,0x78,0x78,0x78,0x78,0x7F,0x7F,0x3F,0x1F,
-0xF0,0xF0,0xF0,0xF0,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x80,0x80,0x80,0x80,0x80,0x80,0x80,0x80,
-0x7F,0x7F,0x7F,0x7F,0x78,0x7C,0x3C,0x3E,0x1E,0x1F,0x0F,0x0F,0x07,0x07,0x07,0x07,0x07,0x07,0x07,
-0xC0,0xE0,0xF0,0xF0,0xF0,0xF0,0xF0,0xF0,0xF0,0xE0,0xF0,0xF0,0xF0,0xF0,0xF0,0xF0,0xF0,0xE0,0xC0,
-0x1F,0x3F,0x7F,0x7F,0x78,0x78,0x78,0x7F,0x7F,0x3F,0x7F,0x78,0x78,0x78,0x78,0x7F,0x7F,0x3F,0x1F,
-0xC0,0xE0,0xF0,0xF0,0xF0,0xF0,0xF0,0xF0,0xF0,0xF0,0xE0,0xC0,0x00,0x00,0x00,0xC0,0xC0,0xC0,0xC0,
-0x1F,0x3F,0x7F,0x7F,0x78,0x78,0x78,0x78,0x7F,0x7F,0x7F,0x7F,0x78,0x78,0x7C,0x3F,0x3F,0x1F,0x07,
-};
-
-const unsigned char pTimeColonR[1][19*1] = 
-{
-0x00,0x00,0x00,0x00,0x30,0x78,0x78,0x30,0x00,0x00,0x00,0x30,0x78,0x78,0x30,0x00,0x00,0x00,0x00,
-};
-
-const unsigned char pTimeColonL[1][19*1] = 
-{
-0x00,0x00,0x00,0x00,0x0C,0x1E,0x1E,0x0C,0x00,0x00,0x00,0x0C,0x1E,0x1E,0x0C,0x00,0x00,0x00,0x00,
-};
 
 const unsigned char Am[10*4] =
 {
@@ -2460,7 +2119,8 @@ const unsigned char DaysOfWeek[7][10*4] =
 static void DontChangeButtonConfiguration(void)
 {
   /* assign LED button to all modes */
-  for ( unsigned char i = 0; i < NUMBER_OF_BUTTON_MODES; i++ )
+  unsigned char i;
+  for ( i = 0; i < NUMBER_OF_BUTTON_MODES; i++ )
   {
     /* turn off led 3 seconds after button has been released */
     EnableButtonAction(i,
@@ -2876,29 +2536,10 @@ static void DefaultApplicationAndNotificationButtonConfiguration(void)
 
 }
 
-unsigned char WriteString(unsigned char *pString,
-                          unsigned char RowOffset,
-                          unsigned char ColumnOffset,
-                          unsigned char AddSpace)
-{
-  unsigned char i = 0;
-  unsigned char character = pString[i];
-  
-  while (   ((i+ColumnOffset) < NUM_LCD_COL_BYTES)
-         && character != 0 )
-  {
-    WriteSpriteChar(pString[i],RowOffset,ColumnOffset+i);  
-     
-    character = pString[i++];
-  }
-
-  return ColumnOffset+i+AddSpace-1;
-  
-}
 
 /******************************************************************************/
 
-static void InitialiazeIdleBufferConfig(void)
+void InitializeIdleBufferConfig(void)
 {
   nvIdleBufferConfig = WATCH_CONTROLS_TOP;
   OsalNvItemInit(NVID_IDLE_BUFFER_CONFIGURATION, 
@@ -2906,7 +2547,7 @@ static void InitialiazeIdleBufferConfig(void)
                  &nvIdleBufferConfig);    
 }
 
-static void InitializeIdleBufferInvert(void)
+void InitializeIdleBufferInvert(void)
 {
   nvIdleBufferInvert = 0;
   OsalNvItemInit(NVID_IDLE_BUFFER_INVERT, 
@@ -2914,13 +2555,12 @@ static void InitializeIdleBufferInvert(void)
                  &nvIdleBufferInvert);   
 }
 
-static void InitializeDisplaySeconds(void)
+void InitializeDisplaySeconds(void)
 {
   nvDisplaySeconds = 0;
   OsalNvItemInit(NVID_DISPLAY_SECONDS, 
                  sizeof(nvDisplaySeconds), 
                  &nvDisplaySeconds);
-    
 }
 
 #if 0
@@ -2949,12 +2589,16 @@ static void SaveDisplaySeconds(void)
               &nvDisplaySeconds);
 }
 
+unsigned char QueryDisplaySeconds(void)
+{
+  return nvDisplaySeconds;
+}
+
 unsigned char QueryInvertDisplay(void)
 {
   return nvIdleBufferInvert; 
 }
 
-#ifdef FONT_TESTING
 static unsigned int CharacterMask;
 static unsigned char CharacterRows;
 static unsigned char CharacterWidth;
@@ -2975,10 +2619,12 @@ static void WriteFontCharacter(unsigned char Character)
   }
   
   /* do things bit by bit */
-  unsigned char i = 0;
-  for ( ; i < CharacterWidth && gColumn < NUM_LCD_COL_BYTES; i++ )
+  unsigned char i;
+  unsigned char row;
+ 
+  for (i = 0 ; i < CharacterWidth && gColumn < NUM_LCD_COL_BYTES; i++ )
   {
-    for(unsigned char row = 0; row < CharacterRows; row++)
+  	for(row = 0; row < CharacterRows; row++)
     {
       if ( (CharacterMask & bitmap[row]) != 0 )
       {
@@ -3011,7 +2657,7 @@ static void WriteFontCharacter(unsigned char Character)
        
 }
 
-void WriteFontString(unsigned char *pString)
+void WriteFontString(tString *pString)
 {
   unsigned char i = 0;
    
@@ -3021,7 +2667,7 @@ void WriteFontString(unsigned char *pString)
   }
 
 }
-#endif
+
 
 
 unsigned char QueryIdlePageNormal(void)
@@ -3034,5 +2680,28 @@ unsigned char QueryIdlePageNormal(void)
   {
     return 0;  
   };
+  
+}
+
+unsigned char LcdRtcUpdateHandlerIsr(void)
+{
+  unsigned char ExitLpm = 0;
+  
+  unsigned int RtcSeconds = RTCSEC;
+  
+  if ( RtcUpdateEnable )
+  {
+    /* send a message every second or once a minute */
+    if (   QueryDisplaySeconds()
+        || RtcSeconds == 0 )
+    {
+      tMessage Msg;
+      SetupMessage(&Msg,IdleUpdate,NO_MSG_OPTIONS);
+      SendMessageToQueueFromIsr(DISPLAY_QINDEX,&Msg);
+      ExitLpm = 1;  
+    }    
+  } 
+
+  return ExitLpm;
   
 }

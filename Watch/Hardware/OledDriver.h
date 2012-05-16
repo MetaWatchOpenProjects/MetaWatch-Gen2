@@ -50,7 +50,7 @@
 typedef enum 
 {
   TopOled,
-  BottomOled,
+  BottomOled
   
 } etOledPosition;
 

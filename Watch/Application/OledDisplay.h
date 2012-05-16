@@ -52,4 +52,9 @@ typedef struct
 /*! Setup queue, task, and non-volatile items */
 void InitializeDisplayTask(void);
 
+/*! Initialize flash/ram values for oled display timeouts */
+void InitializeDisplayTimeouts(void);
+
+void InitializeContrastValues(void);
+
 #endif /* OLED_DISPLAY_H */

@@ -32,7 +32,6 @@
 
 #include "Messages.h"
 #include "MessageQueues.h"
-#include "BufferPool.h"
 #include "DebugUart.h"
 #include "Utilities.h"
 #include "Adc.h"
@@ -45,10 +44,10 @@
 #define BATTERY_SENSE_INPUT_CHANNEL ( ADC12INCH_15 )
 #define LIGHT_SENSE_INPUT_CHANNEL   ( ADC12INCH_1 )
 
-#define ENABLE_REFERENCE()  { }
-#define DISABLE_REFERENCE() { }
-  
-// start conversion
+#define ENABLE_REFERENCE()  {  }
+#define DISABLE_REFERENCE() {  }
+
+/* start conversion */
 #define ENABLE_ADC()       { ADC12CTL0 |= ADC12ON; ADC12CTL0 |= ADC12ENC + ADC12SC; }
 #define DISABLE_ADC()      { ADC12CTL0 &= ~ADC12ENC; ADC12CTL0 &= ~ADC12ON; }
 #define CLEAR_START_ADDR() { ADC12CTL1 &= 0x0FFF; }
@@ -56,7 +55,7 @@
 static xSemaphoreHandle AdcHardwareMutex;
 
 #define MAX_SAMPLES ( 10 )
-static unsigned int HardwareConfiguration = 0;
+static unsigned int HardwareConfigurationVolts = 0;
 static unsigned int BatterySense = 0;
 static unsigned int LightSense = 0;
 static unsigned int BatterySenseSamples[MAX_SAMPLES];
@@ -68,7 +67,7 @@ static unsigned char LightSenseAverageReady = 0;
 
 static unsigned char LowBatteryWarningMessageSent;
 static unsigned char LowBatteryBtOffMessageSent;
-static tHostMsg* pMsg;
+static tMessage Msg;
     
 
 #define DEFAULT_LOW_BATTERY_WARNING_LEVEL    ( 3500 )
@@ -80,6 +79,7 @@ static unsigned int LowBatteryBtOffLevel;
 static void AdcCheck(void);
 static void VoltageReferenceInit(void);
 
+static void HardwareCfgCycle(void);
 static void StartHardwareCfgConversion(void);
 static void FinishHardwareCfgCycle(void);
 
@@ -92,11 +92,10 @@ static void FinishLightSenseCycle(void);
 static void WaitForAdcBusy(void);
 static void EndAdcCycle(void);
 
-static void InitializeLowBatteryLevels(void);
-
 /*! the voltage from the battery is divided
  * before it goes to ADC (so that it is less than
  * 2.5 volt reference)
+ *
  * 
  * The output of this function is Voltage * 1000
  */
@@ -113,13 +112,13 @@ unsigned int AdcCountsToBatteryVoltage(unsigned int Counts)
   return ((unsigned int)(CONVERSION_FACTOR_BATTERY*(double)Counts));
 }
 
-/*! Light sensor conversion factor */
+/*! conversion factor */
 const double CONVERSION_FACTOR =  2.5*10000.0/4096.0;
 
 /*! Convert ADC counts to a voltage (truncates)
  *
  * \param Counts Voltage in ADC counts
- * \return Voltage in millivolts
+ * \return Voltage in millivolts*10
  */
 unsigned int AdcCountsToVoltage(unsigned int Counts)
 {
@@ -140,8 +139,14 @@ static void AdcCheck(void)
 static void VoltageReferenceInit(void)
 {
   /* 
-   * slaug208 it says the voltage reference is not available in this part
-   */  
+   * the internal voltage reference is not used ( AVcc is used )
+   * reference is controlled by ADC12MCTLx register
+   *
+   * 2.5 volt reference cannot be used because it requires external AVcc of 2.8
+   * 
+   * disable temperature sensor 
+   */
+  REFCTL0 = REFMSTR | REFTCOFF; 
 }
 
 void InitializeAdc(void)
@@ -152,28 +157,26 @@ void InitializeAdc(void)
   BATTERY_SENSE_INIT();
   HARDWARE_CFG_SENSE_INIT();
  
-  /* enable the 2.5V reference */
-  ADC12CTL0 = ADC12REFON + ADC12REF2_5V;
-
+  /* allow conditional request for modosc */
+  UCSCTL8 |= MODOSCREQEN;
+  
   /* select ADC12SC bit as sample and hold source (00) 
    * and use pulse mode
-   * use ACLK so that ADCCLK < 2.7 MHz and so that SMCLK does not have to be used
-  */
-  ADC12CTL1 = ADC12CSTARTADD_0 + ADC12SHP + ADC12SSEL_1;
+   * use modosc / 8 because frequency must be 0.45 MHz to 2.7 MHz (0.625 MHz)
+   */
+  ADC12CTL1 = ADC12CSTARTADD_0 + ADC12SHP + ADC12SSEL_0 + ADC12DIV_7; 
 
-  /* 12 bit resolution, only use reference when doing a conversion, 
-   * use low power mode because sample rate is < 50 ksps 
-  */
-  ADC12CTL2 = ADC12TCOFF + ADC12RES_2 + ADC12REFBURST + ADC12SR;
+  /* 12 bit resolution, only use reference when doing a conversion */
+  ADC12CTL2 = ADC12TCOFF + ADC12RES_2 + ADC12REFBURST;
 
   /* setup input channels */
-  ADC12MCTL0 = HARDWARE_CFG_INPUT_CHANNEL;
-  ADC12MCTL1 = BATTERY_SENSE_INPUT_CHANNEL;
-  ADC12MCTL2 = LIGHT_SENSE_INPUT_CHANNEL;
+  ADC12MCTL0 = HARDWARE_CFG_INPUT_CHANNEL + ADC12EOS;
+  ADC12MCTL1 = BATTERY_SENSE_INPUT_CHANNEL + ADC12EOS;
+  ADC12MCTL2 = LIGHT_SENSE_INPUT_CHANNEL + ADC12EOS;
 
   BatterySenseSampleIndex = 0;
   LightSenseSampleIndex = 0;
-  HardwareConfiguration = 0;
+  HardwareConfigurationVolts = 0;
   BatterySense = 0;
   LightSense = 0;
   BatterySenseAverageReady = 0;
@@ -189,22 +192,16 @@ void InitializeAdc(void)
   
 }
 
-/* switch context if we are waiting */
 static void WaitForAdcBusy(void)
 {
-  TaskDelayLpmDisable();
-  while(ADC12CTL1 & ADC12BUSY)
-  {
-    vTaskDelay(0);  
-  }
-  TaskDelayLpmEnable();
+  while(ADC12CTL1 & ADC12BUSY);
 }
 
 /*
  * A voltage divider on the board is populated differently
- * for each revision of the board.  This may be deprecated.
+ * for each revision of the board.
  */
-void HardwareCfgCycle(void)
+static void HardwareCfgCycle(void)
 {
   xSemaphoreTake(AdcHardwareMutex,portMAX_DELAY);
   
@@ -232,7 +229,7 @@ static void StartHardwareCfgConversion(void)
 
 static void FinishHardwareCfgCycle(void)
 {
-  HardwareConfiguration = AdcCountsToVoltage(ADC12MEM0);
+  HardwareConfigurationVolts = AdcCountsToVoltage(ADC12MEM0);
   HARDWARE_CFG_SENSE_DISABLE();
   DISABLE_ADC();
   DISABLE_REFERENCE();
@@ -241,20 +238,26 @@ static void FinishHardwareCfgCycle(void)
 
 }
 
+/* 80 us 
+ * 
+ * conversion time = 13 * ADC12DIV *  1/FreqAdcClock
+ * 13 * 8 * 1/5e6 = 20.8 us
+ */
 void BatterySenseCycle(void)
-{
+{ 
   xSemaphoreTake(AdcHardwareMutex,portMAX_DELAY);
   
   BATTERY_SENSE_ENABLE();
   ENABLE_REFERENCE();
 
+  /* low_bat_en assertion to bat_sense valid is ~100 ns */
+  
   StartBatterySenseConversion();
   WaitForAdcBusy();
   FinishBatterySenseCycle();
   
 }
 
-/* battery sense cycle requires 630 us using ACLK */
 static void StartBatterySenseConversion(void)
 {
   AdcCheck();
@@ -273,7 +276,13 @@ static void FinishBatterySenseCycle(void)
   {
     BatterySense += GetBatteryCalibrationValue();
   }
+  
   BatterySenseSamples[BatterySenseSampleIndex++] = BatterySense;
+  
+  if ( BatterySense < 1000 )
+  {
+    __no_operation();  
+  }
   
   if ( BatterySenseSampleIndex >= MAX_SAMPLES )
   {
@@ -286,7 +295,6 @@ static void FinishBatterySenseCycle(void)
   EndAdcCycle();
 
 }
-
 
 void LowBatteryMonitor(void)
 {
@@ -303,8 +311,11 @@ void LowBatteryMonitor(void)
      *
      * if the battery is not present then the readings are meaningless
     */  
-    PrintStringAndTwoDecimals("Batt Inst: ",BatterySense,
-                              " Batt Avg: ",BatteryAverage);
+    PrintStringAndThreeDecimals("Batt Inst: ",BatterySense,
+                                " Batt Avg: ",BatteryAverage,
+                                " Batt Charge Enable: ", QueryBatteryChargeEnabled());
+    
+    PrintStringAndDecimal("Power Good: ",QueryPowerGood());
     
   }
   
@@ -313,14 +324,7 @@ void LowBatteryMonitor(void)
   */
   if ( QueryPowerGood() )
   {
-    /* what about case where someone charges battery on an airplane? */
-    if ( LowBatteryBtOffMessageSent )
-    {
-      BPL_AllocMessageBuffer(&pMsg);
-      pMsg->Type = TurnRadioOnMsg;
-      RouteMsg(&pMsg);
-    }
-    
+    /* user must turn radio back on */
     LowBatteryWarningMessageSent = 0;  
     LowBatteryBtOffMessageSent = 0;
   }
@@ -330,27 +334,26 @@ void LowBatteryMonitor(void)
      * do this check first so the bt off message will get sent first
      * if startup occurs when voltage is below thresholds
      */
-    if (   BatteryAverage < LowBatteryBtOffLevel
+    if (   BatteryAverage != 0
+        && BatteryAverage < LowBatteryBtOffLevel
         && LowBatteryBtOffMessageSent == 0 )
     {
       LowBatteryBtOffMessageSent = 1;
       
-      BPL_AllocMessageBuffer(&pMsg);
-      UTL_BuildHstMsg(pMsg,LowBatteryBtOffMsgHost,NO_MSG_OPTIONS,
-                      (unsigned char*)BatteryAverage,2);
-      RouteMsg(&pMsg);
+      SetupMessageAndAllocateBuffer(&Msg,LowBatteryBtOffMsgHost,NO_MSG_OPTIONS);
+      CopyHostMsgPayload(Msg.pBuffer,(unsigned char *)&BatteryAverage,2);
+      Msg.Length = 2;
+      RouteMsg(&Msg);
     
       /* send the same message to the display task */
-      BPL_AllocMessageBuffer(&pMsg);
-      pMsg->Type = LowBatteryBtOffMsg;
-      RouteMsg(&pMsg);
+      SetupMessage(&Msg,LowBatteryBtOffMsg,NO_MSG_OPTIONS);
+      RouteMsg(&Msg);
       
       /* now send a vibration to the wearer */
-      BPL_AllocMessageBuffer(&pMsg);
-      pMsg->Type = SetVibrateMode;
-
+      SetupMessageAndAllocateBuffer(&Msg,SetVibrateMode,NO_MSG_OPTIONS);
+      
       tSetVibrateModePayload* pMsgData;
-      pMsgData = (tSetVibrateModePayload*) pMsg->pPayload;
+      pMsgData = (tSetVibrateModePayload*) Msg.pBuffer;
       
       pMsgData->Enable = 1;
       pMsgData->OnDurationLsb = 0x00;
@@ -359,32 +362,31 @@ void LowBatteryMonitor(void)
       pMsgData->OffDurationMsb = 0x01;
       pMsgData->NumberOfCycles = 5;
       
-      RouteMsg(&pMsg);
+      RouteMsg(&Msg);
 
     }
     
-    if (   BatteryAverage < LowBatteryWarningLevel 
+    if (   BatteryAverage != 0
+        && BatteryAverage < LowBatteryWarningLevel 
         && LowBatteryWarningMessageSent == 0 )
     {
       LowBatteryWarningMessageSent = 1;
 
-      BPL_AllocMessageBuffer(&pMsg);
-      UTL_BuildHstMsg(pMsg,LowBatteryWarningMsgHost,NO_MSG_OPTIONS,
-                      (unsigned char*)BatteryAverage,2);
-      RouteMsg(&pMsg);
+      SetupMessageAndAllocateBuffer(&Msg,LowBatteryWarningMsgHost,NO_MSG_OPTIONS);
+      CopyHostMsgPayload(Msg.pBuffer,(unsigned char*)&BatteryAverage,2);
+      Msg.Length = 2;
+      RouteMsg(&Msg);
     
       /* send the same message to the display task */
-      BPL_AllocMessageBuffer(&pMsg);
-      pMsg->Type = LowBatteryWarningMsg;
-      RouteMsg(&pMsg);
+      SetupMessage(&Msg,LowBatteryWarningMsg,NO_MSG_OPTIONS);
+      RouteMsg(&Msg);
       
       /* now send a vibration to the wearer */
-      BPL_AllocMessageBuffer(&pMsg);
-      pMsg->Type = SetVibrateMode;
-
+      SetupMessageAndAllocateBuffer(&Msg,SetVibrateMode,NO_MSG_OPTIONS);
+      
       tSetVibrateModePayload* pMsgData;
-      pMsgData = (tSetVibrateModePayload*) pMsg->pPayload;
-
+      pMsgData = (tSetVibrateModePayload*) Msg.pBuffer;
+      
       pMsgData->Enable = 1;
       pMsgData->OnDurationLsb = 0x00;
       pMsgData->OnDurationMsb = 0x02;
@@ -392,12 +394,11 @@ void LowBatteryMonitor(void)
       pMsgData->OffDurationMsb = 0x02;
       pMsgData->NumberOfCycles = 5;
       
-      RouteMsg(&pMsg);
+      RouteMsg(&Msg);
       
     }
   
-
-  }
+  } /* QueryPowerGood() */
   
 }
 
@@ -461,7 +462,7 @@ static void EndAdcCycle(void)
 {
   DISABLE_ADC();
   DISABLE_REFERENCE();
- 
+
   /* release the mutex */
   xSemaphoreGive(AdcHardwareMutex);
 
@@ -472,6 +473,9 @@ unsigned int ReadBatterySense(void)
   return BatterySense;
 }
 
+/* this used to return 0 if the measurement is not valid (yet) 
+ * but then the display doesn't have a valid value for 80 seconds.
+ */
 unsigned int ReadBatterySenseAverage(void)
 {
   unsigned int SampleTotal = 0;
@@ -479,7 +483,8 @@ unsigned int ReadBatterySenseAverage(void)
   
   if ( BatterySenseAverageReady )
   {
-    for (unsigned char i = 0; i < MAX_SAMPLES; i++)
+  	unsigned char i;
+    for (i = 0; i < MAX_SAMPLES; i++)
     {
       SampleTotal += BatterySenseSamples[i];
     }
@@ -490,7 +495,7 @@ unsigned int ReadBatterySenseAverage(void)
   {
     Result = BatterySense;  
   }
-  
+
   return Result;
   
 }
@@ -508,7 +513,8 @@ unsigned int ReadLightSenseAverage(void)
   
   if ( LightSenseAverageReady )
   {
-    for (unsigned char i = 0; i < MAX_SAMPLES; i++)
+    unsigned char i;
+    for (i = 0; i < MAX_SAMPLES; i++)
     {
       SampleTotal += LightSenseSamples[i];
     }
@@ -521,11 +527,6 @@ unsigned int ReadLightSenseAverage(void)
   }
   
   return Result;
-}
-
-unsigned int ReadHardwareConfiguration(void)
-{
-  return HardwareConfiguration;
 }
 
 /* Set new low battery levels and save them to flash */
@@ -546,7 +547,7 @@ void SetBatteryLevels(unsigned char * pData)
 }
 
 /* Initialize the low battery levels and read them from flash if they exist */
-static void InitializeLowBatteryLevels(void)
+void InitializeLowBatteryLevels(void)
 {
   LowBatteryWarningLevel = DEFAULT_LOW_BATTERY_WARNING_LEVEL;
   LowBatteryBtOffLevel = DEFAULT_LOW_BATTERY_BTOFF_LEVEL;
@@ -558,5 +559,58 @@ static void InitializeLowBatteryLevels(void)
   OsalNvItemInit(NVID_LOW_BATTERY_BTOFF_LEVEL, 
                  sizeof(LowBatteryBtOffLevel), 
                  &LowBatteryBtOffLevel);
+  
+}
+
+/******************************************************************************/
+
+
+/* Hardware Configuration is done using a voltage divider
+ *
+ * Vin * R2/(R1+R2)
+ *
+ * 2.5 * 3.9e3/103.9e3 = 0.09384 volts ( Config 5 - Rev C digital - CC2564 )
+ * 2.5 * 4.7/104.7 = 0.1122            ( future )
+ * 2.5 * 1.5/101.5 = 0.03694           ( Config 4  - Rev B8 - CC2564 or CC2560 )
+ * 2.5 * 1.2/101.2 = 0.02964           ( Config 3  - CC2560 )
+ * 
+ * comparision could also be done in ADC counts
+ * 
+ */
+
+#define CFG_WINDOW      ( 50 )
+#define CONFIGURATION_1 ( 369 )
+#define CONFIGURATION_4 ( 296 )
+#define CONFIGURATION_5 ( 938 )
+
+static unsigned char BoardConfiguration = 0;
+  
+unsigned char GetBoardConfiguration(void)
+{
+  /* only perform the ADC cycle once */
+  if ( HardwareConfigurationVolts == 0 )
+  {
+    HardwareCfgCycle();
+      
+    if ( HardwareConfigurationVolts > (CONFIGURATION_5 - CFG_WINDOW) )
+    {
+      BoardConfiguration = 5;    
+    }
+    else if ( HardwareConfigurationVolts > (CONFIGURATION_1 - CFG_WINDOW) )
+    {
+      BoardConfiguration = 1;  
+    }
+    else if ( HardwareConfigurationVolts > (CONFIGURATION_4 - CFG_WINDOW) )
+    {
+      BoardConfiguration = 4;  
+    }
+    
+#if 1
+    PrintStringAndDecimal("Board Configuration ",BoardConfiguration);
+#endif
+  
+  }
+
+  return BoardConfiguration;
   
 }

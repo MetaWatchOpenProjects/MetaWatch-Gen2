@@ -32,23 +32,33 @@
  * \param xtalCap Valid range is 0 to 3
  * \param rtcCal Valid range is +/-63 
  */
+#ifdef __IAR_SYSTEMS_ICC__
 #pragma pack(1)
+#endif
+
 typedef struct
 {
   unsigned int FlashRevision;
-  
   unsigned char batteryCal;
-  
   unsigned char xtalCap;           
-  
   signed char rtcCal;            
 
 } tCalibrationData;
-#pragma pack()
 
+#ifdef __IAR_SYSTEMS_ICC__
+#pragma pack()
+#endif
+
+#ifdef __IAR_SYSTEMS_ICC__
 /*! Location of this value is in information flash */
 #pragma location="INFOA"
 __no_init static const tCalibrationData CalibrationData;
+
+#else
+
+#pragma DATA_SECTION(CalibrationData, ".infoA");
+tCalibrationData CalibrationData;
+#endif
 
 static unsigned char ValidCalibration;
 
@@ -89,10 +99,18 @@ unsigned char GetBatteryCalibrationValue(void)
   return CalibrationData.batteryCal; 
 }
 
-unsigned char GetXtalCalibrationValue(void)
+
+void SetOscillatorCapacitorValues(void)
 {
-  /* we know the value is valid so shift it to the right position */
-  return (CalibrationData.xtalCap << 2);  
+  if ( ValidCalibration )
+  {
+    /* zero XCAP bits */
+    UCSCTL6 &= ~(XCAP0+XCAP1);
+    
+    /* we know the value is valid so shift it to the right position */
+    UCSCTL6 |= (CalibrationData.xtalCap << 2);
+    
+  }  
 }
 
 signed char GetRtcCalibrationValue(void)

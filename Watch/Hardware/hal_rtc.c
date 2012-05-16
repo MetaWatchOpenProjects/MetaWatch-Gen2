@@ -25,20 +25,20 @@
 #include "task.h"
 
 #include "Messages.h"
-#include "BufferPool.h"
+#include "MessageQueues.h"
 
 #include "hal_board_type.h"
 #include "hal_rtc.h"
 #include "hal_lpm.h"
 #include "hal_calibration.h"
-#include "macro.h"
 
-#include "Utilities.h"
-#include "CommandTask.h"
 #include "DebugUart.h"
+#include "Utilities.h"
 #include "Statistics.h"
 #include "OneSecondTimers.h"
 #include "SerialProfile.h"
+#include "Vibration.h"
+#include "LcdDisplay.h"
 
 /** Real Time Clock interrupt Flag definitions */
 #define RTC_NO_INTERRUPT      ( 0 )
@@ -97,15 +97,13 @@ void InitializeRealTimeClock( void )
   RTC_1HZ_PORT_SEL |= RTC_1HZ_BIT;  
   RTC_1HZ_PORT_DIR |= RTC_1HZ_BIT;  
 
-  // These calls are to asm level patch functions provided by 
-  // TI for the MSP430F5438
-  SetRTCYEAR((unsigned int)0x07db);
-  SetRTCMON((unsigned int)5);
-  SetRTCDAY((unsigned int)23);
-  SetRTCDOW((unsigned int)5);
-  SetRTCHOUR((unsigned int)23);
-  SetRTCMIN((unsigned int)58);
-  SetRTCSEC((unsigned int)0);
+  RTCYEAR = (unsigned int)0x07db;
+  RTCMON = (unsigned int)5;
+  RTCDAY = (unsigned int)23;
+  RTCDOW = (unsigned int)5;
+  RTCHOUR = (unsigned int)23;
+  RTCMIN = (unsigned int)58;
+  RTCSEC = (unsigned int)0;
 
 
   // Enable the RTC
@@ -123,15 +121,15 @@ void halRtcSet(tRtcHostMsgPayload* pRtcData)
 
   // These calls are to asm level patch functions provided by TI for the MSP430F5438
   tWordByteUnion temp;
-  temp.byte0 = pRtcData->YearLsb; 
-  temp.byte1 = pRtcData->YearMsb;
-  SetRTCYEAR((unsigned int)(temp.word));
-  SetRTCMON((unsigned int)(pRtcData->Month));
-  SetRTCDAY((unsigned int)(pRtcData->DayOfMonth));
-  SetRTCDOW((unsigned int)(pRtcData->DayOfWeek));
-  SetRTCHOUR((unsigned int)(pRtcData->Hour));
-  SetRTCMIN((unsigned int)(pRtcData->Minute));
-  SetRTCSEC((unsigned int)(pRtcData->Second));
+  temp.Bytes.byte0 = pRtcData->YearLsb; 
+  temp.Bytes.byte1 = pRtcData->YearMsb;
+  RTCYEAR = (unsigned int) temp.word;
+  RTCMON = (unsigned int) pRtcData->Month;
+  RTCDAY = (unsigned int) pRtcData->DayOfMonth;
+  RTCDOW = (unsigned int) pRtcData->DayOfWeek;
+  RTCHOUR = (unsigned int) pRtcData->Hour;
+  RTCMIN = (unsigned int) pRtcData->Minute;
+  RTCSEC = (unsigned int) pRtcData->Second;
   
   // Enable the RTC
   RTCCTL01 &= ~RTCHOLD;  
@@ -140,15 +138,15 @@ void halRtcSet(tRtcHostMsgPayload* pRtcData)
 void halRtcGet(tRtcHostMsgPayload* pRtcData)
 {
   tWordByteUnion temp;
-  temp.word = GetRTCYEAR();
-  pRtcData->YearLsb = temp.byte0;
-  pRtcData->YearMsb = temp.byte1;
-  pRtcData->Month = GetRTCMON();
-  pRtcData->DayOfMonth = GetRTCDAY(); 
-  pRtcData->DayOfWeek = GetRTCDOW();
-  pRtcData->Hour = GetRTCHOUR();
-  pRtcData->Minute = GetRTCMIN();
-  pRtcData->Second = GetRTCSEC();
+  temp.word = RTCYEAR;
+  pRtcData->YearLsb = temp.Bytes.byte0;
+  pRtcData->YearMsb = temp.Bytes.byte1;
+  pRtcData->Month = RTCMON;
+  pRtcData->DayOfMonth = RTCDAY; 
+  pRtcData->DayOfWeek = RTCDOW;
+  pRtcData->Hour = RTCHOUR;
+  pRtcData->Minute = RTCMIN;
+  pRtcData->Second = RTCSEC;
 
 }
 
@@ -156,7 +154,7 @@ void halRtcGet(tRtcHostMsgPayload* pRtcData)
 
 void EnableRtcPrescaleInterruptUser(unsigned char UserMask)
 {
-  ENTER_CRITICAL_REGION_QUICK();
+  portENTER_CRITICAL();
    
   // If not currently enabled, enable the timer ISR
   if( RtcInUseMask == 0 )
@@ -166,14 +164,14 @@ void EnableRtcPrescaleInterruptUser(unsigned char UserMask)
   
   RtcInUseMask |= UserMask;
    
-  LEAVE_CRITICAL_REGION_QUICK();
+  portEXIT_CRITICAL();
 
 }
 
 void DisableRtcPrescaleInterruptUser(unsigned char UserMask)
 {
 
-  ENTER_CRITICAL_REGION_QUICK();
+  portENTER_CRITICAL();
   
   RtcInUseMask &= ~UserMask;
       
@@ -183,7 +181,7 @@ void DisableRtcPrescaleInterruptUser(unsigned char UserMask)
     RTCPS0CTL &= ~RT0PSIE;
   }
   
-  LEAVE_CRITICAL_REGION_QUICK();
+  portEXIT_CRITICAL();
 
 }
 
@@ -208,7 +206,8 @@ static unsigned char DivideByFour = 0;
 __interrupt void RTC_ISR(void)
 {
   unsigned char ExitLpm = 0;
-  
+  tMessage Msg;
+        
   // compiler intrinsic, value must be even, and in the range of 0 to 10
   switch(__even_in_range(RTCIV,10))
   {
@@ -219,11 +218,6 @@ __interrupt void RTC_ISR(void)
 
   case RTC_PRESCALE_ZERO_IFG:
 
-#ifdef BLASTER
-    RouteCommandFromIsr(BlasterCmd);
-    ExitLpm = 1;    
-#endif
-    
     // divide by four to get 32 Hz
     if ( DivideByFour >= 4-1 )
     {
@@ -231,13 +225,14 @@ __interrupt void RTC_ISR(void)
            
       if( QueryRtcUserActive(RTC_TIMER_VIBRATION) )
       {
-        RouteCommandFromIsr(VibrationState);
-        ExitLpm = 1;
+        VibrationMotorStateMachineIsr();
       }
 
       if( QueryRtcUserActive(RTC_TIMER_BUTTON) )
       {
-        RouteCommandFromIsr(ButtonState);
+        SetupMessage(&Msg,ButtonStateMsg,NO_MSG_OPTIONS);
+        SendMessageToQueueFromIsr(BACKGROUND_QINDEX,&Msg); 
+        
         ExitLpm = 1;
       }
 
@@ -256,6 +251,10 @@ __interrupt void RTC_ISR(void)
 
   case RTC_PRESCALE_ONE_IFG:
     
+#ifdef DIGITAL
+    ExitLpm |= LcdRtcUpdateHandlerIsr();
+#endif
+    
     IncrementUpTime();
     ExitLpm |= OneSecondTimerHandlerIsr();
     
@@ -269,6 +268,7 @@ __interrupt void RTC_ISR(void)
   {
     EXIT_LPM_ISR();  
   }
+  
 }
 
 

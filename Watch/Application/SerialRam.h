@@ -17,12 +17,9 @@
 /******************************************************************************/
 /*! \file SerialRam.h
  *
- * All interfacing to the serial ram module is done using the message queues.
- *
- *
  * The serial ram is used to store images for the LCD.  When the phone draws 
  * images they are sent directly to Serial RAM.  When an image is ready to be 
- * displayed it is read from the serial RAM and sent to the LCD Task.
+ * displayed it is read from the serial RAM and sent to the LCD driver.
  *
  */
 /******************************************************************************/
@@ -30,13 +27,21 @@
 #ifndef SERIAL_RAM_H
 #define SERIAL_RAM_H
 
-/*! Initialize the serial ram task and the Queue
- *
- * The main sram initialization is done when the task starts and calls
- * SerialRamInit.  This sets up the peripheral and clears the serial RAM to
- * zero.
+/*! This sets up the peripheral in the MSP430, the external serial ram, 
+ * and clears the serial RAM memory to zero.
  */
-void InitializeSerialRamTask(void);
+void SerialRamInit(void);
 
+/*! Handle the update display message */
+void UpdateDisplayHandler(tMessage* pMsg);
+
+/*! Handle the load template message */
+void LoadTemplateHandler(tMessage* pMsg);
+
+/*! Handle the write buffer message */
+void WriteBufferHandler(tMessage* pMsg);
+
+
+void RamTestHandler(tMessage* pMsg);
 
 #endif /* SERIAL_RAM_H */

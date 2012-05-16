@@ -38,3 +38,4 @@ void DisableRtosTick(void);
 unsigned char QuerySchedulerState(void);
 
 #endif // HAL_RTOS_TIMER_H
+
