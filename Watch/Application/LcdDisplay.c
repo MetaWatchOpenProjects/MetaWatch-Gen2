@@ -1782,8 +1782,8 @@ static void DisplayAmPm(void)
 
 static void DisplayDayOfWeek(void)
 {
-  /* row offset = 10 , column offset = 8 */
-  WriteIcon4w10h(DaysOfWeek[RTCDOW],10,8);
+  /* row offset = 0 or 10 , column offset = 8 */
+  WriteIcon4w10h(DaysOfWeek[RTCDOW], GetTimeFormat() == TWENTY_FOUR_HOUR ? 0 : 10, 8);
 }
 
 static void DisplayDate(void)
