@@ -20,7 +20,6 @@
 * Set pins to outputs and setup clock
 */
 /******************************************************************************/
-#include "FreeRTOSConfig.h"
 
 #include "hal_board_type.h"
 #include "hal_miscellaneous.h"
