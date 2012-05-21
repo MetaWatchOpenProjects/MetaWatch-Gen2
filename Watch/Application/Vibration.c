@@ -143,7 +143,7 @@ void VibrationMotorStateMachineIsr(void)
         
         if ( cycleCount > 1 )
         {
-          cycleCount -= 1;
+          cycleCount --;
         }
         else /* last cycle */
         {
