@@ -2,6 +2,7 @@ README
 Stack/ProjectCCS/
 Watch/Project/Devboard/
 Watch/Project/Digital/
+Watch/Project/Digital BLE/
 Watch/Project/path.txt
 Watch/Project/settings/watch.wsdt
 Watch/Project/watch.eww
@@ -13,4 +14,8 @@ Watch/ProjectCCS/Devboard/
 Watch/ProjectCCS/Digital/
 Watch/ProjectCCS/FLASH
 Watch/ProjectCCS/RAM
+Watch/Project/settings/Watch.cspy.bat
+Watch/Project/settings/Watch.dbgdt
+Watch/Project/settings/Watch.dni
+
 

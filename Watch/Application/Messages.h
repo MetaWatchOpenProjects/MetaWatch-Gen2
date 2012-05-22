@@ -294,7 +294,6 @@ typedef enum
   AccelerometerSetupMsg = 0xe6,
   
   RadioPowerControlMsg = 0xf0
-  
 } eMessageType;
 
 

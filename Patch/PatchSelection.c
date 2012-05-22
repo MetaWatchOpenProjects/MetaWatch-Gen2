@@ -117,7 +117,8 @@ unsigned char QuerySupportLowEnergy(void)
 #ifdef SUPPORT_LOW_ENERGY
   #ifdef INCLUDE_BOTH_PATCHES
     result = 1;
-  #elif INCLUDE_1316_PATCH
+  #endif
+  #ifdef INCLUDE_1316_PATCH
     result = 1;
   #endif
 #endif

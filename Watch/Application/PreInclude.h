@@ -1,10 +1,10 @@
 //==============================================================================
 //  Copyright 2012 Meta Watch Ltd. - http://www.MetaWatch.org/
-// 
+//
 //  Licensed under the Meta Watch License, Version 1.0 (the "License");
 //  you may not use this file except in compliance with the License.
 //  You may obtain a copy of the License at
-//  
+//
 //      http://www.MetaWatch.org/licenses/license-1.0.html
 //
 //  Unless required by applicable law or agreed to in writing, software
@@ -25,21 +25,19 @@
 #define PRE_INCLUDE_H
 
 /* add patch support for BLE */
-#undef SUPPORT_LOW_ENERGY
+//#undef SUPPORT_LOW_ENERGY
 
 /* patch selection (select one) */
 #undef INCLUDE_BOTH_PATCHES
 
 #ifdef SUPPORT_LOW_ENERGY
+#error "SHALL NOT SUPPORT BLE!!!"
 #define  INCLUDE_1316_PATCH
 #undef   INCLUDE_1315_PATCH
 #else
 #undef   INCLUDE_1316_PATCH
 #define  INCLUDE_1315_PATCH
 #endif
-
-/* add patch support for BLE */
-#undef SUPPORT_LOW_ENERGY
 
 /* use DMA to write data to LCD */
 #define DMA
@@ -65,7 +63,7 @@
 /* keep track of maximum queue depth */
 #undef CHECK_QUEUE_USAGE
 
-/* use debug pin 5 on development board to keep track of when SMCLK is on */ 
+/* use debug pin 5 on development board to keep track of when SMCLK is on */
 #undef CLOCK_CONTROL_DEBUG
 
 

@@ -1467,7 +1467,7 @@
     </debuggerPlugins>
   </configuration>
   <configuration>
-    <name>Devboard - TXT</name>
+    <name>Digital BLE</name>
     <toolchain>
       <name>MSP430</name>
     </toolchain>
@@ -1667,7 +1667,7 @@
         </option>
         <option>
           <name>CRadioProtocolType</name>
-          <state>1</state>
+          <state>0</state>
         </option>
         <option>
           <name>CCRadioModuleTypeSlave</name>
@@ -1732,7 +1732,7 @@
         </option>
         <option>
           <name>CRadioAutoManualType</name>
-          <state>0</state>
+          <state>1</state>
         </option>
         <option>
           <name>ExternalCodeDownload</name>
