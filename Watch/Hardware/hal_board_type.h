@@ -31,7 +31,7 @@
 #include "msp430.h"
 
 /******************************************************************************/
-#ifdef SUPPORT_LOW_ENGERGY
+#ifdef SUPPORT_LOW_ENERGY
 #define VERSION_STRING "3.0.2"
 #else
 #define VERSION_STRING "0.10.6"
