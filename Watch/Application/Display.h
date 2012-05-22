@@ -35,6 +35,18 @@
 /*! turn extra prints on/off for troubleshooting BT connection */
 #define CONNECTION_DEBUG_DEFAULT ( 0 ) 
 
+#ifdef SUPPORT_LOW_ENERGY
+/*! if 0 then don't ever time out 
+ * set a time limit for how long the watch remains in pairing mode
+ */
+#define PAIRING_MODE_TIMEOUT_IN_SECONDS ( 0 )
+
+/*! when 0 pairing information is not saved into Nval.  Set this to 0 when
+ * using a BT sniffer 
+ */
+#define SAVE_PAIRING_INFO_DEFAULT   ( 0 )
+
+#else
 /*! if 0 then don't ever time out 
  * set a time limit for how long the watch remains in pairing mode
  */
@@ -44,6 +56,7 @@
  * using a BT sniffer 
  */
 #define SAVE_PAIRING_INFO_DEFAULT   ( 1 )
+#endif
 
 /*! when 1 then the watch will try to enter sniff mode */
 #define ENABLE_SNIFF_ENTRY_DEFAULT  ( 1 )

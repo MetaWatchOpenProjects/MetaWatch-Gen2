@@ -135,7 +135,13 @@ extern void vPortYield( void );
 /* Hardware specifics. */
 #define portBYTE_ALIGNMENT       2
 #define portSTACK_GROWTH         (-1)
+
+#ifdef SUPPORT_LOW_ENERGY
+#define portTICK_RATE_MS         ((portTickType) 1000 / configTICK_RATE_HZ)
+#else
 #define portTICK_RATE_MS         (1)
+#endif
+
 #define portNOP()                __no_operation()
 /*-----------------------------------------------------------*/
 

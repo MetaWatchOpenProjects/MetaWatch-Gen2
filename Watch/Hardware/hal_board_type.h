@@ -31,12 +31,14 @@
 #include "msp430.h"
 
 /******************************************************************************/
-
+#ifdef SUPPORT_LOW_ENGERGY
+#define VERSION_STRING "3.0.2"
+#else
 #define VERSION_STRING "0.10.6"
-
+#endif
 /* create the main page for the Doxygen output */
 
-/*! \mainpage MetaWatch Software (Version 0.10.X)
+/*! \mainpage MetaWatch Software (Version X.X.X)
  *
  * \section intro_sec Introduction
  *

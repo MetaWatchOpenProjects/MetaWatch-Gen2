@@ -285,7 +285,9 @@ void PrintMessageType(tMessage* pMsg)
   case LowBatteryWarningMsg:       PrintStringAndHexByte("LowBatteryWarningMsg 0x",MessageType);       break; 
   case LowBatteryBtOffMsg:         PrintStringAndHexByte("LowBatteryBtOffMsg 0x",MessageType);         break; 
   case RadioPowerControlMsg:       PrintStringAndHexByte("RadioPowerControlMsg 0x",MessageType);       break;
-  
+  case AdvertisingDataMsg:         PrintStringAndHexByte("AdvertisingDataMsg 0x",MessageType);         break;
+  case CallbackTimeoutMsg:         PrintStringAndHexByte("CallbackTimeoutMsg 0x",MessageType);         break;
+  case SetCallbackTimerMsg:        PrintStringAndHexByte("SetCallbackTimerMsg 0x",MessageType);        break;
   default:                         PrintStringAndHexByte("Unknown Message Type 0x",MessageType);   break;
   }  
   
@@ -390,6 +392,9 @@ void RouteMsg(tMessage* pMsg)
     case ReadLightSensorResponse:       SendMsgToQ(SPP_TASK_QINDEX,pMsg);   break;
     case LowBatteryWarningMsg:          SendMsgToQ(DISPLAY_QINDEX,pMsg);    break;
     case LowBatteryBtOffMsg:            SendMsgToQ(DISPLAY_QINDEX,pMsg);    break;
+    case AdvertisingDataMsg:            SendMsgToQ(SPP_TASK_QINDEX,pMsg);   break;
+    case CallbackTimeoutMsg:            SendMsgToQ(SPP_TASK_QINDEX,pMsg);   break;
+    case SetCallbackTimerMsg:           SendMsgToQ(BACKGROUND_QINDEX,pMsg); break;
     case RadioPowerControlMsg:          SendMsgToQ(SPP_TASK_QINDEX,pMsg);   break;
     default:                            SendMsgToQ(FREE_QINDEX,pMsg);       break;
     }

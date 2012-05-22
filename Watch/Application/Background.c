@@ -67,6 +67,7 @@ static void ReadBatteryVoltageHandler(void);
 static void ReadLightSensorHandler(void);
 static void NvalOperationHandler(tMessage* pMsg);
 static void SoftwareResetHandler(tMessage* pMsg);
+static void SetCallbackTimerHandler(tMessage* pMsg);
 
 #define BACKGROUND_MSG_QUEUE_LEN   8    
 #define BACKGROUND_STACK_DEPTH	   (configMINIMAL_STACK_DEPTH + 100)
@@ -264,6 +265,10 @@ static void BackgroundMessageHandler(tMessage* pMsg)
 
   switch(pMsg->Type)
   {
+    case SetCallbackTimerMsg:
+      SetCallbackTimerHandler(pMsg);
+      break;
+      
   case GetDeviceType:
     
     SetupMessageAndAllocateBuffer(&OutgoingMsg,
@@ -835,7 +840,6 @@ static void NvUpdater(unsigned int NvId)
 }
 
 #ifdef RATE_TEST
-
 static unsigned char RateTestCallback(void)
 {
   unsigned char ExitLpm = 0;
@@ -861,5 +865,20 @@ static unsigned char RateTestCallback(void)
   return ExitLpm;
   
 }
-
 #endif
+
+static void SetCallbackTimerHandler(tMessage* pMsg)
+{
+  tTimerId TimerId = AllocateOneSecondTimer();
+  tSetCallbackTimerPayload* pPayload = (tSetCallbackTimerPayload*) pMsg->pBuffer;
+  
+  SetupOneSecondTimer(TimerId,
+                      pPayload->Timeout,
+                      pPayload->Repeat,
+                      SPP_TASK_QINDEX,
+                      CallbackTimeoutMsg,
+                      pMsg->Options);
+  
+  StartOneSecondTimer(TimerId);
+}
+

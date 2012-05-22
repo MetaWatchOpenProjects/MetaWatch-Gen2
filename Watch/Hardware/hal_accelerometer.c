@@ -50,8 +50,13 @@ void InitAccelerometerPeripheral(void)
   
   /* configure as master using smclk / 40 = 399.5 kHz */
   ACCELEROMETER_CTL0 = UCMST + UCMODE_3 + UCSYNC;     
-  ACCELEROMETER_CTL1 = UCSSEL__SMCLK + UCSWRST;            
-  ACCELEROMETER_BR0 = 42;                
+  ACCELEROMETER_CTL1 = UCSSEL__SMCLK + UCSWRST;
+#ifdef SUPPORT_LOW_ENERGY
+  ACCELEROMETER_BR0 = 40;                
+#else
+  ACCELEROMETER_BR0 = 42;
+#endif
+    
   ACCELEROMETER_BR1 = 0;
   ACCELEROMETER_I2CSA = KIONIX_DEVICE_ADDRESS; 
   

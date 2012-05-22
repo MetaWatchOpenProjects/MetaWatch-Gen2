@@ -247,6 +247,11 @@ typedef enum
   LowBatteryWarningMsg = 0x5a,
   LowBatteryBtOffMsg = 0x5b,
   
+  // BLE messages
+  CallbackTimeoutMsg = 0x60,
+  SetCallbackTimerMsg = 0x61,
+  AdvertisingDataMsg = 0x62,
+  
   /*****************************************************************************
    *
    * User Reserved 0x60-0x70-0x80-0x90
@@ -672,5 +677,13 @@ typedef struct
 #define CONFIGURE_DISPLAY_OPTION_DISPLAY_SECONDS      ( 2 )
 #define CONFIGURE_DISPLAY_OPTION_DONT_INVERT_DISPLAY  ( 3 )
 #define CONFIGURE_DISPLAY_OPTION_INVERT_DISPLAY       ( 4 )
+/******************************************************************************/
+typedef struct
+{
+  unsigned int Timeout;
+  unsigned char Repeat;
+} tSetCallbackTimerPayload;
+
+
 
 #endif  /* MESSAGES_H */

@@ -24,7 +24,7 @@
 #include "hal_board_type.h"
 #include "hal_miscellaneous.h"
 #include "hal_software_fll.h"
-
+#include "FreeRTOS.h"
 #include "HAL_PMM.h"
 #include "HAL_UCS.h"
 
@@ -79,9 +79,14 @@ void SetupClockAndPowerManagementModule(void)
   // select the sources for the FLL reference and ACLK
   SELECT_ACLK(SELA__XT1CLK);                
   SELECT_FLLREF(SELREF__XT1CLK);           
-  
-  // second parameter is 512*32768 = 16777216
-  Init_FLL_Settle(16777216/1000,ACLK_MULTIPLIER);
+
+#ifdef SUPPORT_LOW_ENERGY
+  Init_FLL_Settle(16000,488);
+#else
+  Init_FLL_Settle(16777216/1000, ACLK_MULTIPLIER);
+#endif
+    
+  // second parameter is 16000/32768 = 488
   SoftwareFllInit();
 
   // setup for quick wake up from interrupt and
