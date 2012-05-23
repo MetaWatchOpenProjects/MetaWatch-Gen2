@@ -110,7 +110,7 @@
 	<variableList>
 		<variable>
 			<name>WATCH_ROOT</name>
-			<value>file:/media/psf/Home/Code/public</value>
+			<value>file:/Z:/Code/public</value>
 		</variable>
 	</variableList>
 </projectDescription>
