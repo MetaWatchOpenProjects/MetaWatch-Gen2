@@ -28,10 +28,9 @@
 //#undef SUPPORT_LOW_ENERGY
 
 /* patch selection (select one) */
-#undef INCLUDE_BOTH_PATCHES
+#define INCLUDE_BOTH_PATCHES
 
 #ifdef SUPPORT_LOW_ENERGY
-#error "SHALL NOT SUPPORT BLE!!!"
 #define  INCLUDE_1316_PATCH
 #undef   INCLUDE_1315_PATCH
 #else
