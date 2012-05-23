@@ -110,13 +110,8 @@ occurs.
 #define ACLK_FREQUENCY_HZ                   ((unsigned int)32768)
 #define ACLK_MULTIPLIER                     ((unsigned int)512)
 
-#ifdef SUPPORT_LOW_ENERGY
-#define configCPU_CLOCK_HZ                  ((unsigned portLONG) 16000000L)
-#define configTICK_RATE_HZ                  ((portTickType)1000)
-#else
 #define configCPU_CLOCK_HZ                  ((unsigned portLONG) 16777216) /* 512*32768 */
 #define configTICK_RATE_HZ                  ((portTickType)1024)
-#endif
 
 /* SPP threads use priority of 3 */
 #define configMAX_PRIORITIES                ((unsigned portBASE_TYPE)4)
