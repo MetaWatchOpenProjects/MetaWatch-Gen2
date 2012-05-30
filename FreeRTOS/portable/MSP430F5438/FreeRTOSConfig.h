@@ -115,7 +115,7 @@ occurs.
 
 /* SPP threads use priority of 3 */
 #define configMAX_PRIORITIES                ((unsigned portBASE_TYPE)4)
-#define configMINIMAL_STACK_DEPTH           ((unsigned portSHORT)90)
+#define configMINIMAL_STACK_SIZE           ((unsigned portSHORT)90)
 
 #ifdef SUPPORT_LOW_ENERGY
 #define configTOTAL_HEAP_SIZE               ((size_t)6500)

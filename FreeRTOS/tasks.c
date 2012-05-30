@@ -271,7 +271,7 @@ static void prvInitialiseTaskLists( void ) PRIVILEGED_FUNCTION;
  */
 static void prvIdleTask(void *pvParameters);
 
-#define IDLE_TASK_DEPTH ( configMINIMAL_STACK_DEPTH + 20 )
+#define IDLE_TASK_SIZE ( configMINIMAL_STACK_SIZE + 20 )
 xTaskHandle IdleTaskHandle;
 
 /*
@@ -982,7 +982,7 @@ portBASE_TYPE xReturn;
 	/* Add the idle task at the lowest priority. */
 	xReturn = xTaskCreate(prvIdleTask, 
                         (signed char *) "IDLE", 
-                        IDLE_TASK_DEPTH, 
+                        IDLE_TASK_SIZE,
                         (void *) NULL, 
                         ( tskIDLE_PRIORITY | portPRIVILEGE_BIT ), 
                         &IdleTaskHandle );

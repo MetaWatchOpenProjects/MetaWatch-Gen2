@@ -57,19 +57,12 @@ etPatchVersion GetPatchVersion(void);
 /******************************************************************************/
 
 /* select one or both patches */
-#if defined(INCLUDE_BOTH_PATCHES)
-  
-  #include "Patch_PAN1315.h"
-  #include "Patch_PAN1316.h"
+#ifdef INCLUDE_1316_PATCH
+#include "Patch_PAN1316.h"
+#endif
 
-#elif defined(INCLUDE_1316_PATCH)
-
-  #include "Patch_PAN1316.h"
-  
-#elif defined(INCLUDE_1315_PATCH)
-  
-  #include "Patch_PAN1315.h"
-
+#ifdef INCLUDE_1315_PATCH
+#include "Patch_PAN1315.h"
 #endif
 
 /******************************************************************************/
@@ -84,23 +77,16 @@ unsigned char const __data20 * GetPatchAddress(void);
 
 #else
 
-	/* code composer does not have __data20
-	 * need to use assembly to load patch 
-	 */
-	#if defined(INCLUDE_BOTH_PATCHES)
-	  
-	  extern const unsigned char Patch1315[];
-	  extern const unsigned char Patch1316[];
-	
-	#elif defined(INCLUDE_1316_PATCH)
-	
-	  extern const unsigned char Patch1316[];
-	  
-	#elif defined(INCLUDE_1315_PATCH)
-	  
-	  extern const unsigned char Patch1315[];
-	
-	#endif
+/* code composer does not have __data20
+* need to use assembly to load patch
+*/
+#ifdef INCLUDE_1316_PATCH
+extern const unsigned char Patch1316[];
+#endif
+
+#ifdef INCLUDE_1315_PATCH
+extern const unsigned char Patch1315[];
+#endif
 
 #endif
 

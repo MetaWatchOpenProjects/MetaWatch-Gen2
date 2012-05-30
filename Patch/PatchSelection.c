@@ -43,33 +43,19 @@ unsigned int GetPatchLength(void)
 {
   unsigned int Length = 0;
   
-#if defined(INCLUDE_BOTH_PATCHES)
-  
-  if ( GetPatchVersion() == PatchVersion1316 )
+  if ( PatchVersion == PatchVersion1316 )
   {
-    Length = sizeof(Patch1316);
+#ifdef INCLUDE_1316_PATCH
+	Length = sizeof(Patch1316);
+#endif
   }
   else
   {
-    Length = sizeof(Patch1315);  
-  }
-
-#elif defined(INCLUDE_1316_PATCH)
-
-  Length = sizeof(Patch1316);
-  
-#elif defined(INCLUDE_1315_PATCH)
-  
-  Length = sizeof(Patch1315); 
-
-#else
-
-#error "At least one patch must be included"
-
+#ifdef INCLUDE_1315_PATCH
+	Length = sizeof(Patch1315);
 #endif
-  
+  }
   return Length;
-
 }
 
 /******************************************************************************/
@@ -80,29 +66,19 @@ unsigned char const __data20 * GetPatchAddress(void)
 {
   unsigned char const __data20 * pPatch;
   
-#if defined(INCLUDE_BOTH_PATCHES)
-  
-  if ( GetPatchVersion() == PatchVersion1316 )
+  if ( PatchVersion == PatchVersion1316 )
   {
+#ifdef INCLUDE_1316_PATCH
     pPatch = Patch1316;
+#endif
   }
   else
   {
-    pPatch = Patch1315;  
-  }
-
-#elif defined(INCLUDE_1316_PATCH)
-
-  pPatch = Patch1316;
-  
-#elif defined(INCLUDE_1315_PATCH)
-  
-  pPatch = Patch1315;  
-
+#ifdef INCLUDE_1315_PATCH
+    pPatch = Patch1315;
 #endif
-  
+  }
   return pPatch;
-  
 }
 
 #endif
@@ -114,11 +90,8 @@ unsigned char QuerySupportLowEnergy(void)
 {
   unsigned char result = 0;
   
-#ifdef SUPPORT_LOW_ENERGY
-  #ifdef INCLUDE_BOTH_PATCHES
-    result = 1;
-  #endif
-  #ifdef INCLUDE_1316_PATCH
+#ifdef INCLUDE_1316_PATCH
+  #ifdef SUPPORT_LOW_ENERGY
     result = 1;
   #endif
 #endif
@@ -143,11 +116,9 @@ unsigned char QuerySupportLowEnergy(void)
    /* * NOTE * This function will not allow an offset of 0xFFFF.        */
 void MovePatchBytes(unsigned int offset, unsigned char *dest, unsigned int length)
 {
-
   /* Check to make sure that the parameters passed in appear valid.    */
   if((offset+1) && (dest) && (length))
   {
-    
 #ifdef __IAR_SYSTEMS_ICC__
 
     while(length--)
@@ -157,39 +128,31 @@ void MovePatchBytes(unsigned int offset, unsigned char *dest, unsigned int lengt
     }
       
 #else /* TI_COMPILER_VERSION */
-
-    
-    asm("LOOP:");
-      
-#if defined(INCLUDE_BOTH_PATCHES)
-  
-    if ( GetPatchVersion() == PatchVersion1316 )
+    if ( PatchVersion == PatchVersion1316 )
     {
-      asm("    MOVX.B   Patch1316+0(r12),0(r13)");  /* Move 1 bytes         */    
+#ifdef INCLUDE_1316_PATCH
+      asm("LOOP:");
+      asm("    MOVX.B   Patch1316+0(r12),0(r13)");  /* Move 1 bytes         */
+      asm("    ADD.W    #1,r12");                   /* INC offset           */
+      asm("    ADD.W    #1,r13");                   /* INC dest             */
+      asm("    SUB.W    #1,r14");                   /* DEC length           */
+      asm("    CMP.W    #0,r14");                   /* Check (length == 0)  */
+      asm("    JNE      LOOP");
+#endif
     }
     else
     {
-      asm("    MOVX.B   Patch1315+0(r12),0(r13)");  /* Move 1 bytes         */         
+#ifdef INCLUDE_1315_PATCH
+      asm("LOOP:");
+      asm("    MOVX.B   Patch1315+0(r12),0(r13)");  /* Move 1 bytes         */
+      asm("    ADD.W    #1,r12");                   /* INC offset           */
+      asm("    ADD.W    #1,r13");                   /* INC dest             */
+      asm("    SUB.W    #1,r14");                   /* DEC length           */
+      asm("    CMP.W    #0,r14");                   /* Check (length == 0)  */
+      asm("    JNE      LOOP");
+#endif
     }
-
-#elif defined(INCLUDE_1316_PATCH)
-      
-    asm("    MOVX.B   Patch1316+0(r12),0(r13)");  /* Move 1 bytes         */
-  
-#elif defined(INCLUDE_1315_PATCH)
-    
-    asm("    MOVX.B   Patch1315+0(r12),0(r13)");  /* Move 1 bytes         */         
-           
-#endif /* patch selection */
-  
-    asm("    ADD.W    #1,r12");                   /* INC offset           */
-    asm("    ADD.W    #1,r13");                   /* INC dest             */
-    asm("    SUB.W    #1,r14");                   /* DEC length           */
-    asm("    CMP.W    #0,r14");                   /* Check (length == 0)  */
-    asm("    JNE      LOOP");
-       
 #endif /* environment selection */
-
   }
   else
   {

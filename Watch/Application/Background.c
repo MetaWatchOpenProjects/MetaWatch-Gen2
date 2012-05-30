@@ -70,7 +70,7 @@ static void SoftwareResetHandler(tMessage* pMsg);
 static void SetCallbackTimerHandler(tMessage* pMsg);
 
 #define BACKGROUND_MSG_QUEUE_LEN   8    
-#define BACKGROUND_STACK_DEPTH	   (configMINIMAL_STACK_DEPTH + 100)
+#define BACKGROUND_STACK_SIZE	   (configMINIMAL_STACK_SIZE + 100)
 #define BACKGROUND_TASK_PRIORITY   (tskIDLE_PRIORITY + 1)
 
 xTaskHandle xBkgTaskHandle;
@@ -85,6 +85,7 @@ static unsigned int nvBatteryMonitorIntervalInSeconds;
 static unsigned char LedOn;
 static tTimerId LedTimerId;
 static void LedChangeHandler(tMessage* pMsg);
+static tTimerId CallbackTimerId;
 
 /******************************************************************************/
 
@@ -128,7 +129,7 @@ void InitializeBackgroundTask( void )
   // prams are: task function, task name, stack len , task params, priority, task handle
   xTaskCreate(BackgroundTask, 
               (const signed char *)"BACKGROUND", 
-              BACKGROUND_STACK_DEPTH, 
+              BACKGROUND_STACK_SIZE,
               NULL, 
               BACKGROUND_TASK_PRIORITY, 
               &xBkgTaskHandle);
@@ -190,6 +191,9 @@ static void BackgroundTask(void *pvParameters)
                       LedChange,
                       LED_OFF_OPTION);
   
+  // Allocate a timer for wake-up iOS background BLE app
+  CallbackTimerId = AllocateOneSecondTimer();
+
   /****************************************************************************/
   
 #ifdef RAM_TEST
@@ -869,16 +873,20 @@ static unsigned char RateTestCallback(void)
 
 static void SetCallbackTimerHandler(tMessage* pMsg)
 {
-  tTimerId TimerId = AllocateOneSecondTimer();
-  tSetCallbackTimerPayload* pPayload = (tSetCallbackTimerPayload*) pMsg->pBuffer;
+  tSetCallbackTimerPayload *pPayload = (tSetCallbackTimerPayload *)(pMsg->pBuffer);
+  pPayload->Timeout = 10;
+  StopOneSecondTimer(CallbackTimerId);
   
-  SetupOneSecondTimer(TimerId,
-                      pPayload->Timeout,
+  if (pPayload->Repeat)
+  {
+    SetupOneSecondTimer(CallbackTimerId,
+                       (unsigned int)pPayload->Timeout,
                       pPayload->Repeat,
                       SPP_TASK_QINDEX,
                       CallbackTimeoutMsg,
                       pMsg->Options);
   
-  StartOneSecondTimer(TimerId);
+    StartOneSecondTimer(CallbackTimerId);
+}
 }
 
