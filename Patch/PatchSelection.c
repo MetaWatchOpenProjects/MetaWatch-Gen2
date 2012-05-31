@@ -131,25 +131,25 @@ void MovePatchBytes(unsigned int offset, unsigned char *dest, unsigned int lengt
     if ( PatchVersion == PatchVersion1316 )
     {
 #ifdef INCLUDE_1316_PATCH
-      asm("LOOP:");
+      asm("LOOP_1316:");
       asm("    MOVX.B   Patch1316+0(r12),0(r13)");  /* Move 1 bytes         */
       asm("    ADD.W    #1,r12");                   /* INC offset           */
       asm("    ADD.W    #1,r13");                   /* INC dest             */
       asm("    SUB.W    #1,r14");                   /* DEC length           */
       asm("    CMP.W    #0,r14");                   /* Check (length == 0)  */
-      asm("    JNE      LOOP");
+      asm("    JNE      LOOP_1316");
 #endif
     }
     else
     {
 #ifdef INCLUDE_1315_PATCH
-      asm("LOOP:");
+      asm("LOOP_1315:");
       asm("    MOVX.B   Patch1315+0(r12),0(r13)");  /* Move 1 bytes         */
       asm("    ADD.W    #1,r12");                   /* INC offset           */
       asm("    ADD.W    #1,r13");                   /* INC dest             */
       asm("    SUB.W    #1,r14");                   /* DEC length           */
       asm("    CMP.W    #0,r14");                   /* Check (length == 0)  */
-      asm("    JNE      LOOP");
+      asm("    JNE      LOOP_1315");
 #endif
     }
 #endif /* environment selection */

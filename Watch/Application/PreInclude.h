@@ -25,11 +25,11 @@
 #define PRE_INCLUDE_H
 
 /* add patch support for BLE */
-#define SUPPORT_LOW_ENERGY
+//#define SUPPORT_LOW_ENERGY
 
 /* patch selection (select one) */
+#define INCLUDE_1315_PATCH
 #define INCLUDE_1316_PATCH
-#undef INCLUDE_1315_PATCH
 
 /* use DMA to write data to LCD */
 #define DMA
