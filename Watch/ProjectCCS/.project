@@ -22,7 +22,7 @@
 				</dictionary>
 				<dictionary>
 					<key>org.eclipse.cdt.make.core.buildArguments</key>
-					<value>-k</value>
+					<value></value>
 				</dictionary>
 				<dictionary>
 					<key>org.eclipse.cdt.make.core.buildCommand</key>
@@ -58,11 +58,11 @@
 				</dictionary>
 				<dictionary>
 					<key>org.eclipse.cdt.make.core.stopOnError</key>
-					<value>false</value>
+					<value>true</value>
 				</dictionary>
 				<dictionary>
 					<key>org.eclipse.cdt.make.core.useDefaultBuildCmd</key>
-					<value>false</value>
+					<value>true</value>
 				</dictionary>
 			</arguments>
 		</buildCommand>
@@ -84,33 +84,27 @@
 		<link>
 			<name>Application</name>
 			<type>2</type>
-			<locationURI>WATCH_ROOT/Watch/Application</locationURI>
+			<locationURI>PARENT-2-PROJECT_LOC/Watch/Application</locationURI>
 		</link>
 		<link>
 			<name>FreeRTOS</name>
 			<type>2</type>
-			<locationURI>WATCH_ROOT/FreeRTOS</locationURI>
+			<locationURI>PARENT-2-PROJECT_LOC/FreeRTOS</locationURI>
 		</link>
 		<link>
 			<name>Hardware</name>
 			<type>2</type>
-			<locationURI>WATCH_ROOT/Watch/Hardware</locationURI>
+			<locationURI>PARENT-2-PROJECT_LOC/Watch/Hardware</locationURI>
 		</link>
 		<link>
 			<name>OSAL</name>
 			<type>2</type>
-			<locationURI>WATCH_ROOT/OSAL</locationURI>
+			<locationURI>PARENT-2-PROJECT_LOC/OSAL</locationURI>
 		</link>
 		<link>
 			<name>Patch</name>
 			<type>2</type>
-			<locationURI>WATCH_ROOT/Patch</locationURI>
+			<locationURI>PARENT-2-PROJECT_LOC/Patch</locationURI>
 		</link>
 	</linkedResources>
-	<variableList>
-		<variable>
-			<name>WATCH_ROOT</name>
-			<value>file:/Z:/Code/public</value>
-		</variable>
-	</variableList>
 </projectDescription>
