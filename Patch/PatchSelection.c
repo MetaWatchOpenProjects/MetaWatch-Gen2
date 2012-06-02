@@ -25,16 +25,16 @@
 
 /******************************************************************************/
 
-static etPatchVersion PatchVersion = PatchVersion1315;
+static etRadioVersion RadioVersion = RadioVersionCC2560;
 
-void SetPatchVersion(etPatchVersion Version)
+void SetRadioVersion(etRadioVersion Version)
 {
-  PatchVersion = Version;    
+  RadioVersion = Version;    
 }
 
-etPatchVersion GetPatchVersion(void)
+etRadioVersion GetRadioVersion(void)
 {
-  return PatchVersion;  
+  return RadioVersion;  
 }
 
 /******************************************************************************/
@@ -43,7 +43,7 @@ unsigned int GetPatchLength(void)
 {
   unsigned int Length = 0;
   
-  if ( PatchVersion == PatchVersion1316 )
+  if ( RadioVersion == RadioVersionCC2564 )
   {
 #ifdef INCLUDE_1316_PATCH
 	Length = sizeof(Patch1316);
@@ -64,9 +64,9 @@ unsigned int GetPatchLength(void)
 
 unsigned char const __data20 * GetPatchAddress(void)
 {
-  unsigned char const __data20 * pPatch;
+  unsigned char const __data20 * pPatch = 0;
   
-  if ( PatchVersion == PatchVersion1316 )
+  if ( RadioVersion == RadioVersionCC2564 )
   {
 #ifdef INCLUDE_1316_PATCH
     pPatch = Patch1316;
@@ -80,40 +80,22 @@ unsigned char const __data20 * GetPatchAddress(void)
   }
   return pPatch;
 }
-
 #endif
 
-/*! todo - this doesn't check that the radio supports low energy
- * just that the patch selection does
- */
-unsigned char QuerySupportLowEnergy(void)
-{
-  unsigned char result = 0;
-  
-#ifdef INCLUDE_1316_PATCH
-  #ifdef SUPPORT_LOW_ENERGY
-    result = 1;
-  #endif
-#endif
-  
-  return result;
-}
-
-
-   /* The following function is used to copy                            */
-   /* Patch data to a local buffer.  This is done because a SMALL data  */
-   /* model configuration can't access data past 64k.  The function     */
-   /* receives as its first parameter the offset from the beginning of  */
-   /* the Patch data where the copy should begin.  The second parameter */
-   /* is a pointer to a local buffer where the data is to be moved.  The*/
-   /* last parameter is the number of bytes that are to be moved.       */
-   /* * NOTE * The C compiler will not process the information within   */
-   /*          the 'asm' statements so we must reference the parameters */
-   /*          passed in to the optimizer will remove variables that are*/
-   /*          not referenced.  If none of the variables are referenced */
-   /*          in 'C' code then the entire function will be optimized   */
-   /*          out.                                                     */
-   /* * NOTE * This function will not allow an offset of 0xFFFF.        */
+/* The following function is used to copy                            */
+/* Patch data to a local buffer.  This is done because a SMALL data  */
+/* model configuration can't access data past 64k.  The function     */
+/* receives as its first parameter the offset from the beginning of  */
+/* the Patch data where the copy should begin.  The second parameter */
+/* is a pointer to a local buffer where the data is to be moved.  The*/
+/* last parameter is the number of bytes that are to be moved.       */
+/* * NOTE * The C compiler will not process the information within   */
+/*          the 'asm' statements so we must reference the parameters */
+/*          passed in to the optimizer will remove variables that are*/
+/*          not referenced.  If none of the variables are referenced */
+/*          in 'C' code then the entire function will be optimized   */
+/*          out.                                                     */
+/* * NOTE * This function will not allow an offset of 0xFFFF.        */
 void MovePatchBytes(unsigned int offset, unsigned char *dest, unsigned int length)
 {
   /* Check to make sure that the parameters passed in appear valid.    */
@@ -128,28 +110,28 @@ void MovePatchBytes(unsigned int offset, unsigned char *dest, unsigned int lengt
     }
       
 #else /* TI_COMPILER_VERSION */
-    if ( PatchVersion == PatchVersion1316 )
+    if ( RadioVersion == RadioVersionCC2564 )
     {
 #ifdef INCLUDE_1316_PATCH
-      asm("LOOP_1316:");
+      asm("LOOP_2564:");
       asm("    MOVX.B   Patch1316+0(r12),0(r13)");  /* Move 1 bytes         */
       asm("    ADD.W    #1,r12");                   /* INC offset           */
       asm("    ADD.W    #1,r13");                   /* INC dest             */
       asm("    SUB.W    #1,r14");                   /* DEC length           */
       asm("    CMP.W    #0,r14");                   /* Check (length == 0)  */
-      asm("    JNE      LOOP_1316");
+      asm("    JNE      LOOP_2564");
 #endif
     }
     else
     {
 #ifdef INCLUDE_1315_PATCH
-      asm("LOOP_1315:");
+      asm("LOOP_2560:");
       asm("    MOVX.B   Patch1315+0(r12),0(r13)");  /* Move 1 bytes         */
       asm("    ADD.W    #1,r12");                   /* INC offset           */
       asm("    ADD.W    #1,r13");                   /* INC dest             */
       asm("    SUB.W    #1,r14");                   /* DEC length           */
       asm("    CMP.W    #0,r14");                   /* Check (length == 0)  */
-      asm("    JNE      LOOP_1315");
+      asm("    JNE      LOOP_2560");
 #endif
     }
 #endif /* environment selection */
@@ -160,3 +142,45 @@ void MovePatchBytes(unsigned int offset, unsigned char *dest, unsigned int lengt
     *dest = 0;
   }
 }
+
+/*! todo - this doesn't check that the radio supports low energy
+ * just that the patch selection does
+ */
+unsigned char QuerySupportLowEnergy(void)
+{
+    unsigned char result = 0;
+
+    if ( RadioVersion == RadioVersionCC2564 )
+    {
+    
+#if defined(INCLUDE_1316_PATCH) && defined(SUPPORT_LOW_ENERGY)
+        result = 1;
+#endif
+    }    
+    return result;
+}
+
+/******************************************************************************/
+
+unsigned char QueryIncludedPatchSupportsRadio(void)
+{
+    unsigned char result = 0;
+        
+    if ( RadioVersion == RadioVersionCC2564 )
+    {
+#ifdef INCLUDE_1316_PATCH
+        result = 1;
+#endif
+    }
+    else
+    {
+#ifdef INCLUDE_1315_PATCH
+        result = 1;
+#endif
+    }
+    
+    return result;
+}
+
+
+

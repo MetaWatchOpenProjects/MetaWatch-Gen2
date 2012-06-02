@@ -56,8 +56,6 @@
 #include "OSAL_Nv.h"
 #include "NvIds.h"
 
-static void ConfigureHardware(void);
-
 void main(void)
 {
   /* Turn off the watchdog timer */
@@ -71,12 +69,18 @@ void main(void)
   
   unsigned char MspVersion = GetMsp430HardwareRevision();
     
-  InitializeCalibrationData();
+  SetupClockAndPowerManagementModule();
   
-  ConfigureHardware();
-
   OsalNvInit(0);
   
+  InitDebugUart();
+  
+  InitializeCalibrationData();
+  
+  InitializeAdc();
+  
+  ConfigureDefaultIO(GetBoardConfiguration());
+
   InitializeDebugFlags();      
   InitializeButtons();
   InitializeVibration();
@@ -92,8 +96,6 @@ void main(void)
 
   InitializeDisplayTask();   
 
-  InitializeAdc();
-  
 #if 0
   /* timeout is 16 seconds */
   hal_SetWatchdogTimeout(16); 
@@ -120,35 +122,7 @@ void main(void)
 }
 
 
-/* The following is responsible for initializing the target hardware.*/
-static void ConfigureHardware(void)
-{
-  SetAllPinsToOutputs();
 
-  SetupClockAndPowerManagementModule();
-  
-  SetupAclkToRadio();
-
-  InitDebugUart();
-    
-  BLUETOOTH_SIDEBAND_CONFIG();
-  CONFIG_OLED_PINS();
-  
-#ifdef HW_DEVBOARD_V2
-  CONFIG_DEBUG_PINS();
-  CONFIG_LED_PINS();
-#endif
-
-#ifdef DIGITAL
-  DISABLE_LCD_LED();
-#endif
-
-  CONFIG_SRAM_PINS();
-  APPLE_CONFIG();
-
-  CONFIG_ACCELEROMETER_PINS();
-  
-}
 
 /* The following function exists to put the MCU to sleep when in the idle task. */
 static unsigned char SppReadyToSleep;
@@ -232,3 +206,5 @@ void AccelerometerPinIsr(void)
 {
   AccelerometerIsr();
 }
+
+

@@ -29,16 +29,17 @@
 #define HAL_BOARD_TYPE_H
 
 #include "msp430.h"
+#include "hal_io_macros.h"
 
 /******************************************************************************/
 #ifdef SUPPORT_LOW_ENERGY
 #define VERSION_STRING "3.0.2"
 #else
-#define VERSION_STRING "0.10.6"
+#define VERSION_STRING "0.10.8"
 #endif
 /* create the main page for the Doxygen output */
 
-/*! \mainpage MetaWatch Software (Version X.X.X)
+/*! \mainpage MetaWatch Software (Version 0.10.X)
  *
  * \section intro_sec Introduction
  *
@@ -67,7 +68,6 @@
 #define NUM_MSG_BUFFERS 20
 
 /******************************************************************************/
-
 
 #if defined(HW_DEVBOARD_V2)
 

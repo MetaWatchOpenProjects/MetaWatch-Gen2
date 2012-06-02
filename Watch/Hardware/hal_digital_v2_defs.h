@@ -489,24 +489,11 @@
 #define ACCELEROMETER_INT_PIFG ( P1IFG )
 #define ACCELEROMETER_INT_PIE  ( P1IE )
 
+#define ACCELEROMETER_POWER_POUT ( P9OUT )
+#define ACCELEROMETER_POWER_PINS ( BIT1 | BIT2 )
+
 /* this is for reference only (it doesn't control anything) */
 #define ACCELEROMETER_INT_NUM (PIN7_INT)
-
-#define ACCELEROMETER_INT_ENABLE() { \
-  ACCELEROMETER_INT_PIFG &= ~ACCELEROMETER_INT_PIN;   \
-  ACCELEROMETER_INT_PIE |= ACCELEROMETER_INT_PIN;     \
-}
-
-#define ACCELEROMETER_INT_DISABLE() { \
-  ACCELEROMETER_INT_PIFG &= ~ACCELEROMETER_INT_PIN;    \
-  ACCELEROMETER_INT_PIE &= ~ACCELEROMETER_INT_PIN;     \
-}
-
-#define CONFIG_ACCELEROMETER_PINS() { \
-  ACCELEROMETER_SDA_PSEL |= ACCELEROMETER_SDA_PIN;  \
-  ACCELEROMETER_SCL_PSEL |= ACCELEROMETER_SCL_PIN;  \
-  ACCELEROMETER_INT_PDIR &= ~ACCELEROMETER_INT_PIN; \
-}
 
 #define LED4_ON() { }
 #define LED5_ON() { }
@@ -550,34 +537,14 @@
 #define BT_CLK_REQ_PDIR     ( P1DIR )
 #define BT_CLK_REQ_POUT     ( P1OUT )
 #define BT_CLK_REQ_PIN      ( BIT4 )
-/* this is not used but should be an input */
-#define BT_CLK_REQ_CONFIG() { BT_CLK_REQ_PDIR &= ~BT_CLK_REQ_PIN; }
 
 #define BT_IO1_PDIR     ( P1DIR )
 #define BT_IO1_POUT     ( P1OUT )
 #define BT_IO1_PIN      ( BIT5 )
 
-#define BT_IO1_CONFIG() { \
-  BT_IO1_PDIR |= BT_IO1_PIN;  \
-  BT_IO1_POUT &= ~BT_IO1_PIN; \
-}
-
 #define BT_IO2_PDIR     ( P1DIR )
 #define BT_IO2_POUT     ( P1OUT )
 #define BT_IO2_PIN      ( BIT6 )
-
-#define BT_IO2_CONFIG() { \
-  BT_IO2_PDIR |= BT_IO2_PIN; \
-  BT_IO2_POUT &= ~BT_IO2_PIN; }
-
-
-#define BLUETOOTH_SIDEBAND_CONFIG() \
-{                      \
-  BT_CLK_REQ_CONFIG(); \
-  BT_IO1_CONFIG();     \
-  BT_IO2_CONFIG();     \
-}
-
 
 /******************************************************************************/
 

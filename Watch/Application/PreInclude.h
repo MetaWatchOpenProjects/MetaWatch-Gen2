@@ -24,12 +24,16 @@
 #ifndef PRE_INCLUDE_H
 #define PRE_INCLUDE_H
 
-/* add patch support for BLE */
-//#define SUPPORT_LOW_ENERGY
-
-/* patch selection (select one) */
-#define INCLUDE_1315_PATCH
+/* patch selection (include at least one) */
 #define INCLUDE_1316_PATCH
+#define INCLUDE_1315_PATCH
+
+#if !defined(INCLUDE_1316_PATCH) && !defined(INCLUDE_1315_PATCH)
+#error "At least one patch must be included"
+#endif
+
+/* add patch support for BLE */
+#undef SUPPORT_LOW_ENERGY
 
 /* use DMA to write data to LCD */
 #define DMA
@@ -38,13 +42,13 @@
 #define LPM_ENABLED
 
 /* print task information */
-#define TASK_DEBUG
+#undef TASK_DEBUG
 
 /* print debug messages for accelerometer, setup accelerometer for 25 hz */
 #undef ACCELEROMETER_DEBUG
 
 /* light LED and wait forever instead of reset */
-#define DEBUG_WATCHDOG_RESET
+#undef DEBUG_WATCHDOG_RESET
 
 /* perform software check of errata PMM15 */
 #undef CHECK_FOR_PMM15
@@ -58,5 +62,7 @@
 /* use debug pin 5 on development board to keep track of when SMCLK is on */
 #undef CLOCK_CONTROL_DEBUG
 
+/* set all of the radio control pins to inputs so HCI tester can be used */
+#undef ISOLATE_RADIO
 
 #endif /* PRE_INCLUDE_H */

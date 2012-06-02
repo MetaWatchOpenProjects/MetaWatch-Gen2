@@ -79,9 +79,9 @@ static unsigned int LowBatteryBtOffLevel;
 static void AdcCheck(void);
 static void VoltageReferenceInit(void);
 
-static void HardwareCfgCycle(void);
 static void StartHardwareCfgConversion(void);
 static void FinishHardwareCfgCycle(void);
+static void SetBoardConfiguration(void);
 
 static void StartBatterySenseConversion(void);
 static void FinishBatterySenseCycle(void);
@@ -149,6 +149,7 @@ static void VoltageReferenceInit(void)
   REFCTL0 = REFMSTR | REFTCOFF; 
 }
 
+/* NV items are required for this function */
 void InitializeAdc(void)
 {
   VoltageReferenceInit();
@@ -190,28 +191,24 @@ void InitializeAdc(void)
   LowBatteryWarningMessageSent = 0;
   LowBatteryBtOffMessageSent = 0;
   
+  /*
+   * A voltage divider on the board is populated differently
+   * for each revision of the board.
+   *
+   * determine configuration at start-up
+  */
+  HARDWARE_CFG_SENSE_ENABLE();
+  ENABLE_REFERENCE();
+  StartHardwareCfgConversion();
+  WaitForAdcBusy();
+  FinishHardwareCfgCycle();
+  SetBoardConfiguration();
+  
 }
 
 static void WaitForAdcBusy(void)
 {
   while(ADC12CTL1 & ADC12BUSY);
-}
-
-/*
- * A voltage divider on the board is populated differently
- * for each revision of the board.
- */
-static void HardwareCfgCycle(void)
-{
-  xSemaphoreTake(AdcHardwareMutex,portMAX_DELAY);
-  
-  HARDWARE_CFG_SENSE_ENABLE();
-  ENABLE_REFERENCE();
-  
-  StartHardwareCfgConversion();
-  WaitForAdcBusy();
-  FinishHardwareCfgCycle();
-  
 }
 
 static void StartHardwareCfgConversion(void)
@@ -234,8 +231,8 @@ static void FinishHardwareCfgCycle(void)
   DISABLE_ADC();
   DISABLE_REFERENCE();
   
-  EndAdcCycle();
-
+  /* semaphore is not used for this cycle */
+  
 }
 
 /* 80 us 
@@ -565,11 +562,11 @@ void InitializeLowBatteryLevels(void)
 /******************************************************************************/
 
 
-/* Hardware Configuration is done using a voltage divider
+/*! Hardware Configuration is done using a voltage divider
  *
  * Vin * R2/(R1+R2)
  *
- * 2.5 * 3.9e3/103.9e3 = 0.09384 volts ( Config 5 - Rev C digital - CC2564 )
+ * 2.5 * 3.9e3/103.9e3 = 0.09384 volts ( Config 5 - Rev C digital, Rev E FOSO6 - CC2564 )
  * 2.5 * 4.7/104.7 = 0.1122            ( future )
  * 2.5 * 1.5/101.5 = 0.03694           ( Config 4  - Rev B8 - CC2564 or CC2560 )
  * 2.5 * 1.2/101.2 = 0.02964           ( Config 3  - CC2560 )
@@ -585,32 +582,27 @@ void InitializeLowBatteryLevels(void)
 
 static unsigned char BoardConfiguration = 0;
   
-unsigned char GetBoardConfiguration(void)
+/* This should only get called once */
+static void SetBoardConfiguration(void)
 {
-  /* only perform the ADC cycle once */
-  if ( HardwareConfigurationVolts == 0 )
+  if ( HardwareConfigurationVolts > (CONFIGURATION_5 - CFG_WINDOW) )
   {
-    HardwareCfgCycle();
-      
-    if ( HardwareConfigurationVolts > (CONFIGURATION_5 - CFG_WINDOW) )
-    {
-      BoardConfiguration = 5;    
-    }
-    else if ( HardwareConfigurationVolts > (CONFIGURATION_1 - CFG_WINDOW) )
-    {
-      BoardConfiguration = 1;  
-    }
-    else if ( HardwareConfigurationVolts > (CONFIGURATION_4 - CFG_WINDOW) )
-    {
-      BoardConfiguration = 4;  
-    }
-    
-#if 1
-    PrintStringAndDecimal("Board Configuration ",BoardConfiguration);
-#endif
-  
+    BoardConfiguration = 5;    
+  }
+  else if ( HardwareConfigurationVolts > (CONFIGURATION_1 - CFG_WINDOW) )
+  {
+    BoardConfiguration = 1;  
+  }
+  else if ( HardwareConfigurationVolts > (CONFIGURATION_4 - CFG_WINDOW) )
+  {
+    BoardConfiguration = 4;  
   }
 
+  PrintStringAndDecimal("Board Configuration ",BoardConfiguration);
+ 
+}
+
+unsigned char GetBoardConfiguration(void)
+{
   return BoardConfiguration;
-  
 }

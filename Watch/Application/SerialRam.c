@@ -35,6 +35,7 @@
 #include "LcdDriver.h"
 #include "LcdDisplay.h"
 #include "Utilities.h"
+#include "Adc.h"
 
 /******************************************************************************/
 
@@ -47,6 +48,9 @@
 /* the 256Kbit part does not have a 1 in bit position 1 */
 #define DEFAULT_SR_VALUE ( 0x02 )
 #define FINAL_SR_VALUE   ( 0x43 )
+
+#define DEFAULT_SR_VALUE_256 ( 0x00 )
+#define FINAL_SR_VALUE_256   ( 0x41 )
 
 #define SEQUENTIAL_MODE_COMMAND ( 0x41 )
 
@@ -146,9 +150,18 @@ void SerialRamInit(void)
   WAIT_FOR_SRAM_SPI_SHIFT_COMPLETE();
   ReadData = UCA0RXBUF;
   
+  unsigned char FinalSrValue = DEFAULT_SR_VALUE;
+  unsigned char DefaultSrValue = FINAL_SR_VALUE;
+  
+  if ( GetBoardConfiguration() >= 5 )
+  {
+    DefaultSrValue = DEFAULT_SR_VALUE_256;
+    FinalSrValue = FINAL_SR_VALUE_256;  
+  }
+  
   /* make sure correct value is read from the part */
-  if (   ( ReadData != DEFAULT_SR_VALUE )
-      && ( ReadData != FINAL_SR_VALUE ) )
+  if (   ( ReadData != DefaultSrValue )
+      && ( ReadData != FinalSrValue ) )
   {
     PrintString("Serial RAM initialization failure (a) \r\n");
   }
@@ -179,7 +192,7 @@ void SerialRamInit(void)
   ReadData = UCA0RXBUF;
   
   /* make sure correct value is read from the part */
-  if ( ReadData != FINAL_SR_VALUE )
+  if ( ReadData != FinalSrValue )
   {
     PrintString("Serial RAM initialization failure (b) \r\n"); 
   }

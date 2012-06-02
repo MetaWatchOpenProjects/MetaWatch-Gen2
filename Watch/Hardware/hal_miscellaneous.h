@@ -44,4 +44,12 @@ void SetupAclkToRadio(void);
  */
 void SetupClockAndPowerManagementModule(void);
 
+
+/*! setup pins that aren't setup by specific functions 
+ * catch-all
+ * \note Board Configuration must be valid before this is called
+ */
+void ConfigureDefaultIO(unsigned char BoardConfiguration);
+
+
 #endif /* HAL_MISCELLANEOUS_H */

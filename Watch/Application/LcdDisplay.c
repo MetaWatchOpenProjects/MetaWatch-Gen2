@@ -266,8 +266,8 @@ static void DisplayTask(void *pvParameters)
   DefaultApplicationAndNotificationButtonConfiguration();
   SetupNormalIdleScreenButtons();
   
-#if 1  
-  /* turn the radio on; initialize the serial port profile */
+#ifndef ISOLATE_RADIO
+  /* turn the radio on; initialize the serial port profile or BLE/GATT */
   tMessage Msg;
   SetupMessage(&Msg,TurnRadioOnMsg,NO_MSG_OPTIONS);
   RouteMsg(&Msg);

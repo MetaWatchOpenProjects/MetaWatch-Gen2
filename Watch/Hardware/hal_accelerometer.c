@@ -1,10 +1,10 @@
 //==============================================================================
 //  Copyright 2011 Meta Watch Ltd. - http://www.MetaWatch.org/
-// 
+//
 //  Licensed under the Meta Watch License, Version 1.0 (the "License");
 //  you may not use this file except in compliance with the License.
 //  You may obtain a copy of the License at
-//  
+//
 //      http://www.MetaWatch.org/licenses/license-1.0.html
 //
 //  Unless required by applicable law or agreed to in writing, software
@@ -36,10 +36,10 @@ static unsigned char AccelerometerBusy;
 static unsigned char LengthCount;
 static unsigned char Index;
 static unsigned char* pAccelerometerData;
-  
+
 static xSemaphoreHandle AccelerometerMutex;
 
-  
+
 /******************************************************************************/
 
 /* the accelerometer can run at 400 kHz */
@@ -47,25 +47,25 @@ void InitAccelerometerPeripheral(void)
 {
   /* enable reset before configuration */
   ACCELEROMETER_CTL1 |= UCSWRST;
-  
+
   /* configure as master using smclk / 40 = 399.5 kHz */
-  ACCELEROMETER_CTL0 = UCMST + UCMODE_3 + UCSYNC;     
+  ACCELEROMETER_CTL0 = UCMST + UCMODE_3 + UCSYNC;
   ACCELEROMETER_CTL1 = UCSSEL__SMCLK + UCSWRST;
 #ifdef SUPPORT_LOW_ENERGY
-  ACCELEROMETER_BR0 = 40;                
+  ACCELEROMETER_BR0 = 40;
 #else
   ACCELEROMETER_BR0 = 42;
 #endif
-    
+
   ACCELEROMETER_BR1 = 0;
-  ACCELEROMETER_I2CSA = KIONIX_DEVICE_ADDRESS; 
-  
+  ACCELEROMETER_I2CSA = KIONIX_DEVICE_ADDRESS;
+
   /* release reset */
   ACCELEROMETER_CTL1 &= ~UCSWRST;
-  
+
   AccelerometerMutex = xSemaphoreCreateMutex();
   xSemaphoreGive(AccelerometerMutex);
-  
+
 }
 
 /* not very efficient, but simple */
@@ -76,29 +76,29 @@ void AccelerometerWrite(unsigned char RegisterAddress,
   /* short circuit */
   if ( Length == 0 )
   {
-    return;  
+    return;
   }
-  
+
   EnableSmClkUser(ACCELEROMETER_USER);
   xSemaphoreTake(AccelerometerMutex,portMAX_DELAY);
-  
+
   while(UCB1STAT & UCBBUSY);
-  
+
   AccelerometerBusy = 1;
   LengthCount = Length;
   Index = 0;
   pAccelerometerData = pData;
-  
-  /* 
-   * enable transmit interrupt and 
+
+  /*
+   * enable transmit interrupt and
    * setup for write and send the start condition
    */
   ACCELEROMETER_IFG = 0;
   ACCELEROMETER_CTL1 |= UCTR + UCTXSTT;
   while(!(ACCELEROMETER_IFG & UCTXIFG));
-  
-  /* 
-   * clear transmit interrupt flag, enable interrupt, 
+
+  /*
+   * clear transmit interrupt flag, enable interrupt,
    * send the register address
    */
   ACCELEROMETER_IFG = 0;
@@ -106,10 +106,10 @@ void AccelerometerWrite(unsigned char RegisterAddress,
   ACCELEROMETER_TXBUF = RegisterAddress;
   while(AccelerometerBusy);
   while(ACCELEROMETER_CTL1 & UCTXSTP);
-  
+
   DisableSmClkUser(ACCELEROMETER_USER);
   xSemaphoreGive(AccelerometerMutex);
-  
+
 }
 
 void AccelerometerReadSingle(unsigned char RegisterAddress,
@@ -122,73 +122,73 @@ void AccelerometerReadSingle(unsigned char RegisterAddress,
     return;
   }
 #endif
-  
+
   EnableSmClkUser(ACCELEROMETER_USER);
   xSemaphoreTake(AccelerometerMutex,portMAX_DELAY);
-  
+
   /* wait for bus to be free */
   while(UCB1STAT & UCBBUSY);
-  
+
   AccelerometerBusy = 1;
   LengthCount = 1;
   Index = 0;
   pAccelerometerData = pData;
-  
+
   /* transmit address */
   ACCELEROMETER_IFG = 0;
   ACCELEROMETER_CTL1 |= UCTR + UCTXSTT;
   while(!(ACCELEROMETER_IFG & UCTXIFG));
-  
+
   /* write register address */
   ACCELEROMETER_IFG = 0;
   ACCELEROMETER_TXBUF = RegisterAddress;
   while(!(ACCELEROMETER_IFG & UCTXIFG));
-  
-  
-  /* send a repeated start (same slave address now it is a read command) 
+
+
+  /* send a repeated start (same slave address now it is a read command)
    * read possible extra character from rxbuffer
    */
   ACCELEROMETER_RXBUF;
   ACCELEROMETER_IFG = 0;
   ACCELEROMETER_IE |= UCRXIE;
   ACCELEROMETER_CTL1 &= ~UCTR;
-    
-  /* for a read of a single byte the stop must be sent while the byte is being 
+
+  /* for a read of a single byte the stop must be sent while the byte is being
    * received. If this is interrupted an extra byte may be read.
    * however, it will be discarded during the next read
    */
   if ( LengthCount == 1 )
   {
-    /* errata usci30: prevent interruption of sending stop 
+    /* errata usci30: prevent interruption of sending stop
      * so that only one byte is read
      * this requires 62 us @ 320 kHz, 51 @ 400 kHz
      */
     portENTER_CRITICAL();
-  
+
     ACCELEROMETER_CTL1 |= UCTXSTT;
-  
+
     while(ACCELEROMETER_CTL1 & UCTXSTT);
 
     ACCELEROMETER_CTL1 |= UCTXSTP;
-  
+
     portEXIT_CRITICAL();
   }
   else
   {
     ACCELEROMETER_CTL1 |= UCTXSTT;
   }
-  
+
   /* wait until all data has been received and the stop bit has been sent */
   while(AccelerometerBusy);
   while(ACCELEROMETER_CTL1 & UCTXSTP);
   Index = 0;
   pAccelerometerData = NULL;
-  
+
   DisableSmClkUser(ACCELEROMETER_USER);
   xSemaphoreGive(AccelerometerMutex);
 }
 
-/* errata usci30: only perform single reads 
+/* errata usci30: only perform single reads
  * second solution: use DMA
  */
 void AccelerometerRead(unsigned char RegisterAddress,
@@ -199,7 +199,7 @@ void AccelerometerRead(unsigned char RegisterAddress,
   for ( i = 0; i < Length; i++ )
   {
     AccelerometerReadSingle(RegisterAddress+i,pData+i);
-  }  
+  }
 }
 
 // length = data length
@@ -220,33 +220,33 @@ __interrupt void ACCERLEROMETER_ISR(void)
 {
   switch(__even_in_range(USCI_ACCELEROMETER_IV,12))
   {
-  case ACCELEROMETER_NO_INTERRUPTS: 
+  case ACCELEROMETER_NO_INTERRUPTS:
     break;
-  case ACCELEROMETER_ALIFG: 
+  case ACCELEROMETER_ALIFG:
     break;
   case ACCELEROMETER_NACKIFG:
     __no_operation();
-    break; 
+    break;
   case ACCELEROMETER_STTIFG:
     __no_operation();
-    break; 
-  case ACCELEROMETER_STPIFG: 
-    break; 
-  
-  case ACCELEROMETER_RXIFG: 
-  
+    break;
+  case ACCELEROMETER_STPIFG:
+    break;
+
+  case ACCELEROMETER_RXIFG:
+
     if (LengthCount > 0)
     {
-      
+
 #if 0
-      /* 
+      /*
        * Errata USCI30
        * SCL must be low for 3 bit times
        * this solution only applies to 320 kHz I2C clock
        * this causes bluetooth characters to get lost
        */
       unsigned char workaround_count = 10;
-      
+
       while ( (workaround_count--) && ( LengthCount > 1 ) )
       {
         // If SCL is not low for 3 bit times, restart counter
@@ -256,10 +256,10 @@ __interrupt void ACCERLEROMETER_ISR(void)
         }
       }
 #endif
-      
+
       pAccelerometerData[Index++] = ACCELEROMETER_RXBUF;
       LengthCount--;
-      
+
       if ( LengthCount == 1 )
       {
         /* All but one byte received. Send stop */
@@ -273,9 +273,9 @@ __interrupt void ACCERLEROMETER_ISR(void)
       }
     }
     break;
-    
+
   case ACCELEROMETER_TXIFG:
-    
+
     if ( LengthCount > 0 )
     {
       ACCELEROMETER_TXBUF = pAccelerometerData[Index++];
@@ -288,11 +288,11 @@ __interrupt void ACCERLEROMETER_ISR(void)
       ACCELEROMETER_CTL1 |= UCTXSTP;
       AccelerometerBusy = 0;
     }
-    break; 
-  default: 
     break;
-  }  
-  
+  default:
+    break;
+  }
+
 }
 
 
