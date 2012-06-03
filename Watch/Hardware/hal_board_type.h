@@ -33,7 +33,7 @@
 
 /******************************************************************************/
 #ifdef SUPPORT_LOW_ENERGY
-#define VERSION_STRING "3.0.2"
+#define VERSION_STRING "3.1.0"
 #else
 #define VERSION_STRING "0.10.8"
 #endif

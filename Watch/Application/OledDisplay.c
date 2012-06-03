@@ -174,7 +174,7 @@ static void MenuExitHandler(void);
 /******************************************************************************/
 
 #define DISPLAY_TASK_QUEUE_LENGTH 8
-#define DISPLAY_TASK_STACK_DEPTH	(configMINIMAL_STACK_DEPTH + 100)    
+#define DISPLAY_TASK_STACK_SIZE 	(configMINIMAL_STACK_SIZE + 100)    
 #define DISPLAY_TASK_PRIORITY     (tskIDLE_PRIORITY + 1)
 
 xTaskHandle DisplayHandle;
@@ -257,7 +257,7 @@ void InitializeDisplayTask(void)
   // prams are: task function, task name, stack len , task params, priority, task handle
   xTaskCreate(DisplayTask, 
               (const signed char *)"DISPLAY", 
-              DISPLAY_TASK_STACK_DEPTH, 
+              DISPLAY_TASK_STACK_SIZE, 
               NULL, 
               DISPLAY_TASK_PRIORITY, 
               &DisplayHandle);

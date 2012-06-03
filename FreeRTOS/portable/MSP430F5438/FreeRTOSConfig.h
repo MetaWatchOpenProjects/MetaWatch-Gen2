@@ -115,7 +115,13 @@ occurs.
 /* SPP threads use priority of 3 */
 #define configMAX_PRIORITIES                ((unsigned portBASE_TYPE)4)
 #define configMINIMAL_STACK_SIZE            ((unsigned portSHORT)90)
+
+#ifdef SUPPORT_LOW_ENERGY
+#define configTOTAL_HEAP_SIZE               ((size_t)6500)
+#else
 #define configTOTAL_HEAP_SIZE               ((size_t)5500)
+#endif
+
 #define configMAX_TASK_NAME_LEN             (16)
 #define configUSE_TRACE_FACILITY            0
 #define configUSE_16_BIT_TICKS              1
@@ -151,10 +157,13 @@ to exclude the API function. */
 
 #define INCLUDE_pcTaskGetTaskName 1
 
-
+#ifdef SUPPORT_LOW_ENERGY
+/* when clock is 16 MHz then each cycle is 62.5 ns */
+#define __delay_us(x) __delay_cycles(x*16)
+#else
 /* when clock is 16777261 MHz then each cycle is 59.6 ns
  * -> 1013.28 us
  */
 #define __delay_us(x) __delay_cycles(x*17)
-
+#endif
 #endif /* FREERTOS_CONFIG_H */
