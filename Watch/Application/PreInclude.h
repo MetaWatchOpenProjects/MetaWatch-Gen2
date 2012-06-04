@@ -33,7 +33,7 @@
 #endif
 
 /* add patch support for BLE */
-#undef SUPPORT_LOW_ENERGY
+//#undef SUPPORT_LOW_ENERGY
 
 /* use DMA to write data to LCD */
 #define DMA
