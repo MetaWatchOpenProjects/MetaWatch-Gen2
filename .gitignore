@@ -12,7 +12,9 @@ Watch/ProjectCCS/.settings/
 Watch/ProjectCCS/Devboard/
 Watch/ProjectCCS/Digital/
 Watch/ProjectCCS/Digital BLE/
+Watch/ProjectCCS/Analog Devboard/
 Watch/ProjectCCS/FLASH
+Watch/ProjectCCS/Analog Watch/
 Watch/ProjectCCS/RAM
 Watch/Project/settings/Watch.cspy.bat
 Watch/Project/settings/Watch.dbgdt
