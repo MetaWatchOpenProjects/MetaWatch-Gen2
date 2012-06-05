@@ -642,7 +642,7 @@
 					<stringMacro name="BuildArtifactFilePath" type="VALUE_PATH_FILE" value="${PROJECT_LOC}/Digital/Digital.out"/>
 					<stringMacro name="BuildDirectory" type="VALUE_PATH_DIR" value="${PROJECT_LOC}/Digital"/>
 					<stringMacro name="ProjDirPath" type="VALUE_TEXT" value="${PROJECT_LOC}"/>
-					<stringMacro name="PROJECT_ROOT" type="VALUE_PATH_DIR" value="Z:/Code/public/Watch/ProjectCCS"/>
+					<stringMacro name="PROJECT_ROOT" type="VALUE_PATH_DIR" value="${PROJECT_LOC}"/>
 					<stringMacro name="PROJECT_BUILD_DIR" type="VALUE_PATH_DIR" value="${PROJECT_LOC}/Digital"/>
 				</macros>
 				<externalSettings/>
