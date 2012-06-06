@@ -1,11 +1,13 @@
 README
 Stack/ProjectCCS/
+Stack/Project/Stack.dep
 Watch/Project/Devboard/
 Watch/Project/Digital/
 Watch/Project/Digital BLE/
 Watch/Project/path.txt
 Watch/Project/settings/watch.wsdt
 Watch/Project/watch.eww
+Watch/Project/Watch.dep
 Watch/ProjectCCS/.cdtbuild_initial
 Watch/ProjectCCS/.project_initial
 Watch/ProjectCCS/.settings/

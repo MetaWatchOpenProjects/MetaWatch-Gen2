@@ -288,7 +288,7 @@ void PrintMessageType(tMessage* pMsg)
   case AdvertisingDataMsg:         PrintStringAndHexByte("AdvertisingDataMsg 0x",MessageType);         break;
   case CallbackTimeoutMsg:         PrintStringAndHexByte("CallbackTimeoutMsg 0x",MessageType);         break;
   case SetCallbackTimerMsg:        PrintStringAndHexByte("SetCallbackTimerMsg 0x",MessageType);        break;
-  default:                         PrintStringAndHexByte("Unknown Message Type 0x",MessageType);   break;
+  default:                         PrintStringAndHexByte("Unknown Message Type 0x",MessageType);       break;
   }  
   
 }
@@ -402,9 +402,9 @@ void RouteMsg(tMessage* pMsg)
   
 }
 
-void AssignSppQueueHandle(xQueueHandle SppHandle)
+void AssignWrapperQueueHandle(xQueueHandle WrapperHandle)
 {
-  QueueHandles[SPP_TASK_QINDEX] = SppHandle;  
+  QueueHandles[SPP_TASK_QINDEX] = WrapperHandle;  
 }
 
 

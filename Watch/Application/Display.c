@@ -31,7 +31,7 @@
 #include "Display.h"
 #include "OSAL_Nv.h"
 #include "NvIds.h"
-#include "SerialProfile.h"
+#include "Wrapper.h"
 #include "OneSecondTimers.h"
 
 /* these have the null character added at the end */

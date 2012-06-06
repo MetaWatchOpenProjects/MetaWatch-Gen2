@@ -40,7 +40,7 @@
 #include "DebugUart.h"
 #include "Utilities.h"
 #include "Adc.h"
-#include "SerialProfile.h"
+#include "Wrapper.h"
 #include "OneSecondTimers.h"
 #include "OSAL_Nv.h"
 #include "NvIds.h"

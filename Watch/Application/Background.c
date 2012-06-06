@@ -42,7 +42,7 @@
 #include "Background.h"
 #include "DebugUart.h"
 #include "Utilities.h"
-#include "SerialProfile.h"
+#include "Wrapper.h"
 #include "Adc.h"
 #include "OneSecondTimers.h"
 #include "Vibration.h"
@@ -721,7 +721,7 @@ static void NvalOperationHandler(tMessage* pMsg)
 
 void InitializeRstNmiConfiguration(void)
 {
-  nvRstNmiConfiguration = RST_PIN_DISABLED;
+  nvRstNmiConfiguration = RST_PIN_ENABLED;
   OsalNvItemInit(NVID_RSTNMI_CONFIGURATION,
                  sizeof(nvRstNmiConfiguration),
                  &nvRstNmiConfiguration);

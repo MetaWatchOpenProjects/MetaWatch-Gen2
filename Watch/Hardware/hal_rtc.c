@@ -36,7 +36,7 @@
 #include "Utilities.h"
 #include "Statistics.h"
 #include "OneSecondTimers.h"
-#include "SerialProfile.h"
+#include "Wrapper.h"
 #include "Vibration.h"
 #include "LcdDisplay.h"
 

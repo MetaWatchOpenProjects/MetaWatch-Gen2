@@ -1,10 +1,10 @@
 //==============================================================================
 //  Copyright 2011 Meta Watch Ltd. - http://www.MetaWatch.org/
-// 
+//
 //  Licensed under the Meta Watch License, Version 1.0 (the "License");
 //  you may not use this file except in compliance with the License.
 //  You may obtain a copy of the License at
-//  
+//
 //      http://www.MetaWatch.org/licenses/license-1.0.html
 //
 //  Unless required by applicable law or agreed to in writing, software
@@ -20,9 +20,9 @@
  */
 /******************************************************************************/
 
-#include "FreeRTOS.h"           
-#include "task.h"               
-#include "queue.h"              
+#include "FreeRTOS.h"
+#include "task.h"
+#include "queue.h"
 
 #include "Messages.h"
 
@@ -31,12 +31,12 @@
 #include "hal_battery.h"
 #include "hal_lcd.h"
 #include "hal_lpm.h"
-       
-#include "DebugUart.h"      
+
+#include "DebugUart.h"
 #include "Messages.h"
 #include "Utilities.h"
 #include "LcdDriver.h"
-#include "SerialProfile.h"
+#include "Wrapper.h"
 #include "MessageQueues.h"
 #include "SerialRam.h"
 #include "OneSecondTimers.h"
@@ -49,10 +49,10 @@
 #include "Icons.h"
 #include "Fonts.h"
 #include "Display.h"
-#include "LcdDisplay.h"   
+#include "LcdDisplay.h"
 
 #define DISPLAY_TASK_QUEUE_LENGTH 8
-#define DISPLAY_TASK_STACK_SIZE	(configMINIMAL_STACK_SIZE + 90)
+#define DISPLAY_TASK_STACK_SIZE  	(configMINIMAL_STACK_SIZE + 90)
 #define DISPLAY_TASK_PRIORITY     (tskIDLE_PRIORITY + 1)
 
 xTaskHandle DisplayHandle;
@@ -107,7 +107,7 @@ static void PrepareMyBufferForLcd(unsigned char StartingRow,
                                   unsigned char NumberOfRows);
 
 
-static void CopyRowsIntoMyBuffer(unsigned char const* pImage, 
+static void CopyRowsIntoMyBuffer(unsigned char const* pImage,
                                  unsigned char StartingRow,
                                  unsigned char NumberOfRows);
 
@@ -163,7 +163,7 @@ typedef enum
   ListPairedDevicesPage,
   WatchStatusPage,
   QrCodePage
-  
+
 } etIdlePageMode;
 
 static etIdlePageMode CurrentIdlePage;
@@ -216,18 +216,18 @@ void InitializeDisplayTask(void)
 {
   InitMyBuffer();
 
-  QueueHandles[DISPLAY_QINDEX] = 
+  QueueHandles[DISPLAY_QINDEX] =
     xQueueCreate( DISPLAY_TASK_QUEUE_LENGTH, MESSAGE_QUEUE_ITEM_SIZE  );
-  
+
   // task function, task name, stack len , task params, priority, task handle
-  xTaskCreate(DisplayTask, 
-              (const signed char *)"DISPLAY", 
+  xTaskCreate(DisplayTask,
+              (const signed char *)"DISPLAY",
               DISPLAY_TASK_STACK_SIZE,
-              NULL, 
-              DISPLAY_TASK_PRIORITY, 
+              NULL,
+              DISPLAY_TASK_PRIORITY,
               &DisplayHandle);
-  
-    
+
+
   ClearShippingModeFlag();
 
 }
@@ -243,15 +243,15 @@ static void DisplayTask(void *pvParameters)
 {
   if ( QueueHandles[DISPLAY_QINDEX] == 0 )
   {
-    PrintString("Display Queue not created!\r\n");  
+    PrintString("Display Queue not created!\r\n");
   }
-      
+
   LcdPeripheralInit();
-  
+
   DisplayStartupScreen();
-  
+
   SerialRamInit();
-  
+
   InitializeIdleBufferConfig();
   InitializeIdleBufferInvert();
   InitializeDisplaySeconds();
@@ -265,33 +265,33 @@ static void DisplayTask(void *pvParameters)
   DontChangeButtonConfiguration();
   DefaultApplicationAndNotificationButtonConfiguration();
   SetupNormalIdleScreenButtons();
-  
+
 #ifndef ISOLATE_RADIO
   /* turn the radio on; initialize the serial port profile or BLE/GATT */
   tMessage Msg;
   SetupMessage(&Msg,TurnRadioOnMsg,NO_MSG_OPTIONS);
   RouteMsg(&Msg);
 #endif
-  
+
   for(;;)
   {
-    if( pdTRUE == xQueueReceive(QueueHandles[DISPLAY_QINDEX], 
+    if( pdTRUE == xQueueReceive(QueueHandles[DISPLAY_QINDEX],
                                 &DisplayMsg, portMAX_DELAY) )
     {
       PrintMessageType(&DisplayMsg);
-       
+
       DisplayQueueMessageHandler(&DisplayMsg);
-      
+
       SendToFreeQueue(&DisplayMsg);
-      
+
       CheckStackUsage(DisplayHandle,"Display");
-      
+
       CheckQueueUsage(QueueHandles[DISPLAY_QINDEX]);
-      
+
     }
   }
 }
-  
+
 /*! Display the startup image or Splash Screen */
 static void DisplayStartupScreen(void)
 {
@@ -305,10 +305,10 @@ static void DisplayStartupScreen(void)
 static void DisplayQueueMessageHandler(tMessage* pMsg)
 {
   unsigned char Type = pMsg->Type;
-      
+
   switch(Type)
   {
-    
+
   case WriteBuffer:
     WriteBufferHandler(pMsg);
     break;
@@ -316,19 +316,19 @@ static void DisplayQueueMessageHandler(tMessage* pMsg)
   case LoadTemplate:
     LoadTemplateHandler(pMsg);
     break;
-  
+
   case UpdateDisplay:
     UpdateDisplayHandler(pMsg);
     break;
-  
+
   case IdleUpdate:
-    IdleUpdateHandler(); 
+    IdleUpdateHandler();
     break;
 
   case ChangeModeMsg:
     ChangeModeHandler(pMsg);
     break;
-    
+
   case ModeTimeoutMsg:
     ModeTimeoutHandler(pMsg);
     break;
@@ -336,23 +336,23 @@ static void DisplayQueueMessageHandler(tMessage* pMsg)
   case WatchStatusMsg:
     WatchStatusScreenHandler();
     break;
- 
+
   case BarCode:
     BarCodeHandler(pMsg);
     break;
-    
+
   case ListPairedDevicesMsg:
     ListPairedDevicesHandler();
     break;
-  
+
   case WatchDrawnScreenTimeout:
     IdleUpdateHandler();
     break;
-    
+
   case ConfigureDisplay:
     ConfigureDisplayHandler(pMsg);
     break;
-  
+
   case ConfigureIdleBufferSize:
     ConfigureIdleBuferSizeHandler(pMsg);
     break;
@@ -360,43 +360,43 @@ static void DisplayQueueMessageHandler(tMessage* pMsg)
   case ConnectionStateChangeMsg:
     ConnectionStateChangeHandler();
     break;
-    
+
   case ModifyTimeMsg:
     ModifyTimeHandler(pMsg);
     break;
-   
+
   case MenuModeMsg:
     MenuModeHandler(pMsg->Options);
     break;
-  
+
   case MenuButtonMsg:
     MenuButtonHandler(pMsg->Options);
     break;
-      
+
   case ToggleSecondsMsg:
     ToggleSecondsHandler(pMsg->Options);
     break;
-  
+
   case SplashTimeoutMsg:
     AllowConnectionStateChangeToUpdateScreen = 1;
     IdleUpdateHandler();
     break;
-    
+
   case LowBatteryWarningMsg:
   case LowBatteryBtOffMsg:
     break;
-    
+
   case LinkAlarmMsg:
     if ( QueryLinkAlarmEnable() )
     {
-      GenerateLinkAlarm();  
+      GenerateLinkAlarm();
     }
     break;
-    
+
   case RamTestMsg:
     RamTestHandler(pMsg);
     break;
-    
+
   default:
     PrintStringAndHex("<<Unhandled Message>> in Lcd Display Task: Type 0x", Type);
     break;
@@ -420,9 +420,9 @@ static void SetupSplashScreenTimeout(void)
                       NO_MSG_OPTIONS);
 
   StartOneSecondTimer(DisplayTimerId);
-  
+
   AllowConnectionStateChangeToUpdateScreen = 0;
-  
+
 }
 
 static inline void StopDisplayTimer(void)
@@ -437,16 +437,16 @@ static inline void StopDisplayTimer(void)
 static void IdleUpdateHandler(void)
 {
   StopDisplayTimer();
-  
+
   /* allow rtc to send IdleUpdate every minute (or second) */
   RtcUpdateEnable = 1;
-  
-  /* determine if the bottom of the screen should be drawn by the watch */  
+
+  /* determine if the bottom of the screen should be drawn by the watch */
   if ( QueryFirstContact() )
   {
-    /* 
+    /*
      * immediately update the screen
-     */ 
+     */
     if ( nvIdleBufferConfig == WATCH_CONTROLS_TOP )
     {
       /* only draw watch part */
@@ -455,7 +455,7 @@ static void IdleUpdateHandler(void)
       PrepareMyBufferForLcd(STARTING_ROW,WATCH_DRAWN_IDLE_BUFFER_ROWS);
       SendMyBufferToLcd(WATCH_DRAWN_IDLE_BUFFER_ROWS);
     }
-  
+
     /* now update the remainder of the display */
     /*! make a dirty flag for the idle page drawn by the phone
      * set it whenever watch uses whole screen
@@ -465,10 +465,10 @@ static void IdleUpdateHandler(void)
                  UpdateDisplay,
                  (IDLE_MODE | DONT_ACTIVATE_DRAW_BUFFER));
     RouteMsg(&OutgoingMsg);
-   
+
     CurrentIdlePage = NormalPage;
     ConfigureIdleUserInterfaceButtons();
-    
+
   }
   else
   {
@@ -477,21 +477,21 @@ static void IdleUpdateHandler(void)
     FillMyBuffer(STARTING_ROW,NUM_LCD_ROWS,0x00);
     DrawSimpleIdleScreen();
     DrawConnectionScreen();
-    
+
     PrepareMyBufferForLcd(STARTING_ROW,NUM_LCD_ROWS);
     SendMyBufferToLcd(NUM_LCD_ROWS);
-    
+
     ConfigureIdleUserInterfaceButtons();
 
   }
-   
+
 }
 
 static void DetermineIdlePage(void)
 {
-  etConnectionState cs = QueryConnectionState(); 
-  
-  switch (cs) 
+  etConnectionState cs = QueryConnectionState();
+
+  switch (cs)
   {
   case Initializing:       CurrentIdlePage = BluetoothOffPage;              break;
   case ServerFailure:      CurrentIdlePage = BluetoothOffPage;              break;
@@ -501,18 +501,18 @@ static void DetermineIdlePage(void)
   case RadioOff:           CurrentIdlePage = BluetoothOffPage;              break;
   case RadioOffLowBattery: CurrentIdlePage = BluetoothOffPage;              break;
   case ShippingMode:       CurrentIdlePage = BluetoothOffPage;              break;
-  default:                 CurrentIdlePage = BluetoothOffPage;              break;  
+  default:                 CurrentIdlePage = BluetoothOffPage;              break;
   }
-  
+
   /* if the radio is on but hasn't paired yet then don't show the pairing icon */
   if ( CurrentIdlePage == RadioOnWithoutPairingInfoPage )
   {
     if ( QueryValidPairingInfo() )
     {
-      CurrentIdlePage = RadioOnWithPairingInfoPage;  
+      CurrentIdlePage = RadioOnWithPairingInfoPage;
     }
   }
-  
+
 }
 
 
@@ -520,8 +520,8 @@ static void ConnectionStateChangeHandler(void)
 {
   if ( AllowConnectionStateChangeToUpdateScreen )
   {
-    /* certain pages should not be exited when a change in the 
-     * connection state has occurred 
+    /* certain pages should not be exited when a change in the
+     * connection state has occurred
      */
     switch ( CurrentIdlePage )
     {
@@ -532,24 +532,24 @@ static void ConnectionStateChangeHandler(void)
     case BluetoothOffPage:
       IdleUpdateHandler();
       break;
-    
+
     case Menu1Page:
     case Menu2Page:
     case Menu3Page:
       MenuModeHandler(MENU_MODE_OPTION_UPDATE_CURRENT_PAGE);
       break;
-    
+
     case ListPairedDevicesPage:
       ListPairedDevicesHandler();
       break;
-    
+
     case WatchStatusPage:
       WatchStatusScreenHandler();
       break;
-    
+
     case QrCodePage:
       break;
-      
+
     default:
       break;
     }
@@ -559,10 +559,10 @@ static void ConnectionStateChangeHandler(void)
 unsigned char QueryButtonMode(void)
 {
   unsigned char result;
-  
+
   switch (CurrentMode)
   {
-    
+
   case IDLE_MODE:
     if ( CurrentIdlePage == NormalPage )
     {
@@ -570,36 +570,36 @@ unsigned char QueryButtonMode(void)
     }
     else
     {
-      result = WATCH_DRAWN_SCREEN_BUTTON_MODE;  
+      result = WATCH_DRAWN_SCREEN_BUTTON_MODE;
     }
     break;
-    
+
   case APPLICATION_MODE:
     result = APPLICATION_SCREEN_BUTTON_MODE;
     break;
-  
+
   case NOTIFICATION_MODE:
     result = NOTIFICATION_BUTTON_MODE;
     break;
-  
+
   case SCROLL_MODE:
     result = SCROLL_MODE;
     break;
-  
+
   }
-  
-  return result;  
+
+  return result;
 }
 static void ChangeModeHandler(tMessage* pMsg)
 {
-  LastMode = CurrentMode;    
+  LastMode = CurrentMode;
   CurrentMode = (pMsg->Options & MODE_MASK);
-  
+
   unsigned int timeout;
-  
+
   switch ( CurrentMode )
   {
-  
+
   case IDLE_MODE:
 
     /* this check is so that the watch apps don't mess up the timer */
@@ -614,14 +614,14 @@ static void ChangeModeHandler(tMessage* pMsg)
       PrintString("Already in Idle mode\r\n");
     }
     break;
-  
+
   case APPLICATION_MODE:
-    
+
     StopDisplayTimer();
-    
+
     timeout = QueryApplicationModeTimeout();
-    
-    /* don't start the timer if the timeout == 0 
+
+    /* don't start the timer if the timeout == 0
      * this invites things that look like lock ups...
      * it is preferred to make this a large value
      */
@@ -633,19 +633,19 @@ static void ChangeModeHandler(tMessage* pMsg)
                           DISPLAY_QINDEX,
                           ModeTimeoutMsg,
                           APPLICATION_MODE);
-          
+
       StartOneSecondTimer(DisplayTimerId);
     }
-    
+
     PrintString("Changing mode to Application\r\n");
     break;
-  
+
   case NOTIFICATION_MODE:
-    
+
     StopDisplayTimer();
-    
+
     timeout = QueryNotificationModeTimeout();
-        
+
     if ( timeout )
     {
       SetupOneSecondTimer(DisplayTimerId,
@@ -654,19 +654,19 @@ static void ChangeModeHandler(tMessage* pMsg)
                           DISPLAY_QINDEX,
                           ModeTimeoutMsg,
                           NOTIFICATION_MODE);
-      
+
       StartOneSecondTimer(DisplayTimerId);
     }
-    
+
     PrintString("Changing mode to Notification\r\n");
     break;
-  
+
   default:
     break;
   }
-  
-  /* 
-   * send a message to the Host indicating buffer update / mode change 
+
+  /*
+   * send a message to the Host indicating buffer update / mode change
    * has completed (don't send message if it is just watch updating time ).
    */
   if ( LastMode != CurrentMode )
@@ -675,99 +675,99 @@ static void ChangeModeHandler(tMessage* pMsg)
     SetupMessageAndAllocateBuffer(&OutgoingMsg,
                                   StatusChangeEvent,
                                   IDLE_MODE);
-    
+
     OutgoingMsg.pBuffer[0] = (unsigned char)eScUpdateComplete;
     OutgoingMsg.Length = 1;
     RouteMsg(&OutgoingMsg);
-    
+
 //    if ( LastMode == APPLICATION_MODE )
-//    {    
+//    {
 //      ReturnToApplicationMode = 1;
 //    }
 //    else
 //    {
-//      ReturnToApplicationMode = 0;  
+//      ReturnToApplicationMode = 0;
 //    }
   }
-  
+
 }
 
 static void ModeTimeoutHandler(tMessage* pMsg)
 {
   switch ( CurrentMode )
   {
-  
+
   case IDLE_MODE:
     break;
-  
+
   case APPLICATION_MODE:
   case NOTIFICATION_MODE:
-  case SCROLL_MODE: 
+  case SCROLL_MODE:
     /* go back to idle mode */
     IdleUpdateHandler();
     break;
 
   default:
     break;
-  }  
-  
+  }
+
   /* send a message to the host indicating that a timeout occurred */
   tMessage OutgoingMsg;
   SetupMessageAndAllocateBuffer(&OutgoingMsg,
                                 StatusChangeEvent,
                                 CurrentMode);
-    
+
   OutgoingMsg.pBuffer[0] = (unsigned char)eScModeTimeout;
   OutgoingMsg.Length = 1;
   RouteMsg(&OutgoingMsg);
-    
+
 }
-  
+
 
 static void WatchStatusScreenHandler(void)
 {
   StopDisplayTimer();
-  
+
   FillMyBuffer(STARTING_ROW,NUM_LCD_ROWS,0x00);
-    
+
   /*
    * Add Status Icons
    */
   unsigned char const * pIcon;
-  
+
   if ( QueryBluetoothOn() )
   {
     pIcon = pBluetoothOnStatusScreenIcon;
   }
   else
   {
-    pIcon = pBluetoothOffStatusScreenIcon;  
+    pIcon = pBluetoothOffStatusScreenIcon;
   }
-  
+
   CopyColumnsIntoMyBuffer(pIcon,
                           0,
                           STATUS_ICON_SIZE_IN_ROWS,
                           LEFT_STATUS_ICON_COLUMN,
-                          STATUS_ICON_SIZE_IN_COLUMNS);  
-    
-  
+                          STATUS_ICON_SIZE_IN_COLUMNS);
+
+
   if ( QueryPhoneConnected() )
   {
     pIcon = pPhoneConnectedStatusScreenIcon;
   }
   else
   {
-    pIcon = pPhoneDisconnectedStatusScreenIcon;  
+    pIcon = pPhoneDisconnectedStatusScreenIcon;
   }
-  
+
   CopyColumnsIntoMyBuffer(pIcon,
                           0,
                           STATUS_ICON_SIZE_IN_ROWS,
                           CENTER_STATUS_ICON_COLUMN,
-                          STATUS_ICON_SIZE_IN_COLUMNS);  
-  
+                          STATUS_ICON_SIZE_IN_COLUMNS);
+
   unsigned int bV = ReadBatterySenseAverage();
-  
+
   if ( QueryBatteryCharging() )
   {
     pIcon = pBatteryChargingStatusScreenIcon;
@@ -780,51 +780,51 @@ static void WatchStatusScreenHandler(void)
     }
     else if ( bV < 3500 )
     {
-      pIcon = pBatteryLowStatusScreenIcon;  
+      pIcon = pBatteryLowStatusScreenIcon;
     }
     else
     {
-      pIcon = pBatteryMediumStatusScreenIcon;  
+      pIcon = pBatteryMediumStatusScreenIcon;
     }
   }
-  
-  
+
+
   CopyColumnsIntoMyBuffer(pIcon,
                           0,
                           STATUS_ICON_SIZE_IN_ROWS,
                           RIGHT_STATUS_ICON_COLUMN,
-                          STATUS_ICON_SIZE_IN_COLUMNS);  
+                          STATUS_ICON_SIZE_IN_COLUMNS);
 
   /* display battery voltage */
   unsigned char msd = 0;
-  
+
   gRow = 27+2;
   gColumn = 8;
   gBitColumnMask = BIT6;
   SetFont(MetaWatch7);
-  
+
 
   msd = bV / 1000;
   bV = bV % 1000;
   WriteFontCharacter(msd+'0');
   WriteFontCharacter('.');
-  
+
   msd = bV / 100;
   bV = bV % 100;
   WriteFontCharacter(msd+'0');
-  
+
   msd = bV / 10;
   bV = bV % 10;
   WriteFontCharacter(msd+'0');
-  WriteFontCharacter(bV+'0'); 
-   
+  WriteFontCharacter(bV+'0');
+
   /*
    * Add Wavy line
    */
   gRow += 12;
   CopyRowsIntoMyBuffer(pWavyLine,gRow,NUMBER_OF_ROWS_IN_WAVY_LINE);
-  
-  
+
+
   /*
    * Add details
    */
@@ -847,7 +847,7 @@ static void WatchStatusScreenHandler(void)
   gColumn = 0;
   gBitColumnMask = BIT4;
   WriteFontString("Stack ");
-  WriteFontString(GetStackVersion());
+  WriteFontString(GetWrapperVersion());
 
   /* add msp430 revision */
   gRow +=12;
@@ -855,61 +855,61 @@ static void WatchStatusScreenHandler(void)
   gBitColumnMask = BIT4;
   WriteFontString("MSP430 Rev ");
   WriteFontCharacter(GetMsp430HardwareRevision());
- 
+
   /* display entire buffer */
   PrepareMyBufferForLcd(STARTING_ROW,NUM_LCD_ROWS);
   SendMyBufferToLcd(NUM_LCD_ROWS);
 
   CurrentIdlePage = WatchStatusPage;
   ConfigureIdleUserInterfaceButtons();
-  
-  /* refresh the status page once a minute */  
+
+  /* refresh the status page once a minute */
   SetupOneSecondTimer(DisplayTimerId,
                       ONE_SECOND*60,
                       NO_REPEAT,
                       DISPLAY_QINDEX,
                       WatchStatusMsg,
                       NO_MSG_OPTIONS);
-  
+
   StartOneSecondTimer(DisplayTimerId);
-  
+
 }
 
 
 /* the bar code should remain displayed until the button is pressed again
- * or another mode is started 
+ * or another mode is started
  */
 static void BarCodeHandler(tMessage* pMsg)
 {
   StopDisplayTimer();
-    
+
   FillMyBuffer(STARTING_ROW,NUM_LCD_ROWS,0x00);
-  
+
   CopyRowsIntoMyBuffer(pBarCodeImage,STARTING_ROW,NUM_LCD_ROWS);
 
   /* display entire buffer */
   PrepareMyBufferForLcd(STARTING_ROW,NUM_LCD_ROWS);
   SendMyBufferToLcd(NUM_LCD_ROWS);
-  
+
   CurrentIdlePage = QrCodePage;
   ConfigureIdleUserInterfaceButtons();
-  
+
 }
 
 static void ListPairedDevicesHandler(void)
-{  
+{
   StopDisplayTimer();
-  
+
   /* draw entire region */
   FillMyBuffer(STARTING_ROW,NUM_LCD_ROWS,0x00);
-  
+
   tString pBluetoothAddress[12+1];
   tString pBluetoothName[12+1];
 
   gRow = 4;
   gColumn = 0;
   SetFont(MetaWatch7);
-  
+
   unsigned char i;
   for( i = 0; i < 3; i++)
   {
@@ -927,26 +927,26 @@ static void ListPairedDevicesHandler(void)
     pBluetoothName[9] = 'm';
     pBluetoothName[10] = 'e';
     pBluetoothName[11] = '1' + i;
-    
+
     for(j = 0; j < sizeof(pBluetoothAddress); j++)
     {
       pBluetoothAddress[j] = '0';
     }
-    
+
     QueryLinkKeys(i,pBluetoothAddress,pBluetoothName,12);
-    
+
     gColumn = 0;
     gBitColumnMask = BIT4;
     WriteFontString(pBluetoothName);
     gRow += 12;
-    
+
     gColumn = 0;
     gBitColumnMask = BIT4;
     WriteFontString(pBluetoothAddress);
     gRow += 12+5;
-      
+
   }
-  
+
   PrepareMyBufferForLcd(STARTING_ROW,NUM_LCD_ROWS);
   SendMyBufferToLcd(NUM_LCD_ROWS);
 
@@ -958,18 +958,18 @@ static void ListPairedDevicesHandler(void)
 
 static void DrawConnectionScreen()
 {
-  
+
   /* this is part of the idle update
    * timing is controlled by the idle update timer
    * buffer was already cleared when drawing the time
    */
-  
+
   unsigned char const* pSwash;
-  
+
   switch (CurrentIdlePage)
   {
-  case RadioOnWithPairingInfoPage:     
-    pSwash = pBootPageConnectionSwash;  
+  case RadioOnWithPairingInfoPage:
+    pSwash = pBootPageConnectionSwash;
     break;
   case RadioOnWithoutPairingInfoPage:
     pSwash = pBootPagePairingSwash;
@@ -980,11 +980,11 @@ static void DrawConnectionScreen()
   default:
     pSwash = pBootPageUnknownSwash;
     break;
-  
+
   }
-  
+
   CopyRowsIntoMyBuffer(pSwash,WATCH_DRAWN_IDLE_BUFFER_ROWS+1,32);
-  
+
   /* local bluetooth address */
   gRow = 65;
   gColumn = 0;
@@ -998,13 +998,13 @@ static void DrawConnectionScreen()
   gBitColumnMask = BIT4;
   WriteFontString("App ");
   WriteFontString(VERSION_STRING);
-  
+
   /* and the stack version */
   gRow = 85;
   gColumn = 0;
   gBitColumnMask = BIT4;
   WriteFontString("Stack ");
-  WriteFontString(GetStackVersion());
+  WriteFontString(GetWrapperVersion());
 
 }
 
@@ -1029,16 +1029,16 @@ static void ConfigureDisplayHandler(tMessage* pMsg)
 
   if ( CurrentMode == IDLE_MODE )
   {
-    IdleUpdateHandler();  
+    IdleUpdateHandler();
   }
-  
+
 }
-    
+
 
 static void ConfigureIdleBuferSizeHandler(tMessage* pMsg)
 {
   nvIdleBufferConfig = pMsg->pBuffer[0] & IDLE_BUFFER_CONFIG_MASK;
-  
+
   if ( CurrentMode == IDLE_MODE )
   {
     if ( nvIdleBufferConfig == WATCH_CONTROLS_TOP )
@@ -1046,7 +1046,7 @@ static void ConfigureIdleBuferSizeHandler(tMessage* pMsg)
       IdleUpdateHandler();
     }
   }
-  
+
 }
 
 static void ModifyTimeHandler(tMessage* pMsg)
@@ -1072,15 +1072,15 @@ static void ModifyTimeHandler(tMessage* pMsg)
     RTCDOW = time;
     break;
   }
-  
+
   /* now redraw the screen */
   IdleUpdateHandler();
-  
+
 }
 
 unsigned char GetIdleBufferConfiguration(void)
 {
-  return nvIdleBufferConfig;  
+  return nvIdleBufferConfig;
 }
 
 
@@ -1094,21 +1094,21 @@ static void InitMyBuffer(void)
 {
   int row;
   int col;
-  
+
   // Clear the display buffer.  Step through the rows
   for(row = STARTING_ROW; row < NUM_LCD_ROWS; row++)
   {
-      // clear a horizontal line
-      for(col = 0; col < NUM_LCD_COL_BYTES; col++)
-      {
-        pMyBuffer[row].Row = row+FIRST_LCD_LINE_OFFSET;
-        pMyBuffer[row].Data[col] = 0x00;
-        pMyBuffer[row].Dummy = 0x00;
-        
-      }
+    // clear a horizontal line
+    for(col = 0; col < NUM_LCD_COL_BYTES; col++)
+    {
+      pMyBuffer[row].Row = row+FIRST_LCD_LINE_OFFSET;
+      pMyBuffer[row].Data[col] = 0x00;
+      pMyBuffer[row].Dummy = 0x00;
+
+    }
   }
-    
-  
+
+
 }
 
 
@@ -1118,7 +1118,7 @@ static void FillMyBuffer(unsigned char StartingRow,
 {
   int row = StartingRow;
   int col;
-  
+
   // Clear the display buffer.  Step through the rows
   for( ; row < NUM_LCD_ROWS && row < StartingRow+NumberOfRows; row++ )
   {
@@ -1128,7 +1128,7 @@ static void FillMyBuffer(unsigned char StartingRow,
       pMyBuffer[row].Data[col] = FillValue;
     }
   }
-  
+
 }
 
 static void PrepareMyBufferForLcd(unsigned char StartingRow,
@@ -1136,9 +1136,9 @@ static void PrepareMyBufferForLcd(unsigned char StartingRow,
 {
   int row = StartingRow;
   int col;
-  
-  /* 
-   * flip the bits before sending to LCD task because it will 
+
+  /*
+   * flip the bits before sending to LCD task because it will
    * dma this portion of the screen
   */
   if ( QueryInvertDisplay() == NORMAL_DISPLAY )
@@ -1151,12 +1151,12 @@ static void PrepareMyBufferForLcd(unsigned char StartingRow,
       }
     }
   }
-    
+
 }
 
-    
 
-static void CopyRowsIntoMyBuffer(unsigned char const* pImage, 
+
+static void CopyRowsIntoMyBuffer(unsigned char const* pImage,
                                  unsigned char StartingRow,
                                  unsigned char NumberOfRows)
 {
@@ -1164,17 +1164,17 @@ static void CopyRowsIntoMyBuffer(unsigned char const* pImage,
   unsigned char DestRow = StartingRow;
   unsigned char SourceRow = 0;
   unsigned char col = 0;
-  
+
   while ( DestRow < NUM_LCD_ROWS && SourceRow < NumberOfRows )
   {
     for(col = 0; col < NUM_LCD_COL_BYTES; col++)
     {
       pMyBuffer[DestRow].Data[col] = pImage[SourceRow*NUM_LCD_COL_BYTES+col];
     }
-    
+
     DestRow++;
     SourceRow++;
-    
+
   }
 
 }
@@ -1190,7 +1190,7 @@ static void CopyColumnsIntoMyBuffer(unsigned char const* pImage,
   unsigned char DestColumn = StartingColumn;
   unsigned char ColumnCounter = 0;
   unsigned int SourceIndex = 0;
-  
+
   /* copy rows into display buffer */
   while ( DestRow < NUM_LCD_ROWS && RowCounter < NumberOfRows )
   {
@@ -1199,14 +1199,14 @@ static void CopyColumnsIntoMyBuffer(unsigned char const* pImage,
     while ( DestColumn < NUM_LCD_COL_BYTES && ColumnCounter < NumberOfColumns )
     {
       pMyBuffer[DestRow].Data[DestColumn] = pImage[SourceIndex];
-      
+
       DestColumn++;
       ColumnCounter++;
       SourceIndex++;
     }
-    
+
     DestRow++;
-    RowCounter++;    
+    RowCounter++;
   }
 
 }
@@ -1215,23 +1215,23 @@ static void DrawIdleScreen(void)
 {
   unsigned char msd;
   unsigned char lsd;
-    
+
   /* display hour */
   int Hour = RTCHOUR;
-  
+
   /* if required convert to twelve hour format */
   if ( GetTimeFormat() == TWELVE_HOUR )
-  {    
+  {
     if ( Hour == 0 )
     {
-      Hour = 12;  
+      Hour = 12;
     }
     else if ( Hour > 12 )
     {
-      Hour -= 12;  
+      Hour -= 12;
     }
   }
-  
+
   msd = Hour / 10;
   lsd = Hour % 10;
 
@@ -1239,47 +1239,47 @@ static void DrawIdleScreen(void)
   gColumn = 0;
   gBitColumnMask = BIT4;
   SetFont(MetaWatchTime);
-  
+
   /* if first digit is zero then leave location blank */
   if ( msd == 0 && GetTimeFormat() == TWELVE_HOUR )
-  {  
-    WriteFontCharacter(TIME_CHARACTER_SPACE_INDEX);  
+  {
+    WriteFontCharacter(TIME_CHARACTER_SPACE_INDEX);
   }
   else
   {
     WriteFontCharacter(msd);
   }
-  
+
   WriteFontCharacter(lsd);
-  
+
   WriteFontCharacter(TIME_CHARACTER_COLON_INDEX);
-  
+
   /* display minutes */
   int Minutes = RTCMIN;
   msd = Minutes / 10;
   lsd = Minutes % 10;
   WriteFontCharacter(msd);
   WriteFontCharacter(lsd);
-    
+
   if ( nvDisplaySeconds )
   {
     int Seconds = RTCSEC;
     msd = Seconds / 10;
-    lsd = Seconds % 10;    
-    
+    lsd = Seconds % 10;
+
     WriteFontCharacter(TIME_CHARACTER_COLON_INDEX);
     WriteFontCharacter(msd);
     WriteFontCharacter(lsd);
-    
+
   }
   else /* now things starting getting fun....*/
   {
     DisplayAmPm();
-    
+
     if ( QueryBluetoothOn() == 0 )
     {
       CopyColumnsIntoMyBuffer(pBluetoothOffIdlePageIcon,
-                              IDLE_PAGE_ICON_STARTING_ROW,                                    
+                              IDLE_PAGE_ICON_STARTING_ROW,
                               IDLE_PAGE_ICON_SIZE_IN_ROWS,
                               IDLE_PAGE_ICON_STARTING_COL,
                               IDLE_PAGE_ICON_SIZE_IN_COLS);
@@ -1287,17 +1287,17 @@ static void DrawIdleScreen(void)
     else if ( QueryPhoneConnected() == 0 )
     {
       CopyColumnsIntoMyBuffer(pPhoneDisconnectedIdlePageIcon,
-                              IDLE_PAGE_ICON_STARTING_ROW,                                    
+                              IDLE_PAGE_ICON_STARTING_ROW,
                               IDLE_PAGE_ICON_SIZE_IN_ROWS,
                               IDLE_PAGE_ICON_STARTING_COL,
-                              IDLE_PAGE_ICON_SIZE_IN_COLS);  
+                              IDLE_PAGE_ICON_SIZE_IN_COLS);
     }
     else
     {
       if ( QueryBatteryCharging() )
       {
         CopyColumnsIntoMyBuffer(pBatteryChargingIdlePageIconType2,
-                                IDLE_PAGE_ICON2_STARTING_ROW,                                    
+                                IDLE_PAGE_ICON2_STARTING_ROW,
                                 IDLE_PAGE_ICON2_SIZE_IN_ROWS,
                                 IDLE_PAGE_ICON2_STARTING_COL,
                                 IDLE_PAGE_ICON2_SIZE_IN_COLS);
@@ -1305,11 +1305,11 @@ static void DrawIdleScreen(void)
       else
       {
         unsigned int bV = ReadBatterySenseAverage();
-      
+
         if ( bV < 3500 )
         {
           CopyColumnsIntoMyBuffer(pLowBatteryIdlePageIconType2,
-                                  IDLE_PAGE_ICON2_STARTING_ROW,                                    
+                                  IDLE_PAGE_ICON2_STARTING_ROW,
                                   IDLE_PAGE_ICON2_SIZE_IN_ROWS,
                                   IDLE_PAGE_ICON2_STARTING_COL,
                                   IDLE_PAGE_ICON2_SIZE_IN_COLS);
@@ -1322,30 +1322,30 @@ static void DrawIdleScreen(void)
       }
     }
   }
- 
+
 }
 
 static void DrawSimpleIdleScreen(void)
 {
   unsigned char msd;
   unsigned char lsd;
-    
+
   /* display hour */
   int Hour = RTCHOUR;
-  
+
   /* if required convert to twelve hour format */
   if ( GetTimeFormat() == TWELVE_HOUR )
-  {    
+  {
     if ( Hour == 0 )
     {
-      Hour = 12;  
+      Hour = 12;
     }
     else if ( Hour > 12 )
     {
-      Hour -= 12;  
+      Hour -= 12;
     }
   }
-  
+
   msd = Hour / 10;
   lsd = Hour % 10;
 
@@ -1353,78 +1353,78 @@ static void DrawSimpleIdleScreen(void)
   gColumn = 0;
   gBitColumnMask = BIT4;
   SetFont(MetaWatchTime);
-  
+
   /* if first digit is zero then leave location blank */
   if ( msd == 0 && GetTimeFormat() == TWELVE_HOUR )
-  {  
-    WriteFontCharacter(TIME_CHARACTER_SPACE_INDEX);  
+  {
+    WriteFontCharacter(TIME_CHARACTER_SPACE_INDEX);
   }
   else
   {
     WriteFontCharacter(msd);
   }
   WriteFontCharacter(lsd);
-  
+
   WriteFontCharacter(TIME_CHARACTER_COLON_INDEX);
-  
+
   /* display minutes */
   int Minutes = RTCMIN;
   msd = Minutes / 10;
   lsd = Minutes % 10;
   WriteFontCharacter(msd);
   WriteFontCharacter(lsd);
-    
+
   if ( nvDisplaySeconds )
   {
     int Seconds = RTCSEC;
     msd = Seconds / 10;
-    lsd = Seconds % 10;    
-    
+    lsd = Seconds % 10;
+
     WriteFontCharacter(TIME_CHARACTER_COLON_INDEX);
     WriteFontCharacter(msd);
     WriteFontCharacter(lsd);
-    
+
   }
-  else 
+  else
   {
     DisplayAmPm();
     DisplayDayOfWeek();
     DisplayDate();
 
   }
- 
+
 }
 
 static void MenuModeHandler(unsigned char MsgOptions)
 {
   StopDisplayTimer();
-  
+
   /* draw entire region */
   FillMyBuffer(STARTING_ROW,PHONE_IDLE_BUFFER_ROWS,0x00);
 
   switch (MsgOptions)
   {
-  
+
   case MENU_MODE_OPTION_PAGE1:
     DrawMenu1();
     CurrentIdlePage = Menu1Page;
     ConfigureIdleUserInterfaceButtons();
     break;
-  
+
   case MENU_MODE_OPTION_PAGE2:
     DrawMenu2();
     CurrentIdlePage = Menu2Page;
     ConfigureIdleUserInterfaceButtons();
     break;
-  
+
   case MENU_MODE_OPTION_PAGE3:
     DrawMenu3();
     CurrentIdlePage = Menu3Page;
     ConfigureIdleUserInterfaceButtons();
     break;
-  
+
   case MENU_MODE_OPTION_UPDATE_CURRENT_PAGE:
-  
+
   default:
     switch ( CurrentIdlePage )
     {
@@ -1443,22 +1443,22 @@ static void MenuModeHandler(unsigned char MsgOptions)
     }
     break;
   }
-  
+
   /* these icons are common to all menus */
   DrawCommonMenuIcons();
-  
+
   /* only invert the part that was just drawn */
   PrepareMyBufferForLcd(STARTING_ROW,NUM_LCD_ROWS);
   SendMyBufferToLcd(NUM_LCD_ROWS);
 
   /* MENU MODE DOES NOT TIMEOUT */
-  
+
 }
 
 static void DrawMenu1(void)
 {
   unsigned char const * pIcon;
-  
+
   if ( QueryConnectionState() == Initializing )
   {
     pIcon = pPairableInitIcon;
@@ -1476,10 +1476,10 @@ static void DrawMenu1(void)
                           BUTTON_ICON_A_F_ROW,
                           BUTTON_ICON_SIZE_IN_ROWS,
                           LEFT_BUTTON_COLUMN,
-                          BUTTON_ICON_SIZE_IN_COLUMNS); 
-  
+                          BUTTON_ICON_SIZE_IN_COLUMNS);
+
   /***************************************************************************/
-  
+
   if ( QueryConnectionState() == Initializing )
   {
     pIcon = pBluetoothInitIcon;
@@ -1490,31 +1490,31 @@ static void DrawMenu1(void)
   }
   else
   {
-    pIcon = pBluetoothOffIcon;  
+    pIcon = pBluetoothOffIcon;
   }
-                          
+
   CopyColumnsIntoMyBuffer(pIcon,
                           BUTTON_ICON_A_F_ROW,
                           BUTTON_ICON_SIZE_IN_ROWS,
                           RIGHT_BUTTON_COLUMN,
-                          BUTTON_ICON_SIZE_IN_COLUMNS);  
+                          BUTTON_ICON_SIZE_IN_COLUMNS);
 
   /***************************************************************************/
-  
+
   if ( QueryLinkAlarmEnable() )
   {
     pIcon = pLinkAlarmOnIcon;
   }
   else
   {
-    pIcon = pLinkAlarmOffIcon; 
+    pIcon = pLinkAlarmOffIcon;
   }
-  
+
   CopyColumnsIntoMyBuffer(pIcon,
                           BUTTON_ICON_B_E_ROW,
                           BUTTON_ICON_SIZE_IN_ROWS,
                           LEFT_BUTTON_COLUMN,
-                          BUTTON_ICON_SIZE_IN_COLUMNS); 
+                          BUTTON_ICON_SIZE_IN_COLUMNS);
 }
 
 static void DrawMenu2(void)
@@ -1525,9 +1525,9 @@ static void DrawMenu2(void)
                           BUTTON_ICON_SIZE_IN_ROWS,
                           LEFT_BUTTON_COLUMN,
                           BUTTON_ICON_SIZE_IN_COLUMNS);
-  
+
   unsigned char const * pIcon;
-  
+
   if ( QueryRstPinEnabled() )
   {
     pIcon = pRstPinIcon;
@@ -1536,15 +1536,15 @@ static void DrawMenu2(void)
   {
     pIcon = pNmiPinIcon;
   }
-  
+
   CopyColumnsIntoMyBuffer(pIcon,
                           BUTTON_ICON_A_F_ROW,
                           BUTTON_ICON_SIZE_IN_ROWS,
                           RIGHT_BUTTON_COLUMN,
-                          BUTTON_ICON_SIZE_IN_COLUMNS); 
-  
+                          BUTTON_ICON_SIZE_IN_COLUMNS);
+
   /***************************************************************************/
-  
+
   if ( QueryConnectionState() == Initializing )
   {
     pIcon = pSspInitIcon;
@@ -1554,7 +1554,7 @@ static void DrawMenu2(void)
     pIcon = pSspEnabledIcon;
   }
   else
-  { 
+  {
     pIcon = pSspDisabledIcon;
   }
 
@@ -1562,39 +1562,39 @@ static void DrawMenu2(void)
                           BUTTON_ICON_B_E_ROW,
                           BUTTON_ICON_SIZE_IN_ROWS,
                           LEFT_BUTTON_COLUMN,
-                          BUTTON_ICON_SIZE_IN_COLUMNS);   
-  
+                          BUTTON_ICON_SIZE_IN_COLUMNS);
+
 }
 
 static void DrawMenu3(void)
 {
   unsigned char const * pIcon;
-  
+
   pIcon = pNormalDisplayMenuIcon;
 
   CopyColumnsIntoMyBuffer(pIcon,
                           BUTTON_ICON_A_F_ROW,
                           BUTTON_ICON_SIZE_IN_ROWS,
                           LEFT_BUTTON_COLUMN,
-                          BUTTON_ICON_SIZE_IN_COLUMNS); 
+                          BUTTON_ICON_SIZE_IN_COLUMNS);
   /***************************************************************************/
-  
+
 #if 0
   /* shipping mode was removed for now */
   CopyColumnsIntoMyBuffer(pShippingModeIcon,
                           BUTTON_ICON_A_F_ROW,
                           BUTTON_ICON_SIZE_IN_ROWS,
                           RIGHT_BUTTON_COLUMN,
-                          BUTTON_ICON_SIZE_IN_COLUMNS);  
+                          BUTTON_ICON_SIZE_IN_COLUMNS);
 #endif
   /***************************************************************************/
-  
+
   if ( nvDisplaySeconds )
   {
     pIcon = pSecondsOnMenuIcon;
   }
   else
-  { 
+  {
     pIcon = pSecondsOffMenuIcon;
   }
 
@@ -1602,8 +1602,8 @@ static void DrawMenu3(void)
                           BUTTON_ICON_B_E_ROW,
                           BUTTON_ICON_SIZE_IN_ROWS,
                           LEFT_BUTTON_COLUMN,
-                          BUTTON_ICON_SIZE_IN_COLUMNS);   
-  
+                          BUTTON_ICON_SIZE_IN_COLUMNS);
+
 }
 
 static void DrawCommonMenuIcons(void)
@@ -1613,18 +1613,18 @@ static void DrawCommonMenuIcons(void)
                           BUTTON_ICON_SIZE_IN_ROWS,
                           RIGHT_BUTTON_COLUMN,
                           BUTTON_ICON_SIZE_IN_COLUMNS);
-         
+
   CopyColumnsIntoMyBuffer(pLedIcon,
                           BUTTON_ICON_C_D_ROW,
                           BUTTON_ICON_SIZE_IN_ROWS,
                           LEFT_BUTTON_COLUMN,
                           BUTTON_ICON_SIZE_IN_COLUMNS);
-  
+
   CopyColumnsIntoMyBuffer(pExitIcon,
                           BUTTON_ICON_C_D_ROW,
                           BUTTON_ICON_SIZE_IN_ROWS,
                           RIGHT_BUTTON_COLUMN,
-                          BUTTON_ICON_SIZE_IN_COLUMNS);  
+                          BUTTON_ICON_SIZE_IN_COLUMNS);
 }
 
 static void MenuButtonHandler(unsigned char MsgOptions)
@@ -1632,53 +1632,53 @@ static void MenuButtonHandler(unsigned char MsgOptions)
   StopDisplayTimer();
 
   tMessage OutgoingMsg;
-  
+
   switch (MsgOptions)
   {
   case MENU_BUTTON_OPTION_TOGGLE_DISCOVERABILITY:
-    
+
     if ( QueryConnectionState() != Initializing )
     {
       SetupMessage(&OutgoingMsg,PairingControlMsg,NO_MSG_OPTIONS);
-        
+
       if ( QueryDiscoverable() )
       {
         OutgoingMsg.Options = PAIRING_CONTROL_OPTION_DISABLE_PAIRING;
       }
       else
       {
-        OutgoingMsg.Options = PAIRING_CONTROL_OPTION_ENABLE_PAIRING;  
+        OutgoingMsg.Options = PAIRING_CONTROL_OPTION_ENABLE_PAIRING;
       }
-      
+
       RouteMsg(&OutgoingMsg);
     }
     /* screen will be updated with a message from spp */
     break;
-    
+
   case MENU_BUTTON_OPTION_TOGGLE_LINK_ALARM:
     ToggleLinkAlarmEnable();
     MenuModeHandler(MENU_MODE_OPTION_UPDATE_CURRENT_PAGE);
     break;
-  
-  case MENU_BUTTON_OPTION_EXIT:          
-    
+
+  case MENU_BUTTON_OPTION_EXIT:
+
     /* save all of the non-volatile items */
     SetupMessage(&OutgoingMsg,PairingControlMsg,PAIRING_CONTROL_OPTION_SAVE_SPP);
     RouteMsg(&OutgoingMsg);
-    
+
     SaveLinkAlarmEnable();
     SaveRstNmiConfiguration();
     SaveIdleBufferInvert();
     SaveDisplaySeconds();
-      
+
     /* go back to the normal idle screen */
     SetupMessage(&OutgoingMsg,IdleUpdate,NO_MSG_OPTIONS);
     RouteMsg(&OutgoingMsg);
 
     break;
-    
+
   case MENU_BUTTON_OPTION_TOGGLE_BLUETOOTH:
-    
+
     if ( QueryConnectionState() != Initializing )
     {
       if ( QueryBluetoothOn() )
@@ -1689,12 +1689,12 @@ static void MenuButtonHandler(unsigned char MsgOptions)
       {
         SetupMessage(&OutgoingMsg,TurnRadioOnMsg,NO_MSG_OPTIONS);
       }
-      
+
       RouteMsg(&OutgoingMsg);
     }
     /* screen will be updated with a message from spp */
     break;
-    
+
   case MENU_BUTTON_OPTION_TOGGLE_SECURE_SIMPLE_PAIRING:
     if ( QueryConnectionState() != Initializing )
     {
@@ -1703,7 +1703,7 @@ static void MenuButtonHandler(unsigned char MsgOptions)
     }
     /* screen will be updated with a message from spp */
     break;
-    
+
   case MENU_BUTTON_OPTION_TOGGLE_RST_NMI_PIN:
     if ( QueryRstPinEnabled() )
     {
@@ -1711,16 +1711,16 @@ static void MenuButtonHandler(unsigned char MsgOptions)
     }
     else
     {
-      EnableRstPin(); 
+      EnableRstPin();
     }
     MenuModeHandler(MENU_MODE_OPTION_UPDATE_CURRENT_PAGE);
     break;
-    
+
   case MENU_BUTTON_OPTION_DISPLAY_SECONDS:
     ToggleSecondsHandler(TOGGLE_SECONDS_OPTIONS_DONT_UPDATE_IDLE);
     MenuModeHandler(MENU_MODE_OPTION_UPDATE_CURRENT_PAGE);
     break;
-    
+
   case MENU_BUTTON_OPTION_INVERT_DISPLAY:
     if ( nvIdleBufferInvert == 1 )
     {
@@ -1732,52 +1732,52 @@ static void MenuButtonHandler(unsigned char MsgOptions)
     }
     MenuModeHandler(MENU_MODE_OPTION_UPDATE_CURRENT_PAGE);
     break;
-    
+
   default:
     break;
   }
-   
+
 }
 
 static void ToggleSecondsHandler(unsigned char Options)
 {
   if ( nvDisplaySeconds == 0 )
   {
-    nvDisplaySeconds = 1;  
+    nvDisplaySeconds = 1;
   }
   else
   {
-    nvDisplaySeconds = 0;  
+    nvDisplaySeconds = 0;
   }
 
   if ( Options == TOGGLE_SECONDS_OPTIONS_UPDATE_IDLE )
   {
     IdleUpdateHandler();
   }
-  
+
 }
 
 static void DisplayAmPm(void)
-{  
+{
   /* don't display am/pm in 24 hour mode */
-  if ( GetTimeFormat() == TWELVE_HOUR ) 
+  if ( GetTimeFormat() == TWELVE_HOUR )
   {
     int Hour = RTCHOUR;
-    
+
     unsigned char const *pIcon;
-    
+
     if ( Hour >= 12 )
     {
-      pIcon = Pm;  
+      pIcon = Pm;
     }
     else
     {
-      pIcon = Am;  
+      pIcon = Am;
     }
-    
+
     WriteIcon4w10h(pIcon,0,8);
   }
-  
+
 }
 
 static void DisplayDayOfWeek(void)
@@ -1792,7 +1792,7 @@ static void DisplayDate(void)
   {
     int First;
     int Second;
-    
+
     /* determine if month or day is displayed first */
     if ( GetDateFormat() == MONTH_FIRST )
     {
@@ -1804,7 +1804,7 @@ static void DisplayDate(void)
       First = RTCDAY;
       Second = RTCMON;
     }
-    
+
     /* make it line up with AM/PM and Day of Week */
     gRow = 22;
     gColumn = 8;
@@ -1832,7 +1832,7 @@ static void DisplayDate(void)
     WriteFontCharacter('/');
     WriteFontCharacter(Second/10+'0');
     WriteFontCharacter(Second%10+'0');
-    
+
   }
 }
 
@@ -1841,20 +1841,20 @@ static void WriteIcon4w10h(unsigned char const * pIcon,
                            unsigned char RowOffset,
                            unsigned char ColumnOffset)
 {
-  
+
   /* copy digit into correct position */
   unsigned char RowNumber;
   unsigned char Column;
-  
+
   for ( Column = 0; Column < 4; Column++ )
   {
     for ( RowNumber = 0; RowNumber < 10; RowNumber++ )
     {
-      pMyBuffer[RowNumber+RowOffset].Data[Column+ColumnOffset] = 
+      pMyBuffer[RowNumber+RowOffset].Data[Column+ColumnOffset] =
         pIcon[RowNumber+(Column*10)];
     }
   }
-  
+
 }
 
 unsigned char* GetTemplatePointer(unsigned char TemplateSelect)
@@ -1863,7 +1863,7 @@ unsigned char* GetTemplatePointer(unsigned char TemplateSelect)
 }
 
 
-const unsigned char pBarCodeImage[NUM_LCD_ROWS*NUM_LCD_COL_BYTES] = 
+const unsigned char pBarCodeImage[NUM_LCD_ROWS*NUM_LCD_COL_BYTES] =
 {
 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
@@ -1963,7 +1963,7 @@ const unsigned char pBarCodeImage[NUM_LCD_ROWS*NUM_LCD_COL_BYTES] =
 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
 };
 
-const unsigned char pMetaWatchSplash[NUM_LCD_ROWS*NUM_LCD_COL_BYTES] = 
+const unsigned char pMetaWatchSplash[NUM_LCD_ROWS*NUM_LCD_COL_BYTES] =
 {
 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
@@ -2073,7 +2073,7 @@ const unsigned char Am[10*4] =
 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
 };
 
-const unsigned char Pm[10*4] = 
+const unsigned char Pm[10*4] =
 {
 0x00,0x00,0x9E,0xA2,0xA2,0x9E,0x82,0x82,0x82,0x00,
 0x00,0x00,0x08,0x0D,0x0A,0x08,0x08,0x08,0x08,0x00,
@@ -2126,21 +2126,21 @@ static void DontChangeButtonConfiguration(void)
                        BUTTON_STATE_PRESSED,
                        LedChange,
                        LED_START_OFF_TIMER);
-    
+
     /* turn on led immediately when button is pressed */
     EnableButtonAction(i,
                        SW_D_INDEX,
                        BUTTON_STATE_IMMEDIATE,
                        LedChange,
                        LED_ON_OPTION);
-    
-    /* software reset is available in all modes */    
+
+    /* software reset is available in all modes */
     EnableButtonAction(i,
                        SW_F_INDEX,
                        BUTTON_STATE_LONG_HOLD,
                        SoftwareResetMsg,
                        MASTER_RESET_OPTION);
-  
+
   }
 
 }
@@ -2152,32 +2152,32 @@ static void SetupNormalIdleScreenButtons(void)
                      BUTTON_STATE_IMMEDIATE,
                      WatchStatusMsg,
                      RESET_DISPLAY_TIMER);
-  
+
   EnableButtonAction(NORMAL_IDLE_SCREEN_BUTTON_MODE,
                      SW_E_INDEX,
                      BUTTON_STATE_IMMEDIATE,
                      ListPairedDevicesMsg,
                      NO_MSG_OPTIONS);
-   
+
   /* led is already assigned */
-  
+
   EnableButtonAction(NORMAL_IDLE_SCREEN_BUTTON_MODE,
                      SW_C_INDEX,
                      BUTTON_STATE_IMMEDIATE,
                      MenuModeMsg,
                      MENU_MODE_OPTION_PAGE1);
-  
+
   EnableButtonAction(NORMAL_IDLE_SCREEN_BUTTON_MODE,
                      SW_B_INDEX,
                      BUTTON_STATE_IMMEDIATE,
                      ToggleSecondsMsg,
                      TOGGLE_SECONDS_OPTIONS_UPDATE_IDLE);
-  
+
   EnableButtonAction(NORMAL_IDLE_SCREEN_BUTTON_MODE,
                      SW_A_INDEX,
                      BUTTON_STATE_IMMEDIATE,
                      BarCode,
-                     RESET_DISPLAY_TIMER);  
+                     RESET_DISPLAY_TIMER);
 }
 
 static void ConfigureIdleUserInterfaceButtons(void)
@@ -2185,194 +2185,194 @@ static void ConfigureIdleUserInterfaceButtons(void)
   if ( CurrentIdlePage != LastIdlePage )
   {
     LastIdlePage = CurrentIdlePage;
-  
+
     /* only allow reset on one of the pages */
     DisableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                         SW_F_INDEX,
                         BUTTON_STATE_PRESSED);
-    
+
     switch ( CurrentIdlePage )
     {
     case NormalPage:
       /* do nothing */
       break;
-      
+
     case RadioOnWithPairingInfoPage:
-          
+
       EnableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                          SW_F_INDEX,
                          BUTTON_STATE_IMMEDIATE,
                          WatchStatusMsg,
                          RESET_DISPLAY_TIMER);
-    
+
       EnableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                          SW_E_INDEX,
                          BUTTON_STATE_IMMEDIATE,
                          ListPairedDevicesMsg,
                          NO_MSG_OPTIONS);
-       
+
       /* led is already assigned */
-      
+
       EnableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                          SW_C_INDEX,
                          BUTTON_STATE_IMMEDIATE,
                          MenuModeMsg,
                          MENU_MODE_OPTION_PAGE1);
-      
+
       EnableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                          SW_B_INDEX,
                          BUTTON_STATE_IMMEDIATE,
                          ToggleSecondsMsg,
                          TOGGLE_SECONDS_OPTIONS_UPDATE_IDLE);
-   
+
       EnableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                          SW_A_INDEX,
                          BUTTON_STATE_IMMEDIATE,
                          BarCode,
                          RESET_DISPLAY_TIMER);
-      
+
       break;
-      
+
     case BluetoothOffPage:
     case RadioOnWithoutPairingInfoPage:
-   
+
       EnableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                          SW_F_INDEX,
                          BUTTON_STATE_IMMEDIATE,
                          ModifyTimeMsg,
                          MODIFY_TIME_INCREMENT_HOUR);
-      
+
       EnableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                          SW_E_INDEX,
                          BUTTON_STATE_IMMEDIATE,
                          ListPairedDevicesMsg,
                          NO_MSG_OPTIONS);
-      
+
       /* led is already assigned */
-      
+
       EnableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                          SW_C_INDEX,
                          BUTTON_STATE_IMMEDIATE,
                          MenuModeMsg,
                          MENU_MODE_OPTION_PAGE1);
-      
+
       EnableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                          SW_B_INDEX,
                          BUTTON_STATE_IMMEDIATE,
                          ModifyTimeMsg,
                          MODIFY_TIME_INCREMENT_DOW);
-   
+
       EnableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                          SW_A_INDEX,
                          BUTTON_STATE_IMMEDIATE,
                          ModifyTimeMsg,
                          MODIFY_TIME_INCREMENT_MINUTE);
       break;
-      
-      
-      
+
+
+
     case Menu1Page:
-      
+
       EnableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                          SW_F_INDEX,
                          BUTTON_STATE_IMMEDIATE,
                          MenuButtonMsg,
                          MENU_BUTTON_OPTION_TOGGLE_DISCOVERABILITY);
-      
+
       EnableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                          SW_E_INDEX,
                          BUTTON_STATE_IMMEDIATE,
                          MenuButtonMsg,
                          MENU_BUTTON_OPTION_TOGGLE_LINK_ALARM);
-      
+
       /* led is already assigned */
-      
+
       EnableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                          SW_C_INDEX,
                          BUTTON_STATE_IMMEDIATE,
                          MenuButtonMsg,
                          MENU_BUTTON_OPTION_EXIT);
-      
+
       EnableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                          SW_B_INDEX,
                          BUTTON_STATE_IMMEDIATE,
                          MenuModeMsg,
                          MENU_MODE_OPTION_PAGE2);
-   
+
       EnableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                          SW_A_INDEX,
                          BUTTON_STATE_IMMEDIATE,
                          MenuButtonMsg,
                          MENU_BUTTON_OPTION_TOGGLE_BLUETOOTH);
-      
+
       break;
-      
+
     case Menu2Page:
-      
+
       /* this cannot be immediate because Master Reset is on this button also */
       EnableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                          SW_F_INDEX,
                          BUTTON_STATE_PRESSED,
                          SoftwareResetMsg,
                          NO_MSG_OPTIONS);
-      
+
       EnableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                          SW_E_INDEX,
                          BUTTON_STATE_IMMEDIATE,
                          MenuButtonMsg,
                          MENU_BUTTON_OPTION_TOGGLE_SECURE_SIMPLE_PAIRING);
-      
+
       /* led is already assigned */
-      
+
       EnableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                          SW_C_INDEX,
                          BUTTON_STATE_IMMEDIATE,
                          MenuButtonMsg,
                          MENU_BUTTON_OPTION_EXIT);
-            
+
       EnableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                          SW_B_INDEX,
                          BUTTON_STATE_IMMEDIATE,
                          MenuModeMsg,
                          MENU_MODE_OPTION_PAGE3);
-            
+
       EnableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                          SW_A_INDEX,
                          BUTTON_STATE_IMMEDIATE,
                          MenuButtonMsg,
                          MENU_BUTTON_OPTION_TOGGLE_RST_NMI_PIN);
-      
+
       break;
-    
-      
+
+
     case Menu3Page:
-      
+
       EnableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                          SW_F_INDEX,
                          BUTTON_STATE_IMMEDIATE,
                          MenuButtonMsg,
                          MENU_BUTTON_OPTION_INVERT_DISPLAY);
-      
+
       EnableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                          SW_E_INDEX,
                          BUTTON_STATE_IMMEDIATE,
                          MenuButtonMsg,
                          MENU_BUTTON_OPTION_DISPLAY_SECONDS);
-      
+
       /* led is already assigned */
-      
+
       EnableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                          SW_C_INDEX,
                          BUTTON_STATE_IMMEDIATE,
                          MenuButtonMsg,
                          MENU_BUTTON_OPTION_EXIT);
-      
+
       EnableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                          SW_B_INDEX,
                          BUTTON_STATE_IMMEDIATE,
                          MenuModeMsg,
                          MENU_MODE_OPTION_PAGE1);
-            
+
 #if 0
       /* shipping mode is disabled for now */
       EnableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
@@ -2384,36 +2384,36 @@ static void ConfigureIdleUserInterfaceButtons(void)
       DisableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                           SW_A_INDEX,
                           BUTTON_STATE_IMMEDIATE);
-#endif      
+#endif
       break;
-      
+
     case ListPairedDevicesPage:
-      
+
       EnableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                          SW_F_INDEX,
                          BUTTON_STATE_IMMEDIATE,
                          WatchStatusMsg,
                          RESET_DISPLAY_TIMER);
-    
+
       /* map this mode's entry button to go back to the idle mode */
       EnableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                          SW_E_INDEX,
                          BUTTON_STATE_IMMEDIATE,
                          IdleUpdate,
                          NO_MSG_OPTIONS);
-       
+
       /* led is already assigned */
-      
+
       EnableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                          SW_C_INDEX,
                          BUTTON_STATE_IMMEDIATE,
                          MenuModeMsg,
                          MENU_MODE_OPTION_PAGE1);
-      
+
       DisableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                           SW_B_INDEX,
                           BUTTON_STATE_IMMEDIATE);
-                          
+
       /* map this mode's entry button to go back to the idle mode */
       EnableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                          SW_A_INDEX,
@@ -2423,86 +2423,86 @@ static void ConfigureIdleUserInterfaceButtons(void)
       break;
 
     case WatchStatusPage:
-      
+
       /* map this mode's entry button to go back to the idle mode */
       EnableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                          SW_F_INDEX,
                          BUTTON_STATE_IMMEDIATE,
                          IdleUpdate,
                          RESET_DISPLAY_TIMER);
-    
+
       EnableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                          SW_E_INDEX,
                          BUTTON_STATE_IMMEDIATE,
                          ListPairedDevicesMsg,
                          NO_MSG_OPTIONS);
-       
+
       /* led is already assigned */
-      
+
       EnableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                          SW_C_INDEX,
                          BUTTON_STATE_IMMEDIATE,
                          MenuModeMsg,
                          MENU_MODE_OPTION_PAGE1);
-      
+
       DisableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                           SW_B_INDEX,
                           BUTTON_STATE_IMMEDIATE);
-                          
+
       EnableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                          SW_A_INDEX,
                          BUTTON_STATE_IMMEDIATE,
                          BarCode,
                          RESET_DISPLAY_TIMER);
       break;
-  
+
     case QrCodePage:
-      
+
       EnableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                          SW_F_INDEX,
                          BUTTON_STATE_IMMEDIATE,
                          WatchStatusMsg,
                          RESET_DISPLAY_TIMER);
-    
+
       EnableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                          SW_E_INDEX,
                          BUTTON_STATE_IMMEDIATE,
                          ListPairedDevicesMsg,
                          NO_MSG_OPTIONS);
-       
+
       /* led is already assigned */
-      
+
       EnableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                          SW_C_INDEX,
                          BUTTON_STATE_IMMEDIATE,
                          MenuModeMsg,
                          MENU_MODE_OPTION_PAGE1);
-      
+
       DisableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                           SW_B_INDEX,
                           BUTTON_STATE_IMMEDIATE);
-                          
+
       /* map this mode's entry button to go back to the idle mode */
       EnableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                          SW_A_INDEX,
                          BUTTON_STATE_IMMEDIATE,
                          IdleUpdate,
                          RESET_DISPLAY_TIMER);
-      
+
       break;
-      
-      
+
+
     }
   }
 }
 
 /* the default is for all simple button presses to be sent to the phone */
 static void DefaultApplicationAndNotificationButtonConfiguration(void)
-{  
+{
   unsigned char index = 0;
-  
-  /* 
-   * this will configure the pull switch even though it does not exist 
+
+  /*
+   * this will configure the pull switch even though it does not exist
    * on the watch
    */
   for(index = 0; index < NUMBER_OF_BUTTONS; index++)
@@ -2511,7 +2511,7 @@ static void DefaultApplicationAndNotificationButtonConfiguration(void)
     {
       index++;
     }
-   
+
     EnableButtonAction(APPLICATION_SCREEN_BUTTON_MODE,
                        index,
                        BUTTON_STATE_PRESSED,
@@ -2523,13 +2523,13 @@ static void DefaultApplicationAndNotificationButtonConfiguration(void)
                        BUTTON_STATE_PRESSED,
                        ButtonEventMsg,
                        NO_MSG_OPTIONS);
-    
+
     EnableButtonAction(SCROLL_BUTTON_MODE,
                        index,
                        BUTTON_STATE_PRESSED,
                        ButtonEventMsg,
                        NO_MSG_OPTIONS);
-  
+
   }
 
 }
@@ -2540,34 +2540,34 @@ static void DefaultApplicationAndNotificationButtonConfiguration(void)
 void InitializeIdleBufferConfig(void)
 {
   nvIdleBufferConfig = WATCH_CONTROLS_TOP;
-  OsalNvItemInit(NVID_IDLE_BUFFER_CONFIGURATION, 
-                 sizeof(nvIdleBufferConfig), 
-                 &nvIdleBufferConfig);    
+  OsalNvItemInit(NVID_IDLE_BUFFER_CONFIGURATION,
+                 sizeof(nvIdleBufferConfig),
+                 &nvIdleBufferConfig);
 }
 
 void InitializeIdleBufferInvert(void)
 {
   nvIdleBufferInvert = 0;
-  OsalNvItemInit(NVID_IDLE_BUFFER_INVERT, 
-                 sizeof(nvIdleBufferInvert), 
-                 &nvIdleBufferInvert);   
+  OsalNvItemInit(NVID_IDLE_BUFFER_INVERT,
+                 sizeof(nvIdleBufferInvert),
+                 &nvIdleBufferInvert);
 }
 
 void InitializeDisplaySeconds(void)
 {
   nvDisplaySeconds = 0;
-  OsalNvItemInit(NVID_DISPLAY_SECONDS, 
-                 sizeof(nvDisplaySeconds), 
+  OsalNvItemInit(NVID_DISPLAY_SECONDS,
+                 sizeof(nvDisplaySeconds),
                  &nvDisplaySeconds);
 }
 
 #if 0
 static void SaveIdleBufferConfig(void)
 {
-  osal_nv_write(NVID_IDLE_BUFFER_CONFIGURATION, 
+  osal_nv_write(NVID_IDLE_BUFFER_CONFIGURATION,
                 NV_ZERO_OFFSET,
-                sizeof(nvIdleBufferConfig), 
-                &nvIdleBufferConfig);    
+                sizeof(nvIdleBufferConfig),
+                &nvIdleBufferConfig);
 }
 #endif
 
@@ -2575,8 +2575,8 @@ static void SaveIdleBufferInvert(void)
 {
   OsalNvWrite(NVID_IDLE_BUFFER_INVERT,
               NV_ZERO_OFFSET,
-              sizeof(nvIdleBufferInvert), 
-              &nvIdleBufferInvert);   
+              sizeof(nvIdleBufferInvert),
+              &nvIdleBufferInvert);
 }
 
 static void SaveDisplaySeconds(void)
@@ -2594,7 +2594,7 @@ unsigned char QueryDisplaySeconds(void)
 
 unsigned char QueryInvertDisplay(void)
 {
-  return nvIdleBufferInvert; 
+  return nvIdleBufferInvert;
 }
 
 /******************************************************************************/
@@ -2611,27 +2611,27 @@ static void WriteFontCharacter(unsigned char Character)
   CharacterRows = GetCharacterHeight();
   CharacterWidth = GetCharacterWidth(Character);
   GetCharacterBitmap(Character,(unsigned int*)&bitmap);
-  
+
   if ( gRow + CharacterRows > NUM_LCD_ROWS )
   {
     PrintString("Not enough rows to display character\r\n");
-    return;  
+    return;
   }
-  
+
   /* do things bit by bit */
   unsigned char i;
   unsigned char row;
- 
+
   for (i = 0 ; i < CharacterWidth && gColumn < NUM_LCD_COL_BYTES; i++ )
   {
   	for(row = 0; row < CharacterRows; row++)
     {
       if ( (CharacterMask & bitmap[row]) != 0 )
       {
-        pMyBuffer[gRow+row].Data[gColumn] |= gBitColumnMask;  
+        pMyBuffer[gRow+row].Data[gColumn] |= gBitColumnMask;
       }
     }
-    
+
     /* the shift direction seems backwards... */
     CharacterMask = CharacterMask << 1;
     gBitColumnMask = gBitColumnMask << 1;
@@ -2640,9 +2640,9 @@ static void WriteFontCharacter(unsigned char Character)
       gBitColumnMask = BIT0;
       gColumn++;
     }
-  
+
   }
-  
+
   /* add spacing between characters */
   unsigned char FontSpacing = GetFontSpacing();
   for(i = 0; i < FontSpacing; i++)
@@ -2652,18 +2652,18 @@ static void WriteFontCharacter(unsigned char Character)
     {
       gBitColumnMask = BIT0;
       gColumn++;
-    }  
+    }
   }
-       
+
 }
 
 void WriteFontString(tString *pString)
 {
   unsigned char i = 0;
-   
+
   while (pString[i] != 0 && gColumn < NUM_LCD_COL_BYTES)
   {
-    WriteFontCharacter(pString[i++]);    
+    WriteFontCharacter(pString[i++]);
   }
 
 }
@@ -2678,17 +2678,17 @@ unsigned char QueryIdlePageNormal(void)
   }
   else
   {
-    return 0;  
+    return 0;
   };
-  
+
 }
 
 unsigned char LcdRtcUpdateHandlerIsr(void)
 {
   unsigned char ExitLpm = 0;
-  
+
   unsigned int RtcSeconds = RTCSEC;
-  
+
   if ( RtcUpdateEnable )
   {
     /* send a message every second or once a minute */
@@ -2698,10 +2698,10 @@ unsigned char LcdRtcUpdateHandlerIsr(void)
       tMessage Msg;
       SetupMessage(&Msg,IdleUpdate,NO_MSG_OPTIONS);
       SendMessageToQueueFromIsr(DISPLAY_QINDEX,&Msg);
-      ExitLpm = 1;  
-    }    
-  } 
+      ExitLpm = 1;
+    }
+  }
 
   return ExitLpm;
-  
+
 }

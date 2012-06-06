@@ -36,7 +36,7 @@
 #include "Background.h"
 #include "Buttons.h"
 #include "DebugUart.h"
-#include "SerialProfile.h"
+#include "Wrapper.h"
 #include "Utilities.h"
 #include "MessageQueues.h"
 #include "Display.h"

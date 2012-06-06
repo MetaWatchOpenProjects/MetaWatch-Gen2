@@ -37,7 +37,7 @@
 #include "DebugUart.h"
 #include "Utilities.h" 
 #include "Accelerometer.h"
-#include "SerialProfile.h"
+#include "Wrapper.h"
 
 /******************************************************************************/
 

@@ -26,7 +26,7 @@
 #include "Messages.h"
 #include "Statistics.h"
 #include "DebugUart.h"
-#include "SerialProfile.h"
+#include "Wrapper.h"
 
 /* Global application statistics */
 tApplicationStatistics gAppStats;

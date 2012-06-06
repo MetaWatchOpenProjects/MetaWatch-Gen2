@@ -15,20 +15,20 @@
 //==============================================================================
 
 /******************************************************************************/
-/*! \file SerialProfile.h
+/*! \file Wrapper.h
 *
 */
 /******************************************************************************/
 
-#ifndef SERIAL_PROFILE_H
-#define SERIAL_PROFILE_H
+#ifndef WRAPPER_H
+#define WRAPPER_H
 
 /*! Initaliaze the serial port profile task.  This should be called from main.
 *
 * This task opens the stack which in turn creates 3 more tasks that create and 
 * handle the bluetooth serial port connection.
 */
-void InitializeSppTask(void);
+void InitializeWrapperTask(void);
 
 
 /*! Query the serial port profile task if it is okay to put the part into LPM3
@@ -40,8 +40,8 @@ void InitializeSppTask(void);
 */
 unsigned char SerialPortReadyToSleep(void);
 
-/*! Return a pointer to the stack version string */
-tString * GetStackVersion(void);
+/*! Return a pointer to the wrapper version string */
+tString * GetWrapperVersion(void);
 
 /******************************************************************************/
 
@@ -200,5 +200,5 @@ unsigned int QuerySniffSlotParameter(eSniffSlotType SniffSlotType);
 /******************************************************************************/
 
 
-#endif /* SERIAL_PROFILE_H */
+#endif /* WRAPPER_H */
 

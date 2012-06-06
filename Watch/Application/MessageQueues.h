@@ -79,12 +79,12 @@ void RouteMsg(tMessage* pMsg);
  */
 void SendMessageToQueueFromIsr(unsigned char Qindex,tMessage* pMsg);
 
-/*! Let routing know handle of spp queue.  This function is used so that the
+/*! Let routing know handle of wrapper queue.  This function is used so that the
  * number of queues can change without affecting the stack.
  *
- * \param SppQueueHandle - handle for spp queue
+ * \param WrapperQueueHandle - handle for wrapper queue (spp or ble)
  */
-void AssignSppQueueHandle(xQueueHandle SppHandle);
+void AssignWrapperQueueHandle(xQueueHandle WrapperHandle);
 
 /*! Set the message parameters.  Safe to call when in interrupt context.
  *
