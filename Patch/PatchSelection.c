@@ -153,7 +153,7 @@ unsigned char QuerySupportLowEnergy(void)
     if ( RadioVersion == RadioVersionCC2564 )
     {
     
-#if defined(INCLUDE_1316_PATCH) && defined(SUPPORT_LOW_ENERGY)
+#if defined(INCLUDE_1316_PATCH) && defined(USE_LOW_ENERGY)
         result = 1;
 #endif
     }    

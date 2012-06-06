@@ -21,6 +21,7 @@
 */
 /******************************************************************************/
 #include "FreeRTOSConfig.h"
+#include "portmacro.h"
 
 #include "hal_board_type.h"
 #include "hal_miscellaneous.h"
@@ -93,11 +94,8 @@ void SetupClockAndPowerManagementModule(void)
   SELECT_ACLK(SELA__XT1CLK);
   SELECT_FLLREF(SELREF__XT1CLK);
 
-#ifdef SUPPORT_LOW_ENERGY
-  Init_FLL_Settle(16000,488);
-#else
-  Init_FLL_Settle(16777216/1000,ACLK_MULTIPLIER);
-#endif
+  // 512 * 32768 = 16777216 / 1024
+  Init_FLL_Settle(configCPU_CLOCK_HZ/configTICK_RATE_HZ, ACLK_MULTIPLIER);
 
   // second parameter is 16000/32768 = 488
   SoftwareFllInit();

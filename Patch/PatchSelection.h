@@ -31,9 +31,6 @@
  *
  * By defining INCLUDE_1315_PATCH and/or INCLUDE_1316_PATCH the corresponding patch
  * is included. There isn't any protection for selecting the wrong patch.
- *
- * define SUPPORT_LOW_ENERGY to include LE portion of the patch 
- * 
  */
 /******************************************************************************/
 

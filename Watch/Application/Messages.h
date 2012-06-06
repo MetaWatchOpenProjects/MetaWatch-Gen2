@@ -1,10 +1,10 @@
 //==============================================================================
 //  Copyright 2011 Meta Watch Ltd. - http://www.MetaWatch.org/
-// 
+//
 //  Licensed under the Meta Watch License, Version 1.0 (the "License");
 //  you may not use this file except in compliance with the License.
 //  You may obtain a copy of the License at
-//  
+//
 //      http://www.MetaWatch.org/licenses/license-1.0.html
 //
 //  Unless required by applicable law or agreed to in writing, software
@@ -29,7 +29,7 @@
 #define HOST_MSG_BUFFER_LENGTH  ( 32 )
 #define HOST_MSG_HEADER_LENGTH  ( 4 )
 #define HOST_MSG_CRC_LENGTH     ( 2 )
-#define HOST_MSG_START_FLAG     ( 0x01 )    
+#define HOST_MSG_START_FLAG     ( 0x01 )
 /* 26 */
 #define HOST_MSG_MAX_PAYLOAD_LENGTH \
   (HOST_MSG_BUFFER_LENGTH - HOST_MSG_HEADER_LENGTH - HOST_MSG_CRC_LENGTH)
@@ -41,7 +41,7 @@
  * sent to the host
  * \param Type is the type of the message
  * \param Options is the option byte of the message
- * \param pBuffer can point to a message buffer 
+ * \param pBuffer can point to a message buffer
  *
  */
 typedef struct
@@ -49,14 +49,14 @@ typedef struct
   unsigned char Length;
   unsigned char Type;
   unsigned char Options;
-  unsigned char * pBuffer; 
+  unsigned char * pBuffer;
 
 } tMessage;
 
 
 
 /*! Host Message Packet Format
- * 
+ *
  * \note This message format is also used internally but not all fields are used.
  *
  * \param startByte is always 0x01
@@ -66,20 +66,20 @@ typedef struct
  * \param pPayload is an array of bytes
  * \param crcLsb
  * \param crcMsb
- * 
+ *
  * \note
  * The CRC is CCITT 16 intialized with 0xFFFF and bit reversed generation
  * not pretty, but it's what the MSP430 hardware does. A test vector is:
  *
  * CRC({0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39}) = 0x89F6
  *
- * SPP can deliver a partial packet if the link times out so bytes are needed to 
+ * SPP can deliver a partial packet if the link times out so bytes are needed to
  * re-assemble/frame a message.
- * 
+ *
  * The Get Device Type message is 0x01, 0x06, 0x01, 0x00, 0x0B, 0xD9.
  *
- * \note Deprecated - This format is not used internally BUT IS STILL THE 
- * FORMAT FOR MESSAGES SENT TO THE HOST 
+ * \note Deprecated - This format is not used internally BUT IS STILL THE
+ * FORMAT FOR MESSAGES SENT TO THE HOST
  */
 #if 0
 typedef struct
@@ -148,27 +148,27 @@ typedef struct
   unsigned char pLine[12];
   unsigned char Dummy1;
   unsigned char Dummy2;
-  
+
 } tLcdMessagePayload;
 
-#define LCD_MESSAGE_CMD_INDEX        ( 2 ) 
+#define LCD_MESSAGE_CMD_INDEX        ( 2 )
 #define LCD_MESSAGE_ROW_NUMBER_INDEX ( 3 )
 #define LCD_MESSAGE_LINE_INDEX       ( 4 )
 
 
-/*! Message type enumeration 
- * 
+/*! Message type enumeration
+ *
  * for this processor the default is 16 bits for an enumeration
  */
 typedef enum
 {
   InvalidMessage = 0x00,
-  
+
   GetDeviceType = 0x01,
   GetDeviceTypeResponse = 0x02,
   GetInfoString = 0x03,
   GetInfoStringResponse = 0x04,
-  DiagnosticLoopback = 0x05,  
+  DiagnosticLoopback = 0x05,
   EnterShippingModeMsg = 0x06,
   SoftwareResetMsg = 0x07,
   ConnectionTimeoutMsg = 0x08,
@@ -179,7 +179,7 @@ typedef enum
   ReadRssiResponseMsg = 0x0d,
   SniffControlMsg = 0x0e,
   LinkAlarmMsg = 0x0f,
-  
+
   /*
    * OLED display related commands
    */
@@ -189,52 +189,52 @@ typedef enum
   OledWriteScrollBufferMsg = 0x13,
   OledScrollMsg = 0x14,
   OledShowIdleBufferMsg = 0x15,
-  OledCrownMenuMsg = 0x16, 
+  OledCrownMenuMsg = 0x16,
   OledCrownMenuButtonMsg = 0x17,
-  
-  /* 
+
+  /*
    * Status and control
    */
-   
+
   /* move the hands hours, mins and seconds */
-  AdvanceWatchHandsMsg = 0x20,  
+  AdvanceWatchHandsMsg = 0x20,
 
   /* config and (dis)enable vibrate */
   SetVibrateMode = 0x23,
-  
+
   ButtonStateMsg = 0x24,
-  
+
   /* Sets the RTC */
-  SetRealTimeClock = 0x26,  
+  SetRealTimeClock = 0x26,
   GetRealTimeClock = 0x27,
   GetRealTimeClockResponse = 0x28,
-  
+
   /* osal nv */
   NvalOperationMsg = 0x30,
   NvalOperationResponseMsg = 0x31,
-  
-  /* status of the current display operation */  
+
+  /* status of the current display operation */
   StatusChangeEvent = 0x33,
-  
+
   ButtonEventMsg = 0x34,
-  
+
   GeneralPurposePhoneMsg = 0x35,
   GeneralPurposeWatchMsg = 0x36,
   /*
    * LCD display related commands
-   */ 
+   */
   WriteBuffer = 0x40,
   ConfigureDisplay = 0x41,
   ConfigureIdleBufferSize = 0x42,
   UpdateDisplay = 0x43,
   LoadTemplate = 0x44,
-  Unused_0x45 = 0x45, 
+  Unused_0x45 = 0x45,
   EnableButtonMsg = 0x46,
   DisableButtonMsg = 0x47,
   ReadButtonConfigMsg = 0x48,
   ReadButtonConfigResponse = 0x49,
   Unused_0x4a = 0x4a,
-  
+
   /* */
   BatteryChargeControl = 0x52,
   BatteryConfigMsg = 0x53,
@@ -246,18 +246,13 @@ typedef enum
   ReadLightSensorResponse = 0x59,
   LowBatteryWarningMsg = 0x5a,
   LowBatteryBtOffMsg = 0x5b,
-  
-  // BLE messages
-  CallbackTimeoutMsg = 0x60,
-  SetCallbackTimerMsg = 0x61,
-  AdvertisingDataMsg = 0x62,
-  
+
   /*****************************************************************************
    *
    * User Reserved 0x60-0x70-0x80-0x90
    *
    ****************************************************************************/
-  
+
   /*****************************************************************************
    *
    * Watch/Internal Use Only
@@ -278,13 +273,17 @@ typedef enum
   ModifyTimeMsg = 0xad,
   MenuButtonMsg = 0xae,
   ToggleSecondsMsg = 0xaf,
-  
+
+  // BLE messages
+  SetCallbackTimerMsg = 0xb0,
+  CallbackTimeoutMsg = 0xb1,
+
   LedChange = 0xc0,
-  
+
   QueryMemoryMsg = 0xd0,
   RamTestMsg = 0xd1,
   RateTestMsg = 0xd2,
-  
+
   AccelerometerHostMsg = 0xe0,
   AccelerometerEnableMsg  = 0xe1,
   AccelerometerDisableMsg = 0xe2,
@@ -292,8 +291,10 @@ typedef enum
   AccelerometerAccessMsg = 0xe4,
   AccelerometerResponseMsg = 0xe5,
   AccelerometerSetupMsg = 0xe6,
-  
-  RadioPowerControlMsg = 0xf0
+
+  RadioPowerControlMsg = 0xf0,
+  AdvertisingDataMsg = 0xf1,
+
 } eMessageType;
 
 
@@ -314,7 +315,7 @@ typedef enum
 #define WRITE_OLED_BUFFER_MAX_PAYLOAD ( HOST_MSG_MAX_PAYLOAD_LENGTH - 3 )
 
 /*!
- * 
+ *
  * \param BufferSelect is the buffer to write to (for example idle top)
  * \param Column is the starting column address
  * \param Size is the number of columns
@@ -325,13 +326,13 @@ typedef struct
   unsigned char BufferSelect;
   unsigned char Column;
   unsigned char Size;
-  unsigned char pPayload[WRITE_OLED_BUFFER_MAX_PAYLOAD];  
+  unsigned char pPayload[WRITE_OLED_BUFFER_MAX_PAYLOAD];
 
 } tWriteOledBufferPayload;
 
 #define WRITE_SCROLL_BUFFER_MAX_PAYLOAD ( HOST_MSG_MAX_PAYLOAD_LENGTH - 1 )
 
-/*!  
+/*!
  * \param Size is the number of columns being written
  * \param pPayload[WRITE_SCROLL_BUFFER_MAX_PAYLOAD] is the column data
  *
@@ -340,7 +341,7 @@ typedef struct
 typedef struct
 {
   unsigned char Size;
-  unsigned char pPayload[WRITE_SCROLL_BUFFER_MAX_PAYLOAD];  
+  unsigned char pPayload[WRITE_SCROLL_BUFFER_MAX_PAYLOAD];
 
 } tWriteScrollBufferPayload;
 
@@ -363,15 +364,15 @@ typedef struct
  */
 typedef struct
 {
-  unsigned char Hours;    
-  unsigned char Minutes;  
-  unsigned char Seconds; 
+  unsigned char Hours;
+  unsigned char Minutes;
+  unsigned char Seconds;
 
 } tAdvanceWatchHandsPayload;
 
 /*! Set Vibrate Mode Payload Structure
  *
- * \param Enable when > 0 disabled when == 0.                    
+ * \param Enable when > 0 disabled when == 0.
  * \param OnDuration is the duration in milliseconds
  * \param OffDuration is the off duration in milliseconds.
  * \param NumberOfCycles is the number of on/off cycles to perform
@@ -381,7 +382,7 @@ typedef struct
  */
 typedef struct
 {
-  unsigned char Enable;                     
+  unsigned char Enable;
   unsigned char OnDurationLsb;
   unsigned char OnDurationMsb;
   unsigned char OffDurationLsb;
@@ -390,7 +391,7 @@ typedef struct
 
 } tSetVibrateModePayload;
 
-/*! 
+/*!
  * \param Year is a 12 bit value
  * \param Month of the year - 1 to 12
  * \param DayOfMonth is 1 to 31
@@ -403,24 +404,24 @@ typedef struct
 {
   unsigned char YearMsb;
   unsigned char YearLsb;
-  unsigned char Month;          
-  unsigned char DayOfMonth;     
-  unsigned char DayOfWeek;      
-  unsigned char Hour;           
-  unsigned char Minute;         
-  unsigned char Second;	        
+  unsigned char Month;
+  unsigned char DayOfMonth;
+  unsigned char DayOfWeek;
+  unsigned char Hour;
+  unsigned char Minute;
+  unsigned char Second;	
 
 } tRtcHostMsgPayload;
 
-/*! Load Template Strucutre 
+/*! Load Template Strucutre
  *
  * /param TemplateSelect (the first bye of payload) selects what will be filled
  * into display memory.
- */  
+ */
 typedef struct
 {
   unsigned char TemplateSelect;
-  
+
 } tLoadTemplatePayload;
 
 /* options */
@@ -466,7 +467,7 @@ typedef struct
 /* configure mode option */
 #define SAVE_MODE_CONFIGURATION_MASK ( BIT4 )
 
-/*! 
+/*!
  * \param DisplayMode is Idle, Application, or Notification
  * \param ButtonIndex is the button index
  * \param ButtonPressType is immediate, pressed, hold, or long hold
@@ -483,15 +484,15 @@ typedef struct
 
 } tButtonActionPayload;
 
-/*! Status change event types that are sent with the StatusChangeEvent message*/ 
+/*! Status change event types that are sent with the StatusChangeEvent message*/
 typedef enum
 {
   eScReserved = 0x00,
   eScUpdateComplete = 0x01,
   eScModeTimeout = 0x02,
-  eScScrollComplete = 0x10,  
+  eScScrollComplete = 0x10,
   eScScrollRequest = 0x11
-  
+
 } eStatusChangeEvents;
 
 /* OSAL Nv operation message */
@@ -526,8 +527,8 @@ typedef struct
 
 /* Modify Time Message Options */
 #define MODIFY_TIME_INCREMENT_HOUR   ( 0x00 )
-#define MODIFY_TIME_INCREMENT_MINUTE ( 0x01 ) 
-#define MODIFY_TIME_INCREMENT_DOW    ( 0x02 ) 
+#define MODIFY_TIME_INCREMENT_MINUTE ( 0x01 )
+#define MODIFY_TIME_INCREMENT_DOW    ( 0x02 )
 
 
 #define MENU_MODE_OPTION_PAGE1               ( 0x01 )
@@ -583,9 +584,9 @@ typedef union
   {
     unsigned char byte0;
     unsigned char byte1;
-    
+
   } Bytes;
-  
+
   unsigned int word;
 
 } tWordByteUnion;
@@ -622,11 +623,11 @@ typedef struct
  */
 #define SNIFF_RESERVED_OPTION      ( 0 )
 #define AUTO_SNIFF_ENABLE_OPTION   ( 1 )
-#define AUTO_SNIFF_DISABLE_OPTION  ( 2 ) 
+#define AUTO_SNIFF_DISABLE_OPTION  ( 2 )
 #define SNIFF_ENTER_OPTION         ( 3 )
 #define SNIFF_EXIT_OPTION          ( 4 )
 #define SNIFF_ENTER_FAILED_OPTION  ( 5 )
-#define SNIFF_EXIT_FAILED_OPTION   ( 6 ) 
+#define SNIFF_EXIT_FAILED_OPTION   ( 6 )
 
 /******************************************************************************/
 
@@ -636,10 +637,10 @@ typedef struct
   unsigned char Address;
   unsigned char Size;
   unsigned char Data;
-  
+
 } tAccelerometerAccessPayload;
 
-#define ACCELEROMETER_DATA_START_INDEX ( 2 ) 
+#define ACCELEROMETER_DATA_START_INDEX ( 2 )
 
 #define ACCELEROMETER_ACCESS_WRITE_OPTION ( 0 )
 #define ACCELEROMETER_ACCESS_READ_OPTION  ( 1 )
@@ -670,7 +671,7 @@ typedef struct
 
 
 /******************************************************************************/
-  
+
 #define CONFIGURE_DISPLAY_OPTION_RESERVED             ( 0 )
 #define CONFIGURE_DISPLAY_OPTION_DONT_DISPLAY_SECONDS ( 1 )
 #define CONFIGURE_DISPLAY_OPTION_DISPLAY_SECONDS      ( 2 )
@@ -682,7 +683,5 @@ typedef struct
   unsigned int Timeout;
   unsigned char Repeat;
 } tSetCallbackTimerPayload;
-
-
 
 #endif  /* MESSAGES_H */

@@ -1,10 +1,10 @@
 //==============================================================================
 //  Copyright 2011 Meta Watch Ltd. - http://www.MetaWatch.org/
-// 
+//
 //  Licensed under the Meta Watch License, Version 1.0 (the "License");
 //  you may not use this file except in compliance with the License.
 //  You may obtain a copy of the License at
-//  
+//
 //      http://www.MetaWatch.org/licenses/license-1.0.html
 //
 //  Unless required by applicable law or agreed to in writing, software
@@ -18,7 +18,7 @@
 /*! \file DebugUart.c
  *
  *
- * The print functions cannot be used in interrupt context 
+ * The print functions cannot be used in interrupt context
  */
 /******************************************************************************/
 
@@ -33,6 +33,8 @@
 
 #include "DebugUart.h"
 #include "Statistics.h"
+#include "Task.h"
+#include "Utilities.h"
 
 #define TX_BUFFER_SIZE ( 256 )
 static unsigned char TxBuffer[TX_BUFFER_SIZE];
@@ -53,109 +55,103 @@ tString ConversionString[6];
 void InitDebugUart(void)
 {
   UCA3CTL1 = UCSWRST;
-  
+
   /* set the baud rate to 115200 (from table 32-5 in slau208j) */
   UCA3CTL1 |= UCSSEL__SMCLK;
 
-#ifdef SUPPORT_LOW_ENERGY
-  /* from table 26-5 */
-  UCA3BR0 = 8;
-  UCA3MCTL = UCOS16 + UCBRS_0 + UCBRF_11;
-#else
   UCA3BR0 = 145;
   UCA3MCTL = UCBRS_5 + UCBRF_0;
-#endif
-    
+
   /* configure tx and rx pins (rx is not used) */
   P10SEL |= BIT4;
   P10SEL |= BIT5;
-  
-  UCA3CTL1 &= ~UCSWRST; 
-  
+
+  UCA3CTL1 &= ~UCSWRST;
+
   WriteIndex = 0;
   ReadIndex = 0;
   TxCount = 0;
   TxBusy = 0;
   UCA3IFG = 0;
   UCA3IE = UCTXIE;
-  
+
   WriteTxBuffer("\r\n*******************InitDebugUart********************\r\n");
-  
+
 }
 
 static void WriteTxBuffer(tString * const pBuf)
 {
   unsigned char i = 0;
   unsigned int LocalCount = TxCount;
- 
+
   /* if there isn't enough room in the buffer then characters are lost */
   while ( pBuf[i] != 0 && LocalCount < TX_BUFFER_SIZE )
-  { 
+  {
     TxBuffer[WriteIndex] = pBuf[i++];
     IncrementWriteIndex();
     LocalCount++;
-  }    
+  }
 
   /* keep a sticky bit for lost characters */
   if ( pBuf[i] != 0 )
   {
     gAppStats.DebugUartOverflow = 1;
   }
-  
-  /* 
-   * update the count (which can be decremented in the ISR 
-   * and start sending characters if the UART is currently idle 
+
+  /*
+   * update the count (which can be decremented in the ISR
+   * and start sending characters if the UART is currently idle
   */
   if ( i > 0 )
   {
     portENTER_CRITICAL();
-    
+
     TxCount += i;
-    
+
 #if 0
     if ( TxCount > TX_BUFFER_SIZE )
     {
-      while(1);  
+      while(1);
     }
 #endif
-    
+
     if ( TxBusy == 0 )
     {
       EnableSmClkUser(BT_DEBUG_UART_USER);
       UCA3TXBUF = TxBuffer[ReadIndex];
       IncrementReadIndex();
       TxBusy = 1;
-      TxCount--;  
+      TxCount--;
     }
-    
+
     portEXIT_CRITICAL();
   }
 }
 
 
-/* 
+/*
  * This part has a problem turning off the SMCLK when the uart is IDLE.
- * 
- * manually turn off the clock after the last character is sent 
+ *
+ * manually turn off the clock after the last character is sent
  *
  * count more than one interrupt because we don't know when the first one
- * will happen 
+ * will happen
 */
 void DisableUartSmClkIsr(void)
-{ 
+{
   DisableSmClkCounter++;
-  if ( DisableSmClkCounter > 2 ) 
+  if ( DisableSmClkCounter > 2 )
   {
     if ( TxBusy == 0 )
-    { 
+    {
       DisableSmClkUser(BT_DEBUG_UART_USER);
     }
-  
+
     /* if we are transmitting again then disable this timer */
     DisableRtcPrescaleInterruptUser(RTC_TIMER_USER_DEBUG_UART);
-  
+
   }
-  
+
 }
 
 #ifndef __IAR_SYSTEMS_ICC__
@@ -170,29 +166,29 @@ __interrupt void USCI_A3_ISR(void)
   case 0:break;                             // Vector 0 - no interrupt
   case 2:break;                             // Vector 2 - RXIFG
   case 4:                                   // Vector 4 - TXIFG
-    
+
     if ( TxCount == 0 )
     {
       UCA3IFG = 0;
       TxBusy = 0;
-      
+
       /* start the countdown to disable SMCLK */
-      DisableSmClkCounter = 0;  
+      DisableSmClkCounter = 0;
       EnableRtcPrescaleInterruptUser(RTC_TIMER_USER_DEBUG_UART);
-     
+
     }
     else
     {
       /* send a character */
       UCA3TXBUF = TxBuffer[ReadIndex];
       IncrementReadIndex();
-      TxCount--;  
+      TxCount--;
     }
     break;
-    
+
   default: break;
   }
-  
+
 }
 
 static void IncrementWriteIndex(void)
@@ -222,26 +218,26 @@ void ToDecimalString(unsigned int Value, tString * pString)
   unsigned char index = 0;
   unsigned int temp = 0;
   unsigned char first = 0;
-  
+
   unsigned char i;
   for ( i = 0; i < 5; i++ )
   {
     temp = Value / bar;
-    
+
     if ( temp > 0 || first || i == 4)
     {
       pString[index++] = temp + '0';
       first = 1;
     }
-    
+
     Value = Value % bar;
-    
+
     bar = bar / 10;
-    
+
   }
-    
+
   pString[index] = 0;
-  
+
 }
 
 
@@ -250,12 +246,12 @@ void IntToHexString(unsigned int Value, tString * pString)
 {
   unsigned char parts[4];
   unsigned char index = 0;
-  
+
   parts[3] = (0xF000 & Value) >> 12;
-  parts[2] = (0x0F00 & Value) >> 8; 
+  parts[2] = (0x0F00 & Value) >> 8;
   parts[1] = (0x00F0 & Value) >> 4;
   parts[0] = (0x000F & Value);
-    
+
   signed char i = 0;
   for ( i = 3; i > -1; i-- )
   {
@@ -267,23 +263,23 @@ void IntToHexString(unsigned int Value, tString * pString)
       {
         pString[index++] = parts[i] + '0';
       }
-    
+
     }
-    
+
   /* null */
   pString[index] = 0;
-  
+
   }
-    
+
 /*! convert a 8 bit value into a hexadecimal string */
 void ByteToHexString(unsigned char Value, tString * pString)
 {
   unsigned char parts[2];
   unsigned char index = 0;
-  
+
   parts[1] = (0x00F0 & Value) >> 4;
   parts[0] = (0x000F & Value);
-  
+
   signed char i = 0;
   for ( i = 1; i > -1; i-- )
   {
@@ -305,7 +301,7 @@ void ByteToHexString(unsigned char Value, tString * pString)
 /******************************************************************************/
 void PrintCharacter(char Character)
 {
-  WriteTxBuffer((tString *)&Character);  
+  WriteTxBuffer((tString *)&Character);
 }
 
 void PrintString(tString * const pString)
@@ -331,14 +327,14 @@ void PrintString3(tString * const pString1,
 void PrintDecimal(unsigned int Value)
 {
   ToDecimalString(Value,ConversionString);
-  WriteTxBuffer(ConversionString);  
+  WriteTxBuffer(ConversionString);
 }
 
 void PrintDecimalAndNewline(unsigned int Value)
 {
   ToDecimalString(Value,ConversionString);
   WriteTxBuffer(ConversionString);
-  WriteTxBuffer("\r\n");  
+  WriteTxBuffer("\r\n");
 }
 
 void PrintSignedDecimalAndNewline(signed int Value)
@@ -350,12 +346,12 @@ void PrintSignedDecimalAndNewline(signed int Value)
   }
   ToDecimalString(Value,ConversionString);
   WriteTxBuffer(ConversionString);
-  WriteTxBuffer("\r\n");  
+  WriteTxBuffer("\r\n");
 }
 
 void PrintStringAndDecimal(tString * const pString,unsigned int Value)
 {
-  WriteTxBuffer(pString);  
+  WriteTxBuffer(pString);
   ToDecimalString(Value,ConversionString);
   WriteTxBuffer(ConversionString);
   WriteTxBuffer("\r\n");
@@ -364,7 +360,7 @@ void PrintStringAndDecimal(tString * const pString,unsigned int Value)
 void PrintStringAndSpaceAndDecimal(tString * const pString,unsigned int Value)
 {
   WriteTxBuffer(pString);
-  WriteTxBuffer(" ");  
+  WriteTxBuffer(" ");
   ToDecimalString(Value,ConversionString);
   WriteTxBuffer(ConversionString);
   WriteTxBuffer("\r\n");
@@ -377,17 +373,17 @@ void PrintStringAndThreeDecimals(tString * const pString1,
                                  tString * const pString3,
                                  unsigned int Value3)
 {
-  WriteTxBuffer(pString1);  
+  WriteTxBuffer(pString1);
   ToDecimalString(Value1,ConversionString);
   WriteTxBuffer(ConversionString);
   WriteTxBuffer(" ");
-  
-  WriteTxBuffer(pString2);  
+
+  WriteTxBuffer(pString2);
   ToDecimalString(Value2,ConversionString);
   WriteTxBuffer(ConversionString);
   WriteTxBuffer(" ");
-  
-  WriteTxBuffer(pString3);  
+
+  WriteTxBuffer(pString3);
   ToDecimalString(Value3,ConversionString);
   WriteTxBuffer(ConversionString);
   WriteTxBuffer("\r\n");
@@ -397,7 +393,7 @@ void PrintStringSpaceAndTwoDecimals(tString * const pString1,
                                     unsigned int Value1,
                                     unsigned int Value2)
 {
-  WriteTxBuffer(pString1);  
+  WriteTxBuffer(pString1);
   WriteTxBuffer(" ");
   ToDecimalString(Value1,ConversionString);
   WriteTxBuffer(ConversionString);
@@ -413,7 +409,7 @@ void PrintStringSpaceAndThreeDecimals(tString * const pString1,
                                       unsigned int Value2,
                                       unsigned int Value3)
 {
-  WriteTxBuffer(pString1);  
+  WriteTxBuffer(pString1);
   WriteTxBuffer(" ");
   ToDecimalString(Value1,ConversionString);
   WriteTxBuffer(ConversionString);
@@ -428,17 +424,17 @@ void PrintStringSpaceAndThreeDecimals(tString * const pString1,
 
 void PrintStringAndHex(tString * const pString,unsigned int Value)
 {
-  WriteTxBuffer(pString);  
+  WriteTxBuffer(pString);
   IntToHexString(Value,ConversionString);
-  WriteTxBuffer(ConversionString);   
+  WriteTxBuffer(ConversionString);
   WriteTxBuffer("\r\n");
 }
 
 void PrintStringAndHexByte(tString * const pString,unsigned char Value)
 {
-  WriteTxBuffer(pString);  
+  WriteTxBuffer(pString);
   ByteToHexString(Value,ConversionString);
-  WriteTxBuffer(ConversionString);   
+  WriteTxBuffer(ConversionString);
   WriteTxBuffer("\r\n");
 }
 
@@ -450,7 +446,7 @@ void PrintTimeStamp(void)
   WriteTxBuffer(" ");
 }
 
-/* callback from FreeRTOS 
+/* callback from FreeRTOS
  *
  * if the bt stack is open and closed enough then memory becomes fragmented
  * enough so that a failure occurs
@@ -459,9 +455,9 @@ void PrintTimeStamp(void)
 void vApplicationMallocFailedHook(size_t xWantedSize)
 {
   PrintStringAndDecimal("Malloc failed: ",(unsigned int)xWantedSize);
-  
+
   int FreeBytes = xPortGetFreeHeapSize();
   PrintStringAndDecimal("FreeBytes: ",FreeBytes);
-  
-  __no_operation();
+
+  ForceWatchdogReset();
 }
