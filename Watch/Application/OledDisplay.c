@@ -1489,7 +1489,7 @@ static void DisplayAppAndStackVersionsOnBottomOled(void)
   BuildOledScreenAddString(VERSION_STRING);
   BuildOledScreenAddNewline();
   BuildOledScreenAddString("Stack ");
-  BuildOledScreenAddString(GetStackVersion());
+  BuildOledScreenAddString(GetWrapperVersion());
   BuildOledScreenSendToDisplay();
 }
 
