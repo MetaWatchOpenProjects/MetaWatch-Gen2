@@ -27,7 +27,7 @@
 #define UTILITIES_H
 
 #ifndef TASK_H
-  #error "Task.h must be included before Utilities.h"
+  #error "task.h must be included before Utilities.h"
 #endif
 
 #ifndef DEBUG_UART_H
