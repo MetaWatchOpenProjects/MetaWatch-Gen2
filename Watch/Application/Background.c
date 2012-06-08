@@ -721,7 +721,7 @@ static void NvalOperationHandler(tMessage* pMsg)
 
 void InitializeRstNmiConfiguration(void)
 {
-  nvRstNmiConfiguration = RST_PIN_ENABLED;
+  nvRstNmiConfiguration = RST_PIN_DISABLED;
   OsalNvItemInit(NVID_RSTNMI_CONFIGURATION,
                  sizeof(nvRstNmiConfiguration),
                  &nvRstNmiConfiguration);
