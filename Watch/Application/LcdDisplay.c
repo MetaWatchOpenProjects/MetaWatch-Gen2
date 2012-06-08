@@ -93,6 +93,7 @@ static void SetupSplashScreenTimeout(void);
 static void AllocateDisplayTimers(void);
 static void StopDisplayTimer(void);
 static void DetermineIdlePage(void);
+static void DrawVersionInfo(unsigned char RowHeight);
 
 static void DrawMenu1(void);
 static void DrawMenu2(void);
@@ -839,22 +840,7 @@ static void WatchStatusScreenHandler(void)
   gRow += 12;
   gColumn = 0;
   gBitColumnMask = BIT4;
-  WriteFontString("App ");
-  WriteFontString(VERSION_STRING);
-
-  /* stack version */
-  gRow += 12;
-  gColumn = 0;
-  gBitColumnMask = BIT4;
-  WriteFontString("Stack ");
-  WriteFontString(GetWrapperVersion());
-
-  /* add msp430 revision */
-  gRow +=12;
-  gColumn = 0;
-  gBitColumnMask = BIT4;
-  WriteFontString("MSP430 Rev ");
-  WriteFontCharacter(GetMsp430HardwareRevision());
+  DrawVersionInfo(12);
 
   /* display entire buffer */
   PrepareMyBufferForLcd(STARTING_ROW,NUM_LCD_ROWS);
@@ -875,6 +861,25 @@ static void WatchStatusScreenHandler(void)
 
 }
 
+static void DrawVersionInfo(unsigned char RowHeight)
+{
+  WriteFontString("App ");
+  WriteFontString(VERSION_STRING);
+  WriteFontString(" Msp430 ");
+  WriteFontCharacter(GetMsp430HardwareRevision());
+
+  /* stack version */
+  gRow += RowHeight;
+  gColumn = 0;
+  gBitColumnMask = BIT4;
+  tVersion Version = GetWrapperVersion();
+  WriteFontString("Stk ");
+  WriteFontString(Version.pSwVer);
+  WriteFontString(" ");
+  WriteFontString(Version.pBtVer);
+  WriteFontString(" ");
+  WriteFontString(Version.pHwVer);
+}
 
 /* the bar code should remain displayed until the button is pressed again
  * or another mode is started
@@ -996,16 +1001,7 @@ static void DrawConnectionScreen()
   gRow = 75;
   gColumn = 0;
   gBitColumnMask = BIT4;
-  WriteFontString("App ");
-  WriteFontString(VERSION_STRING);
-
-  /* and the stack version */
-  gRow = 85;
-  gColumn = 0;
-  gBitColumnMask = BIT4;
-  WriteFontString("Stack ");
-  WriteFontString(GetWrapperVersion());
-
+  DrawVersionInfo(10);
 }
 
 /* change the parameter but don't save it into flash */

@@ -40,8 +40,15 @@ void InitializeWrapperTask(void);
 */
 unsigned char SerialPortReadyToSleep(void);
 
+typedef struct
+{
+  char *pSwVer;
+  char *pHwVer;
+  char *pBtVer;
+} tVersion;
+
 /*! Return a pointer to the wrapper version string */
-tString * GetWrapperVersion(void);
+tVersion GetWrapperVersion(void);
 
 /******************************************************************************/
 
