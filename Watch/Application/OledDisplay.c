@@ -1483,25 +1483,31 @@ static void DisplayChargingStatus(void)
 
 static void DisplayAppAndStackVersionsOnBottomOled(void)
 { 
+  tVersion Version = GetWrapperVersion();
   StartBuildingOledScreen(BottomOled);
   SetFont(MetaWatch7Oled);
   BuildOledScreenAddString("App ");
   BuildOledScreenAddString(VERSION_STRING);
   BuildOledScreenAddNewline();
   BuildOledScreenAddString("Stack ");
-  BuildOledScreenAddString(GetWrapperVersion());
+  BuildOledScreenAddString(Version.pSwVer);
   BuildOledScreenSendToDisplay();
 }
 
 static void DisplayVersionsFace(void)
 {
+  tVersion Version = GetWrapperVersion();
   StartBuildingOledScreen(TopOled);
   SetFont(MetaWatch7Oled);
   BuildOledScreenAddString("MSP430 Rev ");
   BuildOledScreenAddCharacter(GetMsp430HardwareRevision());
+  BuildOledScreenAddNewline();
+  BuildOledScreenAddString(Version.pBtVer);
+  BuildOledScreenAddString(" CC");
+  BuildOledScreenAddString(Version.pHwVer);
   BuildOledScreenSendToDisplay();
   
-  DisplayAppAndStackVersionsOnBottomOled();    
+  DisplayAppAndStackVersionsOnBottomOled();
 }
 
 static void DisplayDateAndTimeFace(void)
@@ -2204,8 +2210,8 @@ static void ChangeModeHandler(unsigned char Mode)
     {
       PrintString("Already in Idle mode\r\n");
     }
-    
-    StopOneSecondTimer(ModeTimerId);
+    // if a client calls writebuffer followed by changemode, display will be on forever
+    //StopOneSecondTimer(ModeTimerId);
     break;
   
   case APPLICATION_MODE:
