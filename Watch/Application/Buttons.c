@@ -386,9 +386,13 @@ static void HandleButtonEvent(unsigned char ButtonIndex,
          */
         if ( Type == ButtonEventMsg )
         {
-          SetupMessageAndAllocateBuffer(&OutgoingEventMsg,Type,Options);
-          OutgoingEventMsg.pBuffer[0] = ButtonIndex;
-          OutgoingEventMsg.Length = 1;
+          SetupMessageAndAllocateBuffer(&OutgoingEventMsg, Type, Options);
+          OutgoingEventMsg.pBuffer[0] = QueryButtonMode();
+          OutgoingEventMsg.pBuffer[1] = ButtonIndex;
+          OutgoingEventMsg.pBuffer[2] = ButtonPressType;
+          OutgoingEventMsg.pBuffer[3] = Type;
+          OutgoingEventMsg.pBuffer[4] = Options;
+          OutgoingEventMsg.Length = 5;
         }
         else
         {
