@@ -464,7 +464,7 @@ static void IdleUpdateHandler(void)
     tMessage OutgoingMsg;
     SetupMessage(&OutgoingMsg,
                  UpdateDisplay,
-                 (IDLE_MODE | DONT_ACTIVATE_DRAW_BUFFER));
+                 (IDLE_MODE | FORCE_UPDATE));
     RouteMsg(&OutgoingMsg);
 
     CurrentIdlePage = NormalPage;
@@ -1779,7 +1779,11 @@ static void DisplayAmPm(void)
 static void DisplayDayOfWeek(void)
 {
   /* row offset = 0 or 10 , column offset = 8 */
-  WriteIcon4w10h(DaysOfWeek[RTCDOW], GetTimeFormat() == TWENTY_FOUR_HOUR ? 0 : 10, 8);
+  //WriteIcon4w10h(DaysOfWeek[RTCDOW], GetTimeFormat() == TWENTY_FOUR_HOUR ? 0 : 10, 8);
+  gRow = GetTimeFormat() == TWENTY_FOUR_HOUR ? 3 : 13;
+  gColumn = 8;
+  SetFont(MetaWatch7);
+  WriteFontString((tString *)DaysOfTheWeek[GetLanguage()][RTCDOW]);
 }
 
 static void DisplayDate(void)
@@ -1825,7 +1829,7 @@ static void DisplayDate(void)
     gBitColumnMask = BIT1;
     WriteFontCharacter(First/10+'0');
     WriteFontCharacter(First%10+'0');
-    WriteFontCharacter('/');
+    WriteFontCharacter(GetDateFormat() == MONTH_FIRST ? '/' : '.');
     WriteFontCharacter(Second/10+'0');
     WriteFontCharacter(Second%10+'0');
 
@@ -2076,7 +2080,7 @@ const unsigned char Pm[10*4] =
 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
 };
-
+/*
 const unsigned char DaysOfWeek[7][10*4] =
 {
 0x00,0x00,0x9C,0xA2,0x82,0x9C,0xA0,0xA2,0x1C,0x00,
@@ -2108,7 +2112,7 @@ const unsigned char DaysOfWeek[7][10*4] =
 0x00,0x00,0x03,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
 };
-
+*/
 
 static void DontChangeButtonConfiguration(void)
 {

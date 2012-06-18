@@ -92,15 +92,7 @@ void SetFont(etFontType Type)
 unsigned char MapDigitToIndex(unsigned char Digit)
 {
   /* default is a space (the first printable character) */
-  unsigned char Result = 0;
-
-  if ( Digit < 10 )
-  {
-    Result = Digit + 0x10;  
-  }
-  
-  return Result;
-  
+  return (Digit < 10 ? Digit + 0x10 : 0);
 }
 
 

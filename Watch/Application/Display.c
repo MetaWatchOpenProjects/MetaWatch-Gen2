@@ -137,21 +137,28 @@ unsigned char QueryFirstContact(void)
  * these are setup to match RTC 
  * days of week are 0-6 and months are 1-12 
  */
-const tString DaysOfTheWeek[][7] = 
+const tString DaysOfTheWeek[3][7][4] =
 {
-  "Sun","Mon","Tue","Wed","Thu","Fri","Sat"
+  {"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"},
+  {"su", "ma", "ti", "ke", "to", "pe", "la"},
+  {"So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"}
 };
 
-const tString MonthsOfYear[][13] = 
+const tString MonthsOfYear[3][13][7] =
 {
-  "???","Jan","Feb","Mar","Apr","May","June",
-  "July","Aug","Sep","Oct","Nov","Dec"
+  {"???","Jan","Feb","Mar","Apr","May","June",
+  "July","Aug","Sep","Oct","Nov","Dec"},
+  {"???","tami", "helmi", "maalis", "huhti", "touko", "kesä",
+   "heinä", "elo", "syys", "loka", "marras", "joulu"},
+  {"???","Jan","Feb","Mar","Apr","Mai","Jun",
+   "Jul","Aug","Sep","Okt","Nov","Dez"}
 };
 
 /******************************************************************************/
 
 static unsigned char nvTimeFormat;
 static unsigned char nvDateFormat;
+static unsigned char nvLanguage;
 
 void InitializeTimeFormat(void)
 {
@@ -160,8 +167,6 @@ void InitializeTimeFormat(void)
   OsalNvItemInit(NVID_TIME_FORMAT, 
                  sizeof(nvTimeFormat), 
                  &nvTimeFormat);
-
-
 }
 
 void InitializeDateFormat(void)
@@ -171,7 +176,14 @@ void InitializeDateFormat(void)
   OsalNvItemInit(NVID_DATE_FORMAT, 
                  sizeof(nvDateFormat), 
                  &nvDateFormat);
-  
+}
+
+unsigned char InitializeLanguage(void)
+{
+  nvLanguage = LANG_EN;
+  OsalNvItemInit(NVID_LANGUAGE, 
+                 sizeof(nvLanguage), 
+                 &nvLanguage);
 }
 
 unsigned char GetTimeFormat(void)
@@ -182,6 +194,11 @@ unsigned char GetTimeFormat(void)
 unsigned char GetDateFormat(void)
 {
   return nvDateFormat;
+}
+
+unsigned char GetLanguage(void)
+{
+  return nvLanguage;
 }
 
 /******************************************************************************/

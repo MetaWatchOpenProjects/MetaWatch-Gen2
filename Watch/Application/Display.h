@@ -110,10 +110,10 @@ void ClearFirstContact(void);
 unsigned char QueryFirstContact(void);
 
 /*! Strings for days of the week in the same order as RTC */
-extern const tString DaysOfTheWeek[][7];
+extern const tString DaysOfTheWeek[][7][4];
 
 /*! Strings for months of the year in the same format as RTC */
-extern const tString MonthsOfYear[][13];
+extern const tString MonthsOfYear[][13][7];
 
 /******************************************************************************/
 
@@ -128,6 +128,11 @@ extern const tString MonthsOfYear[][13];
 /*! Display the day before the month */
 #define DAY_FIRST   ( 1 )
 
+/*! Languages */ 
+#define LANG_EN (0)
+#define LANG_FI (1)
+#define LANG_DE (2)
+
 /*! Initaliaze the non-volatile item that holds the time format (which is 12 or
  * 24 hour )
 */
@@ -138,11 +143,15 @@ void InitializeTimeFormat(void);
 */
 void InitializeDateFormat(void);
 
+void InitaliazeLanguage(void);
+
 /*! \return Time Format TWELVE_HOUR = 0, TWENTY_FOUR_HOUR = 1 */
 unsigned char GetTimeFormat(void);
 
 /*! \return date format MONTH_FIRST = 0, DAY_FIRST = 1 */
 unsigned char GetDateFormat(void);
+
+unsigned char GetLanguage(void);
 
 /******************************************************************************/
 
