@@ -464,7 +464,7 @@ static void IdleUpdateHandler(void)
     tMessage OutgoingMsg;
     SetupMessage(&OutgoingMsg,
                  UpdateDisplay,
-                 (IDLE_MODE | FORCE_UPDATE));
+                 (IDLE_MODE | DONT_ACTIVATE_DRAW_BUFFER));
     RouteMsg(&OutgoingMsg);
 
     CurrentIdlePage = NormalPage;
