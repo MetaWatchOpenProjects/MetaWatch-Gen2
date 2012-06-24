@@ -269,12 +269,11 @@ static void BackgroundMessageHandler(tMessage* pMsg)
 
   switch(pMsg->Type)
   {
-    case SetCallbackTimerMsg:
-      SetCallbackTimerHandler(pMsg);
-      break;
+  case SetCallbackTimerMsg:
+    SetCallbackTimerHandler(pMsg);
+    break;
 
   case GetDeviceType:
-
     SetupMessageAndAllocateBuffer(&OutgoingMsg,
                                   GetDeviceTypeResponse,
                                   NO_MSG_OPTIONS);
@@ -282,7 +281,6 @@ static void BackgroundMessageHandler(tMessage* pMsg)
     OutgoingMsg.pBuffer[0] = BOARD_TYPE;
     OutgoingMsg.Length = 1;
     RouteMsg(&OutgoingMsg);
-
     break;
 
   case AdvanceWatchHandsMsg:
@@ -303,7 +301,6 @@ static void BackgroundMessageHandler(tMessage* pMsg)
     break;
 
   case GetRealTimeClock:
-
     SetupMessageAndAllocateBuffer(&OutgoingMsg,
                                   GetRealTimeClockResponse,
                                   NO_MSG_OPTIONS);
@@ -331,7 +328,7 @@ static void BackgroundMessageHandler(tMessage* pMsg)
     /* update the screen if there has been a change in charging status */
     if ( BatteryChargingControl() )
     {
-      SetupMessage(&OutgoingMsg,IdleUpdate,NO_MSG_OPTIONS);
+      SetupMessage(&OutgoingMsg, IdleUpdate, NO_MSG_OPTIONS);
       RouteMsg(&OutgoingMsg);
     }
 #endif

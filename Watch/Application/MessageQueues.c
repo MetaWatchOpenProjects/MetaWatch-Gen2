@@ -239,7 +239,7 @@ void PrintMessageType(tMessage* pMsg)
   case GeneralPurposePhoneMsg:     PrintStringAndHexByte("GeneralPurposePhoneMsg 0x",MessageType); break;
   case GeneralPurposeWatchMsg:     PrintStringAndHexByte("GeneralPurposeWatchMsg 0x",MessageType); break;
   case ButtonEventMsg:             PrintStringAndHexByte("ButtonEventMsg 0x",MessageType);         break;
-  case WriteBuffer:                PrintStringAndHexByte("WriteBuffer 0x",MessageType);            break;
+  case WriteBuffer:                /*PrintStringAndHexByte("WriteBuffer 0x",MessageType);*/            break;
   case ConfigureDisplay:           PrintStringAndHexByte("ConfigureDisplay 0x",MessageType);       break;
   case ConfigureIdleBufferSize:    PrintStringAndHexByte("ConfigureIdleBufferSize 0x",MessageType);break;
   case UpdateDisplay:              PrintStringAndHexByte("UpdateDisplay 0x",MessageType);          break;
@@ -248,11 +248,11 @@ void PrintMessageType(tMessage* pMsg)
   case DisableButtonMsg:           PrintStringAndHexByte("DisableButtonMsg 0x",MessageType);       break;
   case ReadButtonConfigMsg:        PrintStringAndHexByte("ReadButtonConfigMsg 0x",MessageType);    break;
   case ReadButtonConfigResponse:   PrintStringAndHexByte("ReadButtonConfigResponse 0x",MessageType);break;
-  case BatteryChargeControl:       PrintStringAndHexByte("BatteryChargeControl 0x",MessageType);   break;
-  case IdleUpdate:                 PrintStringAndHexByte("IdleUpdate 0x",MessageType);             break;
+  case BatteryChargeControl:       /*PrintStringAndHexByte("BatteryChargeControl 0x",MessageType);*/   break;
+  case IdleUpdate:                 /*PrintStringAndHexByte("IdleUpdate 0x",MessageType);*/             break;
   case WatchDrawnScreenTimeout:    PrintStringAndHexByte("WatchDrawnScreenTimeout 0x",MessageType);break;
   case SplashTimeoutMsg:           PrintStringAndHexByte("SplashTimeoutMsg 0x",MessageType);       break;
-  case ChangeModeMsg:              PrintStringAndHexByte("ChangeModeMsg 0x",MessageType);          break;
+  case ChangeModeMsg:              /*PrintStringAndHexByte("ChangeModeMsg 0x",MessageType);*/          break;
   case ModeTimeoutMsg:             PrintStringAndHexByte("ModeTimeoutMsg 0x",MessageType);         break;
   case WatchStatusMsg:             PrintStringAndHexByte("WatchStatusMsg 0x",MessageType);         break;
   case MenuModeMsg:                PrintStringAndHexByte("MenuModeMsg 0x",MessageType);            break;
@@ -286,8 +286,9 @@ void PrintMessageType(tMessage* pMsg)
   case LowBatteryBtOffMsg:         PrintStringAndHexByte("LowBatteryBtOffMsg 0x",MessageType);         break; 
   case RadioPowerControlMsg:       PrintStringAndHexByte("RadioPowerControlMsg 0x",MessageType);       break;
   case AdvertisingDataMsg:         PrintStringAndHexByte("AdvertisingDataMsg 0x",MessageType);         break;
-  case CallbackTimeoutMsg:         PrintStringAndHexByte("CallbackTimeoutMsg 0x",MessageType);         break;
+  case CallbackTimeoutMsg:         /*PrintStringAndHexByte("CallbackTimeoutMsg 0x",MessageType);*/         break;
   case SetCallbackTimerMsg:        PrintStringAndHexByte("SetCallbackTimerMsg 0x",MessageType);        break;
+  case UpdateConnParameterMsg:     PrintStringAndHexByte("UpdateConnParameterMsg 0x",MessageType);     break;
   default:                         PrintStringAndHexByte("Unknown Message Type 0x",MessageType);       break;
   }  
   
@@ -396,6 +397,7 @@ void RouteMsg(tMessage* pMsg)
     case CallbackTimeoutMsg:            SendMsgToQ(SPP_TASK_QINDEX,pMsg);   break;
     case SetCallbackTimerMsg:           SendMsgToQ(BACKGROUND_QINDEX,pMsg); break;
     case RadioPowerControlMsg:          SendMsgToQ(SPP_TASK_QINDEX,pMsg);   break;
+    case UpdateConnParameterMsg:        SendMsgToQ(SPP_TASK_QINDEX,pMsg);   break;
     default:                            SendMsgToQ(FREE_QINDEX,pMsg);       break;
     }
   }

@@ -33,10 +33,10 @@
 /*! Crystal timer 1 is used by the serial port profile */
 #define CRYSTAL_TIMER_ID1 ( 1 )
 
-/*! Crystal timer 1 is used by the OLED display task */
+/*! Crystal timer 2 is used by the OLED display task */
 #define CRYSTAL_TIMER_ID2 ( 2 )
 
-/*! Crystal timer 3 is unused */
+/*! Crystal timer 3 is used by BLE */
 #define CRYSTAL_TIMER_ID3 ( 3 )
 
 /*! Crystal timer 4 is unused */

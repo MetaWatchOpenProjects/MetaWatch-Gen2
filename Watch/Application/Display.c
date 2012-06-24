@@ -102,7 +102,8 @@ unsigned char * QueryConnectionStateAndGetString(void)
   case ServerFailure:      pString = "ServerFail";   break;
   case RadioOn:            pString = "RadioOn";      break;
   case Paired:             pString = "Paired";       break;
-  case Connected:          pString = "Connected";    break;
+  case BRConnected:        pString = "Connected";    break;
+  case LEConnected:        pString = "Connected";    break;
   case RadioOff:           pString = "RadioOff";     break;
   case RadioOffLowBattery: pString = "RadioOff";     break;
   case ShippingMode:       pString = "ShippingMode"; break;
@@ -114,21 +115,16 @@ unsigned char * QueryConnectionStateAndGetString(void)
 
 /******************************************************************************/
 
-unsigned char FirstContact;
+static unsigned char ConnectedOnce = 0;
 
-void SetFirstContact(void)
+void SetOnceConnected(unsigned char Once)
 {
-  FirstContact = 1;
+  ConnectedOnce = Once;
 }
 
-void ClearFirstContact(void)
+unsigned char OnceConnected(void)
 {
-  FirstContact = 0;  
-}
-
-unsigned char QueryFirstContact(void)
-{
-  return FirstContact;  
+  return ConnectedOnce;
 }
 
 /******************************************************************************/
@@ -178,7 +174,7 @@ void InitializeDateFormat(void)
                  &nvDateFormat);
 }
 
-unsigned char InitializeLanguage(void)
+void InitializeLanguage(void)
 {
   nvLanguage = LANG_EN;
   OsalNvItemInit(NVID_LANGUAGE, 

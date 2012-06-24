@@ -1399,7 +1399,7 @@ static void WatchStatusHandler(tMessage* pMsg)
 
   /* don't display time if the phone has not been connected */  
   if (   WatchStatusIndex == WATCH_STATUS_DATE_TIME_FACE 
-      && QueryFirstContact() == 0)
+      && OnceConnected() == 0)
   {
     WatchStatusIndex++;  
   }

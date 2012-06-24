@@ -60,13 +60,11 @@ xTaskHandle DisplayHandle;
 static void DisplayTask(void *pvParameters);
 
 static void DisplayQueueMessageHandler(tMessage* pMsg);
-static void SendMyBufferToLcd(unsigned char TotalRows);
 
 static tMessage DisplayMsg;
-
 static tTimerId DisplayTimerId;
 static unsigned char RtcUpdateEnable;
-
+static unsigned char lastMin = 61;
 /* Message handlers */
 
 static void IdleUpdateHandler(void);
@@ -76,7 +74,7 @@ static void WatchStatusScreenHandler(void);
 static void BarCodeHandler(tMessage* pMsg);
 static void ListPairedDevicesHandler(void);
 static void ConfigureDisplayHandler(tMessage* pMsg);
-static void ConfigureIdleBuferSizeHandler(tMessage* pMsg);
+static void ConfigureIdleBufferSizeHandler(tMessage* pMsg);
 static void ModifyTimeHandler(tMessage* pMsg);
 static void MenuModeHandler(unsigned char MsgOptions);
 static void MenuButtonHandler(unsigned char MsgOptions);
@@ -84,8 +82,7 @@ static void ToggleSecondsHandler(unsigned char MsgOptions);
 static void ConnectionStateChangeHandler(void);
 
 /******************************************************************************/
-static void DrawIdleScreen(void);
-static void DrawSimpleIdleScreen(void);
+static void DrawDateTime(unsigned char OnceConnected);
 static void DrawConnectionScreen(void);
 static void InitMyBuffer(void);
 static void DisplayStartupScreen(void);
@@ -104,9 +101,8 @@ static void FillMyBuffer(unsigned char StartingRow,
                          unsigned char NumberOfRows,
                          unsigned char FillValue);
 
-static void PrepareMyBufferForLcd(unsigned char StartingRow,
-                                  unsigned char NumberOfRows);
-
+static void SendMyBufferToLcd(unsigned char StartingRow,
+                              unsigned char NumberOfRows);
 
 static void CopyRowsIntoMyBuffer(unsigned char const* pImage,
                                  unsigned char StartingRow,
@@ -180,20 +176,16 @@ static void SetupNormalIdleScreenButtons(void);
 
 /******************************************************************************/
 
-//
 const unsigned char pBarCodeImage[NUM_LCD_ROWS*NUM_LCD_COL_BYTES];
 const unsigned char pMetaWatchSplash[NUM_LCD_ROWS*NUM_LCD_COL_BYTES];
 const unsigned char Am[10*4];
 const unsigned char Pm[10*4];
-const unsigned char DaysOfWeek[7][10*4];
+//const unsigned char DaysOfWeek[7][10*4];
 
 /******************************************************************************/
 
 static unsigned char LastMode = IDLE_MODE;
 static unsigned char CurrentMode = IDLE_MODE;
-
-//static unsigned char ReturnToApplicationMode;
-
 
 /******************************************************************************/
 
@@ -298,8 +290,7 @@ static void DisplayStartupScreen(void)
 {
   /* draw metawatch logo */
   CopyRowsIntoMyBuffer(pMetaWatchSplash,STARTING_ROW,NUM_LCD_ROWS);
-  PrepareMyBufferForLcd(STARTING_ROW,NUM_LCD_ROWS);
-  SendMyBufferToLcd(NUM_LCD_ROWS);
+  SendMyBufferToLcd(STARTING_ROW,NUM_LCD_ROWS);
 }
 
 /*! Handle the messages routed to the display queue */
@@ -323,7 +314,7 @@ static void DisplayQueueMessageHandler(tMessage* pMsg)
     break;
 
   case IdleUpdate:
-    IdleUpdateHandler();
+      if (CurrentMode == IDLE_MODE) IdleUpdateHandler();
     break;
 
   case ChangeModeMsg:
@@ -355,7 +346,7 @@ static void DisplayQueueMessageHandler(tMessage* pMsg)
     break;
 
   case ConfigureIdleBufferSize:
-    ConfigureIdleBuferSizeHandler(pMsg);
+    ConfigureIdleBufferSizeHandler(pMsg);
     break;
 
   case ConnectionStateChangeMsg:
@@ -435,57 +426,43 @@ static inline void StopDisplayTimer(void)
 /*! Draw the Idle screen and cause the remainder of the display to be updated
  * also
  */
-static void IdleUpdateHandler(void)
+static void IdleUpdateHandler()
 {
   StopDisplayTimer();
 
   /* allow rtc to send IdleUpdate every minute (or second) */
   RtcUpdateEnable = 1;
 
-  /* determine if the bottom of the screen should be drawn by the watch */
-  if ( QueryFirstContact() )
+  if (OnceConnected() && nvIdleBufferConfig == WATCH_CONTROLS_TOP || !OnceConnected())
   {
-    /*
-     * immediately update the screen
-     */
-    if ( nvIdleBufferConfig == WATCH_CONTROLS_TOP )
-    {
-      /* only draw watch part */
-      FillMyBuffer(STARTING_ROW,WATCH_DRAWN_IDLE_BUFFER_ROWS,0x00);
-      DrawIdleScreen();
-      PrepareMyBufferForLcd(STARTING_ROW,WATCH_DRAWN_IDLE_BUFFER_ROWS);
-      SendMyBufferToLcd(WATCH_DRAWN_IDLE_BUFFER_ROWS);
-    }
-
-    /* now update the remainder of the display */
-    /*! make a dirty flag for the idle page drawn by the phone
-     * set it whenever watch uses whole screen
-     */
-    tMessage OutgoingMsg;
-    SetupMessage(&OutgoingMsg,
-                 UpdateDisplay,
-                 (IDLE_MODE | DONT_ACTIVATE_DRAW_BUFFER));
-    RouteMsg(&OutgoingMsg);
-
-    CurrentIdlePage = NormalPage;
-    ConfigureIdleUserInterfaceButtons();
-
+    /* draw the date & time area */
+    FillMyBuffer(STARTING_ROW, WATCH_DRAWN_IDLE_BUFFER_ROWS, 0x00);
+    DrawDateTime(OnceConnected());
+    SendMyBufferToLcd(STARTING_ROW, WATCH_DRAWN_IDLE_BUFFER_ROWS);
   }
-  else
+  
+  if (!OnceConnected())
   {
     DetermineIdlePage();
-
-    FillMyBuffer(STARTING_ROW,NUM_LCD_ROWS,0x00);
-    DrawSimpleIdleScreen();
-    DrawConnectionScreen();
-
-    PrepareMyBufferForLcd(STARTING_ROW,NUM_LCD_ROWS);
-    SendMyBufferToLcd(NUM_LCD_ROWS);
-
-    ConfigureIdleUserInterfaceButtons();
-
+    if (CurrentIdlePage != LastIdlePage)
+    {
+      PrintString("update lower");
+      FillMyBuffer(STARTING_ROW + WATCH_DRAWN_IDLE_BUFFER_ROWS, 
+                   PHONE_IDLE_BUFFER_ROWS, 0x00);
+      DrawConnectionScreen();
+      SendMyBufferToLcd(STARTING_ROW + WATCH_DRAWN_IDLE_BUFFER_ROWS, 
+                        PHONE_IDLE_BUFFER_ROWS);
+    }
   }
-
+  else if (CurrentIdlePage != NormalPage || CurrentMode != LastMode)
+  {
+    CurrentIdlePage = NormalPage;
+    tMessage OutgoingMsg;
+    SetupMessage(&OutgoingMsg, UpdateDisplay, IDLE_MODE | FORCE_UPDATE);
+    RouteMsg(&OutgoingMsg);
+  }
+  
+  ConfigureIdleUserInterfaceButtons();  
 }
 
 static void DetermineIdlePage(void)
@@ -498,7 +475,8 @@ static void DetermineIdlePage(void)
   case ServerFailure:      CurrentIdlePage = BluetoothOffPage;              break;
   case RadioOn:            CurrentIdlePage = RadioOnWithoutPairingInfoPage; break;
   case Paired:             CurrentIdlePage = RadioOnWithPairingInfoPage;    break;
-  case Connected:          CurrentIdlePage = NormalPage;                    break;
+  case LEConnected:        CurrentIdlePage = NormalPage;                    break;
+  case BRConnected:        CurrentIdlePage = NormalPage;                    break;
   case RadioOff:           CurrentIdlePage = BluetoothOffPage;              break;
   case RadioOffLowBattery: CurrentIdlePage = BluetoothOffPage;              break;
   case ShippingMode:       CurrentIdlePage = BluetoothOffPage;              break;
@@ -513,9 +491,7 @@ static void DetermineIdlePage(void)
       CurrentIdlePage = RadioOnWithPairingInfoPage;
     }
   }
-
 }
-
 
 static void ConnectionStateChangeHandler(void)
 {
@@ -591,6 +567,7 @@ unsigned char QueryButtonMode(void)
 
   return result;
 }
+
 static void ChangeModeHandler(tMessage* pMsg)
 {
   LastMode = CurrentMode;
@@ -680,17 +657,7 @@ static void ChangeModeHandler(tMessage* pMsg)
     OutgoingMsg.pBuffer[0] = (unsigned char)eScUpdateComplete;
     OutgoingMsg.Length = 1;
     RouteMsg(&OutgoingMsg);
-
-//    if ( LastMode == APPLICATION_MODE )
-//    {
-//      ReturnToApplicationMode = 1;
-//    }
-//    else
-//    {
-//      ReturnToApplicationMode = 0;
-//    }
   }
-
 }
 
 static void ModeTimeoutHandler(tMessage* pMsg)
@@ -705,6 +672,8 @@ static void ModeTimeoutHandler(tMessage* pMsg)
   case NOTIFICATION_MODE:
   case SCROLL_MODE:
     /* go back to idle mode */
+    LastMode = CurrentMode;
+    CurrentMode = IDLE_MODE;
     IdleUpdateHandler();
     break;
 
@@ -843,8 +812,7 @@ static void WatchStatusScreenHandler(void)
   DrawVersionInfo(12);
 
   /* display entire buffer */
-  PrepareMyBufferForLcd(STARTING_ROW,NUM_LCD_ROWS);
-  SendMyBufferToLcd(NUM_LCD_ROWS);
+  SendMyBufferToLcd(STARTING_ROW,NUM_LCD_ROWS);
 
   CurrentIdlePage = WatchStatusPage;
   ConfigureIdleUserInterfaceButtons();
@@ -893,8 +861,7 @@ static void BarCodeHandler(tMessage* pMsg)
   CopyRowsIntoMyBuffer(pBarCodeImage,STARTING_ROW,NUM_LCD_ROWS);
 
   /* display entire buffer */
-  PrepareMyBufferForLcd(STARTING_ROW,NUM_LCD_ROWS);
-  SendMyBufferToLcd(NUM_LCD_ROWS);
+  SendMyBufferToLcd(STARTING_ROW,NUM_LCD_ROWS);
 
   CurrentIdlePage = QrCodePage;
   ConfigureIdleUserInterfaceButtons();
@@ -952,8 +919,7 @@ static void ListPairedDevicesHandler(void)
 
   }
 
-  PrepareMyBufferForLcd(STARTING_ROW,NUM_LCD_ROWS);
-  SendMyBufferToLcd(NUM_LCD_ROWS);
+  SendMyBufferToLcd(STARTING_ROW,NUM_LCD_ROWS);
 
   CurrentIdlePage = ListPairedDevicesPage;
   ConfigureIdleUserInterfaceButtons();
@@ -1030,8 +996,7 @@ static void ConfigureDisplayHandler(tMessage* pMsg)
 
 }
 
-
-static void ConfigureIdleBuferSizeHandler(tMessage* pMsg)
+static void ConfigureIdleBufferSizeHandler(tMessage* pMsg)
 {
   nvIdleBufferConfig = pMsg->pBuffer[0] & IDLE_BUFFER_CONFIG_MASK;
 
@@ -1042,7 +1007,6 @@ static void ConfigureIdleBuferSizeHandler(tMessage* pMsg)
       IdleUpdateHandler();
     }
   }
-
 }
 
 static void ModifyTimeHandler(tMessage* pMsg)
@@ -1079,13 +1043,6 @@ unsigned char GetIdleBufferConfiguration(void)
   return nvIdleBufferConfig;
 }
 
-
-static void SendMyBufferToLcd(unsigned char TotalRows)
-{
-  UpdateMyDisplay((unsigned char*)pMyBuffer,TotalRows);
-}
-
-
 static void InitMyBuffer(void)
 {
   int row;
@@ -1103,8 +1060,6 @@ static void InitMyBuffer(void)
 
     }
   }
-
-
 }
 
 
@@ -1127,8 +1082,7 @@ static void FillMyBuffer(unsigned char StartingRow,
 
 }
 
-static void PrepareMyBufferForLcd(unsigned char StartingRow,
-                                  unsigned char NumberOfRows)
+static void SendMyBufferToLcd(unsigned char StartingRow, unsigned char NumberOfRows)
 {
   int row = StartingRow;
   int col;
@@ -1147,7 +1101,8 @@ static void PrepareMyBufferForLcd(unsigned char StartingRow,
       }
     }
   }
-
+  tLcdLine *pStartLcdLine = &pMyBuffer[StartingRow];
+  UpdateMyDisplay((unsigned char*)pStartLcdLine, NumberOfRows);
 }
 
 
@@ -1207,7 +1162,7 @@ static void CopyColumnsIntoMyBuffer(unsigned char const* pImage,
 
 }
 
-static void DrawIdleScreen(void)
+static void DrawDateTime(unsigned char OnceConnected)
 {
   unsigned char msd;
   unsigned char lsd;
@@ -1218,16 +1173,10 @@ static void DrawIdleScreen(void)
   /* if required convert to twelve hour format */
   if ( GetTimeFormat() == TWELVE_HOUR )
   {
-    if ( Hour == 0 )
-    {
-      Hour = 12;
-    }
-    else if ( Hour > 12 )
-    {
-      Hour -= 12;
-    }
+    Hour %= 12;
+    if (Hour == 0) Hour = 12;
   }
-
+  
   msd = Hour / 10;
   lsd = Hour % 10;
 
@@ -1268,10 +1217,9 @@ static void DrawIdleScreen(void)
     WriteFontCharacter(lsd);
 
   }
-  else /* now things starting getting fun....*/
+  else if (OnceConnected) /* now things starting getting fun....*/
   {
-    DisplayAmPm();
-
+    if ( GetTimeFormat() == TWELVE_HOUR ) DisplayAmPm();
     if ( QueryBluetoothOn() == 0 )
     {
       CopyColumnsIntoMyBuffer(pBluetoothOffIdlePageIcon,
@@ -1318,77 +1266,12 @@ static void DrawIdleScreen(void)
       }
     }
   }
-
-}
-
-static void DrawSimpleIdleScreen(void)
-{
-  unsigned char msd;
-  unsigned char lsd;
-
-  /* display hour */
-  int Hour = RTCHOUR;
-
-  /* if required convert to twelve hour format */
-  if ( GetTimeFormat() == TWELVE_HOUR )
-  {
-    if ( Hour == 0 )
-    {
-      Hour = 12;
-    }
-    else if ( Hour > 12 )
-    {
-      Hour -= 12;
-    }
-  }
-
-  msd = Hour / 10;
-  lsd = Hour % 10;
-
-  gRow = 6;
-  gColumn = 0;
-  gBitColumnMask = BIT4;
-  SetFont(MetaWatchTime);
-
-  /* if first digit is zero then leave location blank */
-  if ( msd == 0 && GetTimeFormat() == TWELVE_HOUR )
-  {
-    WriteFontCharacter(TIME_CHARACTER_SPACE_INDEX);
-  }
   else
   {
-    WriteFontCharacter(msd);
-  }
-  WriteFontCharacter(lsd);
-
-  WriteFontCharacter(TIME_CHARACTER_COLON_INDEX);
-
-  /* display minutes */
-  int Minutes = RTCMIN;
-  msd = Minutes / 10;
-  lsd = Minutes % 10;
-  WriteFontCharacter(msd);
-  WriteFontCharacter(lsd);
-
-  if ( nvDisplaySeconds )
-  {
-    int Seconds = RTCSEC;
-    msd = Seconds / 10;
-    lsd = Seconds % 10;
-
-    WriteFontCharacter(TIME_CHARACTER_COLON_INDEX);
-    WriteFontCharacter(msd);
-    WriteFontCharacter(lsd);
-
-  }
-  else
-  {
-    DisplayAmPm();
+    if ( GetTimeFormat() == TWELVE_HOUR ) DisplayAmPm();
     DisplayDayOfWeek();
     DisplayDate();
-
   }
-
 }
 
 static void MenuModeHandler(unsigned char MsgOptions)
@@ -1444,11 +1327,7 @@ static void MenuModeHandler(unsigned char MsgOptions)
   DrawCommonMenuIcons();
 
   /* only invert the part that was just drawn */
-  PrepareMyBufferForLcd(STARTING_ROW,NUM_LCD_ROWS);
-  SendMyBufferToLcd(NUM_LCD_ROWS);
-
-  /* MENU MODE DOES NOT TIMEOUT */
-
+  SendMyBufferToLcd(STARTING_ROW,NUM_LCD_ROWS);
 }
 
 static void DrawMenu1(void)
@@ -1670,7 +1549,6 @@ static void MenuButtonHandler(unsigned char MsgOptions)
     /* go back to the normal idle screen */
     SetupMessage(&OutgoingMsg,IdleUpdate,NO_MSG_OPTIONS);
     RouteMsg(&OutgoingMsg);
-
     break;
 
   case MENU_BUTTON_OPTION_TOGGLE_BLUETOOTH:
@@ -1718,14 +1596,7 @@ static void MenuButtonHandler(unsigned char MsgOptions)
     break;
 
   case MENU_BUTTON_OPTION_INVERT_DISPLAY:
-    if ( nvIdleBufferInvert == 1 )
-    {
-      nvIdleBufferInvert = 0;
-    }
-    else
-    {
-      nvIdleBufferInvert = 1;
-    }
+    nvIdleBufferInvert = !nvIdleBufferInvert;
     MenuModeHandler(MENU_MODE_OPTION_UPDATE_CURRENT_PAGE);
     break;
 
@@ -1737,43 +1608,19 @@ static void MenuButtonHandler(unsigned char MsgOptions)
 
 static void ToggleSecondsHandler(unsigned char Options)
 {
-  if ( nvDisplaySeconds == 0 )
-  {
-    nvDisplaySeconds = 1;
-  }
-  else
-  {
-    nvDisplaySeconds = 0;
-  }
+  nvDisplaySeconds = !nvDisplaySeconds;
 
   if ( Options == TOGGLE_SECONDS_OPTIONS_UPDATE_IDLE )
   {
     IdleUpdateHandler();
   }
-
 }
 
 static void DisplayAmPm(void)
 {
-  /* don't display am/pm in 24 hour mode */
-  if ( GetTimeFormat() == TWELVE_HOUR )
-  {
-    int Hour = RTCHOUR;
-
-    unsigned char const *pIcon;
-
-    if ( Hour >= 12 )
-    {
-      pIcon = Pm;
-    }
-    else
-    {
-      pIcon = Am;
-    }
-
-    WriteIcon4w10h(pIcon,0,8);
-  }
-
+  int Hour = RTCHOUR;
+  unsigned char const *pIcon = ( Hour >= 12 ) ? Pm : Am;
+  WriteIcon4w10h(pIcon,0,8);
 }
 
 static void DisplayDayOfWeek(void)
@@ -1788,7 +1635,7 @@ static void DisplayDayOfWeek(void)
 
 static void DisplayDate(void)
 {
-  if ( QueryFirstContact() )
+  if ( OnceConnected() )
   {
     int First;
     int Second;
@@ -2672,36 +2519,26 @@ void WriteFontString(tString *pString)
 
 unsigned char QueryIdlePageNormal(void)
 {
-  if ( CurrentIdlePage == NormalPage )
-  {
-    return 1;
-  }
-  else
-  {
-    return 0;
-  };
-
+  return (CurrentIdlePage == NormalPage);
 }
 
 unsigned char LcdRtcUpdateHandlerIsr(void)
 {
   unsigned char ExitLpm = 0;
-
   unsigned int RtcSeconds = RTCSEC;
 
   if ( RtcUpdateEnable )
   {
     /* send a message every second or once a minute */
-    if (   QueryDisplaySeconds()
-        || RtcSeconds == 0 )
+    if (QueryDisplaySeconds() || lastMin != RTCMIN)
     {
+      lastMin = RTCMIN;
       tMessage Msg;
-      SetupMessage(&Msg,IdleUpdate,NO_MSG_OPTIONS);
-      SendMessageToQueueFromIsr(DISPLAY_QINDEX,&Msg);
+      SetupMessage(&Msg, IdleUpdate, NO_MSG_OPTIONS);
+      SendMessageToQueueFromIsr(DISPLAY_QINDEX, &Msg);
       ExitLpm = 1;
     }
   }
 
   return ExitLpm;
-
 }

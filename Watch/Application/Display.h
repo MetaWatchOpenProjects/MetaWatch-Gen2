@@ -94,20 +94,16 @@ unsigned char GetMsp430HardwareRevision(void);
 unsigned char * QueryConnectionStateAndGetString(void);
 
 
-/*! This is called by the stack to set the FirstContact variable.  This 
+/*! This is called by the stack to set the OnceConnected variable.  This 
  * variable is used to determine if the phone has connected for the first time
  */
-void SetFirstContact(void);
-
-/*! Clear the first contact flag */
-void ClearFirstContact(void);
-
+void SetOnceConnected(unsigned char Once);
 
 /*! Query the FirstContact Flag
  *
  * \return 1 = phone has been connected, 0 otherwise
  */
-unsigned char QueryFirstContact(void);
+unsigned char OnceConnected(void);
 
 /*! Strings for days of the week in the same order as RTC */
 extern const tString DaysOfTheWeek[][7][4];

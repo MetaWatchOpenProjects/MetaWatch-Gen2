@@ -1,5 +1,5 @@
 //==============================================================================
-//  Copyright 2011 Meta Watch Ltd. - http://www.MetaWatch.org/
+//  Copyright 2012 Meta Watch Ltd. - http://www.MetaWatch.org/
 // 
 //  Licensed under the Meta Watch License, Version 1.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -64,11 +64,11 @@ typedef enum
   ServerFailure,
   RadioOn,
   Paired,
-  Connected,
+  BRConnected,
+  LEConnected,
   RadioOff,
   RadioOffLowBattery,
-  ShippingMode
-  
+  ShippingMode  
 } etConnectionState;
 
 /*! Determine if the bluetooth link is in the connected state.  

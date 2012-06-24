@@ -65,6 +65,12 @@ static unsigned char pWorkingBuffer[16];
 
 static tLcdMessagePayload WriteLineBuffer;
 
+typedef struct
+{
+  unsigned char StartRow;
+  unsigned char RowNum;
+} Rect_t;
+
 /******************************************************************************/
 
 /* 96 * 12 */
@@ -83,25 +89,25 @@ static void ClearMemory(void);
 static void SetupCycle(unsigned int Address,unsigned char CycleType);
 static void WriteBlockToSram(unsigned char* pData,unsigned int Size);
 static void ReadBlock(unsigned char* pWriteData,unsigned char* pReadData);
-static void ActivateBuffer(tMessage* pMsg);
 static void WaitForDmaEnd(void);
 
 /******************************************************************************/
 unsigned char GetStartingRow(unsigned char MsgOptions);
-unsigned int GetActiveBufferStartAddress(unsigned char MsgOptions);
-unsigned int GetDrawBufferStartAddress(unsigned char MsgOptions);
+unsigned char GetBufferIndex(unsigned char Mode, unsigned char Type);
+unsigned int GetBufferAddress(unsigned char Index);
+void SetBufferStatus(unsigned char Index, unsigned char Status);
 
-static unsigned char IdleActiveBuffer;
-static unsigned char IdleDrawBuffer;
+// Status of buffers (2 for each of 4 display modes): 
+// 0: clean; 1: buffer read done; 2: buffer is writing; 3: buffer is written
+unsigned char BufferStatus[NUMBER_OF_MODES][NUMBER_OF_BUFFERS];
 
-static unsigned char ApplicationActiveBuffer;
-static unsigned char ApplicationDrawBuffer;
+// Rules for deciding which of the two buffers to read and write
+unsigned char BufSelRule[2][3] =
+  {{BUFFER_WRITTEN, BUFFER_WRITING}, // for read
+   {BUFFER_WRITING, BUFFER_CLEAN, BUFFER_WRITTEN}
+  };
 
-static unsigned char NotificationActiveBuffer;
-static unsigned char NotificationDrawBuffer;
-
-static unsigned char ScrollActiveBuffer;
-static unsigned char ScrollDrawBuffer;
+unsigned char LastUpdatedMode = SCROLL_MODE;
 
 /******************************************************************************/
 
@@ -200,19 +206,6 @@ void SerialRamInit(void)
   
   /* now use the DMA to clear the entire serial ram */
   ClearMemory();
-  
-  /***************************************************************************/
-  
-  /* assign the active and idle buffers */
-  IdleActiveBuffer = 0;
-  IdleDrawBuffer = 1;
-  ApplicationActiveBuffer = 2;
-  ApplicationDrawBuffer = 3;
-  NotificationActiveBuffer = 4;
-  NotificationDrawBuffer = 5;
-  ScrollActiveBuffer = 6;
-  ScrollDrawBuffer = 7;
-  
 }
 
 /* see tSerialRamMsgPayload for the payload formatting 
@@ -224,7 +217,7 @@ void WriteBufferHandler(tMessage* pMsg)
   /* 
    * save the parameters that are going to get written over 
    */
-  unsigned char MsgOptions = pMsg->Options;
+  unsigned char Mode = pMsg->Options & BUFFER_SELECT_MASK;
   
   /* map the payload */
   tSerialRamPayload* pSerialRamPayload = (tSerialRamPayload*)pMsg->pBuffer;
@@ -237,7 +230,12 @@ void WriteBufferHandler(tMessage* pMsg)
    * get the buffer address
    * then add in the row number for the absolute address
    */
-  unsigned int BufferAddress = GetDrawBufferStartAddress(MsgOptions);
+  unsigned char Index = GetBufferIndex(Mode, BUFFER_TYPE_WRITE);
+//  PrintStringAndHexByte("----->> MY: WriteBufferHandler: index: ", Index);
+//  PrintStringAndTwoHexBytes("   Buffers []: ",
+//		  BufferStatus[Mode][0], BufferStatus[Mode][1]);
+  
+  unsigned int BufferAddress = GetBufferAddress(Index);
   unsigned int AbsoluteAddress = BufferAddress + (RowA*BYTES_PER_LINE);
   
   pWorkingBuffer[0] = SPI_WRITE;
@@ -254,7 +252,7 @@ void WriteBufferHandler(tMessage* pMsg)
   WriteBlockToSram(pWorkingBuffer,15);
   
   /* if the bit is one then only draw one line */
-  if ( (MsgOptions & WRITE_BUFFER_ONE_LINE_MASK) == 0 )
+  if ( (pMsg->Options & WRITE_BUFFER_ONE_LINE_MASK) == 0 )
   {
     /* calculate address for second row */
     AbsoluteAddress = BufferAddress + (RowB*BYTES_PER_LINE);
@@ -274,6 +272,9 @@ void WriteBufferHandler(tMessage* pMsg)
     WriteBlockToSram(pWorkingBuffer,15);
   }
   
+  SetBufferStatus(Index, (pMsg->Options & BUFFER_WRITTEN_MASK) ?
+                  BUFFER_WRITTEN : BUFFER_WRITING);
+  //PrintString("   MY: WriteBuffer done.\r\n");
 }
 
 /* use DMA to write a block of data to the serial ram */
@@ -446,44 +447,56 @@ static void ClearMemory(void)
 
 void UpdateDisplayHandler(tMessage* pMsg)
 { 
-  unsigned char Options = pMsg->Options;
+  unsigned char Mode = pMsg->Options & BUFFER_SELECT_MASK;
+  unsigned int Index = GetBufferIndex(Mode, BUFFER_TYPE_READ);
+    
+  PrintStringAndHexByte("    UpdDisp Index: ", Index);
+  PrintStringAndTwoHexBytes("   Buffers []: ", BufferStatus[Mode][0], BufferStatus[Mode][1]);
+  PrintStringSpaceAndTwoDecimals("Mode Last: ", Mode, LastUpdatedMode);
+  PrintStringAndDecimal("Force: ", (pMsg->Options & FORCE_UPDATE_MASK) == FORCE_UPDATE);
+  PrintStringAndDecimal("Status: ", BufferStatus[Mode][Index & 1] & BUFFER_STATUS_MASK);
+  // skip update if
+  // 1. invalid Index or
+  // 2. mode is same as last update and
+  //    not force update and
+  //    buffer is clean
+  if (Index == BUFFER_UNAVAILABLE || 
+      (!(pMsg->Options & FORCE_UPDATE_MASK) && 
+      Mode == LastUpdatedMode &&
+      (BufferStatus[Mode][Index & 1] & BUFFER_STATUS_MASK) == BUFFER_CLEAN)) 
+    {
+      PrintString("--- Skip!\r\n");
+      return; 
+    }
   
-  if ( (Options & DRAW_BUFFER_ACTIVATION_MASK) == ACTIVATE_DRAW_BUFFER )
-  { 
-    ActivateBuffer(pMsg);
-  }
+  LastUpdatedMode = Mode;
   
-  unsigned char SelectedBuffer = (Options & BUFFER_SELECT_MASK);
-  
-  /* premature exit if the idle page is not the normal page */
-  if (   SelectedBuffer  == IDLE_BUFFER_SELECT 
-      && QueryIdlePageNormal() == 0 )
-  {
-    __no_operation();
-    return;
-  }
-  
-  /* get the buffer address */
-  unsigned int BufferAddress = GetActiveBufferStartAddress(Options);
-  unsigned int DrawBufferAddress = GetDrawBufferStartAddress(Options);
+  SetBufferStatus(Index, BUFFER_READING);
   
   /* now calculate the absolute address */
-  unsigned int AbsoluteAddress = BufferAddress;
-  unsigned int AbsoluteDrawAddress = DrawBufferAddress;
+  unsigned int AbsoluteAddress = GetBufferAddress(Index);
   
   /* if it is the idle buffer then determine starting line */
-  unsigned char LcdRow = GetStartingRow(Options);
-
+  unsigned char StartRow = GetStartingRow(Mode);
+  unsigned char RowNum = NUM_LCD_ROWS - StartRow;
+  
+  if (pMsg->pBuffer != NULL && pMsg->Length > HOST_MSG_HEADER_LENGTH + HOST_MSG_CRC_LENGTH)
+  {
+    Rect_t *pRect = (Rect_t *)pMsg->pBuffer;
+    StartRow = pRect->StartRow;
+    RowNum = pRect->RowNum;
+  }
+  
   /* update address because of possible starting row change */
-  AbsoluteAddress += BYTES_PER_LINE*LcdRow;
-  AbsoluteDrawAddress += BYTES_PER_LINE*LcdRow;
+  AbsoluteAddress += BYTES_PER_LINE * StartRow;
        
   /* A possible change would be store dirty bits at the beginning of the buffer
    * after reading this only the rows that changed would be read out and 
    * written to the lcd.
    * However, it is much easier to just draw the entire screen 
    */
-  for ( ; LcdRow < 96; LcdRow++ )
+  PrintStringSpaceAndTwoDecimals("UPD start:", StartRow, RowNum);
+  while (RowNum --)
   {
     /* one buffer is used for writing and another is used for reading 
      * the incoming message can't be used because it doesn't have a buffer
@@ -497,34 +510,21 @@ void UpdateDisplayHandler(tMessage* pMsg)
      * 3+1 spots to starting location of data from dma read
      * (room for bytes read in when cmd and address are sent)
      */
-    ReadBlock(pWorkingBuffer,(unsigned char *)&WriteLineBuffer);
-    
+    ReadBlock(pWorkingBuffer,(unsigned char *)&WriteLineBuffer);    
     WaitForDmaEnd();
 
-    /* if there was more ram then it would be better to do a screen copy  */
-    if ( (Options & UPDATE_COPY_MASK ) == COPY_ACTIVE_TO_DRAW_DURING_UPDATE)
-    {
-      /* now format the message for a serial ram write while taking into account
-       * that the data is offset in the buffer
-       */
-      WriteLineBuffer.Reserved1 = SPI_WRITE;
-      WriteLineBuffer.LcdCommand = (unsigned char)(AbsoluteDrawAddress >> 8);
-      WriteLineBuffer.RowNumber = (unsigned char)AbsoluteDrawAddress;
-      
-      WriteBlockToSram((unsigned char*)(&WriteLineBuffer.Reserved1),15);
-      
-      WaitForDmaEnd();
-    }
-
     /* now add the row number */
-    WriteLineBuffer.RowNumber = LcdRow;
-    
+    WriteLineBuffer.RowNumber = StartRow ++;
     WriteLcdHandler(&WriteLineBuffer);
     
     AbsoluteAddress += BYTES_PER_LINE;
-    AbsoluteDrawAddress += BYTES_PER_LINE;
-
   }
+  
+  PrintStringSpaceAndTwoDecimals("UPD end:", StartRow - 1, RowNum);
+  SetBufferStatus(Index, BUFFER_CLEAN);
+  PrintStringAndTwoHexBytes("AF Upd Buffers []: ", 
+                            BufferStatus[Mode][0], BufferStatus[Mode][1]);
+  //PrintString("----- MY: Update Display Done.\r\n");
   
   /* now that the screen has been drawn put the LCD into a lower power mode */
   PutLcdIntoStaticMode();
@@ -535,9 +535,8 @@ void UpdateDisplayHandler(tMessage* pMsg)
    * When in idle mode this will cause the top portion of the screen to be
    * drawn
    */
-  SetupMessage(&OutgoingMsg,ChangeModeMsg,Options);
+  SetupMessage(&OutgoingMsg, ChangeModeMsg, pMsg->Options);
   RouteMsg(&OutgoingMsg);
-  
 }
 
 /* Load a template from flash into a draw buffer (ram)
@@ -546,11 +545,12 @@ void UpdateDisplayHandler(tMessage* pMsg)
  */
 void LoadTemplateHandler(tMessage* pMsg)
 {
-  unsigned int BufferAddress = 
-    GetDrawBufferStartAddress(pMsg->Options);
+  unsigned char Index = 
+    GetBufferIndex(pMsg->Options & BUFFER_SELECT_MASK, BUFFER_TYPE_WRITE);
+  PrintStringAndHexByte("--- LoadTemplate index: ", Index);
                                                     
   /* now calculate the absolute address */
-  unsigned int AbsoluteAddress = BufferAddress;
+  unsigned int AbsoluteAddress = GetBufferAddress(Index);
   
   /* 
    * templates don't have extra space in them for additional 3 bytes of 
@@ -573,149 +573,66 @@ void LoadTemplateHandler(tMessage* pMsg)
     /* clear or fill the screen */
     if ( pLoadTemplateMsg->TemplateSelect == 0 )
     {
-      ClearBufferInSram(AbsoluteAddress,0x00,BYTES_PER_SCREEN);
+      ClearBufferInSram(AbsoluteAddress, 0x00, BYTES_PER_SCREEN);
     }
     else
     {
-      ClearBufferInSram(AbsoluteAddress,0xff,BYTES_PER_SCREEN);  
+      ClearBufferInSram(AbsoluteAddress, 0xff, BYTES_PER_SCREEN);  
     }
   }
   
-}
-
-/* Activate the current draw buffer (swap pointers) */
-void ActivateBuffer(tMessage* pMsg)
-{
-  unsigned char BufferSelect = (pMsg->Options) & BUFFER_SELECT_MASK;
-  unsigned char BufferSwap;
-  
-#if 0
-  PrintStringAndDecimal("BufferSwap ", BufferSelect);
-#endif
-    
-  switch (BufferSelect)
-  {
-  case 0:
-    BufferSwap = IdleActiveBuffer;
-    IdleActiveBuffer = IdleDrawBuffer;
-    IdleDrawBuffer = BufferSwap;
-    break;
-  case 1:
-    BufferSwap = ApplicationActiveBuffer;
-    ApplicationActiveBuffer = ApplicationDrawBuffer;
-    ApplicationDrawBuffer = BufferSwap;
-    break;
-  case 2:
-    BufferSwap = NotificationActiveBuffer;
-    NotificationActiveBuffer = NotificationDrawBuffer;
-    NotificationDrawBuffer = BufferSwap;
-    break;
-  case 3:
-    BufferSwap = ScrollActiveBuffer;
-    ScrollActiveBuffer = ScrollDrawBuffer;
-    ScrollDrawBuffer = BufferSwap;
-    break;
-  default:
-    PrintStringAndHex("Invalid Buffer Selected: 0x",BufferSelect);
-    break;
-  }
-  
+  SetBufferStatus(Index, BUFFER_WRITING);
 }
 
 /* determine if the phone is controlling all of the idle screen */
-unsigned char GetStartingRow(unsigned char MsgOptions)
+unsigned char GetStartingRow(unsigned char Mode)
 {
-  unsigned char StartingRow = 0;
-
-  if (   (MsgOptions & BUFFER_SELECT_MASK) == IDLE_BUFFER_SELECT 
-      && GetIdleBufferConfiguration() == WATCH_CONTROLS_TOP )
-  {
-    StartingRow = 30;
-  }
-  else
-  {
-    StartingRow = 0;  
-  }
-  
-  return StartingRow;
+  return (Mode == IDLE_BUFFER_SELECT 
+    && GetIdleBufferConfiguration() == WATCH_CONTROLS_TOP) ? 30 : 0;
 }
 
-/* Get the start address of the active buffer in SRAM */
-unsigned int GetActiveBufferStartAddress(unsigned char MsgOptions)
+unsigned char GetBufferIndex(unsigned char Mode, unsigned char Type)
 {
-  unsigned char BufferIndex;
-  unsigned int BufferStartAddress;
+  unsigned char j, i;
+  unsigned char NumberOfRules = (Type == BUFFER_TYPE_READ) ?
+    NUMBER_OF_READ_BUFFER_SEL_RULES : NUMBER_OF_WRITE_BUFFER_SEL_RULES;
   
-  unsigned char BufferSelect = MsgOptions & BUFFER_SELECT_MASK;
-  
-  switch (BufferSelect)
+  //PrintStringSpaceAndTwoDecimals("----- MY: GetBufferIndex: Mode, Type: ", Mode, Type);
+  for (j = 0; j < NumberOfRules; j++)
   {
-  case IDLE_BUFFER_SELECT:
-    BufferIndex = IdleActiveBuffer;
-    break;
-  case APPLICATION_BUFFER_SELECT:
-    BufferIndex = ApplicationActiveBuffer;
-    break;
-  case NOTIFICATION_BUFFER_SELECT:
-    BufferIndex = NotificationActiveBuffer;
-    break;
-  case SCROLL_BUFFER_SELECT:
-    BufferIndex = ScrollActiveBuffer;
-    break;
-  default:
-    break;
+    for (i = 0; i < NUMBER_OF_BUFFERS; i++)
+    {
+      if ((BufferStatus[Mode][i] & BUFFER_STATUS_MASK) == BufSelRule[Type][j]) {
+        //PrintStringAndHexByte("    MY: Rule j: ", j);
+        return (Mode << 1) + i;
+      }
+    }
   }
-  
-  BufferStartAddress = BYTES_PER_SCREEN * BufferIndex;
-  
-  /* scroll buffers are half the size of normal buffers */
-  if ( BufferIndex == 7 )
-  {
-    BufferStartAddress -= BYTES_PER_SCREEN/2;     
-  }
-  
-  return BufferStartAddress;
-  
+
+  return (BufferStatus[Mode][0] & BUFFER_STATUS_RECENT) ? Mode << 1 : (Mode << 1) + 1;
 }
 
-/* Get the start address of the Draw buffer in SRAM */
-unsigned int GetDrawBufferStartAddress(unsigned char MsgOptions)
+void SetBufferStatus(unsigned char Index, unsigned char Status)
 {
-  unsigned char BufferIndex;
-  unsigned int BufferStartAddress;
-  
-  unsigned char BufferSelect = MsgOptions & BUFFER_SELECT_MASK;
-  
-  switch (BufferSelect)
-  {
-  case IDLE_BUFFER_SELECT:
-    BufferIndex = IdleDrawBuffer;
-    break;
-  case APPLICATION_BUFFER_SELECT:
-    BufferIndex = ApplicationDrawBuffer;
-    break;
-  case NOTIFICATION_BUFFER_SELECT:
-    BufferIndex = NotificationDrawBuffer;
-    break;
-  case SCROLL_BUFFER_SELECT:
-    BufferIndex = ScrollDrawBuffer;
-    break;
-  default:
-    break;
-  }
-  
-  BufferStartAddress = BYTES_PER_SCREEN * BufferIndex;
-  
-  /* scroll buffers are half the size of normal buffers */
-  if ( BufferIndex == 7 )
-  {
-    BufferStartAddress -= BYTES_PER_SCREEN/2;     
-  }
-  
-  return BufferStartAddress;
+  //[Mode][0|1]
+  // Mark the buffer "current" and remove the "current" flag of the other buffer
+  BufferStatus[Index >> 1][Index & 1] = Status | BUFFER_STATUS_RECENT;
+  BufferStatus[Index >> 1][1 - (Index & 1)] &= BUFFER_STATUS_MASK;
 }
 
-
+unsigned int GetBufferAddress(unsigned char Index)
+{
+  unsigned int Address = BYTES_PER_SCREEN * Index;
+  
+  /* if mode is scroll, scroll buffers are half the size of normal buffers */
+  if ( (Index >> 1) >= SCROLL_BUFFER_SELECT )
+  {
+    Address -= BYTES_PER_SCREEN >> 1;     
+  }
+  
+  return Address;
+}
+      
 /* Serial RAM controller uses two dma channels
  * LCD driver task uses one dma channel
  */

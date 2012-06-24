@@ -277,7 +277,8 @@ typedef enum
   // BLE messages
   SetCallbackTimerMsg = 0xb0,
   CallbackTimeoutMsg = 0xb1,
-
+  UpdateConnParameterMsg = 0xb2,
+  
   LedChange = 0xc0,
 
   QueryMemoryMsg = 0xd0,
@@ -430,6 +431,21 @@ typedef struct
 #define NOTIFICATION_BUFFER_SELECT ( 0x02 )
 #define SCROLL_BUFFER_SELECT       ( 0x03 )
 #define BUFFER_SELECT_MASK         ( 0x0F )
+#define NUMBER_OF_BUFFERS          ( 2 )
+#define NUMBER_OF_BUFFER_STATUS    ( 4 )
+#define BUFFER_CLEAN               ( 0 )
+#define BUFFER_READING             ( 1 )
+#define BUFFER_WRITING             ( 2 )
+#define BUFFER_WRITTEN             ( 3 )
+#define BUFFER_UNAVAILABLE         ( 0xFF )
+#define BUFFER_WRITTEN_MASK        ( BIT5 )
+#define BUFFER_TYPE_READ           ( 0 )
+#define BUFFER_TYPE_WRITE          ( 1 )
+#define BUFFER_TYPE_RECENT         ( 2 )
+#define BUFFER_STATUS_MASK         ( 0x7F )
+#define BUFFER_STATUS_RECENT       ( 0x80 )
+#define NUMBER_OF_READ_BUFFER_SEL_RULES ( 2 )
+#define NUMBER_OF_WRITE_BUFFER_SEL_RULES ( 3 )
 
 /* make mode definitions the same as buffer definitions */
 #define IDLE_MODE         ( IDLE_BUFFER_SELECT )
@@ -451,11 +467,12 @@ typedef struct
 
 #define UPDATE_COPY_MASK                       ( BIT4 )
 #define COPY_ACTIVE_TO_DRAW_DURING_UPDATE      ( BIT4 )
+#define FORCE_UPDATE_MASK                      ( BIT5 )
 #define NO_COPY_DURING_UPDATE                  ( 0    )
 
 #define DRAW_BUFFER_ACTIVATION_MASK ( BIT5 )
-#define ACTIVATE_DRAW_BUFFER        ( 0 )
-#define DONT_ACTIVATE_DRAW_BUFFER   ( BIT5 )
+//#define ACTIVATE_DRAW_BUFFER        ( 0 )
+#define FORCE_UPDATE                ( BIT5 )
 
 #define IDLE_TIMER_UPDATE_TYPE_MASK ( BIT6 )
 #define RESTART_IDLE_TIMER          ( BIT6 )

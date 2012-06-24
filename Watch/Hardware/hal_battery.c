@@ -87,14 +87,7 @@ unsigned char BatteryChargingControl(void)
   unsigned char PowerGoodN = BatteryChargeBits & BAT_CHARGE_PWR_GOOD;
  
   /* Bit 5 is low, which means we have input power == good */
-  if ( PowerGoodN == 0 )
-  {
-    PowerGood = 1;
-  }
-  else
-  {
-    PowerGood = 0;
-  }
+  PowerGood = (PowerGoodN == 0) ? 1 : 0;
   
   /* turn off the pullup */
   BAT_CHARGE_OUT &= ~BAT_CHARGE_PWR_GOOD;
@@ -113,7 +106,7 @@ unsigned char BatteryChargingControl(void)
     BATTERY_CHARGE_DISABLE();
     CurrentBatteryState = BATTERY_CHARGE_OFF_FAULT_SLEEP; 
     BAT_CHARGE_OUT &= ~BAT_CHARGE_STATUS_OPEN_DRAIN_BITS;
-      
+    
   }
   else
   {
@@ -196,16 +189,8 @@ unsigned char BatteryChargingControl(void)
 
 unsigned char QueryBatteryCharging(void)
 {
-  if (   CurrentBatteryState == BATTERY_PRECHARGE 
-      || CurrentBatteryState == BATTERY_FAST_CHARGE )
-  {
-    return 1; 
-  }
-  else
-  {
-    return 0;  
-  }
-  
+  return (CurrentBatteryState == BATTERY_PRECHARGE ||
+          CurrentBatteryState == BATTERY_FAST_CHARGE);
 }
 
 /* is 5V connected? */
