@@ -447,30 +447,38 @@ static void ClearMemory(void)
 
 void UpdateDisplayHandler(tMessage* pMsg)
 { 
+  extern unsigned char CurrentMode;
   unsigned char Mode = pMsg->Options & BUFFER_SELECT_MASK;
   unsigned int Index = GetBufferIndex(Mode, BUFFER_TYPE_READ);
     
   PrintStringAndHexByte("    UpdDisp Index: ", Index);
   PrintStringAndTwoHexBytes("   Buffers []: ", BufferStatus[Mode][0], BufferStatus[Mode][1]);
-  PrintStringSpaceAndTwoDecimals("Mode Last: ", Mode, LastUpdatedMode);
+  PrintStringSpaceAndTwoDecimals("Mode Last: ", Mode, CurrentMode);
   PrintStringAndDecimal("Force: ", (pMsg->Options & FORCE_UPDATE_MASK) == FORCE_UPDATE);
   PrintStringAndDecimal("Status: ", BufferStatus[Mode][Index & 1] & BUFFER_STATUS_MASK);
   // skip update if
   // 1. invalid Index or
-  // 2. mode is same as last update and
-  //    not force update and
+  // 2. not force update and
+  //    mode is same as last update and
+  //    idle page is not the normal page and 
   //    buffer is clean
   if (Index == BUFFER_UNAVAILABLE || 
       (!(pMsg->Options & FORCE_UPDATE_MASK) && 
-      Mode == LastUpdatedMode &&
-      (BufferStatus[Mode][Index & 1] & BUFFER_STATUS_MASK) == BUFFER_CLEAN)) 
+       Mode == CurrentMode &&
+       Mode == IDLE_MODE && !QueryIdlePageNormal())) // &&
+//      (BufferStatus[Mode][Index & 1] & BUFFER_STATUS_MASK) == BUFFER_CLEAN)) 
     {
       PrintString("--- Skip!\r\n");
       return; 
     }
   
-  LastUpdatedMode = Mode;
-  
+  // notify mode-change to LcdDisplay which will draw date&time
+  if (Mode != CurrentMode)
+  {
+    SetupMessage(&OutgoingMsg, ChangeModeMsg, pMsg->Options);
+    RouteMsg(&OutgoingMsg);
+  }
+    
   SetBufferStatus(Index, BUFFER_READING);
   
   /* now calculate the absolute address */
@@ -480,12 +488,13 @@ void UpdateDisplayHandler(tMessage* pMsg)
   unsigned char StartRow = GetStartingRow(Mode);
   unsigned char RowNum = NUM_LCD_ROWS - StartRow;
   
-  if (pMsg->pBuffer != NULL && pMsg->Length > HOST_MSG_HEADER_LENGTH + HOST_MSG_CRC_LENGTH)
+  if (pMsg->Length)
   {
     Rect_t *pRect = (Rect_t *)pMsg->pBuffer;
     StartRow = pRect->StartRow;
     RowNum = pRect->RowNum;
   }
+  PrintStringSpaceAndThreeDecimals("UPD msglen: startR: num: ", pMsg->Length, StartRow, RowNum);
   
   /* update address because of possible starting row change */
   AbsoluteAddress += BYTES_PER_LINE * StartRow;
@@ -527,16 +536,7 @@ void UpdateDisplayHandler(tMessage* pMsg)
   //PrintString("----- MY: Update Display Done.\r\n");
   
   /* now that the screen has been drawn put the LCD into a lower power mode */
-  PutLcdIntoStaticMode();
-  
-  /*
-   * now signal that the display task that the operation has completed 
-   * 
-   * When in idle mode this will cause the top portion of the screen to be
-   * drawn
-   */
-  SetupMessage(&OutgoingMsg, ChangeModeMsg, pMsg->Options);
-  RouteMsg(&OutgoingMsg);
+  PutLcdIntoStaticMode();  
 }
 
 /* Load a template from flash into a draw buffer (ram)
@@ -587,8 +587,8 @@ void LoadTemplateHandler(tMessage* pMsg)
 /* determine if the phone is controlling all of the idle screen */
 unsigned char GetStartingRow(unsigned char Mode)
 {
-  return (Mode == IDLE_BUFFER_SELECT 
-    && GetIdleBufferConfiguration() == WATCH_CONTROLS_TOP) ? 30 : 0;
+  return (Mode == IDLE_BUFFER_SELECT &&
+    GetIdleBufferConfiguration() == WATCH_CONTROLS_TOP) ? 30 : 0;
 }
 
 unsigned char GetBufferIndex(unsigned char Mode, unsigned char Type)

@@ -184,8 +184,8 @@ const unsigned char Pm[10*4];
 
 /******************************************************************************/
 
-static unsigned char LastMode = IDLE_MODE;
-static unsigned char CurrentMode = IDLE_MODE;
+static unsigned char LastMode = SCROLL_MODE;
+unsigned char CurrentMode = IDLE_MODE;
 
 /******************************************************************************/
 
@@ -428,6 +428,9 @@ static inline void StopDisplayTimer(void)
  */
 static void IdleUpdateHandler()
 {
+  if (CurrentMode != IDLE_MODE)
+    PrintStringAndDecimal("--- IdleUpdateHandler: not in idle!!", CurrentMode);
+    
   StopDisplayTimer();
 
   /* allow rtc to send IdleUpdate every minute (or second) */
@@ -446,7 +449,6 @@ static void IdleUpdateHandler()
     DetermineIdlePage();
     if (CurrentIdlePage != LastIdlePage)
     {
-      PrintString("update lower");
       FillMyBuffer(STARTING_ROW + WATCH_DRAWN_IDLE_BUFFER_ROWS, 
                    PHONE_IDLE_BUFFER_ROWS, 0x00);
       DrawConnectionScreen();
@@ -454,9 +456,10 @@ static void IdleUpdateHandler()
                         PHONE_IDLE_BUFFER_ROWS);
     }
   }
-  else if (CurrentIdlePage != NormalPage || CurrentMode != LastMode)
+  else if (CurrentIdlePage != NormalPage || LastMode != IDLE_MODE)
   {
     CurrentIdlePage = NormalPage;
+    LastMode = IDLE_MODE;
     tMessage OutgoingMsg;
     SetupMessage(&OutgoingMsg, UpdateDisplay, IDLE_MODE | FORCE_UPDATE);
     RouteMsg(&OutgoingMsg);
