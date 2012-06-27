@@ -32,7 +32,7 @@
 #include "hal_io_macros.h"
 
 /******************************************************************************/
-#define VERSION_STRING "3.1.3"
+#define VERSION_STRING "3.1.4"
 
 /*! number of buffers in the message buffer pool */
 #define NUM_MSG_BUFFERS 20

@@ -178,7 +178,7 @@ void PrintMessageType(tMessage* pMsg)
   unsigned char MessageType = pMsg->Type;
   
   /* if the message is the same as the last then print an asterix */
-  if ( MessageType == LastMessageType )
+  if ( MessageType == IdleUpdate) //LastMessageType )
   {
     PrintString("*");
     AddNewline = 1;
@@ -188,7 +188,7 @@ void PrintMessageType(tMessage* pMsg)
   {
     if ( AddNewline )
     {
-      PrintString("\r\n");   
+      //PrintString("\r\n");   
     }
   
     AddNewline = 0;
@@ -229,7 +229,7 @@ void PrintMessageType(tMessage* pMsg)
   case OledCrownMenuButtonMsg:     PrintStringAndHexByte("OledCrownMenuButtonMsg 0x",MessageType); break;
   case AdvanceWatchHandsMsg:       PrintStringAndHexByte("AdvanceWatchHandsMsg 0x",MessageType);   break;
   case SetVibrateMode:             PrintStringAndHexByte("SetVibrateMode 0x",MessageType);         break;
-  case ButtonStateMsg:             PrintStringAndHexByte("ButtonStateMsg 0x",MessageType);         break;
+  case ButtonStateMsg:             /*PrintStringAndHexByte("ButtonStateMsg 0x",MessageType);*/         break;
   case SetRealTimeClock:           PrintStringAndHexByte("SetRealTimeClock 0x",MessageType);       break;
   case GetRealTimeClock:           PrintStringAndHexByte("GetRealTimeClock 0x",MessageType);       break;
   case GetRealTimeClockResponse:   PrintStringAndHexByte("GetRealTimeClockResponse 0x",MessageType);break;
@@ -249,7 +249,7 @@ void PrintMessageType(tMessage* pMsg)
   case ReadButtonConfigMsg:        PrintStringAndHexByte("ReadButtonConfigMsg 0x",MessageType);    break;
   case ReadButtonConfigResponse:   PrintStringAndHexByte("ReadButtonConfigResponse 0x",MessageType);break;
   case BatteryChargeControl:       /*PrintStringAndHexByte("BatteryChargeControl 0x",MessageType);*/   break;
-  case IdleUpdate:                 /*PrintStringAndHexByte("IdleUpdate 0x",MessageType);*/             break;
+  case IdleUpdate:                 PrintStringAndHexByte("IdleUpdate 0x",MessageType);             break;
   case WatchDrawnScreenTimeout:    PrintStringAndHexByte("WatchDrawnScreenTimeout 0x",MessageType);break;
   case SplashTimeoutMsg:           PrintStringAndHexByte("SplashTimeoutMsg 0x",MessageType);       break;
   case ChangeModeMsg:              /*PrintStringAndHexByte("ChangeModeMsg 0x",MessageType);*/          break;
@@ -287,7 +287,7 @@ void PrintMessageType(tMessage* pMsg)
   case RadioPowerControlMsg:       PrintStringAndHexByte("RadioPowerControlMsg 0x",MessageType);       break;
   case AdvertisingDataMsg:         PrintStringAndHexByte("AdvertisingDataMsg 0x",MessageType);         break;
   case CallbackTimeoutMsg:         /*PrintStringAndHexByte("CallbackTimeoutMsg 0x",MessageType);*/         break;
-  case SetCallbackTimerMsg:        PrintStringAndHexByte("SetCallbackTimerMsg 0x",MessageType);        break;
+  case SetCallbackTimerMsg:        /*PrintStringAndHexByte("SetCallbackTimerMsg 0x",MessageType);*/        break;
   case UpdateConnParameterMsg:     PrintStringAndHexByte("UpdateConnParameterMsg 0x",MessageType);     break;
   default:                         PrintStringAndHexByte("Unknown Message Type 0x",MessageType);       break;
   }  

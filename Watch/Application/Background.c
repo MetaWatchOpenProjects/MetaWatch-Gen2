@@ -328,8 +328,8 @@ static void BackgroundMessageHandler(tMessage* pMsg)
     /* update the screen if there has been a change in charging status */
     if ( BatteryChargingControl() )
     {
-      SetupMessage(&OutgoingMsg, IdleUpdate, NO_MSG_OPTIONS);
-      RouteMsg(&OutgoingMsg);
+//      SetupMessage(&OutgoingMsg, IdleUpdate, NO_MSG_OPTIONS);
+//      RouteMsg(&OutgoingMsg);
     }
 #endif
 

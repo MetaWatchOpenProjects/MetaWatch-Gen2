@@ -491,8 +491,8 @@ void UpdateDisplayHandler(tMessage* pMsg)
   if (pMsg->Length)
   {
     Rect_t *pRect = (Rect_t *)pMsg->pBuffer;
-    StartRow = pRect->StartRow;
-    RowNum = pRect->RowNum;
+    if (pRect->StartRow >= 0 && pRect->StartRow < NUM_LCD_ROWS) StartRow = pRect->StartRow;
+    if (pRect->RowNum > 0) RowNum = pRect->RowNum;
   }
   PrintStringSpaceAndThreeDecimals("UPD msglen: startR: num: ", pMsg->Length, StartRow, RowNum);
   
