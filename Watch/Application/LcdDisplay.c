@@ -314,7 +314,7 @@ static void DisplayQueueMessageHandler(tMessage* pMsg)
     break;
 
   case IdleUpdate:
-      if (CurrentMode == IDLE_MODE) IdleUpdateHandler();
+      IdleUpdateHandler();
     break;
 
   case ChangeModeMsg:
@@ -428,8 +428,7 @@ static inline void StopDisplayTimer(void)
  */
 static void IdleUpdateHandler()
 {
-  if (CurrentMode != IDLE_MODE)
-    PrintStringAndDecimal("--- IdleUpdateHandler: not in idle!!", CurrentMode);
+  if (CurrentMode != IDLE_MODE) return;
     
   StopDisplayTimer();
 
@@ -500,6 +499,12 @@ static void ConnectionStateChangeHandler(void)
 {
   if ( AllowConnectionStateChangeToUpdateScreen )
   {
+    if (CurrentMode != IDLE_MODE)
+    {
+      LastMode = CurrentMode;
+      CurrentMode = IDLE_MODE;
+    }
+    
     /* certain pages should not be exited when a change in the
      * connection state has occurred
      */
@@ -588,12 +593,8 @@ static void ChangeModeHandler(tMessage* pMsg)
     {
       /* idle update handler will stop display timer */
       IdleUpdateHandler();
-      PrintString("Changing mode to Idle\r\n");
     }
-    else
-    {
-      PrintString("Already in Idle mode\r\n");
-    }
+    PrintString2("Changing mode to Idle", LastMode != CurrentMode ? "\r\n" : " ALREADY\r\n");
     break;
 
   case APPLICATION_MODE:
@@ -874,7 +875,7 @@ static void BarCodeHandler(tMessage* pMsg)
 static void ListPairedDevicesHandler(void)
 {
   StopDisplayTimer();
-
+  
   /* draw entire region */
   FillMyBuffer(STARTING_ROW,NUM_LCD_ROWS,0x00);
 
@@ -991,25 +992,12 @@ static void ConfigureDisplayHandler(tMessage* pMsg)
     nvIdleBufferInvert = 0x01;
     break;
   }
-
-  if ( CurrentMode == IDLE_MODE )
-  {
-    IdleUpdateHandler();
-  }
-
 }
 
 static void ConfigureIdleBufferSizeHandler(tMessage* pMsg)
 {
   nvIdleBufferConfig = pMsg->pBuffer[0] & IDLE_BUFFER_CONFIG_MASK;
-
-  if ( CurrentMode == IDLE_MODE )
-  {
-    if ( nvIdleBufferConfig == WATCH_CONTROLS_TOP )
-    {
-      IdleUpdateHandler();
-    }
-  }
+  if ( nvIdleBufferConfig == WATCH_CONTROLS_TOP ) IdleUpdateHandler();
 }
 
 static void ModifyTimeHandler(tMessage* pMsg)

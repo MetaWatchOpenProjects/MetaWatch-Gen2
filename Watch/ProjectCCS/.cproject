@@ -474,20 +474,20 @@
 							<inputType id="com.ti.ccstudio.buildDefinitions.MSP430_3.3.compiler.inputType__ASM2_SRCS.2002304131" name="Assembly Sources" superClass="com.ti.ccstudio.buildDefinitions.MSP430_3.3.compiler.inputType__ASM2_SRCS"/>
 						</tool>
 					</fileInfo>
-					<fileInfo id="com.ti.ccstudio.buildDefinitions.MSP430.Debug.343203441./Watch/Application/Fonts.c" name="Fonts.c" rcbsApplicability="disable" resourcePath="Application/Fonts.c" toolsToInvoke="com.ti.ccstudio.buildDefinitions.MSP430_3.3.exe.compilerDebug.266213748./Watch/Application/Fonts.c">
-						<tool id="com.ti.ccstudio.buildDefinitions.MSP430_3.3.exe.compilerDebug.266213748./Watch/Application/Fonts.c" name="MSP430 Compiler" superClass="com.ti.ccstudio.buildDefinitions.MSP430_3.3.exe.compilerDebug.266213748">
-							<inputType id="com.ti.ccstudio.buildDefinitions.MSP430_3.3.compiler.inputType__C_SRCS.445530744" name="C Sources" superClass="com.ti.ccstudio.buildDefinitions.MSP430_3.3.compiler.inputType__C_SRCS"/>
-							<inputType id="com.ti.ccstudio.buildDefinitions.MSP430_3.3.compiler.inputType__CPP_SRCS.356773563" name="C++ Sources" superClass="com.ti.ccstudio.buildDefinitions.MSP430_3.3.compiler.inputType__CPP_SRCS"/>
-							<inputType id="com.ti.ccstudio.buildDefinitions.MSP430_3.3.compiler.inputType__ASM_SRCS.1250875735" name="Assembly Sources" superClass="com.ti.ccstudio.buildDefinitions.MSP430_3.3.compiler.inputType__ASM_SRCS"/>
-							<inputType id="com.ti.ccstudio.buildDefinitions.MSP430_3.3.compiler.inputType__ASM2_SRCS.2113705511" name="Assembly Sources" superClass="com.ti.ccstudio.buildDefinitions.MSP430_3.3.compiler.inputType__ASM2_SRCS"/>
-						</tool>
-					</fileInfo>
 					<fileInfo id="com.ti.ccstudio.buildDefinitions.MSP430.Debug.343203441./Watch/Application/InterruptVectors.c" name="InterruptVectors.c" rcbsApplicability="disable" resourcePath="Application/InterruptVectors.c" toolsToInvoke="com.ti.ccstudio.buildDefinitions.MSP430_3.3.exe.compilerDebug.1714750234.1533399622">
 						<tool id="com.ti.ccstudio.buildDefinitions.MSP430_3.3.exe.compilerDebug.1714750234.1533399622" name="MSP430 Compiler" superClass="com.ti.ccstudio.buildDefinitions.MSP430_3.3.exe.compilerDebug.266213748">
 							<inputType id="com.ti.ccstudio.buildDefinitions.MSP430_3.3.compiler.inputType__C_SRCS.1824481005" name="C Sources" superClass="com.ti.ccstudio.buildDefinitions.MSP430_3.3.compiler.inputType__C_SRCS"/>
 							<inputType id="com.ti.ccstudio.buildDefinitions.MSP430_3.3.compiler.inputType__CPP_SRCS.279646390" name="C++ Sources" superClass="com.ti.ccstudio.buildDefinitions.MSP430_3.3.compiler.inputType__CPP_SRCS"/>
 							<inputType id="com.ti.ccstudio.buildDefinitions.MSP430_3.3.compiler.inputType__ASM_SRCS.1632613122" name="Assembly Sources" superClass="com.ti.ccstudio.buildDefinitions.MSP430_3.3.compiler.inputType__ASM_SRCS"/>
 							<inputType id="com.ti.ccstudio.buildDefinitions.MSP430_3.3.compiler.inputType__ASM2_SRCS.252277424" name="Assembly Sources" superClass="com.ti.ccstudio.buildDefinitions.MSP430_3.3.compiler.inputType__ASM2_SRCS"/>
+						</tool>
+					</fileInfo>
+					<fileInfo id="com.ti.ccstudio.buildDefinitions.MSP430.Debug.343203441./Watch/Application/Fonts.c" name="Fonts.c" rcbsApplicability="disable" resourcePath="Application/Fonts.c" toolsToInvoke="com.ti.ccstudio.buildDefinitions.MSP430_3.3.exe.compilerDebug.266213748./Watch/Application/Fonts.c">
+						<tool id="com.ti.ccstudio.buildDefinitions.MSP430_3.3.exe.compilerDebug.266213748./Watch/Application/Fonts.c" name="MSP430 Compiler" superClass="com.ti.ccstudio.buildDefinitions.MSP430_3.3.exe.compilerDebug.266213748">
+							<inputType id="com.ti.ccstudio.buildDefinitions.MSP430_3.3.compiler.inputType__C_SRCS.445530744" name="C Sources" superClass="com.ti.ccstudio.buildDefinitions.MSP430_3.3.compiler.inputType__C_SRCS"/>
+							<inputType id="com.ti.ccstudio.buildDefinitions.MSP430_3.3.compiler.inputType__CPP_SRCS.356773563" name="C++ Sources" superClass="com.ti.ccstudio.buildDefinitions.MSP430_3.3.compiler.inputType__CPP_SRCS"/>
+							<inputType id="com.ti.ccstudio.buildDefinitions.MSP430_3.3.compiler.inputType__ASM_SRCS.1250875735" name="Assembly Sources" superClass="com.ti.ccstudio.buildDefinitions.MSP430_3.3.compiler.inputType__ASM_SRCS"/>
+							<inputType id="com.ti.ccstudio.buildDefinitions.MSP430_3.3.compiler.inputType__ASM2_SRCS.2113705511" name="Assembly Sources" superClass="com.ti.ccstudio.buildDefinitions.MSP430_3.3.compiler.inputType__ASM2_SRCS"/>
 						</tool>
 					</fileInfo>
 					<sourceEntries>
@@ -655,20 +655,20 @@
 							<inputType id="com.ti.ccstudio.buildDefinitions.MSP430_4.1.compiler.inputType__ASM2_SRCS.373520336" name="Assembly Sources" superClass="com.ti.ccstudio.buildDefinitions.MSP430_4.1.compiler.inputType__ASM2_SRCS"/>
 						</tool>
 					</fileInfo>
-					<fileInfo id="com.ti.ccstudio.buildDefinitions.MSP430.Debug.2122318004.Application/InterruptVectors.c" name="InterruptVectors.c" rcbsApplicability="disable" resourcePath="Application/InterruptVectors.c" toolsToInvoke="com.ti.ccstudio.buildDefinitions.MSP430_4.1.exe.compilerDebug.611706031.1117469025">
-						<tool id="com.ti.ccstudio.buildDefinitions.MSP430_4.1.exe.compilerDebug.611706031.1117469025" name="MSP430 Compiler" superClass="com.ti.ccstudio.buildDefinitions.MSP430_4.1.exe.compilerDebug.611706031">
-							<inputType id="com.ti.ccstudio.buildDefinitions.MSP430_4.1.compiler.inputType__C_SRCS.1990080275" name="C Sources" superClass="com.ti.ccstudio.buildDefinitions.MSP430_4.1.compiler.inputType__C_SRCS"/>
-							<inputType id="com.ti.ccstudio.buildDefinitions.MSP430_4.1.compiler.inputType__CPP_SRCS.1958736288" name="C++ Sources" superClass="com.ti.ccstudio.buildDefinitions.MSP430_4.1.compiler.inputType__CPP_SRCS"/>
-							<inputType id="com.ti.ccstudio.buildDefinitions.MSP430_4.1.compiler.inputType__ASM_SRCS.364768714" name="Assembly Sources" superClass="com.ti.ccstudio.buildDefinitions.MSP430_4.1.compiler.inputType__ASM_SRCS"/>
-							<inputType id="com.ti.ccstudio.buildDefinitions.MSP430_4.1.compiler.inputType__ASM2_SRCS.1551108979" name="Assembly Sources" superClass="com.ti.ccstudio.buildDefinitions.MSP430_4.1.compiler.inputType__ASM2_SRCS"/>
-						</tool>
-					</fileInfo>
 					<fileInfo id="com.ti.ccstudio.buildDefinitions.MSP430.Debug.2122318004.Application/Fonts.c" name="Fonts.c" rcbsApplicability="disable" resourcePath="Application/Fonts.c" toolsToInvoke="com.ti.ccstudio.buildDefinitions.MSP430_4.1.exe.compilerDebug.611706031.1539667849">
 						<tool id="com.ti.ccstudio.buildDefinitions.MSP430_4.1.exe.compilerDebug.611706031.1539667849" name="MSP430 Compiler" superClass="com.ti.ccstudio.buildDefinitions.MSP430_4.1.exe.compilerDebug.611706031">
 							<inputType id="com.ti.ccstudio.buildDefinitions.MSP430_4.1.compiler.inputType__C_SRCS.507095066" name="C Sources" superClass="com.ti.ccstudio.buildDefinitions.MSP430_4.1.compiler.inputType__C_SRCS"/>
 							<inputType id="com.ti.ccstudio.buildDefinitions.MSP430_4.1.compiler.inputType__CPP_SRCS.1227079630" name="C++ Sources" superClass="com.ti.ccstudio.buildDefinitions.MSP430_4.1.compiler.inputType__CPP_SRCS"/>
 							<inputType id="com.ti.ccstudio.buildDefinitions.MSP430_4.1.compiler.inputType__ASM_SRCS.1161175675" name="Assembly Sources" superClass="com.ti.ccstudio.buildDefinitions.MSP430_4.1.compiler.inputType__ASM_SRCS"/>
 							<inputType id="com.ti.ccstudio.buildDefinitions.MSP430_4.1.compiler.inputType__ASM2_SRCS.452735393" name="Assembly Sources" superClass="com.ti.ccstudio.buildDefinitions.MSP430_4.1.compiler.inputType__ASM2_SRCS"/>
+						</tool>
+					</fileInfo>
+					<fileInfo id="com.ti.ccstudio.buildDefinitions.MSP430.Debug.2122318004.Application/InterruptVectors.c" name="InterruptVectors.c" rcbsApplicability="disable" resourcePath="Application/InterruptVectors.c" toolsToInvoke="com.ti.ccstudio.buildDefinitions.MSP430_4.1.exe.compilerDebug.611706031.1117469025">
+						<tool id="com.ti.ccstudio.buildDefinitions.MSP430_4.1.exe.compilerDebug.611706031.1117469025" name="MSP430 Compiler" superClass="com.ti.ccstudio.buildDefinitions.MSP430_4.1.exe.compilerDebug.611706031">
+							<inputType id="com.ti.ccstudio.buildDefinitions.MSP430_4.1.compiler.inputType__C_SRCS.1990080275" name="C Sources" superClass="com.ti.ccstudio.buildDefinitions.MSP430_4.1.compiler.inputType__C_SRCS"/>
+							<inputType id="com.ti.ccstudio.buildDefinitions.MSP430_4.1.compiler.inputType__CPP_SRCS.1958736288" name="C++ Sources" superClass="com.ti.ccstudio.buildDefinitions.MSP430_4.1.compiler.inputType__CPP_SRCS"/>
+							<inputType id="com.ti.ccstudio.buildDefinitions.MSP430_4.1.compiler.inputType__ASM_SRCS.364768714" name="Assembly Sources" superClass="com.ti.ccstudio.buildDefinitions.MSP430_4.1.compiler.inputType__ASM_SRCS"/>
+							<inputType id="com.ti.ccstudio.buildDefinitions.MSP430_4.1.compiler.inputType__ASM2_SRCS.1551108979" name="Assembly Sources" superClass="com.ti.ccstudio.buildDefinitions.MSP430_4.1.compiler.inputType__ASM2_SRCS"/>
 						</tool>
 					</fileInfo>
 					<sourceEntries>
