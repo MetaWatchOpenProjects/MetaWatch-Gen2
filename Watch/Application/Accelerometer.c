@@ -246,12 +246,12 @@ void AccelerometerSendDataHandler(void)
   tMessage Msg;
   if ((*pReadRegisterData & INT_TAP_SINGLE) == INT_TAP_SINGLE)
   {
-    InvertOption = (InvertOption == CONFIGURE_DISPLAY_OPTION_INVERT_DISPLAY) ? 
-      CONFIGURE_DISPLAY_OPTION_DONT_INVERT_DISPLAY : 
-      CONFIGURE_DISPLAY_OPTION_INVERT_DISPLAY;
+//    InvertOption = (InvertOption == CONFIGURE_DISPLAY_OPTION_INVERT_DISPLAY) ? 
+//      CONFIGURE_DISPLAY_OPTION_DONT_INVERT_DISPLAY : 
+//      CONFIGURE_DISPLAY_OPTION_INVERT_DISPLAY;
     
-    SetupMessage(&Msg, ConfigureDisplay, InvertOption);
-    RouteMsg(&Msg);
+//    SetupMessage(&Msg, ConfigureDisplay, InvertOption);
+//    RouteMsg(&Msg);
   }
   else if ((*pReadRegisterData & INT_TAP_DOUBLE) == INT_TAP_DOUBLE)
   {
