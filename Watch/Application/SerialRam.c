@@ -450,61 +450,31 @@ void UpdateDisplayHandler(tMessage* pMsg)
   extern unsigned char CurrentMode;
   unsigned char Mode = pMsg->Options & BUFFER_SELECT_MASK;
   unsigned int Index = GetBufferIndex(Mode, BUFFER_TYPE_READ);
-    
-  PrintStringAndHexByte("    UpdDisp Index: ", Index);
-  PrintStringAndTwoHexBytes("   Buffers []: ", BufferStatus[Mode][0], BufferStatus[Mode][1]);
-  PrintStringSpaceAndTwoDecimals("Mode Last: ", Mode, CurrentMode);
-  PrintStringAndDecimal("Force: ", (pMsg->Options & FORCE_UPDATE_MASK) == FORCE_UPDATE);
-  PrintStringAndDecimal("Status: ", BufferStatus[Mode][Index & 1] & BUFFER_STATUS_MASK);
-  // skip update if
-  // 1. invalid Index or
-  // 2. not force update and
-  //    mode is same as last update and
-  //    idle page is not the normal page and 
-  //    buffer is clean
-  if (Index == BUFFER_UNAVAILABLE || 
-      (!(pMsg->Options & FORCE_UPDATE_MASK) && 
-       Mode == CurrentMode &&
-       Mode == IDLE_MODE && !QueryIdlePageNormal())) // &&
-//      (BufferStatus[Mode][Index & 1] & BUFFER_STATUS_MASK) == BUFFER_CLEAN)) 
-    {
-      PrintString("--- Skip!\r\n");
-      return; 
-    }
-  
-  // notify mode-change to LcdDisplay which will draw date&time
+
+  SetBufferStatus(Index, BUFFER_READING);
+
+  // determine starting line
+  unsigned char StartRow = GetStartingRow(Mode);
+  unsigned char RowNum = NUM_LCD_ROWS - StartRow;
+
+  // notify mode-change for drawing date&time.
+  // if mode change, full screen must be redraw
   if (Mode != CurrentMode)
   {
     SetupMessage(&OutgoingMsg, ChangeModeMsg, pMsg->Options);
     RouteMsg(&OutgoingMsg);
   }
-    
-  SetBufferStatus(Index, BUFFER_READING);
-  
-  /* now calculate the absolute address */
-  unsigned int AbsoluteAddress = GetBufferAddress(Index);
-  
-  /* if it is the idle buffer then determine starting line */
-  unsigned char StartRow = GetStartingRow(Mode);
-  unsigned char RowNum = NUM_LCD_ROWS - StartRow;
-  
-  if (pMsg->Length)
+  else if (pMsg->Length)
   {
     Rect_t *pRect = (Rect_t *)pMsg->pBuffer;
-    if (pRect->StartRow >= 0 && pRect->StartRow < NUM_LCD_ROWS) StartRow = pRect->StartRow;
-    if (pRect->RowNum > 0) RowNum = pRect->RowNum;
+    if (pRect->StartRow < NUM_LCD_ROWS) StartRow = pRect->StartRow;
+    if (pRect->RowNum && pRect->RowNum + StartRow < NUM_LCD_ROWS) RowNum = pRect->RowNum;
   }
-  PrintStringSpaceAndThreeDecimals("UPD msglen: startR: num: ", pMsg->Length, StartRow, RowNum);
+  PrintStringSpaceAndThreeDecimals("UPD msglen: start: num: ", pMsg->Length, StartRow, RowNum);
   
-  /* update address because of possible starting row change */
-  AbsoluteAddress += BYTES_PER_LINE * StartRow;
+  /* now calculate the absolute address */
+  unsigned int AbsoluteAddress = GetBufferAddress(Index) + BYTES_PER_LINE * StartRow;
        
-  /* A possible change would be store dirty bits at the beginning of the buffer
-   * after reading this only the rows that changed would be read out and 
-   * written to the lcd.
-   * However, it is much easier to just draw the entire screen 
-   */
-  PrintStringSpaceAndTwoDecimals("UPD start:", StartRow, RowNum);
   while (RowNum --)
   {
     /* one buffer is used for writing and another is used for reading 
@@ -529,18 +499,15 @@ void UpdateDisplayHandler(tMessage* pMsg)
     AbsoluteAddress += BYTES_PER_LINE;
   }
   
-  PrintStringSpaceAndTwoDecimals("UPD end:", StartRow - 1, RowNum);
+  //PrintStringSpaceAndTwoDecimals("UPD end:", StartRow - 1, RowNum);
   SetBufferStatus(Index, BUFFER_CLEAN);
-  PrintStringAndTwoHexBytes("AF Upd Buffers []: ", 
-                            BufferStatus[Mode][0], BufferStatus[Mode][1]);
-  //PrintString("----- MY: Update Display Done.\r\n");
+  PrintStringAndTwoHexBytes("AF Buffers: ", BufferStatus[Mode][0], BufferStatus[Mode][1]);
   
   /* now that the screen has been drawn put the LCD into a lower power mode */
   PutLcdIntoStaticMode();  
 }
 
 /* Load a template from flash into a draw buffer (ram)
- *
  * This can be used by the phone or the watch application to save drawing time
  */
 void LoadTemplateHandler(tMessage* pMsg)

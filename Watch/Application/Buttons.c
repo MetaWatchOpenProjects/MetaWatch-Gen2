@@ -259,9 +259,7 @@ static void ChangeButtonState(unsigned char btnIndex, unsigned char btnState)
 /*! Enable button callback */
 void EnableButtonAction(unsigned char DisplayMode,
                         unsigned char ButtonIndex,
-                        unsigned char ButtonPressType,
-                        unsigned char CallbackMsgType,
-                        unsigned char CallbackMsgOptions)
+                        unsigned char ButtonPressType)
 {
   tButtonConfiguration* pLocalCfg = &(ButtonCfg[DisplayMode][ButtonIndex]);
   
@@ -283,10 +281,20 @@ void EnableButtonAction(unsigned char DisplayMode,
   default:
     break;
   }
+}
 
+/*! Enable button callback */
+void DefineButtonAction(unsigned char DisplayMode,
+                        unsigned char ButtonIndex,
+                        unsigned char ButtonPressType,
+                        unsigned char CallbackMsgType,
+                        unsigned char CallbackMsgOptions)
+{
+  EnableButtonAction(DisplayMode, ButtonIndex, ButtonPressType);
+  
+  tButtonConfiguration* pLocalCfg = &(ButtonCfg[DisplayMode][ButtonIndex]);
   pLocalCfg->CallbackMsgType[ButtonPressType] = CallbackMsgType;
   pLocalCfg->CallbackMsgOptions[ButtonPressType] = CallbackMsgOptions;
-
 }
 
 /*! Disable button callback for the specified mode and button press type */
@@ -322,10 +330,23 @@ void DisableButtonAction(unsigned char DisplayMode,
   {
     pLocalCfg->MaskTable |= BUTTON_ABSOLUTE_MASK;  
   }
-  
-  pLocalCfg->CallbackMsgType[ButtonPressType] = InvalidMessage;
-  pLocalCfg->CallbackMsgOptions[ButtonPressType] = 0;
 
+/* Just disable the ISR, no need to clear it  */
+//  pLocalCfg->CallbackMsgType[ButtonPressType] = InvalidMessage;
+//  pLocalCfg->CallbackMsgOptions[ButtonPressType] = 0;
+
+}
+
+void CleanButtonCallbackOptions(unsigned char DisplayMode)
+{
+  unsigned char i, k;
+  for (i = 1; i < NUMBER_OF_BUTTONS; i++)
+  {
+    for (k = 0; k < NUMBER_OF_BUTTON_EVENT_TYPES; k++)
+    {
+      ButtonCfg[DisplayMode][i].CallbackMsgOptions[k] = 0;
+    }
+  }
 }
 
 /*! Read a button configuration 

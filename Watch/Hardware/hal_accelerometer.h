@@ -83,13 +83,22 @@
 /******************************************************************************/
 
 /* CTRL_REG1 */
-#define PC1_STANDBY_MODE   ( 0 << 7 )
-#define PC1_OPERATING_MODE ( 1 << 7 )
-#define RESOLUTION_8BIT    ( 0 << 6 )
-#define RESOLUTION_12BIT   ( 1 << 6 )
-#define WUF_ENABLE         ( 1 << 1 )
-#define TAP_ENABLE_TDTE    ( 1 << 2 ) 
-#define TILT_ENABLE_TPE    ( 1 << 0 )
+#define PC1_STANDBY_MODE     ( 0 << 7 )
+#define PC1_OPERATING_MODE   ( 1 << 7 )
+#define RESOLUTION_8BIT      ( 0 << 6 )
+#define RESOLUTION_12BIT     ( 1 << 6 )
+#define DRDYE_DATA_AVAILABLE ( 1 << 5 )
+#define WUF_ENABLE           ( 1 << 1 )
+#define TAP_ENABLE_TDTE      ( 1 << 2 ) 
+#define TILT_ENABLE_TPE      ( 1 << 0 )
+
+/* CTRL_REG2 */
+#define TILT_LEM (1 << 5 )
+#define TILT_RIM (1 << 4 )
+#define TILT_DOM (1 << 3 )
+#define TILT_UPM (1 << 2 )
+#define TILT_FDM (1 << 1 )
+#define TILT_FUM (1 << 0 )
 
 /* CTRL_REG3 */
 #define SRST               ( 1 << 7 )
@@ -113,10 +122,22 @@
 #define IEL ( 1 << 3 )
 #define IEU ( 1 << 2 )
 
-/* INT_CNTRL_REG2 */
+/* INT_CTRL_REG2 */
 #define XBW ( 1 << 7 ) 
 #define YBW ( 1 << 6 )
 #define ZBW ( 1 << 5 )
+
+/* INT_CTRL_REG3 */
+#define TLEM (1 << 5)
+#define TRIM (1 << 4)
+#define TDOM (1 << 3)
+#define TUPM (1 << 2)
+#define TFDM (1 << 1)
+#define TFUM (1 << 0)
+
+/* INT_SRC_REG2 */
+#define INT_TAP_SINGLE (0x04)
+#define INT_TAP_DOUBLE (0x08)
 
 /* for readability */
 #define ONE_BYTE ( 1 )

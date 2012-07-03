@@ -174,11 +174,8 @@ void GenerateLinkAlarm(void);
 /*! Initialize the nv items that hold the application and notification mode timeouts */
 void InitializeModeTimeouts(void);
 
-/*! \return Application mode timeout in seconds */
-unsigned int QueryApplicationModeTimeout(void);
-
-/*! \return Notification mode timeout in seconds */
-unsigned int QueryNotificationModeTimeout(void);
+/*! \return mode's timeout in seconds */
+unsigned int QueryModeTimeout(unsigned char Mode);
 
 /******************************************************************************/
 

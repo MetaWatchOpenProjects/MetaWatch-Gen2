@@ -68,7 +68,7 @@ unsigned char* GetTemplatePointer(unsigned char TemplateSelect);
  * \return 1 if the idle page being display is the normal idle page and
  * that a display update from the phone is allowed, 0 otherwise
  */
-unsigned char QueryIdlePageNormal(void);
+//unsigned char QueryIdlePageNormal(void);
 
 /*! Initialize flash/ram value for the idle buffer configuration */
 void InitializeIdleBufferConfig(void);

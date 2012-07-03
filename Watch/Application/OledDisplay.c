@@ -1210,13 +1210,13 @@ unsigned char QueryButtonMode(void)
 
 static void DontChangeButtonConfiguration(void)
 {
-  EnableButtonAction(NORMAL_IDLE_SCREEN_BUTTON_MODE,
+  DefineButtonAction(NORMAL_IDLE_SCREEN_BUTTON_MODE,
                      SW_A_INDEX,
                      BUTTON_STATE_LONG_HOLD,
                      SoftwareResetMsg,
                      NO_MSG_OPTIONS);
 
-  EnableButtonAction(NORMAL_IDLE_SCREEN_BUTTON_MODE,
+  DefineButtonAction(NORMAL_IDLE_SCREEN_BUTTON_MODE,
                      SW_P_INDEX,
                      BUTTON_STATE_IMMEDIATE,
                      OledCrownMenuMsg,
@@ -1226,19 +1226,19 @@ static void DontChangeButtonConfiguration(void)
    * setup the button to generate an event when the crown is pushed back in 
    * (in == off state)
    */
-  EnableButtonAction(NORMAL_IDLE_SCREEN_BUTTON_MODE,
+  DefineButtonAction(NORMAL_IDLE_SCREEN_BUTTON_MODE,
                      SW_P_INDEX,
                      BUTTON_STATE_PRESSED,
                      OledCrownMenuButtonMsg,
                      OLED_CROWN_MENU_BUTTON_OPTION_EXIT);
       
-  EnableButtonAction(NORMAL_IDLE_SCREEN_BUTTON_MODE,
+  DefineButtonAction(NORMAL_IDLE_SCREEN_BUTTON_MODE,
                      SW_P_INDEX,
                      BUTTON_STATE_HOLD,
                      OledCrownMenuButtonMsg,
                      OLED_CROWN_MENU_BUTTON_OPTION_EXIT);
   
-  EnableButtonAction(NORMAL_IDLE_SCREEN_BUTTON_MODE,
+  DefineButtonAction(NORMAL_IDLE_SCREEN_BUTTON_MODE,
                      SW_P_INDEX,
                      BUTTON_STATE_LONG_HOLD,
                      OledCrownMenuButtonMsg,
@@ -1246,13 +1246,13 @@ static void DontChangeButtonConfiguration(void)
     
   /****************************************************************************/
 
-  EnableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
+  DefineButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                      SW_A_INDEX,
                      BUTTON_STATE_LONG_HOLD,
                      SoftwareResetMsg,
                      NO_MSG_OPTIONS);
 
-  EnableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
+  DefineButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                      SW_P_INDEX,
                      BUTTON_STATE_IMMEDIATE,
                      OledCrownMenuMsg,
@@ -1262,19 +1262,19 @@ static void DontChangeButtonConfiguration(void)
    * setup the button to generate an event when the crown is pushed back in 
    * (in == off state)
    */
-  EnableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
+  DefineButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                      SW_P_INDEX,
                      BUTTON_STATE_PRESSED,
                      OledCrownMenuButtonMsg,
                      OLED_CROWN_MENU_BUTTON_OPTION_EXIT);
       
-  EnableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
+  DefineButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                      SW_P_INDEX,
                      BUTTON_STATE_HOLD,
                      OledCrownMenuButtonMsg,
                      OLED_CROWN_MENU_BUTTON_OPTION_EXIT);
   
-  EnableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
+  DefineButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                      SW_P_INDEX,
                      BUTTON_STATE_LONG_HOLD,
                      OledCrownMenuButtonMsg,
@@ -1285,19 +1285,19 @@ static void DontChangeButtonConfiguration(void)
 
 static void NormalIdleScreenButtonConfiguration(void)
 {
-  EnableButtonAction(NORMAL_IDLE_SCREEN_BUTTON_MODE,
+  DefineButtonAction(NORMAL_IDLE_SCREEN_BUTTON_MODE,
                          SW_A_INDEX,
                          BUTTON_STATE_IMMEDIATE,
                          WatchStatusMsg,
                          NO_MSG_OPTIONS);
     
-  EnableButtonAction(NORMAL_IDLE_SCREEN_BUTTON_MODE,
+  DefineButtonAction(NORMAL_IDLE_SCREEN_BUTTON_MODE,
                          SW_B_INDEX,
                          BUTTON_STATE_IMMEDIATE,
                          OledShowIdleBufferMsg,
                          NO_MSG_OPTIONS);
       
-  EnableButtonAction(NORMAL_IDLE_SCREEN_BUTTON_MODE,
+  DefineButtonAction(NORMAL_IDLE_SCREEN_BUTTON_MODE,
                          SW_C_INDEX,
                          BUTTON_STATE_IMMEDIATE,
                          MenuModeMsg,
@@ -1326,14 +1326,14 @@ static void ChangeAnalogButtonConfiguration(tOledButtonMode NextButtonMode)
          
       /* toggle button is handled for each page/face */
       
-      EnableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
+      DefineButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                          SW_B_INDEX,
                          BUTTON_STATE_IMMEDIATE,
                          MenuButtonMsg,
                          MENU_BUTTON_OPTION_EXIT);
       
       /* go to the next page */
-      EnableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
+      DefineButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                          SW_C_INDEX,
                          BUTTON_STATE_IMMEDIATE,
                          MenuModeMsg,
@@ -1351,7 +1351,7 @@ static void ChangeAnalogButtonConfiguration(tOledButtonMode NextButtonMode)
                           SW_B_INDEX,
                           BUTTON_STATE_IMMEDIATE);
             
-      EnableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
+      DefineButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                          SW_C_INDEX,
                          BUTTON_STATE_IMMEDIATE,
                          OledCrownMenuMsg,
@@ -1967,7 +1967,7 @@ static void DisplayRstNmiConfigurationFace(void)
   unsigned char FirstIconIndex;
   unsigned char SecondIconIndex;
   
-  if ( QueryRstPinEnabled() )
+  if ( RstPin() == RST_PIN_ENABLED )
   {
     FirstIconIndex = CHECK_ICON_INDEX;
     SecondIconIndex = X_ICON_INDEX;
@@ -2325,7 +2325,7 @@ static void MenuModeHandler(unsigned char MsgOptions)
   case TOGGLE_BLUETOOTH_PAGE:
     DisplayBluetoothToggleFace();
     
-    EnableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
+    DefineButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                        SW_A_INDEX,
                        BUTTON_STATE_IMMEDIATE,
                        MenuButtonMsg,
@@ -2335,7 +2335,7 @@ static void MenuModeHandler(unsigned char MsgOptions)
   case TOGGLE_LINK_ALARM_PAGE:
     DisplayLinkAlarmToggleFace();
     
-    EnableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
+    DefineButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                        SW_A_INDEX,
                        BUTTON_STATE_IMMEDIATE,
                        MenuButtonMsg,
@@ -2346,7 +2346,7 @@ static void MenuModeHandler(unsigned char MsgOptions)
   case TOGGLE_DISCOVERABILITY_PAGE:
     DisplayPairiabilityFace();
     
-    EnableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
+    DefineButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                        SW_A_INDEX,
                        BUTTON_STATE_IMMEDIATE,
                        MenuButtonMsg,
@@ -2357,7 +2357,7 @@ static void MenuModeHandler(unsigned char MsgOptions)
   case TOGGLE_RST_NMI_PAGE:
     DisplayRstNmiConfigurationFace();
     
-    EnableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
+    DefineButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                        SW_A_INDEX,
                        BUTTON_STATE_IMMEDIATE,
                        MenuButtonMsg,
@@ -2368,7 +2368,7 @@ static void MenuModeHandler(unsigned char MsgOptions)
   case TOGGLE_SECURE_SIMPLE_PAIRING_PAGE:
     DisplaySspFace();
     
-    EnableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
+    DefineButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                        SW_A_INDEX,
                        BUTTON_STATE_IMMEDIATE,
                        MenuButtonMsg,
@@ -2379,7 +2379,7 @@ static void MenuModeHandler(unsigned char MsgOptions)
   case RESET_WATCH_PAGE:
     DisplayResetWatchFace();
     
-    EnableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
+    DefineButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                        SW_A_INDEX,
                        BUTTON_STATE_IMMEDIATE,
                        SoftwareResetMsg,
@@ -2473,14 +2473,7 @@ static void MenuButtonHandler(unsigned char MsgOptions)
     break;
     
   case MENU_BUTTON_OPTION_TOGGLE_RST_NMI_PIN:
-    if ( QueryRstPinEnabled() )
-    {
-      DisableRstPin();
-    }
-    else
-    {
-      EnableRstPin(); 
-    }
+    ConfigRstPin(RST_PIN_TOGGLED); 
     MenuModeHandler(MENU_MODE_OPTION_UPDATE_CURRENT_PAGE);
     NvalSettingsChanged = 1;    
     break;
@@ -2586,7 +2579,7 @@ static void OledCrownMenuHandler(unsigned char MsgOptions)
   case TOP_CONTRAST_PAGE:
     DisplayTopContrastFace();
     
-    EnableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
+    DefineButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                        SW_A_INDEX,
                        BUTTON_STATE_IMMEDIATE,
                        OledCrownMenuButtonMsg,
@@ -2598,7 +2591,7 @@ static void OledCrownMenuHandler(unsigned char MsgOptions)
   case BOTTOM_CONTRAST_PAGE:
     DisplayBottomContrastFace();
     
-    EnableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
+    DefineButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                        SW_A_INDEX,
                        BUTTON_STATE_IMMEDIATE,
                        OledCrownMenuButtonMsg,
@@ -2613,7 +2606,7 @@ static void OledCrownMenuHandler(unsigned char MsgOptions)
                         SW_A_INDEX,
                         BUTTON_STATE_IMMEDIATE);
         
-    EnableButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
+    DefineButtonAction(WATCH_DRAWN_SCREEN_BUTTON_MODE,
                        SW_A_INDEX,
                        BUTTON_STATE_LONG_HOLD,
                        SoftwareResetMsg,

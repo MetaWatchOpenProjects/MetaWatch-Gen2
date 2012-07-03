@@ -39,6 +39,7 @@ void AccelerometerSetupHandler(tMessage* pMsg);
 void AccelerometerAccessHandler(tMessage* pMsg);
 void AccelerometerEnable(void);
 void AccelerometerDisable(void);
+unsigned char QueryAccelerometerState(void);
 
 /******************************************************************************/
 

@@ -20,7 +20,6 @@
 */
 /******************************************************************************/
 
-
 #include "FreeRTOS.h"
 #include "task.h"
 #include "queue.h"
@@ -37,16 +36,14 @@
 #include "DebugUart.h"
 #include "Utilities.h" 
 #include "Accelerometer.h"
-#include "Wrapper.h"
 
 /******************************************************************************/
+#define XYZ_DATA_LENGTH    (6)
 
 static unsigned char WriteRegisterData;
-
-#ifdef ACCELEROMETER_DEBUG
 static unsigned char pReadRegisterData[16];
-#endif
-
+static unsigned char InvertOption;
+static unsigned char Enabled = 0;
 /******************************************************************************/
 
 /* send interrupt only or send data (Send Interrupt Data [SID]) */
@@ -76,10 +73,10 @@ void InitializeAccelerometer(void)
 #if 0
   /* reset chip */
   WriteRegisterData = PC1_STANDBY_MODE;
-  AccelerometerWrite(KIONIX_CTRL_REG1,&WriteRegisterData,ONE_BYTE);
+  AccelerometerWrite(KIONIX_CTRL_REG1, &WriteRegisterData, ONE_BYTE);
 
   WriteRegisterData = SRST;
-  AccelerometerWrite(KIONIX_CTRL_REG3,&WriteRegisterData,ONE_BYTE);
+  AccelerometerWrite(KIONIX_CTRL_REG3, &WriteRegisterData, ONE_BYTE);
   
   /* wait until reset is complete */
   while ( WriteRegisterData & SRST )
@@ -93,18 +90,52 @@ void InitializeAccelerometer(void)
    * be changed when the part is not active.
    */
   WriteRegisterData = PC1_STANDBY_MODE;
-  AccelerometerWrite(KIONIX_CTRL_REG1,&WriteRegisterData,ONE_BYTE);
+  AccelerometerWrite(KIONIX_CTRL_REG1, &WriteRegisterData, ONE_BYTE);
 
+  /* enable face-up and face-down detection */
+  WriteRegisterData = TILT_FDM | TILT_FUM;
+  AccelerometerWrite(KIONIX_CTRL_REG2, &WriteRegisterData, ONE_BYTE);
+    
+  /* 
+   * the interrupt from the accelerometer can be used to get periodic data
+   * the real time clock can also be used
+   */
+  
+  /* change to output data rate to 25 Hz */
+  WriteRegisterData = WUF_ODR_25HZ | TAP_ODR_400HZ;
+  AccelerometerWrite(KIONIX_CTRL_REG3, &WriteRegisterData, ONE_BYTE);
+  
   /* enable interrupt and make it active high */
   WriteRegisterData = IEN | IEA;
-  AccelerometerWrite(KIONIX_INT_CTRL_REG1,&WriteRegisterData,ONE_BYTE);
+  AccelerometerWrite(KIONIX_INT_CTRL_REG1, &WriteRegisterData, ONE_BYTE);
   
-  /* enable interrupt for all three axes */
-  WriteRegisterData = XBW | YBW | ZBW;
-  AccelerometerWrite(KIONIX_INT_CTRL_REG2,&WriteRegisterData,ONE_BYTE);
+  /* enable motion detection interrupt for all three axis */
+  WriteRegisterData = ZBW;
+  AccelerometerWrite(KIONIX_INT_CTRL_REG2, &WriteRegisterData, ONE_BYTE);
 
-#ifdef ACCELEROMETER_DEBUG
- 
+  /* enable tap interrupt for Z-axis */
+  WriteRegisterData = TFDM;
+  AccelerometerWrite(KIONIX_INT_CTRL_REG3, &WriteRegisterData, ONE_BYTE);
+  
+  /* set TDT_TIMER to 0.2 secs*/
+  WriteRegisterData = 0x50;
+  AccelerometerWrite(KIONIX_TDT_TIMER, &WriteRegisterData, ONE_BYTE);
+  
+  /* set tap low and high thresholds (default: 26 and 182) */
+  WriteRegisterData = 78;
+  AccelerometerWrite(KIONIX_TDT_L_THRESH, &WriteRegisterData, ONE_BYTE);
+  WriteRegisterData = 128;
+  AccelerometerWrite(KIONIX_TDT_H_THRESH, &WriteRegisterData, ONE_BYTE);
+    
+  /* set WUF_TIMER counter */
+  WriteRegisterData = 10;
+  AccelerometerWrite(KIONIX_WUF_TIMER, &WriteRegisterData, ONE_BYTE);
+    
+  /* this causes data to always be sent */
+  // WriteRegisterData = 0x00;
+  WriteRegisterData = 0x08;
+  AccelerometerWrite(KIONIX_WUF_THRESH, &WriteRegisterData, ONE_BYTE);
+     
   /* single byte read test */
   AccelerometerRead(KIONIX_DCST_RESP,pReadRegisterData,1);
   PrintStringAndHex("KIONIX_DCST_RESP (0x55) = 0x",pReadRegisterData[0]);
@@ -112,9 +143,7 @@ void InitializeAccelerometer(void)
   /* multiple byte read test */
   AccelerometerRead(KIONIX_WHO_AM_I,pReadRegisterData,2);
   PrintStringAndHex("KIONIX_WHO_AM_I (0x01) = 0x",pReadRegisterData[0]);
-  PrintStringAndHex("KIONIX_TILT_POS_CUR (0x20) = 0x",pReadRegisterData[1]);
-  
-#endif
+  PrintStringAndHex("KIONIX_TILT_POS_CUR (0x20) = 0x",pReadRegisterData[1]);  
     
   /* 
    * KIONIX_CTRL_REG3 and DATA_CTRL_REG can remain at their default values 
@@ -136,38 +165,17 @@ void InitializeAccelerometer(void)
 #endif
   
   /* setup the default for the AccelerometerEnable command */
-  OperatingModeRegister = PC1_OPERATING_MODE | RESOLUTION_12BIT | WUF_ENABLE;
+  OperatingModeRegister = PC1_OPERATING_MODE | RESOLUTION_12BIT | 
+    TAP_ENABLE_TDTE | TILT_ENABLE_TPE; // | WUF_ENABLE;
   InterruptControl = INTERRUPT_CONTROL_DISABLE_INTERRUPT; 
   SidControl = SID_CONTROL_SEND_DATA;
   SidAddr = KIONIX_XOUT_L;
-  SidLength = 6;
+  SidLength = XYZ_DATA_LENGTH;
   
   AccelerometerDisable();
-   
-#ifdef ACCELEROMETER_DEBUG
   ACCELEROMETER_INT_ENABLE();
-#endif
   
-  /* 
-   * the interrupt from the accelerometer can be used to get periodic data
-   *
-   * the real time clock can also be used
-   */
-  
-#ifdef ACCELEROMETER_DEBUG
-  /* change to output data rate to 25 Hz */
-  WriteRegisterData = WUF_ODR_25HZ;
-  AccelerometerWrite(KIONIX_CTRL_REG3,&WriteRegisterData,ONE_BYTE);
-#endif
-  
-#ifdef ACCELEROMETER_DEBUG
-  /* this causes data to always be sent */  
-  WriteRegisterData = 0x00;
-  AccelerometerWrite(KIONIX_WUF_THRESH,&WriteRegisterData,ONE_BYTE);
-#endif
-  
-  PrintString("Accelerometer Init Complete\r\n");
-   
+  PrintString("Accelerometer Init Complete\r\n");   
 }
 
 
@@ -178,7 +186,6 @@ void InitializeAccelerometer(void)
  */
 void AccelerometerIsr(void)
 {
-  
 #if 0
   /* disabling the interrupt is the easiest way to make sure that
    * the stack does not get blasted with
@@ -191,8 +198,8 @@ void AccelerometerIsr(void)
    * occurred message
    */
   tMessage Msg;
-  SetupMessage(&Msg,AccelerometerSendDataMsg,NO_MSG_OPTIONS);  
-  SendMessageToQueueFromIsr(BACKGROUND_QINDEX,&Msg);
+  SetupMessage(&Msg, AccelerometerSendDataMsg, NO_MSG_OPTIONS);  
+  SendMessageToQueueFromIsr(BACKGROUND_QINDEX, &Msg);
 }
 
 static void ReadInterruptReleaseRegister(void)
@@ -206,20 +213,15 @@ static void ReadInterruptReleaseRegister(void)
   
   unsigned char temp;
   AccelerometerRead(KIONIX_INT_REL,&temp,1);
-
 }
-
 
 /* Send interrupt notification to the phone or 
  * read data from the accelerometer and send it to the phone
  */
 void AccelerometerSendDataHandler(void)
 {
-  
-#ifdef ACCELEROMETER_DEBUG
-  
   /* burst read */
-  AccelerometerRead(KIONIX_TDT_TIMER,pReadRegisterData,6);
+  AccelerometerRead(KIONIX_TDT_TIMER, pReadRegisterData, 6);
   
   if (   pReadRegisterData[0] != 0x78 
       || pReadRegisterData[1] != 0xCB /* b6 */ 
@@ -234,40 +236,57 @@ void AccelerometerSendDataHandler(void)
   /* single read */
   AccelerometerRead(KIONIX_DCST_RESP,pReadRegisterData,1);
   
-  if ( pReadRegisterData[0] != 0x55 )
+  if (pReadRegisterData[0] != 0x55)
   {
     PrintString("Invalid i2c Read\r\n"); 
   }
-     
-#endif
 
-  if ( QueryPhoneConnected() )
+  AccelerometerRead(KIONIX_INT_SRC_REG2, pReadRegisterData, ONE_BYTE);
+
+  tMessage Msg;
+  if ((*pReadRegisterData & INT_TAP_SINGLE) == INT_TAP_SINGLE)
+  {
+    InvertOption = (InvertOption == CONFIGURE_DISPLAY_OPTION_INVERT_DISPLAY) ? 
+      CONFIGURE_DISPLAY_OPTION_DONT_INVERT_DISPLAY : 
+      CONFIGURE_DISPLAY_OPTION_INVERT_DISPLAY;
+    
+    SetupMessage(&Msg, ConfigureDisplay, InvertOption);
+    RouteMsg(&Msg);
+  }
+  else if ((*pReadRegisterData & INT_TAP_DOUBLE) == INT_TAP_DOUBLE)
+  {
+    SetupMessage(&Msg, LedChange, LED_TOGGLE_OPTION);
+    RouteMsg(&Msg);
+  }
+
+  if (QueryPhoneConnected())
   {
     tMessage OutgoingMsg;
-    
-    if ( SidControl == SID_CONTROL_SEND_INTERRUPT )
+
+    if (SidControl == SID_CONTROL_SEND_INTERRUPT)
     {
       SetupMessageAndAllocateBuffer(&OutgoingMsg,
-                                    AccelerometerHostMsg,
-                                    ACCELEROMETER_HOST_MSG_IS_INTERRUPT_OPTION);
+                            AccelerometerHostMsg,
+                            ACCELEROMETER_HOST_MSG_IS_INTERRUPT_OPTION);
     }
     else
     {
       SetupMessageAndAllocateBuffer(&OutgoingMsg,
-                                    AccelerometerHostMsg,
-                                    ACCELEROMETER_HOST_MSG_IS_DATA_OPTION);
-      
+                                AccelerometerHostMsg,
+                                ACCELEROMETER_HOST_MSG_IS_DATA_OPTION);
+
       OutgoingMsg.Length = SidLength;
-      
-      AccelerometerRead(SidAddr,OutgoingMsg.pBuffer,6);
-      
+      AccelerometerRead(SidAddr, OutgoingMsg.pBuffer, SidLength);
+
+      // read orientation and tap status starting
+      // AccelerometerReadSingle(KIONIX_INT_SRC_REG1, OutgoingMsg.pBuffer + SidLength);
+      //*(OutgoingMsg.pBuffer + SidLength) = *pReadRegisterData;
+      //OutgoingMsg.Length ++;
     }
-  
     RouteMsg(&OutgoingMsg);
   }
-  
+
   ReadInterruptReleaseRegister();
-    
 }
 
 void AccelerometerEnable(void)
@@ -278,7 +297,9 @@ void AccelerometerEnable(void)
   if ( InterruptControl == INTERRUPT_CONTROL_ENABLE_INTERRUPT )
   {
     ReadInterruptReleaseRegister();
-  } 
+  }
+  ACCELEROMETER_INT_ENABLE();
+  Enabled = 1;
 }
 
 void AccelerometerDisable(void)
@@ -288,6 +309,12 @@ void AccelerometerDisable(void)
   AccelerometerWrite(KIONIX_CTRL_REG1,&WriteRegisterData,ONE_BYTE);
 
   ACCELEROMETER_INT_DISABLE();
+  Enabled = 0;
+}
+
+unsigned char QueryAccelerometerState(void)
+{
+  return Enabled;
 }
 
 /* 
@@ -328,7 +355,6 @@ void AccelerometerSetupHandler(tMessage* pMsg)
     PrintString("Unhandled Accelerometer Setup Option\r\n");
     break;
   }
-  
 }
 
 /* Perform a read or write access of the accelerometer */

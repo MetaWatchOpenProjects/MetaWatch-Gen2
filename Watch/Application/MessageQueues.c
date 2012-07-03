@@ -263,12 +263,12 @@ void PrintMessageType(tMessage* pMsg)
   case MenuButtonMsg:              PrintStringAndHexByte("MenuButtonMsg 0x",MessageType);          break;
   case ToggleSecondsMsg:           PrintStringAndHexByte("ToggleSecondsMsg 0x",MessageType);       break;
   case LedChange:                  PrintStringAndHexByte("LedChange 0x",MessageType);              break;
-  //case AccelerometerHostMsg:       PrintStringAndHexByte("AccelerometerHostMsg 0x",MessageType);       break;           
-  case AccelerometerHostMsg:       PrintString("-");       break;           
+  case AccelerometerHostMsg:       PrintStringAndHexByte("AccelerometerHostMsg 0x",MessageType);       break;           
+  //case AccelerometerHostMsg:       PrintString("-");       break;           
   case AccelerometerEnableMsg:     PrintStringAndHexByte("AccelerometerEnableMsg 0x",MessageType);     break;           
   case AccelerometerDisableMsg:    PrintStringAndHexByte("AccelerometerDisableMsg 0x",MessageType);    break;           
-  //case AccelerometerSendDataMsg:   PrintStringAndHexByte("AccelerometerSendDataMsg 0x",MessageType);   break;           
-  case AccelerometerSendDataMsg:   PrintString("_");   break;           
+  case AccelerometerSendDataMsg:   PrintStringAndHexByte("AccelerometerSendDataMsg 0x",MessageType);   break;           
+  //case AccelerometerSendDataMsg:   PrintString("_");   break;           
   case AccelerometerAccessMsg:     PrintStringAndHexByte("AccelerometerAccessMsg 0x",MessageType);     break;           
   case AccelerometerResponseMsg:   PrintStringAndHexByte("AccelerometerResponseMsg 0x",MessageType);   break;           
   case AccelerometerSetupMsg:      PrintStringAndHexByte("AccelerometerSetupMsg 0x",MessageType);      break;
@@ -291,7 +291,6 @@ void PrintMessageType(tMessage* pMsg)
   case UpdateConnParameterMsg:     PrintStringAndHexByte("UpdateConnParameterMsg 0x",MessageType);     break;
   default:                         PrintStringAndHexByte("Unknown Message Type 0x",MessageType);       break;
   }  
-  
 }
 
 void RouteMsg(tMessage* pMsg)
@@ -311,7 +310,6 @@ void RouteMsg(tMessage* pMsg)
   else
 #endif
   {
-
     switch (pMsg->Type)
     {
     case InvalidMessage:                SendMsgToQ(FREE_QINDEX,pMsg);       break;
@@ -401,7 +399,6 @@ void RouteMsg(tMessage* pMsg)
     default:                            SendMsgToQ(FREE_QINDEX,pMsg);       break;
     }
   }
-  
 }
 
 void AssignWrapperQueueHandle(xQueueHandle WrapperHandle)

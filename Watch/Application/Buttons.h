@@ -112,11 +112,15 @@ void ButtonStateHandler(void);
  * \param CallbackMsgOptions allows options to be sent with the message
  * the payload is not configurable.
  */
-void EnableButtonAction(unsigned char DisplayMode,
+void DefineButtonAction(unsigned char DisplayMode,
                         unsigned char ButtonIndex,
                         unsigned char ButtonPressType,
                         unsigned char CallbackMsgType,
                         unsigned char CallbackMsgOptions);
+
+void EnableButtonAction(unsigned char DisplayMode,
+                        unsigned char ButtonIndex,
+                        unsigned char ButtonPressType);
 
 /*! Delete a button press type and its association
  *
@@ -127,6 +131,8 @@ void EnableButtonAction(unsigned char DisplayMode,
 void DisableButtonAction(unsigned char ButtonMode,
                          unsigned char ButtonIndex,
                          unsigned char ButtonPressType);
+                         
+void CleanButtonCallbackOptions(unsigned char DisplayMode);
 
 /*! Read a button press's association
  *

@@ -27,11 +27,10 @@
 
 static void EnterLpm3(void);
 static void EnterShippingMode(void);
+static void ConfigureResetPinFunction(unsigned char Control);
 
 static unsigned char EnterShippingModeFlag = 0;
-
 static unsigned char TaskDelayLpmLockCount = 0;
-
 
 void MSP430_LPM_ENTER(void)
 {
@@ -42,10 +41,8 @@ void MSP430_LPM_ENTER(void)
   else
   {
     EnterLpm3();  
-  }
-  
+  }  
 }
-
 
 static void EnterLpm3(void)
 {
@@ -87,10 +84,7 @@ static void EnterLpm3(void)
   __no_operation();
 
 #endif  
-  
 }
-
-
 
 void SetShippingModeFlag(void)
 {
@@ -107,7 +101,7 @@ static void EnterShippingMode(void)
   /* Turn off the watchdog timer */
   WDTCTL = WDTPW | WDTHOLD;
   
-  EnableRstPin();
+  ConfigRstPin(RST_PIN_ENABLED);
   
   __delay_cycles(100000);
   
@@ -157,9 +151,6 @@ void SoftwareReset(void)
   PMMCTL0 = PMMPW | PMMSWBOR;
 }
 
-
-
-
 void TaskDelayLpmDisable(void)
 {
   portENTER_CRITICAL();
@@ -184,14 +175,14 @@ unsigned char GetTaskDelayLockCount(void)
 
 /******************************************************************************/
 
-extern unsigned char nvRstNmiConfiguration;
+static unsigned char nvRstNmiConfiguration;
 
-unsigned char QueryRstPinEnabled(void)
+unsigned char RstPin(void)
 {
-  return ( nvRstNmiConfiguration == RST_PIN_ENABLED );  
+  return nvRstNmiConfiguration;  
 }
 
-void ConfigureResetPinFunction(unsigned char Control)
+static void ConfigureResetPinFunction(unsigned char Control)
 {
   switch (Control)
   {
@@ -208,16 +199,11 @@ void ConfigureResetPinFunction(unsigned char Control)
     SFRRPCR &= ~SYSRSTRE;
     SFRRPCR |= SYSNMI;
     break;
-  
   }
 }
 
-void EnableRstPin(void)
+void ConfigRstPin(unsigned char Control)
 {
-  ConfigureResetPinFunction(RST_PIN_ENABLED);  
-}
-
-void DisableRstPin(void)
-{
-  ConfigureResetPinFunction(RST_PIN_DISABLED);  
+  ConfigureResetPinFunction(
+    Control == RST_PIN_TOGGLED? !nvRstNmiConfiguration : Control);  
 }

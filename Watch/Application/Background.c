@@ -215,8 +215,6 @@ static void BackgroundTask(void *pvParameters)
 
   InitializeAccelerometer();
 
-#ifdef ACCELEROMETER_DEBUG
-
   SetupMessageAndAllocateBuffer(&BackgroundMsg,
                                 AccelerometerSetupMsg,
                                 ACCELEROMETER_SETUP_INTERRUPT_CONTROL_OPTION);
@@ -225,11 +223,10 @@ static void BackgroundTask(void *pvParameters)
   BackgroundMsg.Length = 1;
   RouteMsg(&BackgroundMsg);
 
-  /* don't call AccelerometerEnable() directly use a message*/
-  SetupMessage(&BackgroundMsg,AccelerometerEnableMsg,NO_MSG_OPTIONS);
-  RouteMsg(&BackgroundMsg);
+  /* don't call AccelerometerEnable() directly. Use a message*/
+//  SetupMessage(&BackgroundMsg,AccelerometerEnableMsg,NO_MSG_OPTIONS);
+//  RouteMsg(&BackgroundMsg);
 
-#endif
 
   /****************************************************************************/
 
@@ -511,7 +508,7 @@ static void EnableButtonMsgHandler(tMessage* pMsg)
   tButtonActionPayload* pButtonActionPayload =
     (tButtonActionPayload*)pMsg->pBuffer;
 
-  EnableButtonAction(pButtonActionPayload->DisplayMode,
+  DefineButtonAction(pButtonActionPayload->DisplayMode,
                      pButtonActionPayload->ButtonIndex,
                      pButtonActionPayload->ButtonPressType,
                      pButtonActionPayload->CallbackMsgType,
@@ -710,34 +707,22 @@ static void NvalOperationHandler(tMessage* pMsg)
   }
 
   RouteMsg(&OutgoingMsg);
-
 }
-
 
 /******************************************************************************/
 
 void InitializeRstNmiConfiguration(void)
 {
-  nvRstNmiConfiguration = RST_PIN_DISABLED;
-  OsalNvItemInit(NVID_RSTNMI_CONFIGURATION,
-                 sizeof(nvRstNmiConfiguration),
-                 &nvRstNmiConfiguration);
-
-  ConfigureResetPinFunction(nvRstNmiConfiguration);
-
+  unsigned char RstControl = RST_PIN_DISABLED;
+  OsalNvItemInit(NVID_RSTNMI_CONFIGURATION, sizeof(RstControl), &RstControl);
+  ConfigRstPin(RstControl);
 }
-
 
 void SaveRstNmiConfiguration(void)
 {
-  OsalNvWrite(NVID_RSTNMI_CONFIGURATION,
-              NV_ZERO_OFFSET,
-              sizeof(nvRstNmiConfiguration),
-              &nvRstNmiConfiguration);
+  unsigned char RstControl = RstPin();
+  OsalNvWrite(NVID_RSTNMI_CONFIGURATION, NV_ZERO_OFFSET, sizeof(RstControl), &RstControl);
 }
-
-
-
 
 /******************************************************************************/
 
@@ -860,11 +845,9 @@ static unsigned char RateTestCallback(void)
     SetupMessage(&Msg,RateTestMsg,NO_MSG_OPTIONS);
     SendMessageToQueueFromIsr(BACKGROUND_QINDEX,&Msg);
     ExitLpm = 1;
-
   }
 
   return ExitLpm;
-
 }
 #endif
 

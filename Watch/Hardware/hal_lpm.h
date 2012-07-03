@@ -48,22 +48,19 @@ void ClearShippingModeFlag(void);
 void SoftwareReset(void);
 
 
+#define RST_PIN_DISABLED ( 0x00 )
 #define RST_PIN_ENABLED  ( 0x01 )
-#define RST_PIN_DISABLED ( 0x02 )
+#define RST_PIN_TOGGLED  ( 0x02 )
 
-/*! Query whether or not the reset pin is enabled
+/*! Query reset pin status
  *
  * \return 0 = not enabled, 1 = reset pin enabled
  */
-unsigned char QueryRstPinEnabled(void);
+unsigned char RstPin(void);
 
 /*! Configure the reset pin functionality */
-void ConfigureResetPinFunction(unsigned char Control);
+//void ConfigureResetPinFunction(unsigned char Control);
 
-/*! Enable the Rst pin (let it reset part) */
-void EnableRstPin(void);
-
-/*! Disable the Rst pin (don't let it reset the MSP430) */
-void DisableRstPin(void);
+void ConfigRstPin(unsigned char Control);
 
 #endif /* HAL_LPM_H */

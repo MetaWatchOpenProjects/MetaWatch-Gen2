@@ -251,7 +251,7 @@ void GenerateLinkAlarm(void)
   pMsgData->OnDurationMsb = 0x01;
   pMsgData->OffDurationLsb = 0x00;
   pMsgData->OffDurationMsb = 0x01;
-  pMsgData->NumberOfCycles = 5;
+  pMsgData->NumberOfCycles = 1;
   
   RouteMsg(&Msg);
 }
@@ -282,14 +282,9 @@ void InitializeModeTimeouts(void)
  
 }
 
-unsigned int QueryApplicationModeTimeout(void)
+unsigned int QueryModeTimeout(unsigned char Mode)
 {
-  return nvApplicationModeTimeout;  
-}
-
-unsigned int QueryNotificationModeTimeout(void)
-{
-  return nvNotificationModeTimeout;  
+  return (Mode == APPLICATION_MODE ? nvApplicationModeTimeout : nvNotificationModeTimeout);  
 }
 
 /******************************************************************************/

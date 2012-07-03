@@ -365,6 +365,22 @@ void PrintStringAndSpaceAndDecimal(tString * const pString,unsigned int Value)
   WriteTxBuffer("\r\n");
 }
 
+void PrintStringAndTwoDecimals(tString * const pString1,
+                                 unsigned int Value1,
+                                 tString * const pString2,
+                                 unsigned int Value2)
+{
+  WriteTxBuffer(pString1);  
+  ToDecimalString(Value1,ConversionString);
+  WriteTxBuffer(ConversionString);
+  WriteTxBuffer(" ");
+  
+  WriteTxBuffer(pString2);  
+  ToDecimalString(Value2,ConversionString);
+  WriteTxBuffer(ConversionString);
+  WriteTxBuffer("\r\n");
+}
+
 void PrintStringAndThreeDecimals(tString * const pString1,
                                  unsigned int Value1,
                                  tString * const pString2,
