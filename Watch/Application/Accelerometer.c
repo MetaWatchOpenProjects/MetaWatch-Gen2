@@ -26,16 +26,16 @@
 #include "semphr.h"
 #include "portmacro.h"
 
-#include "Messages.h"
 #include "hal_board_type.h"
 #include "hal_accelerometer.h"
+#include "Messages.h"
 #include "hal_rtc.h"
 
-#include "Messages.h"
 #include "MessageQueues.h"     
 #include "DebugUart.h"
 #include "Utilities.h" 
 #include "Accelerometer.h"
+#include "Wrapper.h"
 
 /******************************************************************************/
 #define XYZ_DATA_LENGTH    (6)
