@@ -26,7 +26,7 @@
 
 /* patch selection (include at least one) */
 #define INCLUDE_1316_PATCH
-//#define INCLUDE_1315_PATCH
+#define INCLUDE_1315_PATCH
 
 #if !defined(INCLUDE_1316_PATCH) && !defined(INCLUDE_1315_PATCH)
 #error "At least one patch must be included"
