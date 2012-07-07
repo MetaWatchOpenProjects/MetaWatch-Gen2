@@ -2221,7 +2221,7 @@ static void ChangeModeHandler(unsigned char Mode)
     StopOneSecondTimer(ModeTimerId);
     
     SetupOneSecondTimer(ModeTimerId,
-                        QueryApplicationModeTimeout(),
+                        QueryModeTimeout(APPLICATION_MODE),
                         NO_REPEAT,
                         DISPLAY_QINDEX,
                         ModeTimeoutMsg,
@@ -2238,7 +2238,7 @@ static void ChangeModeHandler(unsigned char Mode)
     StopOneSecondTimer(ModeTimerId);
     
     SetupOneSecondTimer(ModeTimerId,
-                        QueryNotificationModeTimeout(),
+                        QueryModeTimeout(NOTIFICATION_MODE),
                         NO_REPEAT,
                         DISPLAY_QINDEX,
                         ModeTimeoutMsg,
