@@ -174,7 +174,7 @@ static void MenuExitHandler(void);
 /******************************************************************************/
 
 #define DISPLAY_TASK_QUEUE_LENGTH 8
-#define DISPLAY_TASK_STACK_SIZE 	(configMINIMAL_STACK_SIZE + 100)    
+#define DISPLAY_TASK_STACK_SIZE 	(configMINIMAL_STACK_SIZE + 90)    
 #define DISPLAY_TASK_PRIORITY     (tskIDLE_PRIORITY + 1)
 
 xTaskHandle DisplayHandle;
@@ -191,7 +191,7 @@ static unsigned char ReturnToApplicationMode;
 
 #define TOTAL_CONTRAST_VALUES ( 9 )
 
-static unsigned char ContrastTable[TOTAL_CONTRAST_VALUES] =
+static const unsigned char ContrastTable[TOTAL_CONTRAST_VALUES] =
 {
   0,32,64,96,128,160,192,224,255,
 };

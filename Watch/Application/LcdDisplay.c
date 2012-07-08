@@ -382,7 +382,7 @@ static void DisplayQueueMessageHandler(tMessage* pMsg)
 
   case SplashTimeoutMsg:
     SplashTimeout = 1;
-    CurrentPage[PAGE_TYPE_IDLE] = BluetoothOffPage;
+    DetermineIdlePage();
     IdleUpdateHandler(IDLE_FULL_UPDATE);
     break;
 
