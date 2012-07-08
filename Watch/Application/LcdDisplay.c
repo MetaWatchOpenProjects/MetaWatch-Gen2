@@ -465,7 +465,7 @@ static void IdleUpdateHandler(unsigned char Options)
 
 static void ChangeModeHandler(unsigned char Mode, unsigned char Options)
 {
-  PrintStringAndTwoDecimals("Changing mode from ", CurrentMode, " to ", Mode);
+  //PrintStringAndTwoDecimals("Changing mode from ", CurrentMode, " to ", Mode);
   CurrentMode = Mode;
 
   if (Mode == IDLE_MODE)
@@ -523,7 +523,7 @@ static void ConnectionStateChangeHandler(tMessage *pMsg)
         QueryConnectionState() == Paired)
     {
       // clear button definition
-      PrintStringAndDecimal("+++ Clean Button: ", CurrentMode);
+      //PrintStringAndDecimal("+++ Clean Button: ", CurrentMode);
       CleanButtonCallbackOptions(CurrentMode);
     }
     ChangeModeHandler(IDLE_MODE, IDLE_FULL_UPDATE);
@@ -733,7 +733,7 @@ static void DontChangeButtonConfiguration(void)
 {
   /* assign LED button to all modes */
   unsigned char i;
-  for ( i = 0; i < NUMBER_OF_BUTTON_MODES; i++ )
+  for ( i = 0; i < NUMBER_OF_MODES; i++ )
   {
     /* turn off led 3 seconds after button has been released */
     DefineButtonAction(i,

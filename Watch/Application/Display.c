@@ -34,35 +34,39 @@
 #include "Wrapper.h"
 #include "OneSecondTimers.h"
 
+//static const unsigned char ConnStateName[NUMBER_OF_CONNECTION_STATES][13] =
+//{
+//  "Unknown", "Initializing", "ServerFail", "RadioOn", "Paired",
+//  "BRConnected", "LEConnected", "RadioOff", "RadioOffLoBa", "ShippingMode"
+//};
+
 /* these have the null character added at the end */
 tString pLocalBluetoothAddressString[] = "000000000000";
 tString pRemoteBluetoothAddressString[] = "000000000000";
+
 
 /* LocalBluetoothAddress == watch */
 void SetLocalBluetoothAddressString(unsigned char* pData)
 {
   unsigned char i = 0;
   
-  while ( pLocalBluetoothAddressString[i] != 0 && pData[i] != 0 )
+  while (pLocalBluetoothAddressString[i] && pData[i])
   {
     pLocalBluetoothAddressString[i] = pData[i];
     i++;
   }
-  
 }
-
 
 /* RemoteBluetoothAddress == phone */
 void SetRemoteBluetoothAddressString(unsigned char* pData)
 {
   unsigned char i = 0;
   
-  while ( pRemoteBluetoothAddressString[i] != 0 && pData[i] != 0 )
+  while (pRemoteBluetoothAddressString[i] && pData[i])
   {
     pRemoteBluetoothAddressString[i] = pData[i];
     i++;
   }
-  
 }
 
 tString* GetLocalBluetoothAddressString(void)
@@ -87,31 +91,12 @@ unsigned char GetMsp430HardwareRevision(void)
   return pDeviceType[0]+'1';                         
 }
 
-
 /******************************************************************************/
 
-unsigned char * QueryConnectionStateAndGetString(void)
-{
-  etConnectionState cs = QueryConnectionState();
-  char * pString;
-  
-  /* Initializing is the longest word that can fit on the LCD */
-  switch (cs) 
-  {
-  case Initializing:       pString = "Initializing"; break;
-  case ServerFailure:      pString = "ServerFail";   break;
-  case RadioOn:            pString = "RadioOn";      break;
-  case Paired:             pString = "Paired";       break;
-  case BRConnected:        pString = "Connected";    break;
-  case LEConnected:        pString = "Connected";    break;
-  case RadioOff:           pString = "RadioOff";     break;
-  case RadioOffLowBattery: pString = "RadioOff";     break;
-  case ShippingMode:       pString = "ShippingMode"; break;
-  default:                 pString = "Unknown";      break;  
-  }
-  
-  return (unsigned char*)pString;
-}
+//unsigned char * QueryConnectionStateAndGetString(void)
+//{
+//  return (unsigned char*)ConnStateName[QueryConnectionState()];
+//}
 
 /******************************************************************************/
 
@@ -159,27 +144,19 @@ static unsigned char nvLanguage;
 void InitializeTimeFormat(void)
 {
   nvTimeFormat = TWELVE_HOUR;
-  
-  OsalNvItemInit(NVID_TIME_FORMAT, 
-                 sizeof(nvTimeFormat), 
-                 &nvTimeFormat);
+  OsalNvItemInit(NVID_TIME_FORMAT, sizeof(nvTimeFormat), &nvTimeFormat);
 }
 
 void InitializeDateFormat(void)
 {
   nvDateFormat = MONTH_FIRST;
-  
-  OsalNvItemInit(NVID_DATE_FORMAT, 
-                 sizeof(nvDateFormat), 
-                 &nvDateFormat);
+  OsalNvItemInit(NVID_DATE_FORMAT, sizeof(nvDateFormat), &nvDateFormat);
 }
 
 void InitializeLanguage(void)
 {
   nvLanguage = LANG_EN;
-  OsalNvItemInit(NVID_LANGUAGE, 
-                 sizeof(nvLanguage), 
-                 &nvLanguage);
+  OsalNvItemInit(NVID_LANGUAGE, sizeof(nvLanguage), &nvLanguage);
 }
 
 unsigned char GetTimeFormat(void)
@@ -208,14 +185,7 @@ unsigned char QueryLinkAlarmEnable(void)
 
 void ToggleLinkAlarmEnable(void)
 {
-  if ( nvLinkAlarmEnable == 1 )
-  {
-    nvLinkAlarmEnable = 0;
-  }
-  else
-  {
-    nvLinkAlarmEnable = 1;  
-  }
+  nvLinkAlarmEnable = !nvLinkAlarmEnable;
 }
 
 void InitializeLinkAlarmEnable(void)
@@ -224,7 +194,6 @@ void InitializeLinkAlarmEnable(void)
   OsalNvItemInit(NVID_LINK_ALARM_ENABLE, 
                  sizeof(nvLinkAlarmEnable), 
                  &nvLinkAlarmEnable);
-    
 }
 
 void SaveLinkAlarmEnable(void)
@@ -234,7 +203,6 @@ void SaveLinkAlarmEnable(void)
               sizeof(nvLinkAlarmEnable),
               &nvLinkAlarmEnable);
 }
-
 
 /* send a vibration to the wearer */
 void GenerateLinkAlarm(void)
@@ -279,7 +247,6 @@ void InitializeModeTimeouts(void)
   OsalNvItemInit(NVID_NOTIFICATION_MODE_TIMEOUT,
                  sizeof(nvNotificationModeTimeout),
                  &nvNotificationModeTimeout);
- 
 }
 
 unsigned int QueryModeTimeout(unsigned char Mode)
@@ -309,7 +276,6 @@ void InitializeDebugFlags(void)
   OsalNvItemInit(NVID_CONNECTION_DEBUG,
                  sizeof(nvConnectionDebug),
                  &nvConnectionDebug);
- 
 }
 
 unsigned char QuerySniffDebug(void)
@@ -337,8 +303,6 @@ void InitializePairingModeDuration(void)
   OsalNvItemInit(NVID_PAIRING_MODE_DURATION, 
                  sizeof(nvPairingModeDurationInSeconds), 
                  &nvPairingModeDurationInSeconds);
-  
-  
 }
 
 unsigned int GetPairingModeDurationInSeconds(void)
@@ -397,10 +361,7 @@ unsigned char QueryExitSniffOnReceive(void)
   return nvExitSniffOnReceive;  
 }
 
-
-
 /******************************************************************************/
-
 
 unsigned char QueryAnalogWatch(void)
 {
