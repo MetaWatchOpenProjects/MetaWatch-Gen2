@@ -116,7 +116,7 @@ occurs.
 #define configMAX_PRIORITIES                ((unsigned portBASE_TYPE)4)
 #define configMINIMAL_STACK_SIZE            ((unsigned portSHORT)90)
 
-#define configTOTAL_HEAP_SIZE               ((size_t)6200)
+#define configTOTAL_HEAP_SIZE               ((size_t)6000)
 
 #define configMAX_TASK_NAME_LEN             (16)
 #define configUSE_TRACE_FACILITY            0

@@ -71,6 +71,8 @@ typedef enum
   ShippingMode  
 } etConnectionState;
 
+#define NUMBER_OF_CONNECTION_STATES  (10)
+
 /*! Determine if the bluetooth link is in the connected state.  
 * When the phone and watch are connected then data can be sent.
 *
