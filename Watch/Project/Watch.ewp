@@ -884,8 +884,9 @@
         </option>
         <option>
           <name>XExtraOptions</name>
-          <state>-C $PROJ_DIR$\..\..\Stack\Api\IAR\Stack2.a</state>
+          <state>-C $PROJ_DIR$\..\..\Stack\Api\IAR\Stack2-BLE.a</state>
           <state>-C $PROJ_DIR$\..\..\Stack\Api\IAR\Stack.r43</state>
+          <state>-C $PROJ_DIR$\..\..\Stack\Api\IAR\libSS1BTGAT.a</state>
         </option>
         <option>
           <name>OverlaySystemMap</name>
@@ -968,7 +969,7 @@
         </option>
         <option>
           <name>OutputFile</name>
-          <state></state>
+          <state>$PROJ_FNAME$.ulp</state>
         </option>
         <option>
           <name>ULPStatus</name>
@@ -1146,6 +1147,7 @@
           <name>CCDefines</name>
           <state>DIGITAL</state>
           <state>WATCH</state>
+          <state>USE_LOW_ENERGY</state>
         </option>
         <option>
           <name>CCPreprocFile</name>
@@ -1864,7 +1866,8 @@
         <option>
           <name>XExtraOptions</name>
           <state>-C $PROJ_DIR$\..\..\Stack\Api\IAR\Stack.r43</state>
-          <state>-C $PROJ_DIR$\..\..\Stack\Api\IAR\Stack2.a</state>
+          <state>-C $PROJ_DIR$\..\..\Stack\Api\IAR\Stack2-BLE.a</state>
+          <state>-C $PROJ_DIR$\..\..\Stack\Api\IAR\libSS1BTGAT.a</state>
         </option>
         <option>
           <name>OverlaySystemMap</name>
@@ -1947,7 +1950,7 @@
         </option>
         <option>
           <name>OutputFile</name>
-          <state></state>
+          <state>$PROJ_FNAME$.ulp</state>
         </option>
         <option>
           <name>ULPStatus</name>
@@ -4938,9 +4941,6 @@
       </excluded>
     </file>
     <file>
-      <name>$PROJ_DIR$\..\Application\InterruptVectors.c</name>
-    </file>
-    <file>
       <name>$PROJ_DIR$\..\Application\LcdDisplay.c</name>
       <excluded>
         <configuration>Analog Devboard</configuration>
@@ -5125,6 +5125,10 @@
     </file>
     <file>
       <name>$PROJ_DIR$\..\Hardware\hal_analog_display.c</name>
+      <excluded>
+        <configuration>Devboard</configuration>
+        <configuration>Digital</configuration>
+      </excluded>
     </file>
     <file>
       <name>$PROJ_DIR$\..\Hardware\hal_analog_v2_defs.h</name>

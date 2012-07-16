@@ -36,7 +36,7 @@
 #include "task.h"
 #include "Utilities.h"
 
-#define TX_BUFFER_SIZE ( 256 )
+#define TX_BUFFER_SIZE ( 64 )
 static unsigned char TxBuffer[TX_BUFFER_SIZE];
 static unsigned int WriteIndex;
 static unsigned int ReadIndex;
@@ -150,7 +150,6 @@ void DisableUartSmClkIsr(void)
     DisableRtcPrescaleInterruptUser(RTC_TIMER_USER_DEBUG_UART);
   
   }
-  
 }
 
 #ifndef __IAR_SYSTEMS_ICC__
@@ -289,14 +288,13 @@ void ByteToHexString(unsigned char Value, tString * pString)
     else
     {
       pString[index++] = parts[i] + '0';
-}
-
+    }
   }
 
   /* null */
   pString[index] = 0;
-
 }
+
 /******************************************************************************/
 void PrintCharacter(char Character)
 {

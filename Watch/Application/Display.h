@@ -91,7 +91,7 @@ unsigned char GetMsp430HardwareRevision(void);
  * 
  * \return String representation of the current state of serial port.
  */
-unsigned char * QueryConnectionStateAndGetString(void);
+//unsigned char * QueryConnectionStateAndGetString(void);
 
 
 /*! This is called by the stack to set the OnceConnected variable.  This 

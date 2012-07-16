@@ -558,25 +558,20 @@ static void ConnectionStateChangeHandler(tMessage *pMsg)
 static void DetermineIdlePage(void)
 {
   etConnectionState cs = QueryConnectionState();
-
-  switch (cs)
+  
+  if (OnceConnected()) 
+    CurrentPage[PAGE_TYPE_IDLE] = NormalPage;
+    
+  else 
   {
-  case Initializing:       CurrentPage[PAGE_TYPE_IDLE] = BluetoothOffPage;              break;
-  case ServerFailure:      CurrentPage[PAGE_TYPE_IDLE] = BluetoothOffPage;              break;
-  case RadioOn:            CurrentPage[PAGE_TYPE_IDLE] = RadioOnWithoutPairingInfoPage; break;
-  case Paired:             CurrentPage[PAGE_TYPE_IDLE] = RadioOnWithPairingInfoPage;    break;
-  case LEConnected:        CurrentPage[PAGE_TYPE_IDLE] = NormalPage;                    break;
-  case BRConnected:        CurrentPage[PAGE_TYPE_IDLE] = NormalPage;                    break;
-  case RadioOff:           CurrentPage[PAGE_TYPE_IDLE] = BluetoothOffPage;              break;
-  case RadioOffLowBattery: CurrentPage[PAGE_TYPE_IDLE] = BluetoothOffPage;              break;
-  case ShippingMode:       CurrentPage[PAGE_TYPE_IDLE] = BluetoothOffPage;              break;
-  default:                 CurrentPage[PAGE_TYPE_IDLE] = BluetoothOffPage;              break;
-  }
-
-  /* if the radio is on but hasn't paired yet then don't show the pairing icon */
-  if (CurrentPage[PAGE_TYPE_IDLE] == RadioOnWithoutPairingInfoPage && QueryValidPairingInfo())
-  {
-    CurrentPage[PAGE_TYPE_IDLE] = RadioOnWithPairingInfoPage;
+    if (cs == RadioOn) 
+      CurrentPage[PAGE_TYPE_IDLE] = QueryValidPairingInfo() ? 
+        RadioOnWithPairingInfoPage : RadioOnWithoutPairingInfoPage;
+      
+    else if (cs == Paired) 
+      CurrentPage[PAGE_TYPE_IDLE] = RadioOnWithoutPairingInfoPage;
+      
+    else CurrentPage[PAGE_TYPE_IDLE] = BluetoothOffPage;
   }
 }
 
