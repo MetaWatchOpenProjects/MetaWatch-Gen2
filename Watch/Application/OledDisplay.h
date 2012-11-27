@@ -29,22 +29,6 @@
 #define DISPLAY_BUFFER_SIZE ( NUMBER_OF_ROWS * NUMBER_OF_COLUMNS )
 #define COLUMN_HEIGHT       ( 8 )
 
-/*! OLED image buffer structure
- * 
- * \param Mode is used to associate buffer with Idle, Application, or scroll mode
- * \param Valid is used for housekeeping
- * \param OledPosition
- * \param pPixelData an array of bytes that hold the OLED image
- */
-typedef struct
-{
-  unsigned char Mode;
-  unsigned char Valid;
-  etOledPosition OledPosition;
-  unsigned char pPixelData[DISPLAY_BUFFER_SIZE];
-
-} tImageBuffer;
-
 #define DEFAULT_IDLE_DISPLAY_TIMEOUT         ( ONE_SECOND*7 )
 #define DEFAULT_APPLICATION_DISPLAY_TIMEOUT  ( ONE_SECOND*5 )
 #define DEFAULT_NOTIFICATION_DISPLAY_TIMEOUT ( ONE_SECOND*5 )
@@ -56,5 +40,7 @@ void InitializeDisplayTask(void);
 void InitializeDisplayTimeouts(void);
 
 void InitializeContrastValues(void);
+
+unsigned char QueryButtonMode(void);
 
 #endif /* OLED_DISPLAY_H */

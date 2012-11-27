@@ -25,7 +25,7 @@
 #define OLED_FONTS_H
 
 /*! Indices for Icons used in the MetaWatchIconOled font */
- #define INITIALIZING_ICON_INDEX   ( 0 )
+#define INITIALIZING_ICON_INDEX   ( 0 )
 #define SPARE_ICON_INDEX1         ( 1 )
 #define BIG_X_ICON_INDEX          ( 2 )
 #define CHECK_ICON_INDEX          ( 3 )
@@ -50,5 +50,22 @@
 #define CHARGING_BATTERY_LEVEL0_ICON_INDEX ( 17 )
 
 #define TOTAL_OLED_ICONS ( 23 )
+#define MAX_FONT_COLUMNS ( 26 )
+
+typedef enum
+{
+  MetaWatch5Oled,
+  MetaWatch7Oled,
+  MetaWatch16Oled,
+  MetaWatchIconOled
+} etFontType;
+
+void SetFont(etFontType Type);
+unsigned char MapCharacterToIndex(unsigned char CharIn);
+
+unsigned char GetCharacterWidth(unsigned char Character);
+void GetCharacterBitmap(unsigned char Character,unsigned int * pBitmap);
+unsigned char GetFontSpacing(void);
+unsigned char GetFontHeight(void);
 
 #endif /*OLED_FONTS_H*/

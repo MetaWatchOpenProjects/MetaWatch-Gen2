@@ -83,4 +83,32 @@
 
 /******************************************************************************/
 
+#define ENABLE_MUX_OUTPUT_CONTROL() {    \
+  MUX_CONTROL1_PDIR |= MUX_CONTROL1_PIN; \
+  MUX_CONTROL2_PDIR |= MUX_CONTROL2_PIN; \
+}
+
+#define MUX_OUTPUT_OFF() {    \
+  MUX_CONTROL1_POUT &= ~MUX_CONTROL1_PIN; \
+  MUX_CONTROL2_POUT &= ~MUX_CONTROL2_PIN; \
+}
+
+#define MUX_OUTPUT_SELECTS_SERIAL() {    \
+  MUX_CONTROL1_POUT |= MUX_CONTROL1_PIN; \
+  MUX_CONTROL2_POUT &= ~MUX_CONTROL2_PIN; \
+}
+
+#define MUX_OUTPUT_SELECTS_GND() {    \
+  MUX_CONTROL1_POUT &= ~MUX_CONTROL1_PIN; \
+  MUX_CONTROL2_POUT |= MUX_CONTROL2_PIN; \
+}
+
+#define MUX_OUTPUT_SELECTS_SPY() {    \
+  MUX_CONTROL1_POUT |= MUX_CONTROL1_PIN; \
+  MUX_CONTROL2_POUT |= MUX_CONTROL2_PIN; \
+}
+
+
+/******************************************************************************/
+
 #endif /* HAL_IO_MACROS */

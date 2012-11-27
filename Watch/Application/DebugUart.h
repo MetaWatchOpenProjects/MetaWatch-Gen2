@@ -27,33 +27,45 @@
 #ifndef DEBUG_UART_H
 #define DEBUG_UART_H
 
+extern const char OK[];
+extern const char NOK[];
+extern const char CR[];
 
 /*! Initialize the uart peripheral and create mutex */
 void InitDebugUart(void);
+
+/*! when 1 the uart cannot be written to when interrupts are disabled 
+ * (prevent long periods of time in interrupt context)
+ * This should be called before the scheduler is started
+ */
+void SetUartNormalMode(void);
+
+void TestModeControl(void);
+
+/******************************************************************************/
 
 /*! Print a  character */
 void PrintCharacter(char Character);
 
 /*! Print a string */
-void PrintString(tString * const pString);
+void PrintString(const tString * pString);
 
 /*! Print two strings */
-void PrintString2(tString * const pString1,
-                  tString * const pString2);
+void PrintString2(const tString * pString1, const tString * pString2);
 
 /*! Print three strings */
-void PrintString3(tString * const pString1,
-                  tString * const pString2,
-                  tString * const pString3);
+void PrintString3(const tString *pString1, const tString *pString2, const tString *pString3);
 
 /*! Print a 16 bit value in decimal */
 void PrintDecimal(unsigned int Value);
+
+void PrintHex(unsigned char Value);
 
 /*! Print a 16 bit value and a newline*/
 void PrintDecimalAndNewline(unsigned int Value);
 
 /*! Print a string and a 16 bit value */
-void PrintStringAndDecimal(tString * const pString,unsigned int Value);
+void PrintStringAndDecimal(const tString * pString,unsigned int Value);
 
 /*! Print a string, space and 16 bit value */
 void PrintStringAndSpaceAndDecimal(tString * const pString,unsigned int Value);
@@ -93,14 +105,6 @@ void PrintStringSpaceAndThreeDecimals(tString * const pString1,
 
 /*! Print a signed number and a newline */
 void PrintSignedDecimalAndNewline(signed int Value);
-
-/*! Disable the SMCLK request of the UART after a transmission in finished.
- * This is called in the real time clock interrupt routine.
- *
- * MSP4305438A has an errata with the UART.
-*/
-void DisableUartSmClkIsr(void);
-
 
 /*! Convert a 16 bit value into a string */
 void ToDecimalString(unsigned int Value, tString * pString);

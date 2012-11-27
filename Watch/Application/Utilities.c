@@ -25,20 +25,24 @@
 #include "queue.h"
 
 #include "hal_board_type.h"
-
+#include "hal_battery.h"
 #include "Messages.h"
 #include "MessageQueues.h"
 
 #include "DebugUart.h"
 #include "Messages.h"
 #include "Utilities.h"
+#include "IdleTask.h"
 
-#ifdef TASK_DEBUG
+#include "NvIds.h"
+#include "OSAL_Nv.h"
+
+#if TASK_DEBUG
 static unsigned char TaskIndex = 0;
 static tTaskInfo taskInfoArray[MAX_NUM_TASK_LOG_ENTRIES];
 #endif
 
-#ifdef TASK_DEBUG
+#if TASK_DEBUG
 /*! Keep track of a Task.
  *
  * \return TRUE if task could be registered
@@ -78,7 +82,7 @@ unsigned char UTL_RegisterFreeRtosTask(void * TaskHandle,
 /*! Check if tasks are running out of stack space.
  *
 */
-static unsigned char PrintTaskIndex = 0;
+static unsigned char PrintTaskIndex = 3;
 
 void UTL_FreeRtosTaskStackCheck( void )
 {
@@ -97,13 +101,11 @@ void UTL_FreeRtosTaskStackCheck( void )
   PrintTaskIndex++;
   if ( PrintTaskIndex >= TaskIndex )
   {
-    PrintTaskIndex = 0;
+    PrintTaskIndex = 3;
     
-    tMessage OutgoingMsg;
-    SetupMessage(&OutgoingMsg,QueryMemoryMsg,NO_MSG_OPTIONS);
-    RouteMsg(&OutgoingMsg);
+    tMessage Msg;
+    SetupMessage(&Msg, QueryMemoryMsg, MSG_OPT_NONE);
   }
-
 }
 
 #endif /* TASK_DEBUG */
@@ -124,20 +126,12 @@ unsigned char * GetDeviceNameString(void)
   return (unsigned char *)SPP_DEVICE_NAME;  
 }
 
-unsigned char * GetSoftwareVersionString(void)
-{
-  return (unsigned char *)VERSION_STRING;  
-}
-
-
-
 /* called in each task but currently disabled */
 void CheckStackUsage(xTaskHandle TaskHandle,tString * TaskName)
 {
-#ifdef CHECK_STACK_USAGE
+#if CHECK_STACK_USAGE
 
   portBASE_TYPE HighWater = uxTaskGetStackHighWaterMark(TaskHandle);
-  
   PrintStringAndDecimal(TaskName,HighWater);
 
 #endif
@@ -147,7 +141,7 @@ void CheckStackUsage(xTaskHandle TaskHandle,tString * TaskName)
 void vApplicationStackOverflowHook( xTaskHandle *pxTask, char *pcTaskName )
 {
   /* try to print task name */
-  PrintString2("Stack overflow for ",(tString*)pcTaskName);
+  PrintString2("# Stack overflow:",(tString*)pcTaskName);
   ForceWatchdogReset();
 }
 
@@ -177,48 +171,90 @@ unsigned char PMM15Check (void)
 
 }
 
-/******************************************************************************/
+/******************************************************************************/  
 
-void CheckQueueUsage(xQueueHandle Qhandle)
+void InitializeMuxMode(void)
 {
-#ifdef CHECK_QUEUE_USAGE
-  portBASE_TYPE waiting = Qhandle->uxMessagesWaiting + 1;
+  unsigned char nvMuxMode = MUX_MODE_DEFAULT_5V; //SERIAL
+  OsalNvItemInit(NVID_MUX_CONTROL_5V, sizeof(nvMuxMode), &nvMuxMode);
   
-  if (  waiting > Qhandle->MaxWaiting )
+  nvMuxMode = MUX_MODE_DEFAULT_NORMAL; //GROUND
+  OsalNvItemInit(NVID_MUX_CONTROL_NORMAL, sizeof(nvMuxMode), &nvMuxMode);
+}
+
+/* read the value from flash (as opposed to shadowing it in ram) */
+unsigned char GetMuxMode(unsigned char PowerGood)
+{
+  unsigned char nvMuxMode;
+
+  OsalNvRead(PowerGood ? NVID_MUX_CONTROL_5V : NVID_MUX_CONTROL_NORMAL,
+    NV_ZERO_OFFSET, sizeof(nvMuxMode), &nvMuxMode);
+  
+  return nvMuxMode;   
+}
+
+void SetMuxMode(unsigned char MuxMode, unsigned char PowerGood)
+{
+  PrintString2("- SetMux: ", MuxMode == MUX_MODE_SERIAL ? "Serial" :
+    (MuxMode == MUX_MODE_SPY_BI_WIRE ? "SBW" : "GND"));
+
+  OsalNvWrite(PowerGood? NVID_MUX_CONTROL_5V : NVID_MUX_CONTROL_NORMAL,
+    NV_ZERO_OFFSET, sizeof(MuxMode), &MuxMode);
+  
+  ChangeMuxMode();
+}
+
+/******************************************************************************/
+/* This only applies to board configuration 5 and later
+ * Since these pins were previously unused the board configuration is not checked
+ * This function does not modify the value stored in flash that is used 
+ * during start-up
+ * The RST/NMI pin is handled separately
+ * This is used by the bootloader so don't use Print().
+ */
+void ChangeMuxMode(void)
+{
+#ifdef DIGITAL
+#ifndef HW_DEVBOARD_V2
+  
+  static unsigned char MuxMode = MUX_MODE_OFF;
+  
+  if (GetMuxMode(ExtPower()) == MuxMode) return;
+  
+  MuxMode = GetMuxMode(ExtPower());
+  
+  /* setup default state for mux */
+  ENABLE_MUX_OUTPUT_CONTROL();
+
+  switch (MuxMode)
   {
-    Qhandle->MaxWaiting = waiting;    
+  case MUX_MODE_OFF:
+    /* this mode should not be used but is included for completeness */
+    MUX_OUTPUT_OFF();
+    break;
+  
+  case MUX_MODE_SERIAL: // with bootloader for flashing
+    MUX_OUTPUT_SELECTS_SERIAL();
+    break;
+  
+  case MUX_MODE_GND: // normal mode
+    /* this mode prevents shorting of the case back pins due to sweat,
+     * screwdrivers, etc
+     */
+    MUX_OUTPUT_SELECTS_GND();
+    break;
+  
+  case MUX_MODE_SPY_BI_WIRE: // TI jtag in-circuit debugging
+    MUX_OUTPUT_SELECTS_SPY();
+    break;
+    
+  default:
+    MUX_OUTPUT_SELECTS_GND();
+    break;
   }
   
 #endif
-}
-     
-/******************************************************************************/
-
-#if 0
-/* set watchdog for 16 second timeout */
-static void SetWatchdogReset(void)
-{
-  /* write password, select aclk, divide by 512*1024 = 16 ms */
-  WDTCTL = WDTPW + WDTSSEL__ACLK + WDTIS_3;
-}
 #endif
-
-/* write the inverse of the password and force reset */
-void ForceWatchdogReset(void)
-{
-  __disable_interrupt();
-  __delay_cycles(100000);
+}
   
-#ifdef DEBUG_WATCHDOG_RESET
-
-  /* wait here forever */
-  ENABLE_LCD_LED();
-  while(1);
-
-#else
-
-  WDTCTL = ~WDTPW; 
-
-#endif
-
-}
+/******************************************************************************/

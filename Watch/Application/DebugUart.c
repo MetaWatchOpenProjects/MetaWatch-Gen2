@@ -30,27 +30,66 @@
 #include "hal_board_type.h"
 #include "hal_clock_control.h"
 #include "hal_rtc.h"
+#include "hal_lpm.h"
+#include "hal_battery.h"
 
 #include "DebugUart.h"
 #include "Statistics.h"
 #include "task.h"
 #include "Utilities.h"
+#include "TestMode.h"
 
-#define TX_BUFFER_SIZE ( 64 )
-static unsigned char TxBuffer[TX_BUFFER_SIZE];
-static unsigned int WriteIndex;
-static unsigned int ReadIndex;
-static unsigned int TxCount;
-static unsigned char TxBusy;
+/******************************************************************************/
 
-static void WriteTxBuffer(tString * const pBuf);
-static void IncrementWriteIndex(void);
-static void IncrementReadIndex(void);
+const char OK[] = "- ";
+const char NOK[] = "# ";
+const char CR[] = "\r\n";
+const char SPACE[] = " ";
 
+/******************************************************************************/
 
-static unsigned char DisableSmClkCounter;
+static void WriteTxBuffer(const tString * pBuf);
 
 tString ConversionString[6];
+
+/******************************************************************************/
+
+unsigned char NormalMode;
+
+/******************************************************************************/
+
+static void EnableTestMode(void);
+static void DisableTestMode(void);
+
+/******************************************************************************/
+
+static xSemaphoreHandle UartMutex;
+
+/******************************************************************************/
+
+/* if interrupts are disabled then return */
+#define GIE_CHECK() {                         \
+  if (  (__get_interrupt_state() & GIE) == 0  \
+      && NormalMode == 1 )                    \
+  {                                           \
+    return;                                   \
+  }                                           \
+}  
+
+#if PRETTY_PRINT
+
+/* getting and releasing mutex require about 10 us each */
+#define GET_MUTEX()  { xSemaphoreTake(UartMutex,portMAX_DELAY); }
+#define GIVE_MUTEX() { xSemaphoreGive(UartMutex); }
+  
+#else
+
+#define GET_MUTEX()  { }
+#define GIVE_MUTEX() { }
+
+#endif
+
+/******************************************************************************/
 
 void InitDebugUart(void)
 {
@@ -61,153 +100,81 @@ void InitDebugUart(void)
   UCA3BR0 = 145;
   UCA3MCTL = UCBRS_5 + UCBRF_0;
   
-  /* configure tx and rx pins (rx is not used) */
+  /* configure tx and rx pins */
   P10SEL |= BIT4;
   P10SEL |= BIT5;
   
   UCA3CTL1 &= ~UCSWRST; 
   
-  WriteIndex = 0;
-  ReadIndex = 0;
-  TxCount = 0;
-  TxBusy = 0;
-  UCA3IFG = 0;
-  UCA3IE = UCTXIE;
+  /* prime transmitter */
+  UCA3IE = 0;
+  UCA3IFG = UCTXIFG;
   
-  WriteTxBuffer("\r\n*******************InitDebugUart********************\r\n");
+  UartMutex = xSemaphoreCreateMutex();
+
+  xSemaphoreGive(UartMutex);
   
+  WriteTxBuffer("\r\n\r\n**** DebugUart ****\r\n\r\n");
+
 }
 
-static void WriteTxBuffer(tString * const pBuf)
+void SetUartNormalMode(void)
 {
-  unsigned char i = 0;
-  unsigned int LocalCount = TxCount;
- 
-  /* if there isn't enough room in the buffer then characters are lost */
-  while ( pBuf[i] != 0 && LocalCount < TX_BUFFER_SIZE )
-  { 
-    TxBuffer[WriteIndex] = pBuf[i++];
-    IncrementWriteIndex();
-    LocalCount++;
-  }    
-
-  /* keep a sticky bit for lost characters */
-  if ( pBuf[i] != 0 )
-  {
-    gAppStats.DebugUartOverflow = 1;
-  }
-  
-  /* 
-   * update the count (which can be decremented in the ISR 
-   * and start sending characters if the UART is currently idle 
-  */
-  if ( i > 0 )
-  {
-    portENTER_CRITICAL();
-    
-    TxCount += i;
-    
-#if 0
-    if ( TxCount > TX_BUFFER_SIZE )
-    {
-      while(1);  
-    }
-#endif
-    
-    if ( TxBusy == 0 )
-    {
-      EnableSmClkUser(BT_DEBUG_UART_USER);
-      UCA3TXBUF = TxBuffer[ReadIndex];
-      IncrementReadIndex();
-      TxBusy = 1;
-      TxCount--;  
-    }
-    
-    portEXIT_CRITICAL();
-  }
+  NormalMode = 1;
 }
 
+static void WriteTxBuffer(const tString * pBuf)
+{
+  EnableSmClkUser(BT_DEBUG_UART_USER);
+  
+  unsigned char i = 0;
 
-/* 
- * This part has a problem turning off the SMCLK when the uart is IDLE.
- * 
- * manually turn off the clock after the last character is sent 
- *
- * count more than one interrupt because we don't know when the first one
- * will happen 
-*/
-void DisableUartSmClkIsr(void)
-{ 
-  DisableSmClkCounter++;
-  if ( DisableSmClkCounter > 2 ) 
+  while ( pBuf[i] != 0 )
   {
-    if ( TxBusy == 0 )
-    { 
-      DisableSmClkUser(BT_DEBUG_UART_USER);
-    }
-  
-    /* if we are transmitting again then disable this timer */
-    DisableRtcPrescaleInterruptUser(RTC_TIMER_USER_DEBUG_UART);
-  
+    /* writing buffer clears TXIFG */
+    UCA3TXBUF = pBuf[i++];
+    
+    /* wait for transmit complete flag */
+    while( (UCA3IFG & UCTXIFG) == 0 );
   }
+  
+  /* wait until transmit is done */
+  while(UCA3STAT & UCBUSY); 
+  DisableSmClkUser(BT_DEBUG_UART_USER);
+ 
 }
 
 #ifndef __IAR_SYSTEMS_ICC__
-#pragma CODE_SECTION(USCI_A3_ISR,".text:_isr");
+#pragma CODE_SECTION(DebugUartIsr,".text:_isr");
 #endif
 
+#ifndef BOOTLOADER
 #pragma vector=USCI_A3_VECTOR
-__interrupt void USCI_A3_ISR(void)
+__interrupt void DebugUartIsr(void)
+#else
+__interrupt void DebugUartIsr(void)
+#endif
 {
+  unsigned char ExitLpm = 0;
+  
   switch(__even_in_range(UCA3IV,4))
   {
   case 0:break;                             // Vector 0 - no interrupt
-  case 2:break;                             // Vector 2 - RXIFG
-  case 4:                                   // Vector 4 - TXIFG
-    
-    if ( TxCount == 0 )
-    {
-      UCA3IFG = 0;
-      TxBusy = 0;
-      
-      /* start the countdown to disable SMCLK */
-      DisableSmClkCounter = 0;  
-      EnableRtcPrescaleInterruptUser(RTC_TIMER_USER_DEBUG_UART);
-     
-    }
-    else
-    {
-      /* send a character */
-      UCA3TXBUF = TxBuffer[ReadIndex];
-      IncrementReadIndex();
-      TxCount--;  
-    }
+  case 2:                                   // Vector 2 - RXIFG
+    ExitLpm = RxTestModeCharacterIsr(UCA3RXBUF);
     break;
     
+  case 4:break;                             // Vector 4 - TXIFG
   default: break;
   }
   
-}
-
-static void IncrementWriteIndex(void)
-{
-  WriteIndex++;
-  if ( WriteIndex == TX_BUFFER_SIZE )
+  if ( ExitLpm )
   {
-    WriteIndex = 0;
+    EXIT_LPM_ISR();  
   }
-
 }
 
-static void IncrementReadIndex(void)
-{
-  ReadIndex++;
-  if ( ReadIndex == TX_BUFFER_SIZE )
-  {
-    ReadIndex = 0;
-  }
-
-}
+/******************************************************************************/
 
 /*! convert a 16 bit value into a string */
 void ToDecimalString(unsigned int Value, tString * pString)
@@ -296,46 +263,71 @@ void ByteToHexString(unsigned char Value, tString * pString)
 }
 
 /******************************************************************************/
+
+/* 120 us - 90 us = 33 us */
 void PrintCharacter(char Character)
 {
-  WriteTxBuffer((tString *)&Character);  
+  GIE_CHECK();
+  GET_MUTEX();
+  WriteTxBuffer((tString *)&Character);
+  GIVE_MUTEX();
 }
 
-void PrintString(tString * const pString)
+void PrintString(const tString * pString)
 {
+  GIE_CHECK();
+  GET_MUTEX();
   WriteTxBuffer(pString);
+  GIVE_MUTEX();
+  
 }
 
-void PrintString2(tString * const pString1,tString * const pString2)
+void PrintString2(const tString * pString1, const tString * pString2)
 {
+  GIE_CHECK();
+  GET_MUTEX();
   WriteTxBuffer(pString1);
   WriteTxBuffer(pString2);
+  GIVE_MUTEX();
+  
 }
 
-void PrintString3(tString * const pString1,
-                  tString * const pString2,
-                  tString * const pString3)
+void PrintString3(const tString *pString1, const tString *pString2, const tString *pString3)
 {
+  GIE_CHECK();
+  GET_MUTEX();
   WriteTxBuffer(pString1);
   WriteTxBuffer(pString2);
   WriteTxBuffer(pString3);
+  GIVE_MUTEX();
+  
 }
 
 void PrintDecimal(unsigned int Value)
 {
+  GIE_CHECK();
+  GET_MUTEX();
   ToDecimalString(Value,ConversionString);
   WriteTxBuffer(ConversionString);  
+  GIVE_MUTEX();
+  
 }
 
 void PrintDecimalAndNewline(unsigned int Value)
 {
+  GIE_CHECK();
+  GET_MUTEX();
   ToDecimalString(Value,ConversionString);
   WriteTxBuffer(ConversionString);
-  WriteTxBuffer("\r\n");  
+  WriteTxBuffer(CR);  
+  GIVE_MUTEX();
+  
 }
 
 void PrintSignedDecimalAndNewline(signed int Value)
 {
+  GIE_CHECK();
+  GET_MUTEX();
   if ( Value < 0 )
   {
     Value = ~Value + 1;
@@ -343,40 +335,54 @@ void PrintSignedDecimalAndNewline(signed int Value)
   }
   ToDecimalString(Value,ConversionString);
   WriteTxBuffer(ConversionString);
-  WriteTxBuffer("\r\n");  
+  WriteTxBuffer(CR);  
+  GIVE_MUTEX();
+  
 }
 
-void PrintStringAndDecimal(tString * const pString,unsigned int Value)
+void PrintStringAndDecimal(const tString * pString, unsigned int Value)
 {
+  GIE_CHECK();
+  GET_MUTEX();
   WriteTxBuffer(pString);  
   ToDecimalString(Value,ConversionString);
   WriteTxBuffer(ConversionString);
-  WriteTxBuffer("\r\n");
+  WriteTxBuffer(CR);
+  GIVE_MUTEX();
+  
 }
 
 void PrintStringAndSpaceAndDecimal(tString * const pString,unsigned int Value)
 {
+  GIE_CHECK();
+  GET_MUTEX();
   WriteTxBuffer(pString);
-  WriteTxBuffer(" ");  
+  WriteTxBuffer(SPACE);  
   ToDecimalString(Value,ConversionString);
   WriteTxBuffer(ConversionString);
-  WriteTxBuffer("\r\n");
+  WriteTxBuffer(CR);
+  GIVE_MUTEX();
+  
 }
 
 void PrintStringAndTwoDecimals(tString * const pString1,
-                                 unsigned int Value1,
-                                 tString * const pString2,
-                                 unsigned int Value2)
+                               unsigned int Value1,
+                               tString * const pString2,
+                               unsigned int Value2)
 {
+  GIE_CHECK();
+  GET_MUTEX();
   WriteTxBuffer(pString1);  
   ToDecimalString(Value1,ConversionString);
   WriteTxBuffer(ConversionString);
-  WriteTxBuffer(" ");
+  WriteTxBuffer(SPACE);
   
   WriteTxBuffer(pString2);  
   ToDecimalString(Value2,ConversionString);
   WriteTxBuffer(ConversionString);
-  WriteTxBuffer("\r\n");
+  WriteTxBuffer(CR);
+  GIVE_MUTEX();
+  
 }
 
 void PrintStringAndThreeDecimals(tString * const pString1,
@@ -386,34 +392,42 @@ void PrintStringAndThreeDecimals(tString * const pString1,
                                  tString * const pString3,
                                  unsigned int Value3)
 {
+  GIE_CHECK();
+  GET_MUTEX();
   WriteTxBuffer(pString1);  
   ToDecimalString(Value1,ConversionString);
   WriteTxBuffer(ConversionString);
-  WriteTxBuffer(" ");
+  WriteTxBuffer(SPACE);
   
   WriteTxBuffer(pString2);  
   ToDecimalString(Value2,ConversionString);
   WriteTxBuffer(ConversionString);
-  WriteTxBuffer(" ");
+  WriteTxBuffer(SPACE);
   
   WriteTxBuffer(pString3);  
   ToDecimalString(Value3,ConversionString);
   WriteTxBuffer(ConversionString);
-  WriteTxBuffer("\r\n");
+  WriteTxBuffer(CR);
+  GIVE_MUTEX();
+  
 }
 
 void PrintStringSpaceAndTwoDecimals(tString * const pString1,
                                     unsigned int Value1,
                                     unsigned int Value2)
 {
+  GIE_CHECK();
+  GET_MUTEX();
   WriteTxBuffer(pString1);  
-  WriteTxBuffer(" ");
+  WriteTxBuffer(SPACE);
   ToDecimalString(Value1,ConversionString);
   WriteTxBuffer(ConversionString);
-  WriteTxBuffer(" ");
+  WriteTxBuffer(SPACE);
   ToDecimalString(Value2,ConversionString);
   WriteTxBuffer(ConversionString);
-  WriteTxBuffer("\r\n");
+  WriteTxBuffer(CR);
+  GIVE_MUTEX();
+  
 }
 
 
@@ -422,50 +436,80 @@ void PrintStringSpaceAndThreeDecimals(tString * const pString1,
                                       unsigned int Value2,
                                       unsigned int Value3)
 {
+  GIE_CHECK();
+  GET_MUTEX();
   WriteTxBuffer(pString1);  
-  WriteTxBuffer(" ");
+  WriteTxBuffer(SPACE);
   ToDecimalString(Value1,ConversionString);
   WriteTxBuffer(ConversionString);
-  WriteTxBuffer(" ");
+  WriteTxBuffer(SPACE);
   ToDecimalString(Value2,ConversionString);
   WriteTxBuffer(ConversionString);
-  WriteTxBuffer(" ");
+  WriteTxBuffer(SPACE);
   ToDecimalString(Value3,ConversionString);
   WriteTxBuffer(ConversionString);
-  WriteTxBuffer("\r\n");
+  WriteTxBuffer(CR);
+  GIVE_MUTEX();
 }
 
 void PrintStringAndHex(tString * const pString,unsigned int Value)
 {
+  GIE_CHECK();
+  GET_MUTEX();
   WriteTxBuffer(pString);  
   IntToHexString(Value,ConversionString);
   WriteTxBuffer(ConversionString);   
-  WriteTxBuffer("\r\n");
+  WriteTxBuffer(CR);
+  GIVE_MUTEX();
+  
+}
+
+void PrintHex(unsigned char Value)
+{
+  GIE_CHECK();
+  GET_MUTEX();
+  ByteToHexString(Value,ConversionString);
+  WriteTxBuffer(ConversionString);   
+  WriteTxBuffer(SPACE);
+  GIVE_MUTEX();
+  
 }
 
 void PrintStringAndHexByte(tString * const pString,unsigned char Value)
 {
+  GIE_CHECK();
+  GET_MUTEX();
   WriteTxBuffer(pString);  
   ByteToHexString(Value,ConversionString);
   WriteTxBuffer(ConversionString);   
-  WriteTxBuffer("\r\n");
+  WriteTxBuffer(CR);
+  GIVE_MUTEX();
+  
 }
 
 void PrintStringAndTwoHexBytes(tString * const pString,unsigned char Value, unsigned char Value1)
 {
+  GIE_CHECK();
+  GET_MUTEX();
   WriteTxBuffer(pString);
   ByteToHexString(Value,ConversionString);
   WriteTxBuffer(ConversionString);
   ByteToHexString(Value1,ConversionString);
   WriteTxBuffer(ConversionString);
-  WriteTxBuffer("\r\n");
+  WriteTxBuffer(CR);
+  GIVE_MUTEX();
+  
 }
 
 void PrintTimeStamp(void)
 {
+  GIE_CHECK();
+  GET_MUTEX();
   IntToHexString(RTCPS,ConversionString);
   WriteTxBuffer(ConversionString);
-  WriteTxBuffer(" ");
+  WriteTxBuffer(SPACE);
+  GIVE_MUTEX();
+  
 }
 
 /* callback from FreeRTOS 
@@ -476,10 +520,54 @@ void PrintTimeStamp(void)
  */
 void vApplicationMallocFailedHook(size_t xWantedSize)
 {
-  PrintStringAndDecimal("Malloc failed: ",(unsigned int)xWantedSize);
-  
-  int FreeBytes = xPortGetFreeHeapSize();
-  PrintStringAndDecimal("FreeBytes: ",FreeBytes);
+  PrintStringAndTwoDecimals("@ Ask: ",(unsigned int)xWantedSize, " Free: ", xPortGetFreeHeapSize());
   
   __no_operation();
 }
+
+/******************************************************************************/
+
+static unsigned char TestModeEnabled;
+
+static void EnableTestMode(void)
+{
+  if ( !TestModeEnabled )
+  { 
+    EnableSmClkUser(TEST_MODE_USER);
+    
+    InitTestMode();
+    
+    /* read any characters */
+    UCA3RXBUF;
+    
+    UCA3IE |= UCRXIE;
+    
+    TestModeEnabled = 1;
+  }
+}
+
+static void DisableTestMode(void)
+{
+  if ( TestModeEnabled )
+  {
+    UCA3IE &= ~UCRXIE;
+  
+    DisableSmClkUser(TEST_MODE_USER);
+ 
+    TestModeEnabled = 0;
+  }
+}
+
+void TestModeControl(void)
+{
+  if (ExtPower())
+  {
+    if (!TestModeEnabled) EnableTestMode();
+  }
+  else if (TestModeEnabled)
+  {
+    DisableTestMode();
+  }  
+}
+
+/******************************************************************************/

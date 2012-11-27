@@ -28,6 +28,9 @@
 #ifndef ADC_H
 #define ADC_H
 
+#define CRITICAL_BT_OFF  (0)
+#define CRITICAL_WARNING (1)
+
 /*! Initialize the Analog-to-Digital Conversion peripheral.  Set the outputs from
  * the micro to the correct state.  The ADC is used to read the 
  * hardware configuration registers, the battery voltage, and the value from the
@@ -82,15 +85,21 @@ unsigned int ReadLightSenseAverage(void);
  */
 void SetBatteryLevels(unsigned char * pData);
 
+unsigned int BatteryCriticalLevel(unsigned char Type);
+
 /*! Reads battery sense value and takes the appropriate action.
  *
+ *\param PowerGood 1 if power is good (5V), 0 otherwise
+ * 
  *\note This function is meant to be called from a task.  When the low battery
  * warning level is reached a message is sent to the host.  When the low battery
  * bluetooth off message is reached then watch will vibrate, a message will be
  * sent to the phone, and the bluetooth radio will be turned off.
  * 
  */
-void LowBatteryMonitor(void);
+
+
+void LowBatteryMonitor(unsigned char PowerGood);
 
 
 /*! Set the default values for the low battery levels stored in flash if they

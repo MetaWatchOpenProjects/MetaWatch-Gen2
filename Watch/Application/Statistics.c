@@ -37,7 +37,7 @@ tBluetoothStatistics gBtStats;
 
 void IncrementUpTime(void)
 {
-  if ( QueryPhoneConnected() )
+  if (Connected(CONN_TYPE_MAIN))
   {
     gBtStats.UpTime++;  
   }

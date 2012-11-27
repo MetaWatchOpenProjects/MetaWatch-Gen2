@@ -31,7 +31,7 @@ void LcdPeripheralInit(void);
  *
  * \param pLcdMessage is a pointer to a Lcd Message
  */
-void WriteLcdHandler(tLcdMessagePayload* pLcdMessage);
+void WriteLcdHandler(tLcdData* pLcdMessage);
 
 /*! Clear the LCD */
 void ClearLcd(void);

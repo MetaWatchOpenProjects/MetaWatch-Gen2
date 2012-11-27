@@ -81,41 +81,35 @@ void LcdPeripheralInit(void)
 
   /* remove reset */
   LCD_SPI_UCBxCTL1 &= ~UCSWRST;
-  
-
 }
 
 /*! Writes a single line to the LCD */
-void WriteLcdHandler(tLcdMessagePayload* pLcdMessage)
+void WriteLcdHandler(tLcdData *pLcdData)
 {
-  pLcdMessage->LcdCommand = LCD_WRITE_CMD;
-  pLcdMessage->RowNumber += FIRST_LCD_LINE_OFFSET;
+  pLcdData->LcdCommand = LCD_WRITE_CMD;
+  pLcdData->RowNumber += FIRST_LCD_LINE_OFFSET;
   
   /* point to the first byte to be transmitted to LCD */
-  unsigned char* pData = &pLcdMessage->LcdCommand;
+  unsigned char* pData = &pLcdData->LcdCommand;
 
   /* flip bits */
-  if ( QueryInvertDisplay() == NORMAL_DISPLAY )
+  if ( InvertDisplay() == NORMAL_DISPLAY )
   {
   	unsigned char i;
     for (i = 0; i < 12; i++ )
     {
-      pLcdMessage->pLine[i] = ~(pLcdMessage->pLine[i]); 
+      pLcdData->pLine[i] = ~(pLcdData->pLine[i]);
     }
   }
 
-  pLcdMessage->Dummy1 = 0x00; 
-  pLcdMessage->Dummy2 = 0x00;     
+  pLcdData->Dummy1 = 0x00;
+  pLcdData->Dummy2 = 0x00;
   
   /* 
    * 1 for command, 1 for row, 12 for line, 2 for dummy
    */
-  unsigned char Size = 16;
-  
-  WriteLineToLcd(pData,Size);
-  
+  WriteLineToLcd((unsigned char *)pData, LCD_DATA_SIZE);
 }
-
 
 void ClearLcd(void)
 {
@@ -127,12 +121,12 @@ void PutLcdIntoStaticMode(void)
   WriteLineToLcd(LCD_STATIC_COMMAND,LCD_STATIC_CMD_SIZE);   
 }
     
-static void WriteLineToLcd(unsigned char* pData,unsigned char Size)
+static void WriteLineToLcd(unsigned char* pData, unsigned char Size)
 {  
   EnableSmClkUser(LCD_USER);
   LCD_CS_ASSERT();
   
-#ifdef DMA
+#if LCD_DMA
   
   LcdDmaBusy = 1;
   
@@ -183,7 +177,7 @@ void UpdateMyDisplay(unsigned char * pBuffer,unsigned int TotalLines)
   EnableSmClkUser(LCD_USER);
   LCD_CS_ASSERT();
   
-#ifdef DMA
+#if LCD_DMA
   
   LcdDmaBusy = 1;
   
@@ -202,7 +196,7 @@ void UpdateMyDisplay(unsigned char * pBuffer,unsigned int TotalLines)
   __data16_write_addr((unsigned short) &DMA2DA,
                       (unsigned long) &LCD_SPI_UCBxTXBUF);
             
-  DMA2SZ = TotalLines*sizeof(tLcdLine);
+  DMA2SZ = TotalLines * sizeof(tLcdLine);
   
   /* 
    * single transfer, increment source address, source byte and dest byte,

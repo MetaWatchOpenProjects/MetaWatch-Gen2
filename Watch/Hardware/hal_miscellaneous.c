@@ -20,19 +20,60 @@
 * Set pins to outputs and setup clock
 */
 /******************************************************************************/
+
 #include "FreeRTOSConfig.h"
+
 #include "portmacro.h"
 
 #include "hal_board_type.h"
 #include "hal_miscellaneous.h"
-#include "hal_software_fll.h"
 
 #include "HAL_PMM.h"
 #include "HAL_UCS.h"
 
 /******************************************************************************/
 
-#ifdef ISOLATE_RADIO
+#define HARDWARE_REVISION_ADDRESS (0x1a07)
+
+unsigned char GetMsp430HardwareRevision(void)
+{
+  unsigned char *pDeviceType = 
+    (unsigned char *)(unsigned char *)HARDWARE_REVISION_ADDRESS;
+  
+  return pDeviceType[0]+'1';                         
+}
+
+/******************************************************************************/
+
+static unsigned char ErrataGroup1;
+
+
+/* see header file */
+void DetermineErrata(void)
+{
+  unsigned char Revision = GetMsp430HardwareRevision();
+  
+  switch ( Revision )
+  {
+  case 'F':
+  case 'H':
+    ErrataGroup1 = 0;
+    break;
+  default:
+    ErrataGroup1 = 1;
+    break;
+  }
+  
+}
+
+unsigned char QueryErrataGroup1(void)
+{
+  return ErrataGroup1;
+}
+
+/******************************************************************************/
+
+#if ISOLATE_RADIO
 /* Set all the pins to the radio to be inputs so that they can be
  * driven by an HCI tester
  */
@@ -96,15 +137,24 @@ void SetupClockAndPowerManagementModule(void)
 
   // 512 * 32768 = 16777216 / 1024
   Init_FLL_Settle(configCPU_CLOCK_HZ/configTICK_RATE_HZ, ACLK_MULTIPLIER);
-
-  // second parameter is 16000/32768 = 488
-  SoftwareFllInit();
-
+  
+  // Disable FLL loop control for older revision part
+  if ( QueryErrataGroup1() )
+  {
+    __bis_SR_register(SCG0);
+  }
+  
   // setup for quick wake up from interrupt and
   // minimal power consumption in sleep mode
   DISABLE_SVSL();                           // SVS Low side is turned off
+  DISABLE_SVSL_RESET();
+  
   DISABLE_SVML();                           // Monitor low side is turned off
+  DISABLE_SVML_INTERRUPT();
+  
   DISABLE_SVMH();                           // Monitor high side is turned off
+  DISABLE_SVMH_INTERRUPT();
+  
   ENABLE_SVSH();                            // SVS High side is turned on
   ENABLE_SVSH_RESET();                      // Enable POR on SVS Event
 
@@ -147,13 +197,13 @@ void ConfigureDefaultIO(unsigned char BoardConfiguration)
     ENABLE_ACCELEROMETER_POWER();
   }
 
-#ifdef ISOLATE_RADIO
+#if ISOLATE_RADIO
   SetRadioControlPinsToInputs();
 #endif
 
 }
 
-#ifdef ISOLATE_RADIO
+#if ISOLATE_RADIO
 
 static void SetRadioControlPinsToInputs(void)
 {

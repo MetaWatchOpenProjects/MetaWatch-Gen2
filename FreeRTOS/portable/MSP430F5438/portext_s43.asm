@@ -59,6 +59,7 @@
              PUBLIC xPortStartScheduler
              EXTERN RtosTickEnabled
              EXTERN RtosTickCount
+             PUBLIC vTickISRCheck
              
 portSAVE_CONTEXT MACRO
                  bic      #CPUOFF+SCG1+SCG0,0(SP)

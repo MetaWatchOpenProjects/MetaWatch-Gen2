@@ -26,38 +26,21 @@
 #ifndef BUTTONS_H
 #define BUTTONS_H
 
-// This is the number of consecutive samples by the RTC ISR that need to be
-// asserted for a button to be moved to the state
-#define BTN_ON_COUNT          2    
-#define BTN_ONE_SEC_COUNT     32
-#define BTN_HOLD_COUNT        (2 * BTN_ONE_SEC_COUNT)
-#define BTN_LONG_HOLD_COUNT   (5 * BTN_ONE_SEC_COUNT)
-#define BTN_LONGER_HOLD_COUNT (10 * BTN_ONE_SEC_COUNT)
+/*! Number of buttons */
+#define BTN_NUM               (TOTAL_BTN_NUM - 1)
 
-/* Immediate state is when a button is pressed but is not released */
-#define BUTTON_STATE_IMMEDIATE ( 0 )
-#define BUTTON_STATE_PRESSED   ( 1 )
-#define BUTTON_STATE_HOLD      ( 2 )
-#define BUTTON_STATE_LONG_HOLD ( 3 )
-#define BUTTON_STATE_OFF       ( 4 )
-#define BUTTON_STATE_DEBOUNCE  ( 5 )
+#define BTN_INDEX_A           (0)
+#define BTN_INDEX_B           (1)
+#define BTN_INDEX_C           (2)
+#define BTN_INDEX_D           (3)
+#define BTN_INDEX_E           (4)
+#define BTN_INDEX_F           (5)
+#define BTN_INDEX_P           (6)
 
-/*! Number of states that can generate a button event */
-#define NUMBER_OF_BUTTON_EVENT_TYPES ( 4 )
-
-/*! Structure to consolidate the data used to manage the button state
- *
- * \param BtnFilter is for the leaky integrator filter
- * \param BtnState is the current button state 
- * \param BtnHoldCounter is the amount of time the button has been pressed
- */
-typedef  struct
-{
-  unsigned char BtnFilter;          
-  unsigned char BtnState;           
-  unsigned int BtnHoldCounter;     
-
-} tButtonData;
+#define BTN_EVT_NUM           (3)
+#define BTN_EVT_IMDT          (0)
+#define BTN_EVT_RELS          (1)
+#define BTN_EVT_HOLD          (2)
 
 /*! Structure to hold the configuration of a button
  *
@@ -68,13 +51,13 @@ typedef  struct
 typedef struct
 {
   unsigned char MaskTable;
-  unsigned char CallbackMsgType[NUMBER_OF_BUTTON_EVENT_TYPES];
-  unsigned char CallbackMsgOptions[NUMBER_OF_BUTTON_EVENT_TYPES];
+  unsigned char CallbackMsgType[BTN_EVT_NUM];
+  unsigned char CallbackMsgOptions[BTN_EVT_NUM];
 
 } tButtonConfiguration;
 
-/*! Don't generate any events for button (short circuit) */
-#define BUTTON_ABSOLUTE_MASK     ( BIT0 )
+/*! Don't generate an event for an immediate button press */
+#define BUTTON_IMMEDIATE_MASK    ( BIT0 )
 
 /*! Don't generate an event for a button press */
 #define BUTTON_PRESS_MASK        ( BIT1 )
@@ -85,8 +68,8 @@ typedef struct
 /*! Don't generate an event for a long hold */
 #define BUTTON_LONG_HOLD_MASK    ( BIT3 )
 
-/*! Don't generate an event for an immediate button press */
-#define BUTTON_IMMEDIATE_MASK    ( BIT4 )
+/*! Don't generate any events for button (short circuit) */
+#define BUTTON_ABSOLUTE_MASK     ( BIT4 )
 
 /*! Use to determine if the absolute mask should be set */
 #define ALL_BUTTON_EVENTS_MASKED ( BUTTON_PRESS_MASK | BUTTON_HOLD_MASK | \
@@ -98,47 +81,19 @@ typedef struct
  *
  * The display task will finish initializing the buttons
  */
-void InitializeButtons(void);
+void InitButton(void);
 
 /*! Button State Machine */
 void ButtonStateHandler(void);
 
-/*! Associate and action with a button
- *
- * \param ButtonMode is idle, application or notification
- * \param ButtonIndex is A-F, or pull switch
- * \param ButtonPressType is immediate,press,hold, or long hold
- * \param CallbackMsgType is the message type for the callback
- * \param CallbackMsgOptions allows options to be sent with the message
- * the payload is not configurable.
- */
-void DefineButtonAction(unsigned char DisplayMode,
-                        unsigned char ButtonIndex,
-                        unsigned char ButtonPressType,
-                        unsigned char CallbackMsgType,
-                        unsigned char CallbackMsgOptions);
-
-void EnableButtonAction(unsigned char DisplayMode,
-                        unsigned char ButtonIndex,
-                        unsigned char ButtonPressType);
-
-/*! Delete a button press type and its association
- *
- * \param ButtonMode is idle, application or notification
- * \param ButtonIndex is A-F, or pull switch
- * \param ButtonPressType is immediate,press,hold, or long hold
- */
-void DisableButtonAction(unsigned char ButtonMode,
-                         unsigned char ButtonIndex,
-                         unsigned char ButtonPressType);
-                         
-void CleanButtonCallbackOptions(unsigned char DisplayMode);
+void EnableButtonMsgHandler(tMessage* pMsg);
+void DisableButtonMsgHandler(tMessage* pMsg);
 
 /*! Read a button press's association
  *
  * \param ButtonMode is idle, application or notification
  * \param ButtonIndex is A-F, or pull switch
- * \param ButtonPressType is immediate,press,hold, or long hold
+ * \param ButtonEvent is immediate,press,hold, or long hold
  * \param pPayload must point to a 5 byte or greater structure.  It will
  * return [0] = display mode, [1] = ButtonIndex, [2] = MaskTable, [3] = CallbackMsgType,
  * [4] = callback msg options.
@@ -147,9 +102,6 @@ void CleanButtonCallbackOptions(unsigned char DisplayMode);
  * phone should use application mode and not destroy the buttons used for idle mode.
  *
  */
-void ReadButtonConfiguration(unsigned char ButtonMode,
-                             unsigned char ButtonPressType,
-                             unsigned char ButtonIndex,
-                             unsigned char* pPayload);
+void ReadButtonConfigHandler(tMessage* pMsg);
 
 #endif /* BUTTONS_H */

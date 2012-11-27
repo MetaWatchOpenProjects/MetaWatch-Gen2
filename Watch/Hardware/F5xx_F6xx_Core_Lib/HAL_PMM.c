@@ -255,8 +255,9 @@ static unsigned int SetVCoreDown(unsigned char level)
 unsigned int SetVCore(unsigned char level)
 {
   unsigned int actlevel;
-  unsigned int status = 0;
+  unsigned int status;
   
+  status = 0;
   level &= PMMCOREV_3;                       // Set Mask for Max. level
   actlevel = (PMMCTL0 & PMMCOREV_3);         // Get actual VCore
                                              // step by step increase or decrease

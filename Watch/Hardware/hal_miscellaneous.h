@@ -24,6 +24,34 @@
 #ifndef HAL_MISCELLANEOUS_H
 #define HAL_MISCELLANEOUS_H
 
+void SaveResetSource(void);
+
+unsigned int GetResetSource(void);
+
+/*! Reads the hardware revision register in the MSP430
+ *
+ * \return Character representation of revision (Example: 'E')
+ */
+unsigned char GetMsp430HardwareRevision(void);
+
+/*! Revision F and H solve these errata
+ *
+ * ADC27, FLASH37, PMM10, PMM11, PMM12, PMM17, SYS10, SYS12, 
+ * TAB23, UCS6, UCS9, UCS10, USCII30
+ *
+ * Revision G is actually revision E silicon from a different fab house so
+ * the check is not as simple as it could be.
+ *
+ * This be called ErrataGroup1.
+ *
+ * These could also be compiled out at some time (or even removed from source)
+ *
+ * \note This needs to be called in main before hardware is configured.
+ */
+void DetermineErrata(void);
+
+/*! return 1 if workarounds for errata group 1 are required */
+unsigned char QueryErrataGroup1(void);
 
 /*! 
  * This sets all of the pins to outputs.

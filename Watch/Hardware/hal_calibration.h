@@ -38,6 +38,7 @@ void InitializeCalibrationData(void);
  */
 unsigned char QueryCalibrationValid(void);
 
+unsigned int HardwareVersion(void);
 
 /*!
  * \return Battery calibration value in the range of 0-254 adc counts

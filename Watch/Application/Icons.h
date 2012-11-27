@@ -29,41 +29,66 @@
 #define BUTTON_ICON_SIZE_IN_COLUMNS ( 6 )
 #define BUTTON_ICON_SIZE_IN_ROWS    ( 32 )
 
+#define ICON_MUSIC_WIDTH    (2)
+#define ICON_MUSIC_HEIGHT   (11)
+
 #define BUTTON_ICON_A_F_ROW ( 0 )
 #define BUTTON_ICON_B_E_ROW ( 32 )
 #define BUTTON_ICON_C_D_ROW ( 64 )
 
-extern const unsigned char pPairableInitIcon[32*6];
-extern const unsigned char pPairableIcon[32*6];
-extern const unsigned char pUnpairableIcon[32*6];
-extern const unsigned char pBluetoothInitIcon[32*6];
-extern const unsigned char pBluetoothOnIcon[32*6];
-extern const unsigned char pBluetoothOffIcon[32*6];
-extern const unsigned char pLinkAlarmOnIcon[32*6]; 
-extern const unsigned char pLinkAlarmOffIcon[32*6];
-extern const unsigned char pLedIcon[32*6];
-extern const unsigned char pNextIcon[32*6];
-extern const unsigned char pExitIcon[32*6];
-extern const unsigned char pSspInitIcon[32*6];
-extern const unsigned char pSspEnabledIcon[32*6]; 
-extern const unsigned char pSspDisabledIcon[32*6];
-extern const unsigned char pRstPinIcon[32*6];
-extern const unsigned char pNmiPinIcon[32*6]; 
-extern const unsigned char pResetButtonIcon[32*6];
-extern const unsigned char pNormalDisplayMenuIcon[32*6];
-extern const unsigned char pSecondsOnMenuIcon[32*6];
-extern const unsigned char pSecondsOffMenuIcon[32*6];
-extern const unsigned char pShippingModeIcon[32*6];
-extern const unsigned char pEnableAccelMenuIcon[32*6];
-extern const unsigned char pDisableAccelMenuIcon[32*6];
+extern const unsigned char pBluetoothOffIcon[BUTTON_ICON_SIZE_IN_COLUMNS * BUTTON_ICON_SIZE_IN_ROWS];
+extern const unsigned char pBluetoothInitIcon[BUTTON_ICON_SIZE_IN_COLUMNS * BUTTON_ICON_SIZE_IN_ROWS];
+extern const unsigned char pBluetoothOnIcon[BUTTON_ICON_SIZE_IN_COLUMNS * BUTTON_ICON_SIZE_IN_ROWS];
+extern const unsigned char pSecondsOffMenuIcon[BUTTON_ICON_SIZE_IN_COLUMNS * BUTTON_ICON_SIZE_IN_ROWS];
+extern const unsigned char pSecondsOnMenuIcon[BUTTON_ICON_SIZE_IN_COLUMNS * BUTTON_ICON_SIZE_IN_ROWS];
+extern const unsigned char pLinkAlarmOffIcon[BUTTON_ICON_SIZE_IN_COLUMNS * BUTTON_ICON_SIZE_IN_ROWS];
+extern const unsigned char pLinkAlarmOnIcon[BUTTON_ICON_SIZE_IN_COLUMNS * BUTTON_ICON_SIZE_IN_ROWS];
+extern const unsigned char pInvertDisplayIcon[BUTTON_ICON_SIZE_IN_COLUMNS * BUTTON_ICON_SIZE_IN_ROWS];
+
+extern const unsigned char pLedIcon[BUTTON_ICON_SIZE_IN_COLUMNS * BUTTON_ICON_SIZE_IN_ROWS];
+extern const unsigned char pExitIcon[BUTTON_ICON_SIZE_IN_COLUMNS * BUTTON_ICON_SIZE_IN_ROWS];
+extern const unsigned char pNextIcon[BUTTON_ICON_SIZE_IN_COLUMNS * BUTTON_ICON_SIZE_IN_ROWS];
+
+extern const unsigned char pRstPinIcon[BUTTON_ICON_SIZE_IN_COLUMNS * BUTTON_ICON_SIZE_IN_ROWS];
+extern const unsigned char pNmiPinIcon[BUTTON_ICON_SIZE_IN_COLUMNS * BUTTON_ICON_SIZE_IN_ROWS]; 
+extern const unsigned char pResetButtonIcon[BUTTON_ICON_SIZE_IN_COLUMNS * BUTTON_ICON_SIZE_IN_ROWS];
+extern const unsigned char pGroundIcon[BUTTON_ICON_SIZE_IN_COLUMNS * BUTTON_ICON_SIZE_IN_ROWS];
+extern const unsigned char pSbwIcon[BUTTON_ICON_SIZE_IN_COLUMNS * BUTTON_ICON_SIZE_IN_ROWS];
+extern const unsigned char pSerialIcon[BUTTON_ICON_SIZE_IN_COLUMNS * BUTTON_ICON_SIZE_IN_ROWS];
+
+extern const unsigned char pIconChargingEnabled[BUTTON_ICON_SIZE_IN_COLUMNS * BUTTON_ICON_SIZE_IN_ROWS];
+extern const unsigned char pIconChargingDisabled[BUTTON_ICON_SIZE_IN_COLUMNS * BUTTON_ICON_SIZE_IN_ROWS];
+extern const unsigned char pBootloaderIcon[BUTTON_ICON_SIZE_IN_COLUMNS * BUTTON_ICON_SIZE_IN_ROWS];
+
+//extern const unsigned char pGndOffClipIcon[BUTTON_ICON_SIZE_IN_COLUMNS * BUTTON_ICON_SIZE_IN_ROWS];
+//extern const unsigned char pSbwOffClipIcon[BUTTON_ICON_SIZE_IN_COLUMNS * BUTTON_ICON_SIZE_IN_ROWS];
+//extern const unsigned char pSerialOffClipIcon[BUTTON_ICON_SIZE_IN_COLUMNS * BUTTON_ICON_SIZE_IN_ROWS];
+//extern const unsigned char pDeletePairingIcon[BUTTON_ICON_SIZE_IN_COLUMNS * BUTTON_ICON_SIZE_IN_ROWS];
+//extern const unsigned char pShippingModeIcon[BUTTON_ICON_SIZE_IN_COLUMNS * BUTTON_ICON_SIZE_IN_ROWS];
+//
+//extern const unsigned char pUnpairableIcon[BUTTON_ICON_SIZE_IN_COLUMNS * BUTTON_ICON_SIZE_IN_ROWS];
+//extern const unsigned char pPairableInitIcon[BUTTON_ICON_SIZE_IN_COLUMNS * BUTTON_ICON_SIZE_IN_ROWS];
+//extern const unsigned char pPairableIcon[BUTTON_ICON_SIZE_IN_COLUMNS * BUTTON_ICON_SIZE_IN_ROWS];
+//extern const unsigned char pSspInitIcon[BUTTON_ICON_SIZE_IN_COLUMNS * BUTTON_ICON_SIZE_IN_ROWS];
+//extern const unsigned char pSspEnabledIcon[BUTTON_ICON_SIZE_IN_COLUMNS * BUTTON_ICON_SIZE_IN_ROWS]; 
+//extern const unsigned char pSspDisabledIcon[BUTTON_ICON_SIZE_IN_COLUMNS * BUTTON_ICON_SIZE_IN_ROWS];
+//extern const unsigned char pEnableAccelMenuIcon[BUTTON_ICON_SIZE_IN_COLUMNS * BUTTON_ICON_SIZE_IN_ROWS];
+//extern const unsigned char pDisableAccelMenuIcon[BUTTON_ICON_SIZE_IN_COLUMNS * BUTTON_ICON_SIZE_IN_ROWS];
+
+extern const unsigned char pIconMusicState[][ICON_MUSIC_WIDTH * ICON_MUSIC_HEIGHT];
 
 extern const unsigned char pBootPageBluetoothOffSwash[32*12];
-extern const unsigned char pBootPageConnectionSwash[32*12];
-extern const unsigned char pBootPagePairingSwash[32*12];
-extern const unsigned char pBootPageUnknownSwash[32*12];
+extern const unsigned char pBootPagePairedSwash[32*12];
+extern const unsigned char pBootPageNoPairSwash[32*12];
+
+extern const unsigned char pIconSplashLogo[6 * 13];
+extern const unsigned char pIconSplashMetaWatch[12 * 12];
+extern const unsigned char pIconSplashHandsFree[8 * 5];
 
 #define NUMBER_OF_ROWS_IN_WAVY_LINE ( 5 )
 extern const unsigned char pWavyLine[5*12];
+
+extern const unsigned char pIconWatch[2 * 21];
 
 #define LEFT_STATUS_ICON_COLUMN   ( 0 )
 #define CENTER_STATUS_ICON_COLUMN ( 4 ) 
@@ -72,14 +97,51 @@ extern const unsigned char pWavyLine[5*12];
 #define STATUS_ICON_SIZE_IN_COLUMNS ( 4 )
 #define STATUS_ICON_SIZE_IN_ROWS    ( 36 )
 
-extern const unsigned char pBluetoothOnStatusScreenIcon[36*4];
-extern const unsigned char pBluetoothOffStatusScreenIcon[36*4];
-extern const unsigned char pPhoneConnectedStatusScreenIcon[36*4];
-extern const unsigned char pPhoneDisconnectedStatusScreenIcon[36*4];
+extern const unsigned char pRadioOnIcon[36*4];
+extern const unsigned char pRadioOffIcon[36*4];
+extern const unsigned char pConnectedIcon[36*4];
+extern const unsigned char pDisconnectedIcon[36*4];
 extern const unsigned char pBatteryChargingStatusScreenIcon[36*4];
 extern const unsigned char pBatteryLowStatusScreenIcon[36*4];
 extern const unsigned char pBatteryFullStatusScreenIcon[36*4];
 extern const unsigned char pBatteryMediumStatusScreenIcon[36*4];
+
+// A set of icons with same size
+#define ICON_SET_BLUETOOTH_SMALL          (0)
+#define ICON_SET_BLUETOOTH_BIG            (1)
+#define ICON_SET_BATTERY_H                (2)
+#define ICON_SET_BATTERY_V                (3)
+#define ICON_SET_SPLASH_MW                (4)
+#define ICON_SET_SPLASH_HANSFREE          (5)
+#define ICON_SET_SPLASH_LOGO              (6)
+#define ICON_SET_MENU                     (7)
+#define ICON_SET_SERVICE_MENU             (8)
+
+#define ICON_SET_NUM             (9)
+#define BATTERY_ICON_NUM         (8)
+
+#define ICON_BLUETOOTH_OFF       (0)
+#define ICON_BLUETOOTH_ON        (1)
+#define ICON_BLUETOOTH_CONN      (2)
+#define ICON_BLUETOOTH_DISC      (3)
+
+#define BLUETOOTH_ICON_NUM       (4)
+
+#define MENU_ITEM_RADIO_STATUS   (0)
+#define MENU_ITEM_SHOW_SECOND    (3)
+#define MENU_ITEM_LINK_ALARM     (5)
+#define MENU_ITEM_DISCOVERABLE   (7)
+#define MENU_ITEM_BACKLIGHT      (8)
+#define MENU_ITEM_EXIT           (9)
+
+typedef struct
+{
+  unsigned char Width; // in bytes
+  unsigned char Height;
+  const unsigned char *pIconSet;
+} Icon_t;
+
+extern const Icon_t IconInfo[];
 
 #define IDLE_PAGE_ICON_STARTING_ROW ( 10 )
 #define IDLE_PAGE_ICON_STARTING_COL ( 8 )

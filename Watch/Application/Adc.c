@@ -54,7 +54,7 @@
 
 static xSemaphoreHandle AdcHardwareMutex;
 
-#define MAX_SAMPLES ( 10 )
+#define MAX_SAMPLES ( 5 ) //10
 static unsigned int HardwareConfigurationVolts = 0;
 static unsigned int BatterySense = 0;
 static unsigned int LightSense = 0;
@@ -293,7 +293,7 @@ static void FinishBatterySenseCycle(void)
 
 }
 
-void LowBatteryMonitor(void)
+void LowBatteryMonitor(unsigned char PowerGood)
 {
   
   unsigned int BatteryAverage = ReadBatterySenseAverage();
@@ -310,16 +310,16 @@ void LowBatteryMonitor(void)
     */  
     PrintStringAndThreeDecimals("Batt Inst: ",BatterySense,
                                 " Batt Avg: ",BatteryAverage,
-                                " Batt Charge Enable: ", QueryBatteryChargeEnabled());
+                                " Batt Charge Enable: ", ChargeEnabled());
     
-    PrintStringAndDecimal("Power Good: ",QueryPowerGood());
+    PrintStringAndDecimal("- ExPwr: ",ExtPower());
     
   }
   
   /* if the battery is charging then ignore the measured voltage
    * and clear the flags
   */
-  if ( QueryPowerGood() )
+  if ( PowerGood )
   {
     /* user must turn radio back on */
     LowBatteryWarningMessageSent = 0;  
@@ -337,17 +337,16 @@ void LowBatteryMonitor(void)
     {
       LowBatteryBtOffMessageSent = 1;
       
-      SetupMessageAndAllocateBuffer(&Msg,LowBatteryBtOffMsgHost,NO_MSG_OPTIONS);
+      SetupMessageAndAllocateBuffer(&Msg,LowBatteryBtOffMsgHost,MSG_OPT_NONE);
       CopyHostMsgPayload(Msg.pBuffer,(unsigned char *)&BatteryAverage,2);
       Msg.Length = 2;
       RouteMsg(&Msg);
     
       /* send the same message to the display task */
-      SetupMessage(&Msg,LowBatteryBtOffMsg,NO_MSG_OPTIONS);
-      RouteMsg(&Msg);
-      
+      SendMessage(&Msg,LowBatteryBtOffMsg,MSG_OPT_NONE);
+
       /* now send a vibration to the wearer */
-      SetupMessageAndAllocateBuffer(&Msg,SetVibrateMode,NO_MSG_OPTIONS);
+      SetupMessageAndAllocateBuffer(&Msg,SetVibrateMode,MSG_OPT_NONE);
       
       tSetVibrateModePayload* pMsgData;
       pMsgData = (tSetVibrateModePayload*) Msg.pBuffer;
@@ -369,17 +368,16 @@ void LowBatteryMonitor(void)
     {
       LowBatteryWarningMessageSent = 1;
 
-      SetupMessageAndAllocateBuffer(&Msg,LowBatteryWarningMsgHost,NO_MSG_OPTIONS);
+      SetupMessageAndAllocateBuffer(&Msg,LowBatteryWarningMsgHost,MSG_OPT_NONE);
       CopyHostMsgPayload(Msg.pBuffer,(unsigned char*)&BatteryAverage,2);
       Msg.Length = 2;
       RouteMsg(&Msg);
     
       /* send the same message to the display task */
-      SetupMessage(&Msg,LowBatteryWarningMsg,NO_MSG_OPTIONS);
-      RouteMsg(&Msg);
-      
+      SendMessage(&Msg,LowBatteryWarningMsg,MSG_OPT_NONE);
+
       /* now send a vibration to the wearer */
-      SetupMessageAndAllocateBuffer(&Msg,SetVibrateMode,NO_MSG_OPTIONS);
+      SetupMessageAndAllocateBuffer(&Msg,SetVibrateMode,MSG_OPT_NONE);
       
       tSetVibrateModePayload* pMsgData;
       pMsgData = (tSetVibrateModePayload*) Msg.pBuffer;
@@ -395,7 +393,7 @@ void LowBatteryMonitor(void)
       
     }
   
-  } /* QueryPowerGood() */
+  } /* ExtPower() */
   
 }
 
@@ -543,6 +541,11 @@ void SetBatteryLevels(unsigned char * pData)
               &LowBatteryBtOffLevel);    
 }
 
+unsigned int BatteryCriticalLevel(unsigned char Type)
+{
+  return Type == CRITICAL_BT_OFF ? LowBatteryBtOffLevel : LowBatteryWarningLevel;
+}
+
 /* Initialize the low battery levels and read them from flash if they exist */
 void InitializeLowBatteryLevels(void)
 {
@@ -598,8 +601,6 @@ static void SetBoardConfiguration(void)
     BoardConfiguration = 4;  
   }
 
-  PrintStringAndDecimal("Board Configuration ",BoardConfiguration);
- 
 }
 
 unsigned char GetBoardConfiguration(void)

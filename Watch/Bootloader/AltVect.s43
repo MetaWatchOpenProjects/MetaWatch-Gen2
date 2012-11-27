@@ -1,0 +1,66 @@
+
+
+// ---------------------------------------------------------
+// Define alternate vector table
+//
+//  This is the interrupts used by the watch application and 
+//  bt stack.  We remap them to the RAM 'alternate interrupt
+//  vector' location.  The cstartup code as a section added 
+//  to copy the values from the ALTVECT_ID segment (defined here)
+//  to the RAM ALTVECT_I segment (defined in LinkerConfiguration.xcl).
+//
+//  Note: When declaring interrupt handlers, declare a function
+//  with the __interrupt keyword, then add its entry here in
+//  the appropriate location.  Also add an EXTERN line to tell
+//  the assembler the actual function is defined elsewhere in
+//  the project. DO *NOT* use the pragma vector= statement in
+//  declaring an interrupt as this will no longer work for the app
+//  and will add an interrupt handler for the bootloader code - NOT
+//  the application.
+
+        RSEG    ALTVECT_ID:CONST:ROOT
+        PUBLIC  ?alt_vect_id
+        EXTERN  RTC_ISR
+        EXTERN  ButtonPortIsr
+        EXTERN  DebugUartIsr
+        EXTERN  ACCERLEROMETER_ISR
+        EXTERN  UartInterrupt
+        EXTERN  CTS_ISR
+        EXTERN  DMA_ISR
+        EXTERN  TIMER0_A1_VECTOR_ISR
+        EXTERN  vTickISRCheck
+        EXTERN  WatchdogTimerIsr
+        EXTERN  bl_Main
+        EXTERN UnusedIsr
+
+        EVEN
+?alt_vect_id:
+  REPT 41                    
+        DC16    bl_Main     // fill unused vectors with reset vec (64 total)
+  ENDR
+        DC16    RTC_ISR
+        DC16    ButtonPortIsr
+        DC16    UnusedIsr // USCI_B3_VECTOR_ISR
+        DC16    DebugUartIsr
+        DC16    ACCERLEROMETER_ISR
+        DC16    UartInterrupt
+        DC16    CTS_ISR
+        DC16    UnusedIsr  // TIMER1_A1_VECTOR_ISR
+        DC16    UnusedIsr  // TIMER1_A0_VECTOR_ISR
+        DC16    DMA_ISR
+        DC16    UnusedIsr  // USCI_B2_VECTOR_ISR
+        DC16    UnusedIsr  // USCI_A2_VECTOR_ISR
+        DC16    TIMER0_A1_VECTOR_ISR
+        DC16    vTickISRCheck
+        DC16    UnusedIsr  // adc12_interrupt_handler
+        DC16    UnusedIsr  // USCI_B0_VECTOR_ISR
+        DC16    UnusedIsr  // USCI_A0_VECTOR_ISR
+        DC16    WatchdogTimerIsr
+        DC16    UnusedIsr   // timer0_b1_interrupt_handler
+        DC16    UnusedIsr   // timer0_b0_interrupt_handler
+        DC16    UnusedIsr   // UNMI_VECTOR_ISR
+        DC16    UnusedIsr   // SYSNMI_VECTOR_ISR
+        DC16    bl_Main     // this is the real reset vector
+
+        END
+

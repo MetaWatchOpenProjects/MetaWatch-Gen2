@@ -34,21 +34,12 @@
 #define MESSAGE_QUEUE_ITEM_SIZE ( ( unsigned int ) sizeof( tMessage ) )
 
 #define FREE_QINDEX        ( 0 )
-#define BACKGROUND_QINDEX  ( 1 )
-#define DISPLAY_QINDEX     ( 2 )
-#define SPP_TASK_QINDEX    ( 3 )
-#define TOTAL_QUEUES       ( 4 )
-
+#define DISPLAY_QINDEX     ( 1 )
+#define SPP_TASK_QINDEX    ( 2 )
+#define TOTAL_QUEUES       ( 3 )
 
 /*! Array of all of the queue handles */
 extern xQueueHandle QueueHandles[TOTAL_QUEUES];
-
-
-/*! \return 1 when all task queues are empty and the part can go into sleep 
- * mode 
- */
-unsigned char AllTaskQueuesEmpty(void);
-
 
 /*! Send a message to the free queue.  If this is a short message that 
  * did not allocate a buffer then no action is taken.
@@ -96,9 +87,7 @@ void AssignWrapperQueueHandle(xQueueHandle WrapperHandle);
  * "short" message ).
  *
  */
-void SetupMessage(tMessage* pMsg,
-                  unsigned char Type,
-                  unsigned char Options);
+void SetupMessage(tMessage* pMsg, unsigned char Type, unsigned char Options);
 
 /*! Set the message parameters.
  *
@@ -118,6 +107,10 @@ void SetupMessageAndAllocateBuffer(tMessage* pMsg,
                                    unsigned char Type,
                                    unsigned char Options);
 
+
+void SendMessage(tMessage* pMsg, unsigned char Type, unsigned char Options);
+
+void CreateAndSendMessage(unsigned char Type, unsigned char Options);
 
 /*! Print the message type
  *

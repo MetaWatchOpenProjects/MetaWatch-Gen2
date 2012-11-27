@@ -34,7 +34,6 @@
 static unsigned char CurrentBatteryState;
 static unsigned char LastBatteryState;
 static unsigned char BatteryChargeEnabled;
-static unsigned char PowerGood;
 
 #define BAT_CHARGE_OPEN_DRAIN_BITS \
   ( BAT_CHARGE_STAT1 + BAT_CHARGE_STAT2 + BAT_CHARGE_PWR_GOOD )
@@ -56,8 +55,15 @@ void ConfigureBatteryPins(void)
   // charge enable output
   BAT_CHARGE_DIR |= BAT_CHARGE_ENABLE_PIN;
   
+  /* turn on the pullup in the MSP430 for the open drain bit of the charger
+   * If the watch has 5V then we don't care about the current draw of the 
+   * of the pull down resistor. Otherwise, the charge chip will let
+   * the pin go high
+   */
+  BAT_CHARGE_OUT |= BAT_CHARGE_PWR_GOOD;
+  
   BATTERY_CHARGE_DISABLE();
-  BatteryChargeEnabled = 0;
+  BatteryChargeEnabled = 1;
   CurrentBatteryState = BATTERY_CHARGE_OFF_FAULT_SLEEP;
   
   CurrentBatteryState = 0x00;
@@ -67,39 +73,21 @@ void ConfigureBatteryPins(void)
 
 /******************************************************************************/
 
-unsigned char BatteryChargingControl(void)
+unsigned char BatteryChargingControl(unsigned char PowerGood)
 {
   unsigned char BatteryChargeChange = 0;
-
+  unsigned char BatteryChargeBits;
+  
   /* 
    * first find out if the charger is connected
    */
-  
-  /* turn on the pullup in the MSP430 for the open drain bit of the charger */
-  BAT_CHARGE_OUT |= BAT_CHARGE_PWR_GOOD;
-    
-  TaskDelayLpmDisable();
-  vTaskDelay(1);
-  TaskDelayLpmEnable();
-    
-  /* take reading */
-  unsigned char BatteryChargeBits = BAT_CHARGE_IN;
-  unsigned char PowerGoodN = BatteryChargeBits & BAT_CHARGE_PWR_GOOD;
- 
-  /* Bit 5 is low, which means we have input power == good */
-  PowerGood = (PowerGoodN == 0) ? 1 : 0;
-  
-  /* turn off the pullup */
-  BAT_CHARGE_OUT &= ~BAT_CHARGE_PWR_GOOD;
-  
-  if ( PowerGood == 0 )
+  if (!PowerGood)
   {
     /* the charger automatically shuts down when power is not good
      * need to make sure pullups aren't enabled.
      */
-    if ( BatteryChargeEnabled == 1 )
+    if (BatteryChargeEnabled)
     {
-      BatteryChargeEnabled = 0;
       BatteryChargeChange = 1;
     }
     
@@ -108,7 +96,7 @@ unsigned char BatteryChargingControl(void)
     BAT_CHARGE_OUT &= ~BAT_CHARGE_STATUS_OPEN_DRAIN_BITS;
     
   }
-  else
+  else if (BatteryChargeEnabled)
   {
     /* prepare to read status bits */
     BAT_CHARGE_OUT |= BAT_CHARGE_STATUS_OPEN_DRAIN_BITS;
@@ -117,7 +105,6 @@ unsigned char BatteryChargingControl(void)
      * status bits are not valid unless charger is enabled 
      */
     BATTERY_CHARGE_ENABLE();
-    BatteryChargeEnabled = 1;
   
     /* wait until signals are valid - measured 400 us */
     TaskDelayLpmDisable();
@@ -172,38 +159,54 @@ unsigned char BatteryChargingControl(void)
     
     case BATTERY_CHARGE_OFF_FAULT_SLEEP: 
       BATTERY_CHARGE_DISABLE();
-      BatteryChargeEnabled = 0;
       BAT_CHARGE_OUT &= ~BAT_CHARGE_STATUS_OPEN_DRAIN_BITS;
       break;
     
     default:   
       break;
     }
-
   }
   
   return BatteryChargeChange;
-  
 }
 
-
-unsigned char QueryBatteryCharging(void)
+unsigned char Charging(void)
 {
   return (CurrentBatteryState == BATTERY_PRECHARGE ||
           CurrentBatteryState == BATTERY_FAST_CHARGE);
 }
 
-/* is 5V connected? */
-unsigned char QueryPowerGood(void)
-{
-  return PowerGood;  
+/* is 5V connected? 
+ *
+ * This pin should be changed to a pin that has interrupt capability
+ */
+unsigned char ExtPower(void)
+{  
+  /* take reading */
+  unsigned char BatteryChargeBits = BAT_CHARGE_IN;
+  unsigned char PowerGoodN = BatteryChargeBits & BAT_CHARGE_PWR_GOOD;
+ 
+  /* Bit 5 is low, which means we have input power == good */
+  unsigned char PowerGood = (PowerGoodN == 0) ? EXTERNAL_POWER_GOOD : NO_EXTERNAL_POWER;
+
+#if DEBUG_POWER_GOOD
+  PrintStringAndDecimal("PowerGood ",PowerGood);
+#endif
+  
+  return PowerGood;
+  
 }
 
 /* the charge enable bit is used to get status information so
  * knowing its value cannot be used to determine if the battery 
  * is being charged
  */
-unsigned char QueryBatteryChargeEnabled(void)
+unsigned char ChargeEnabled(void)
 {
   return BatteryChargeEnabled;  
+}
+
+void EnableCharge(unsigned char Enable)
+{
+  BatteryChargeEnabled = Enable;
 }

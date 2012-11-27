@@ -55,55 +55,7 @@
 
 /******************************************************************************/
 
-/*! Copies the local bluetooth address string (from SerialProfile) 
- * so that the display task can put it on the screen
- */
-void SetLocalBluetoothAddressString(unsigned char* pData);
-
-/*! Copies the remote bluetooth address string so that the display task can put 
- * it on the screen
- */
-void SetRemoteBluetoothAddressString(unsigned char* pData);
-
-/*! Returns a pointer to the Local Bluetooth Address 
- * 
- */
-tString * GetLocalBluetoothAddressString(void);
-
-/*! Returns a pointer to the Remote Bluetooth Address 
- *
- */
-tString * GetRemoteBluetoothAddressString(void);
-
-/*! Find out what button configuration to use
- *
- *\return Returns a button mode as defined in messages.h
- */
-unsigned char QueryButtonMode(void);
-
-/*! Reads the hardware revision register in the MSP430
- *
- * \return Character representation of revision (Example: 'E')
- */
-unsigned char GetMsp430HardwareRevision(void);
-
-/*! Query the connection state of the bluetooth serial port
- * 
- * \return String representation of the current state of serial port.
- */
-//unsigned char * QueryConnectionStateAndGetString(void);
-
-
-/*! This is called by the stack to set the OnceConnected variable.  This 
- * variable is used to determine if the phone has connected for the first time
- */
-void SetOnceConnected(unsigned char Once);
-
-/*! Query the FirstContact Flag
- *
- * \return 1 = phone has been connected, 0 otherwise
- */
-unsigned char OnceConnected(void);
+#define BT_ADDR_LEN (6)
 
 /*! Strings for days of the week in the same order as RTC */
 extern const tString DaysOfTheWeek[][7][4];
@@ -132,21 +84,22 @@ extern const tString MonthsOfYear[][13][7];
 /*! Initaliaze the non-volatile item that holds the time format (which is 12 or
  * 24 hour )
 */
-void InitializeTimeFormat(void);
+void Init12H(void);
+
+/*! \return Time Format TWELVE_HOUR = 0, TWENTY_FOUR_HOUR = 1 */
+unsigned char Get12H(void);
+void Set12H(unsigned char Fmt);
 
 /*! Initaliaze the non-volatile item that holds the date format (which is day
  * or month first )
 */
-void InitializeDateFormat(void);
-
-void InitaliazeLanguage(void);
-
-/*! \return Time Format TWELVE_HOUR = 0, TWENTY_FOUR_HOUR = 1 */
-unsigned char GetTimeFormat(void);
+void InitMonthFirst(void);
 
 /*! \return date format MONTH_FIRST = 0, DAY_FIRST = 1 */
-unsigned char GetDateFormat(void);
+unsigned char GetMonthFirst(void);
+void SetMonthFirst(unsigned char Mon1st);
 
+void InitLanguage(void);
 unsigned char GetLanguage(void);
 
 /******************************************************************************/
@@ -160,7 +113,7 @@ void ToggleLinkAlarmEnable(void);
 /*! Initialize the nv item that determines if vibration should occur when the
  * link is lost 
 */
-void InitializeLinkAlarmEnable(void);
+void InitLinkAlarmEnable(void);
 
 /*! Save the link alarm control bit into nval */
 void SaveLinkAlarmEnable(void);
@@ -172,7 +125,7 @@ void GenerateLinkAlarm(void);
 /******************************************************************************/
 
 /*! Initialize the nv items that hold the application and notification mode timeouts */
-void InitializeModeTimeouts(void);
+void InitModeTimeout(void);
 
 /*! \return mode's timeout in seconds */
 unsigned int QueryModeTimeout(unsigned char Mode);
@@ -199,10 +152,10 @@ unsigned char QueryConnectionDebug(void);
  *
  * \note Called by stack wrapper 
  */
-void InitializePairingModeDuration(void);
+void InitRadioOffTimeout(void);
 
 /* \return pairing duration in seconds, 0 means pair forever */
-unsigned int GetPairingModeDurationInSeconds(void);
+unsigned int RadioOffTimeout(void);
 
 /******************************************************************************/
 
@@ -213,7 +166,7 @@ unsigned int GetPairingModeDurationInSeconds(void);
 void InitializeSavePairingInfo(void);
 
 /*! \return 1 when pairing information should be saved */
-unsigned char QuerySavePairingInfo(void);
+unsigned char SavedPairingInfo(void);
 
 /******************************************************************************/
 

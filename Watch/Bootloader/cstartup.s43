@@ -1,0 +1,447 @@
+/**************************************************
+ *
+ * System initialization code for the MSP430 IAR C/EC++ Compiler.
+ *
+ * Copyright © 2002-2008 IAR Systems AB.
+ *
+ * $Revision: 7961 $
+ *
+ **************************************************/
+
+//
+// There are two libraries provided with compilers from IAR Systems,
+// CLib and DLib.  This file is designed to work with both libraries.
+// Some parts of it is DLib-specific.  However, those parts will not
+// be included when building an application using CLib.
+//
+
+//
+// Please define one of the following preprocessor symbols in order to
+// customize the system initialization process.
+//
+// IGNORE_SEG_INIT     -- To remove segment initialization
+// IGNORE_DATA16_DATA  -- To remove segment initialization of DATA16 data
+// IGNORE_DATA20_DATA  -- To remove segment initialization of DATA20 data
+// IGNORE_RAMFUNC_INIT -- To remove segment initialization of ramfunc code
+// DISABLE_WATCHDOG    -- To disable the watchdog
+//
+// Note: In the current version the symbols "IGNORE_SEG_INIT" and
+// "IGNORE_DATA16_DATA" will perform the same task.  However, both are
+// supported in order to be compatible with other IAR Compilers.
+//
+// Note: To disable the watchdog, a device-specific header file will
+// be included.
+//
+
+#include "macros.m43"
+#include "cfi.m43"
+
+#ifdef DISABLE_WATCHDOG
+#include "msp430.h"
+#endif
+
+
+#define XRSEGCSTART RSEG CSTART:CODE:NOROOT(1)
+
+        XCFI_NAMES libNames
+        XCFI_COMMON libCommon, libNames
+
+        // The CPU40 warning is issued when a Jxx instruction is place
+        // at the end of a segment part. However, this case is safe,
+        // as we have control of what will be placed right after the
+        // instruction.
+        SUPPRESS_CPU40_WARNING
+
+
+// ---------------------------------------------------------
+// The cstartup code -- call __low_level_init, perform initialization,
+// call constructors and call main.  If main returns the exit system
+// is started.
+//
+
+        MODULE  ?cstart
+
+//
+// Ensure that this is build with the same "positions independent
+// code" settings as the compiler uses.
+//
+
+        XPICRTMODEL
+
+
+//
+// Forward declarations of segments.
+//
+
+        RSEG    HEAP:DATA:NOROOT(1)
+        RSEG    CSTACK:DATA:NOROOT
+
+        RSEG    DATA16_Z:DATA:NOROOT
+        RSEG    DATA16_I:DATA:NOROOT
+        RSEG    DATA16_ID:CONST:NOROOT
+        RSEG    CODE_I:DATA:NOROOT
+        RSEG    CODE_ID:CONST:NOROOT
+#if __CORE__==__430X_CORE__
+        RSEG    DATA20_Z:DATA:NOROOT
+        RSEG    DATA20_I:DATA:NOROOT
+        RSEG    DATA20_ID:CONST:NOROOT
+#endif
+        RSEG    TLS16_I:DATA:NOROOT
+        RSEG    TLS16_ID:CONST:NOROOT
+
+        RSEG    ALTVECT_ID:CONST:ROOT
+        RSEG    ALTVECT_I:DATA:ROOT
+        
+        RSEG    _IMAGE_END:CONST:ROOT
+
+        
+// ---------------------------------------------------------
+// System initialization.
+//
+
+        XRSEGCSTART
+        PUBLIC  __program_start
+
+        EXTERN  ?reset_vector
+        REQUIRE ?reset_vector
+
+__program_start:
+
+        PUBLIC ?cstart_begin
+?cstart_begin:
+
+        // --------------------
+        // Turn off the watchdog.
+        //
+        // Note: This is excluded by default. Please define
+        // DISABLE_WATCHDOG to include it.
+        //
+
+#ifdef DISABLE_WATCHDOG
+
+        MOV     #WDTPW + WDTHOLD, &WDTCTL
+#endif
+
+        // --------------------
+        // Initialize SP to point to the top of the stack.
+        //
+        MOV     #SFE(CSTACK), SP
+
+        //
+        // Ensure that main is called.
+        //
+        REQUIRE ?cstart_call_main
+
+
+// -----------------------------------------------
+// Call __low_level_init to perform initialization before initializing
+// segments and calling main. If the function returns 0 no segment
+// initialization should take place.
+//
+// Link with your own version of __low_level_init to override the
+// default action: to do nothing but return 1.
+//
+
+        XRSEGCSTART
+
+        PUBLIC  ?cstart_call_low_level_init
+        EXTERN  __low_level_init
+
+?cstart_call_low_level_init:
+        XXCALL  __low_level_init
+        CMP     #0, W0
+        JEQ     ?cstart_call_main
+
+
+// -----------------------------------------------
+// Segment initialization:
+//
+// xxx_Z  -- uninitialized data that are filled with zeros.
+// xxx_I  -- initialized data that gets the values from the corresponding
+//           xxx_ID segment.
+//
+
+#ifndef IGNORE_SEG_INIT
+
+
+        // --------------------
+        // Initialize code for __ramfunc functions.
+        //
+
+        XRSEGCSTART
+        PUBLIC  ?cstart_init_copy_ramfunc
+
+?cstart_init_copy_ramfunc:
+
+#ifndef IGNORE_RAMFUNC_INIT
+
+#ifndef REGISTER_MODEL_REG20
+
+        MOV     #SFB CODE_I,  CW0
+        XMOVROPIADDR SFB CODE_ID, CW1
+
+        MOV     #sizeof CODE_I, CW2
+
+        XXCALL  __data16_memcpy
+
+#else  // MSP430X with 20 bit pointers.
+
+        EXTERN  __data20_memcpy
+
+        MOVA    #SFB CODE_I,  CW0
+        XMOVROPIADDR SFB CODE_ID, CW1
+        MOV.W   #LWRD(sizeof CODE_I), L1L
+        MOV.W   #HWRD(sizeof CODE_I), L1H
+
+        XXCALL  __data20_memcpy
+
+
+#endif // REGISTER_MODEL_REG20
+
+#endif // IGNORE_RAMFUNC_INIT
+
+
+        // --------------------
+        // Initialize data16
+        //
+
+#ifndef IGNORE_DATA16_DATA
+
+        //
+        // Clear DATA16_Z.
+        //
+
+        XRSEGCSTART
+        PUBLIC  ?cstart_init_zero
+        EXTERN  __data16_memzero
+
+?cstart_init_zero:
+        MOV     #SFB DATA16_Z,    CW0
+        MOV     #sizeof DATA16_Z, CW1
+
+        XXCALL  __data16_memzero
+
+
+        //
+        // Copy DATA16_ID to DATA16_I
+        //
+
+        XRSEGCSTART
+        PUBLIC  ?cstart_init_copy
+        EXTERN  __data16_memcpy
+
+?cstart_init_copy:
+        MOV     #SFB DATA16_I,  CW0
+        XMOVROPIADDR SFB DATA16_ID, CW1
+
+        MOV     #sizeof DATA16_I, CW2
+
+        XXCALL  __data16_memcpy
+
+
+
+        //
+        // Copy ALTVECT_ID to ALTVECT_I
+        // Added June 2012 for bootloader support
+
+        RSEG CSTART:CODE:ROOT
+        PUBLIC  ?cstart_altvect_copy
+        EXTERN  __data16_memcpy
+
+?cstart_altvect_copy:
+        MOV     #SFE(ALTVECT_I-0x80),  CW0   //dest
+        XMOVROPIADDR SFB ALTVECT_ID, CW1    //src
+
+        MOV     #sizeof ALTVECT_ID, CW2   //len
+//        MOV     #128, CW2
+
+        XXCALL  __data16_memcpy
+
+#endif // IGNORE_DATA16_DATA
+
+
+        // --------------------
+        // Data20
+        //
+
+#if __CORE__==__430X_CORE__
+
+
+#ifndef IGNORE_DATA20_DATA
+
+        //
+        // Clear DATA20_Z.
+        //
+
+        XRSEGCSTART
+        PUBLIC  ?cstart_init_zero20
+        EXTERN  __data20_memzero
+
+?cstart_init_zero20:
+        MOVA    #SFB DATA20_Z,W0
+        MOV.W   #LWRD(sizeof DATA20_Z), L1L
+        MOV.W   #HWRD(sizeof DATA20_Z), L1H
+
+        XXCALL  __data20_memzero
+
+
+        //
+        // Copy DATA20_ID to DATA20_I
+        //
+
+        XRSEGCSTART
+        PUBLIC  ?cstart_init_copy20
+        EXTERN  __data20_memcpy
+
+?cstart_init_copy20:
+        MOVA    #SFB DATA20_I,  CW0
+        XMOVROPIADDR SFB DATA20_ID, CW1
+        MOV.W   #LWRD(sizeof DATA20_I), L1L
+        MOV.W   #HWRD(sizeof DATA20_I), L1H
+
+        XXCALL  __data20_memcpy
+
+#endif // IGNORE_DATA20_DATA
+
+#endif // MSP430X
+
+
+        // --------------------
+        // Thread-local storage
+        //
+
+        //
+        // Copy TLS16_ID to TLS16_I
+        //
+
+        XRSEGCSTART
+        PUBLIC  __cstart_init_tls
+        EXTERN  __data16_memcpy
+
+__cstart_init_tls
+        MOV.W   #SFB TLS16_I,    CW0
+	XMOVROPIADDR SFB TLS16_ID, CW1
+        MOV.W   #sizeof TLS16_I, CW2
+
+        XXCALL  __data16_memcpy
+
+#endif // IGNORE_SEG_INIT
+
+
+
+// -----------------------------------------------
+// Call constructors of static objects.
+//
+
+        RSEG    DIFUNCT:CONST:NOROOT(1)
+        XRSEGCSTART
+        PUBLIC  ?cstart_call_ctors
+
+        EXTERN  __call_ctors
+
+?cstart_call_ctors:
+
+        XMOVROPIADDR SFB DIFUNCT, CW0
+        XMOVROPIADDR SFE DIFUNCT, CW1
+
+        XXCALL  __call_ctors
+
+
+
+
+
+
+// -----------------------------------------------
+// Call main() with no arguments and then exit using the return value
+// of main as the parameter.
+//
+
+        XRSEGCSTART
+        PUBLIC  ?cstart_call_main
+
+        EXTERN  main
+        EXTERN  exit
+
+?cstart_call_main:
+        XXCALL  main
+        XXCALL  exit
+
+        PUBLIC  ?cstart_end
+?cstart_end:
+
+        // Note: "ENDMOD label" means code that this module is the
+        // start of the application.
+        ENDMOD  __program_start
+
+
+
+
+
+// ---------------------------------------------------------
+// __low_level_init
+//
+// The only action of this default version of __low_level_init is to
+// return 1. By doing so it signals that normal initialization of data
+// segments should be done.
+//
+// A customized version of __low_level_init may be created in order to
+// perform initialization before initializing segments and calling main
+// and/or to skip initialization of data segments under certain
+// circumstances.
+//
+// For further details see sample file lowinit.c
+//
+
+
+        MODULE  lowinit
+
+        PUBLIC  __low_level_init
+
+        RSEG    CODE:CODE:NOROOT(1)
+
+__low_level_init:
+        MOV     #1, W0                  // By returning 1 this function
+        XRET                            // indicates that the normal
+                                        // initialization should take place
+
+        ENDMOD
+
+
+// ---------------------------------------------------------
+// Define reset vector.
+//
+
+        MODULE  ?reset_vector
+
+        RSEG    RESET:CONST:ROOT
+        PUBLIC  ?reset_vector
+        EXTERN  bl_Main
+        EXTERN  __program_start
+
+?reset_vector:
+        DC16    bl_Main
+        ENDMOD
+
+
+// ---------------------------------------------------------
+// ?CPU30_OFFSET
+//
+// The compiler compensates for the CPU30 hardware bug by adding or
+// subtracting the symbol ?CPU30_OFFSET from certain immediates.  Here,
+// it is defined to the default value zero (0), for when the device is
+// not affected by CPU30.  If the device is affected, the value must be
+// set to two (2) using a linker command line override:
+//
+//   -D?CPU30_OFFSET=2.
+//
+// The override is normally placed in the device-specific .xcl file.
+
+        MODULE  ?cpu30_offset
+
+	PUBLIC  ?CPU30_OFFSET
+
+?CPU30_OFFSET   EQU     0
+
+	ENDMOD
+
+        END

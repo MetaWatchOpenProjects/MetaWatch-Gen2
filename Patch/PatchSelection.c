@@ -45,14 +45,14 @@ unsigned int GetPatchLength(void)
   
   if ( RadioVersion == RadioVersionCC2564 )
   {
-#ifdef INCLUDE_1316_PATCH
-	Length = sizeof(Patch1316);
+#if INCLUDE_1316_PATCH
+	  Length = sizeof(Patch1316);
 #endif
   }
   else
   {
-#ifdef INCLUDE_1315_PATCH
-	Length = sizeof(Patch1315);
+#if INCLUDE_1315_PATCH
+	  Length = sizeof(Patch1315);
 #endif
   }
   return Length;
@@ -68,13 +68,13 @@ unsigned char const __data20 * GetPatchAddress(void)
   
   if ( RadioVersion == RadioVersionCC2564 )
   {
-#ifdef INCLUDE_1316_PATCH
+#if INCLUDE_1316_PATCH
     pPatch = Patch1316;
 #endif
   }
   else
   {
-#ifdef INCLUDE_1315_PATCH
+#if INCLUDE_1315_PATCH
     pPatch = Patch1315;
 #endif
   }
@@ -112,7 +112,7 @@ void MovePatchBytes(unsigned int offset, unsigned char *dest, unsigned int lengt
 #else /* TI_COMPILER_VERSION */
     if ( RadioVersion == RadioVersionCC2564 )
     {
-#ifdef INCLUDE_1316_PATCH
+#if INCLUDE_1316_PATCH
       asm("LOOP_2564:");
       asm("    MOVX.B   Patch1316+0(r12),0(r13)");  /* Move 1 bytes         */
       asm("    ADD.W    #1,r12");                   /* INC offset           */
@@ -124,7 +124,7 @@ void MovePatchBytes(unsigned int offset, unsigned char *dest, unsigned int lengt
     }
     else
     {
-#ifdef INCLUDE_1315_PATCH
+#if INCLUDE_1315_PATCH
       asm("LOOP_2560:");
       asm("    MOVX.B   Patch1315+0(r12),0(r13)");  /* Move 1 bytes         */
       asm("    ADD.W    #1,r12");                   /* INC offset           */
@@ -148,38 +148,37 @@ void MovePatchBytes(unsigned int offset, unsigned char *dest, unsigned int lengt
  */
 unsigned char QuerySupportLowEnergy(void)
 {
-    unsigned char result = 0;
+  unsigned char result = 0;
 
-    if ( RadioVersion == RadioVersionCC2564 )
-    {
-    
-#if defined(INCLUDE_1316_PATCH) && defined(USE_LOW_ENERGY)
-        result = 1;
+  if ( RadioVersion == RadioVersionCC2564 )
+  {
+#if INCLUDE_1316_PATCH && defined(SUPPORT_BLE)
+    result = 1;
 #endif
-    }    
-    return result;
+  }    
+  return result;
 }
 
 /******************************************************************************/
 
 unsigned char QueryIncludedPatchSupportsRadio(void)
 {
-    unsigned char result = 0;
-        
-    if ( RadioVersion == RadioVersionCC2564 )
-    {
-#ifdef INCLUDE_1316_PATCH
-        result = 1;
+  unsigned char result = 0;
+      
+  if ( RadioVersion == RadioVersionCC2564 )
+  {
+#if INCLUDE_1316_PATCH
+    result = 1;
 #endif
-    }
-    else
-    {
-#ifdef INCLUDE_1315_PATCH
-        result = 1;
+  }
+  else
+  {
+#if INCLUDE_1315_PATCH
+    result = 1;
 #endif
-    }
-    
-    return result;
+  }
+
+  return result;
 }
 
 

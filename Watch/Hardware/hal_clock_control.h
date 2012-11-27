@@ -39,7 +39,13 @@
 #define LCD_USER            BIT4
 #define SERIAL_RAM_USER     BIT5
 #define ACCELEROMETER_USER  BIT6
-#define RESERVED_USER3      BIT7
+#define TEST_MODE_USER      BIT7
+
+/*! determine if the msp430 requires the sm clock workaround 
+ * if the work around is required then
+ * the watchdog failsafe clock feature will not work
+ */
+void DetermineIfSmclkWorkaroundIsNeeded(void);
 
 /*! 
  * Enable a user of the SMCLK

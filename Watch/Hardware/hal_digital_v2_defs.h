@@ -221,7 +221,7 @@
 #define SW_F_INDEX        ( 6 )
 #define SW_P_INDEX        ( 7 )
 /* the switch does not count */
-#define NUMBER_OF_BUTTONS ( 7 )
+#define TOTAL_BTN_NUM     ( 7 )
 
 #ifdef ANALOG
   #define ALL_BUTTONS (SW_A | SW_B | SW_C | SW_D | SW_E | SW_F | SW_P)
@@ -249,6 +249,23 @@
   BUTTON_PORT_IE  &= ~INT_EDGE_SEL_BUTTONS; \
   BUTTON_PORT_REN &= ~ALL_BUTTONS;          \
   BUTTON_PORT_OUT &= ~ALL_BUTTONS;          \
+}
+
+/* SHIPPING */ 
+/* S5 or SW_E is the button that takes the watch out of shipping mode */
+#define ENABLE_SHIPPING_WAKEUP() { \
+  P1IE = 0x00;                              \
+  PMMCTL0_H = 0xA5;                         \
+  PMMRIE = 0x0000;                          \
+  RTCPS0CTL = 0x0000;                       \
+  RTCPS1CTL = 0x0000;                       \
+  UCSCTL8 = 0x0700;                         \
+  BUTTON_PORT_REN = SW_E;                   \
+  BUTTON_PORT_OUT = SW_E;                   \
+  BUTTON_PORT_DIR &= ~SW_E;                 \
+  BUTTON_PORT_IES |=   SW_E;                \
+  BUTTON_PORT_IFG  =   0x00;                \
+  BUTTON_PORT_IE  |=   SW_E;                \
 }
 
 // NOTE the the buttons are grounded. That means that we want to invert the bits
@@ -562,6 +579,18 @@
 /* interrupt mapping for accelerometer */
 #define USCI_ACCELEROMETER_VECTOR ( USCI_B1_VECTOR )
 #define USCI_ACCELEROMETER_IV     ( UCB1IV ) 
+
+/******************************************************************************/
+
+/* IN1 on mux */
+#define MUX_CONTROL1_PDIR ( P10DIR )
+#define MUX_CONTROL1_POUT ( P10OUT )
+#define MUX_CONTROL1_PIN  ( BIT7 )
+
+#define MUX_CONTROL2_PDIR ( P10DIR )
+#define MUX_CONTROL2_POUT ( P10OUT )
+#define MUX_CONTROL2_PIN  ( BIT6 )
+
 
 #endif // HAL_DIGITAL_V2_DEFS_H
 

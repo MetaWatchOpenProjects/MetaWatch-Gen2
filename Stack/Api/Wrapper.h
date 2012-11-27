@@ -23,13 +23,26 @@
 #ifndef WRAPPER_H
 #define WRAPPER_H
 
+#define CONN_TYPE_NULL  (0x00)
+#define CONN_TYPE_BLE   (0x01)
+#define CONN_TYPE_SPP   (0x02)
+#define CONN_TYPE_HFP   (0x04)
+#define CONN_TYPE_MAP   (0x08)
+#define CONN_TYPE_ANY   (0x0F)
+#define CONN_TYPE_MAIN  (CONN_TYPE_BLE | CONN_TYPE_SPP)
+
+//IND means connection change is indicated by stack callback
+#define CONN_CHG_IND            (0x40)
+#define CONN_CHG_IND_CONN       (0xC0)
+#define CONN_CHG_IND_DSCONN     (0x40)
+#define CONN_CHG_DSCONN         (0x00)
+
 /*! Initaliaze the serial port profile task.  This should be called from main.
 *
 * This task opens the stack which in turn creates 3 more tasks that create and 
 * handle the bluetooth serial port connection.
 */
 void InitializeWrapperTask(void);
-
 
 /*! Query the serial port profile task if it is okay to put the part into LPM3
 *
@@ -43,8 +56,9 @@ unsigned char SerialPortReadyToSleep(void);
 typedef struct
 {
   char *pSwVer;
-  char *pHwVer;
+  char HwRev;
   char *pBtVer;
+  char *pChip;
 } tVersion;
 
 /*! Return a pointer to the wrapper version string */
@@ -62,23 +76,32 @@ typedef enum
   Unknown = 0,
   Initializing,
   ServerFailure,
-  RadioOn,
-  Paired,
-  BRConnected,
-  LEConnected,
-  RadioOff,
+  On,
+  Connect,
+  Off,
   RadioOffLowBattery,
   ShippingMode  
-} etConnectionState;
+} eBluetoothState;
 
-#define NUMBER_OF_CONNECTION_STATES  (10)
+/*! BLE connection parameter set */
+typedef enum
+{
+  DefaultInterval,
+  LongInterval,
+  ShortInterval
+} IntervalType_t;
 
 /*! Determine if the bluetooth link is in the connected state.  
 * When the phone and watch are connected then data can be sent.
 *
 * \return 0 when not connected, 1 when connected
 */
-unsigned char QueryPhoneConnected(void);
+unsigned char Connected(unsigned char Type);
+
+/*! Check if been connected once
+* \return 0 never been connected; 1: connected
+*/
+unsigned char OnceConnected(void);
 
 /*! This function is used to determine if the radio is on and will return 1 when
 * initialization has successfully completed, but the radio may or may not be 
@@ -86,14 +109,14 @@ unsigned char QueryPhoneConnected(void);
 *
 * \return 1 when stack is in the connected, paired, or radio on state, 0 otherwise
 */
-unsigned char QueryBluetoothOn(void);
+unsigned char RadioOn(void);
 
 /*! This function is used to determine if the connection state of the 
  * bluetooth serial port.
  *
- * \return etConnectionState
+ * \return eBluetoothState
  */
-etConnectionState QueryConnectionState(void);
+eBluetoothState BluetoothState(void);
 
 /*! Query Bluetooth Discoverability
  *
@@ -113,13 +136,16 @@ unsigned char QueryConnectable(void);
  */
 unsigned char QuerySecureSimplePairingEnabled(void);
 
+void SaveSecureSimplePairingState(void);
+
 /*! Query Bluetooth pairing information
  *
  * \return 0 when valid pairing does not exist, 1 when valid pairing information
  * exists
  */
-unsigned char QueryValidPairingInfo(void);
+unsigned char ValidPairingInfo(void);
 
+void GetBDAddrStr(char *pAddr);
 
 /*! Query Link Key Information
  *
@@ -130,10 +156,17 @@ unsigned char QueryValidPairingInfo(void);
  * \param pBluetoothName is a pointer to the bluetooth name 
  * \param BluetoothNameSize is the size of string pBluetoothName points to 
  */
-void QueryLinkKeys(unsigned char Index,
-                   tString *pBluetoothAddress,
-                   tString *pBluetoothName,
-                   unsigned char BluetoothNameSize);
+void GetConnectedDeviceAddress(char *pAddr);
+
+char *GetConnectedDeviceName(void);
+
+#define GAP_CONNECTABLE   (1)
+typedef struct
+{
+  unsigned int AdvIntervalMin;
+  unsigned int AdvIntervalMax;
+  unsigned char Connectable;
+} tAdvertisingPayload;
 
 /******************************************************************************/
 
@@ -208,6 +241,21 @@ unsigned int QuerySniffSlotParameter(eSniffSlotType SniffSlotType);
 
 /******************************************************************************/
 
+/*! If a function wishes to disable the flow of characters from the radio
+ * during a long interrupt routine, it must first read the state of flow
+ * pin.
+ *
+ * \return 1 is flow to the Bluetooth Radio is disabled 
+ */
+unsigned char QueryFlowDisabled(void);
+
+/*! disable flow to the BT radio */
+void DisableFlow(void);
+
+/*! enable flow to the BT radio */
+void EnableFlow(void);
+
+/******************************************************************************/
 
 #endif /* WRAPPER_H */
 

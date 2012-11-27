@@ -63,8 +63,11 @@
  */
 
 void flashErasePage( unsigned char *addr );
-
-void flashWrite( unsigned char *addr, unsigned int len, unsigned char *buf );
+void flashErasePageData20(unsigned char __data20 * addr);
+void flashWrite(unsigned char *addr, unsigned int len, unsigned char *buf);
+void flashWriteData20(unsigned char __data20 * addr, 
+                      unsigned int len, 
+                      unsigned char *buf);
 
 #endif
 

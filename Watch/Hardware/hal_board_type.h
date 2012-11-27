@@ -31,22 +31,14 @@
 #include "msp430.h"
 #include "hal_io_macros.h"
 
-/******************************************************************************/
-#define VERSION_STRING "3.1.7"
-
-/*! number of buffers in the message buffer pool */
-#define NUM_MSG_BUFFERS 20
-
-/******************************************************************************/
-
 #if defined(HW_DEVBOARD_V2)
 
   #include "hal_devboard_v2_defs.h"
 
   #ifdef ANALOG
-    #define SPP_DEVICE_NAME "MetaWatch Analog Development Board"
+    #define SPP_DEVICE_NAME "MetaWatch DB111"
   #elif defined(DIGITAL)
-    #define SPP_DEVICE_NAME "MetaWatch Digital Development Board"
+    #define SPP_DEVICE_NAME "MetaWatch DB12"
   #else
     #error "ANALOG or DIGITAL not defined"
   #endif
@@ -57,13 +49,13 @@
 
     #include "hal_digital_v2_defs.h"
 
-    #define SPP_DEVICE_NAME "MetaWatch Digital WDS112"
+    #define SPP_DEVICE_NAME "MetaWatch SW12"
 
   #elif defined(ANALOG)
 
     #include "hal_analog_v2_defs.h"
 
-    #define SPP_DEVICE_NAME "MetaWatch Analog WDS111"
+    #define SPP_DEVICE_NAME "MetaWatch WDS111"
 
   #else
 
@@ -81,11 +73,13 @@
 
 /* device type is read from the phone */
 
-#define RESERVED_BOARD_TYPE      ( 0 )
-#define ANALOG_BOARD_TYPE        ( 1 )
-#define DIGITAL_BOARD_TYPE       ( 2 )
-#define DIGITAL_DEV_BOARD_TYPE   ( 3 )
-#define ANALOG_DEV_BOARD_TYPE    ( 4 )
+#define RESERVED_BOARD_TYPE       ( 0 )
+#define ANALOG_WATCH_TYPE         ( 1 )
+#define DIGITAL_WATCH_TYPE        ( 2 )
+#define DIGITAL_DEV_BOARD_TYPE    ( 3 )
+#define ANALOG_DEV_BOARD_TYPE     ( 4 )
+#define DIGITAL_WATCH_G2_TYPE     ( 5 )
+#define DIGITAL_DEV_BOARD_G2_TYPE ( 6 )
 
 /******************************************************************************/
 
@@ -93,19 +87,19 @@
 
   #ifdef ANALOG
     #define BOARD_TYPE ( ANALOG_DEV_BOARD_TYPE )
+    
   #else
-    #define BOARD_TYPE ( DIGITAL_DEV_BOARD_TYPE )
+    #define BOARD_TYPE ( DIGITAL_DEV_BOARD_G2_TYPE )
+    
   #endif
 
 #elif defined(WATCH)
 
-  #if defined(DIGITAL)
+  #ifdef DIGITAL
+    #define BOARD_TYPE ( DIGITAL_WATCH_G2_TYPE )
 
-    #define BOARD_TYPE ( DIGITAL_BOARD_TYPE )
-
-  #elif defined(ANALOG)
-
-    #define BOARD_TYPE ( ANALOG_BOARD_TYPE )
+  #else
+    #define BOARD_TYPE ( ANALOG_WATCH_TYPE )
 
   #endif
 

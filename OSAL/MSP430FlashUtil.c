@@ -37,17 +37,32 @@
 
 #include "hal_board_type.h"
 
+#include "FreeRTOS.h"
+
+#include "Wrapper.h"
+
 #include "MSP430FlashUtil.h"
 
 static unsigned char SavedWatchdogSetting;
+static unsigned char FlowDisabled;
 
-#define START_FLASH_CYCLE() {            \
-  SavedWatchdogSetting =  WDTCTL & 0xFF; \
-  WDTCTL = WDTPW + WDTHOLD;              \
-}
+/* disable interrupts during flash cycles
+ * tell the bt chip that the msp cannot accept data
+ * if flow control is on disable it
+ * if flow control is already disabled then don't enable it when done
+ */
+#define START_FLASH_CYCLE() {              \
+  portENTER_CRITICAL();                    \
+  SavedWatchdogSetting =  WDTCTL & 0xFF;   \
+  WDTCTL = WDTPW + WDTHOLD;                \
+  FlowDisabled = QueryFlowDisabled();      \
+  if ( !FlowDisabled ) DisableFlow();      \
+}                                          \
   
 #define END_FLASH_CYCLE() {              \
   WDTCTL = WDTPW + SavedWatchdogSetting; \
+  if ( !FlowDisabled ) EnableFlow();     \
+  portEXIT_CRITICAL();                   \
 }
 
 void flashErasePage(unsigned char *addr)
@@ -63,7 +78,20 @@ void flashErasePage(unsigned char *addr)
   END_FLASH_CYCLE();
 }
 
-void flashWrite( unsigned char *addr, unsigned int len, unsigned char *buf )
+void flashErasePageData20(unsigned char __data20 * addr)
+{
+  START_FLASH_CYCLE();
+  
+  FCTL1 = FWKEY + ERASE;               // Set Erase bit
+  FCTL3 = FWKEY;                       // Clear Lock bit
+  *addr = 0;                           // Dummy write to erase Flash segment
+  FCTL1 = FWKEY;                       // Clear ERASE bit
+  FCTL3 = FWKEY + LOCK;                // Set LOCK bit
+
+  END_FLASH_CYCLE();
+}
+
+void flashWrite(unsigned char *addr, unsigned int len, unsigned char *buf)
 {
   START_FLASH_CYCLE();
 
@@ -81,5 +109,24 @@ void flashWrite( unsigned char *addr, unsigned int len, unsigned char *buf )
   END_FLASH_CYCLE();
 }
 
+void flashWriteData20(unsigned char __data20 * addr, 
+                      unsigned int len, 
+                      unsigned char *buf)
+{
+  START_FLASH_CYCLE();
+
+  FCTL3 = FWKEY;                // Clear Lock bit
+  FCTL1 = FWKEY + WRT;          // Set WRT bit for write operation
+
+  while ( len-- )
+  {
+    *addr++ = *buf++;            // Write value to flash
+  }
+
+  FCTL1 = FWKEY;                // Clear WRT bit
+  FCTL3 = FWKEY + LOCK;         // Set LOCK bit
+
+  END_FLASH_CYCLE();
+}
 /*********************************************************************
 *********************************************************************/

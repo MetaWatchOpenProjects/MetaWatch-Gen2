@@ -23,11 +23,10 @@
 #ifndef HAL_LCD_H
 #define HAL_LCD_H
 
-/*! number of bytes in an lcd column 12 (12*8=96 bits) */
-#define NUM_LCD_COL_BYTES  ( 12 )
+/*! number of bytes in a lcd line (12*8=96 bits) */
+#define BYTES_PER_LINE  ( 12 )
 
-
-/*! the first LCD line is one NOT zero */
+/*! the first LCD line is one, NOT zero */
 #define FIRST_LCD_LINE_OFFSET  1
 
 #define LCD_STATIC_CMD      0x00
@@ -39,14 +38,14 @@
 /*! This structure is organized so that the entire
  * display can be sent by the dma engine
  *
- * \param Row is the lcd row
- * \param Data is the column data
+ * \param Row is the number of lcd row to draw
+ * \param Data is the line data
  * \param Dummy is a dummy byte that must be written at the end of the row
  */
 typedef struct
 {
   unsigned char Row;
-  unsigned char Data[NUM_LCD_COL_BYTES];
+  unsigned char Data[BYTES_PER_LINE];
   unsigned char Dummy;
   
 } tLcdLine;

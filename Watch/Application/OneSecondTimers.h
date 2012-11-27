@@ -33,7 +33,7 @@
 /*! timers are not handled using lists
  * so don't allocate more timers than are required
 */
-#define TOTAL_ONE_SECOND_TIMERS ( 8 )
+#define TOTAL_ONE_SECOND_TIMERS ( 5 )
 
 #define ONE_SECOND ( 1 )
 
@@ -87,6 +87,5 @@ void SetupOneSecondTimer(tTimerId TimerId,
                          unsigned char Qindex,
                          eMessageType CallbackMsgType,
                          unsigned char MsgOptions);
-
 
 #endif /* ONE_SECOND_TIMERS_H */

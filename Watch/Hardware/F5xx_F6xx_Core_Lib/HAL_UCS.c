@@ -79,7 +79,7 @@
 static void Init_FLL(unsigned int fsystem, unsigned int ratio);
 
 
-
+#if 0
 void LFXT_Start(unsigned int xtdrive)
 {
   // If the drive setting is not already set to maximum
@@ -95,6 +95,7 @@ void LFXT_Start(unsigned int xtdrive)
   
   UCSCTL6 = (UCSCTL6 & ~(XT1DRIVE_3)) | (xtdrive); // set requested Drive mode
 }
+#endif
 
 unsigned int LFXT_Start_Timeout(unsigned int xtdrive, unsigned int timeout)
 {
@@ -123,6 +124,7 @@ unsigned int LFXT_Start_Timeout(unsigned int xtdrive, unsigned int timeout)
     return (UCS_STATUS_ERROR);
 }
 
+#if 0
 void XT1_Start(unsigned int xtdrive)
 {
   // Check if drive value is the expected one
@@ -173,12 +175,14 @@ void XT1_Bypass(void)
     SFRIFG1 &= ~OFIFG;        // Clear OFIFG fault flag
   }
 }
+#endif
 
 void XT1_Stop(void)
 {
   UCSCTL6 |= XT1OFF;                         // Switch off XT1 oscillator
 }
 
+#if 0
 void XT2_Start(unsigned int xtdrive)
 {
   // Check if drive value is the expected one
@@ -234,11 +238,14 @@ void XT2_Stop(void)
 {
   UCSCTL6 |= XT2OFF;                         // Switch off XT2 oscillator
 }
+#endif
 
 void Init_FLL_Settle(unsigned int fsystem, unsigned int ratio)
 {
-  volatile unsigned int x = ratio * 32;       
+  volatile unsigned int x;
 
+  // x = ratio * 32;
+  x = ratio << 5;
   Init_FLL(fsystem, ratio);
   
   while (x--) {
@@ -249,12 +256,14 @@ void Init_FLL_Settle(unsigned int fsystem, unsigned int ratio)
 static void Init_FLL(unsigned int fsystem, unsigned int ratio)
 {
   unsigned int d, dco_div_bits;
-  unsigned int mode = 0;
+  unsigned int mode;
+  unsigned int srRegisterState;
 
+  mode = 0;
   // Save actual state of FLL loop control, then disable it. This is needed to
   // prevent the FLL from acting as we are making fundamental modifications to
   // the clock setup.
-  unsigned int srRegisterState = __get_SR_register() & SCG0;
+  srRegisterState = __get_SR_register() & SCG0;
   __bic_SR_register(SCG0);  
   
   d = ratio;

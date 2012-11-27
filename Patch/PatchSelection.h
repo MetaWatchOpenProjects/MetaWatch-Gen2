@@ -53,11 +53,11 @@ etRadioVersion GetRadioVersion(void);
 /******************************************************************************/
 
 /* select one or both patches */
-#ifdef INCLUDE_1316_PATCH
+#if INCLUDE_1316_PATCH
   #include "Patch_PAN1316.h"
 #endif
 
-#ifdef INCLUDE_1315_PATCH
+#if INCLUDE_1315_PATCH
   #include "Patch_PAN1315.h"
 #endif
  
@@ -76,13 +76,13 @@ unsigned char const __data20 * GetPatchAddress(void);
 	/* code composer does not have __data20
 	 * need to use assembly to load patch 
 	 */
-#ifdef INCLUDE_1316_PATCH
+#if INCLUDE_1316_PATCH
 	  extern const unsigned char Patch1316[];
 #endif
 	
-#ifdef INCLUDE_1315_PATCH
+#if INCLUDE_1315_PATCH
 	  extern const unsigned char Patch1315[];
-	#endif
+#endif
 
 #endif
 

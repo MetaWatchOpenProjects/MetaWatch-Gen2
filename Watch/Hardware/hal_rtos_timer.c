@@ -50,6 +50,39 @@ static unsigned char Timer0Users;
 static void AddUser(unsigned char User, unsigned int Ticks);
 static void RemoveUser(unsigned char User);
 
+/******************************************************************************/
+
+/* Synchronize read of timer using MajorityVote
+ *
+ * When the timer clock is asynchronous to the CPU clock, any read from TAxR 
+ * should occur while the timer is not operating or the results may be 
+ * unpredictable. Alternatively, the timer may be read multiple times while 
+ * operating, and a majority vote taken in software to determine the correct 
+ * reading. Any write to TAxR takes effect immediately.
+ */
+
+static inline unsigned int GetTickCount(void)
+{
+  unsigned int value1;
+  unsigned int value2 = TA0R;
+  
+  /* Majority Vote
+   * this copies last value and does 1 read each loop
+   * alternate would be to do 2 reads each loop
+   */
+  do
+  {
+    value1 = value2;
+    value2 = TA0R;
+  }
+  while ( value1 != value2 );
+  
+  return value1;
+  
+}
+
+/******************************************************************************/
+
 /*
  * Setup timer to generate the RTOS tick
  */
@@ -98,7 +131,7 @@ static void AddUser(unsigned char User,unsigned int CrystalTicks)
     CrystalTicks = 1;
   }  
   
-  unsigned int CaptureTime = TA0R + CrystalTicks;
+  unsigned int CaptureTime = GetTickCount() + CrystalTicks;
 
   /* clear ifg, add to ccr register, enable interrupt */
   switch (User)
@@ -166,7 +199,7 @@ void StartCrystalTimer(unsigned char TimerId,
 {   
   if ( pCallback == 0 )
   {
-    PrintString("Invalid function pointer given to StartTimer0\r\n"); 
+    PrintString("## StartCrystalTimer: callback\r\n"); 
   }
   
   /* assign callback */

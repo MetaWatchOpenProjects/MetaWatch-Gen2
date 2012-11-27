@@ -24,16 +24,11 @@
 #include "task.h"
 #include "queue.h"
 #include "semphr.h"
-
 #include "Messages.h"
-
 #include "hal_lpm.h"
 #include "hal_board_type.h"
 #include "hal_rtc.h"
 #include "hal_vibe.h"
-
-#include "Buttons.h"
-#include "Background.h"
 #include "Buttons.h"
 #include "DebugUart.h"
 #include "Wrapper.h"
@@ -41,66 +36,169 @@
 #include "MessageQueues.h"
 #include "Display.h"
 #include "OneSecondTimers.h"
+#include "LcdDisplay.h"
+
+// This is the number of consecutive samples by the RTC ISR that need to be
+// asserted for a button to be moved to the state
+#define BTN_ON_COUNT          (2)
+#define BTN_ONE_SEC_COUNT     (32)
+#define BTN_HOLD_COUNT        (3 * BTN_ONE_SEC_COUNT)
+#define BTN_LONG_HOLD_COUNT   (5 * BTN_ONE_SEC_COUNT)
+#define BTN_LONGER_HOLD_COUNT (10 * BTN_ONE_SEC_COUNT)
+
+/* Immediate state is when a button is pressed but is not released */
+#define BUTTON_STATE_IMMEDIATE ( 0 )
+#define BUTTON_STATE_PRESSED   ( 1 )
+#define BUTTON_STATE_HOLD      ( 2 )
+#define BUTTON_STATE_LONG_HOLD ( 3 )
+#define BUTTON_STATE_OFF       ( 4 )
+#define BUTTON_STATE_DEBOUNCE  ( 5 )
+
+#define BTN_A                 (0 << 4)
+#define BTN_B                 (1 << 4)
+#define BTN_C                 (2 << 4)
+#define BTN_D                 (3 << 4)
+#define BTN_E                 (4 << 4)
+#define BTN_F                 (5 << 4)
+#define BTN_P                 (6 << 4)
+
+#define BTN_ACT_DISABLED      (0x80)
+#define BTN_NO_MASK           (0x70)
+#define BTN_NO_SHFT           (4)
+#define BTN_MODE_PAGE_MASK    (0x0C)
+#define BTN_MODE_PAGE_SHFT    (2)
+#define BTN_EVT_MASK          (0x03)
+
+#define IDLE_PAGE             (IDLE_MODE << 2)
+#define NOTIF_PAGE            (NOTIF_MODE << 2)
+#define MUSIC_PAGE            (MUSIC_MODE << 2)
+#define APP_PAGE              (APP_MODE << 2)
+
+#define INIT_PAGE             (0 << 2)
+#define INFO_PAGE             (1 << 2)
+#define CALL_PAGE             (2 << 2)
+
+#define MENU_PAGE_0           (0 << 2)
+#define MENU_PAGE_1           (1 << 2)
+#define MENU_PAGE_2           (2 << 2)
+
+/*! Structure to consolidate the data used to manage the button state
+ *
+ * \param BtnFilter is for the leaky integrator filter
+ * \param State is the current button state 
+ * \param BtnHoldCounter is the amount of time the button has been pressed
+ */
+typedef  struct
+{
+  unsigned char BtnFilter;          
+  unsigned char State;           
+  unsigned int BtnHoldCounter;     
+} tButtonData;
+
+typedef  struct
+{
+  unsigned char Info;
+  unsigned char MsgType;
+  unsigned char MsgOpt;
+} tButtonAction;
+
+#ifdef DIGITAL
+
+#define CONN_PAGE_ACT_NUM      (15)
+
+static const tButtonAction DisconnAction[] =
+{
+  {BTN_A | IDLE_PAGE | BTN_EVT_IMDT, ChangeModeMsg, NOTIF_MODE | MSG_OPT_UPD_INTERNAL},
+  {BTN_B | IDLE_PAGE | BTN_EVT_IMDT, UpdateDisplay, NOTIF_MODE | IDLE_MODE | MSG_OPT_NEWUI | MSG_OPT_NXT_PAGE | MSG_OPT_UPD_INTERNAL},
+  {BTN_C | IDLE_PAGE | BTN_EVT_RELS, MenuModeMsg, Menu1Page},
+  {BTN_D | IDLE_PAGE | BTN_EVT_IMDT, WatchStatusMsg, 0},
+  {BTN_E | IDLE_PAGE | BTN_EVT_IMDT, ChangeModeMsg, MUSIC_MODE | MSG_OPT_UPD_INTERNAL},
+  
+  {BTN_A | NOTIF_PAGE | BTN_EVT_IMDT, ChangeModeMsg, IDLE_MODE | MSG_OPT_UPD_INTERNAL},
+  {BTN_A | MUSIC_PAGE | BTN_EVT_IMDT, ChangeModeMsg, IDLE_MODE | MSG_OPT_UPD_INTERNAL},
+  {BTN_A |   APP_PAGE | BTN_EVT_IMDT, ChangeModeMsg, IDLE_MODE | MSG_OPT_UPD_INTERNAL},
+};
+#define DISCONN_PAGE_ACT_NUM (sizeof(DisconnAction) / sizeof(tButtonAction))
+
+static const tButtonAction InitAction[] =
+{
+  {BTN_A | INIT_PAGE | BTN_EVT_IMDT, ModifyTimeMsg, MODIFY_TIME_INCREMENT_MINUTE},
+  {BTN_B | INIT_PAGE | BTN_EVT_IMDT, ModifyTimeMsg, MODIFY_TIME_INCREMENT_DOW},
+  {BTN_C | INIT_PAGE | BTN_EVT_RELS, MenuModeMsg, Menu1Page},
+  {BTN_D | INIT_PAGE | BTN_EVT_IMDT, WatchStatusMsg, 0},
+  {BTN_E | INIT_PAGE | BTN_EVT_IMDT, ModifyTimeMsg, MODIFY_TIME_INCREMENT_HOUR},
+
+  {BTN_A | INFO_PAGE | BTN_EVT_IMDT, IdleUpdateMsg, 0},
+  {BTN_C | INFO_PAGE | BTN_EVT_RELS, MenuModeMsg, Menu1Page},
+  {BTN_D | INFO_PAGE | BTN_EVT_IMDT, IdleUpdateMsg, 0},
+
+  {BTN_A | CALL_PAGE | BTN_EVT_IMDT, CallerNameMsg, SHOW_NOTIF_REJECT_CALL},
+  {BTN_C | CALL_PAGE | BTN_EVT_RELS, MenuModeMsg, Menu1Page},
+};
+#define INIT_PAGE_ACT_NUM (sizeof(InitAction) / sizeof(tButtonAction))
+
+static const tButtonAction MenuAction[] =
+{
+  {BTN_A | MENU_PAGE_0 | BTN_EVT_IMDT, MenuButtonMsg, MENU_BUTTON_OPTION_TOGGLE_BLUETOOTH},
+  {BTN_B | MENU_PAGE_0 | BTN_EVT_IMDT, MenuButtonMsg, MENU_BUTTON_OPTION_DISPLAY_SECONDS},
+  {BTN_C | MENU_PAGE_0 | BTN_EVT_RELS, MenuButtonMsg, MENU_BUTTON_OPTION_EXIT},
+  {BTN_D | MENU_PAGE_0 | BTN_EVT_IMDT, MenuButtonMsg, MENU_BUTTON_OPTION_TOGGLE_LINK_ALARM},
+  {BTN_E | MENU_PAGE_0 | BTN_EVT_IMDT, MenuButtonMsg, MENU_BUTTON_OPTION_INVERT_DISPLAY},
+  
+  {BTN_A | MENU_PAGE_1 | BTN_EVT_IMDT, MenuButtonMsg, MENU_BUTTON_OPTION_TOGGLE_RST_NMI_PIN},
+  {BTN_B | MENU_PAGE_1 | BTN_EVT_IMDT, MenuModeMsg, Menu3Page},
+  {BTN_C | MENU_PAGE_1 | BTN_EVT_RELS, MenuButtonMsg, MENU_BUTTON_OPTION_EXIT},
+  {BTN_D | MENU_PAGE_1 | BTN_EVT_IMDT, ResetMsg, MASTER_RESET_OPTION},
+  {BTN_E | MENU_PAGE_1 | BTN_EVT_IMDT, MenuButtonMsg, MENU_BUTTON_OPTION_TOGGLE_SERIAL_SBW_GND},
+
+  {BTN_A | MENU_PAGE_2 | BTN_EVT_IMDT, MenuButtonMsg, MENU_BUTTON_OPTION_ENTER_BOOTLOADER_MODE},
+  {BTN_B | MENU_PAGE_2 | BTN_EVT_IMDT, MenuModeMsg, Menu2Page},
+  {BTN_C | MENU_PAGE_2 | BTN_EVT_RELS, MenuButtonMsg, MENU_BUTTON_OPTION_EXIT},
+  {BTN_E | MENU_PAGE_2 | BTN_EVT_IMDT, MenuButtonMsg, MENU_BUTTON_OPTION_TOGGLE_ENABLE_CHARGING},
+};
+#define MENU_PAGE_ACT_NUM (sizeof(MenuAction) / sizeof(tButtonAction))
+
+#else
+
+#define CONN_PAGE_ACT_NUM      (20)
+
+#endif
 
 /* Allocate an array of structures to keep track of button data.  Index 4 is not
  * used, but it complicates things too much to skip it.  Everything is sized and
  * indexed like we have a 8 bit port with 8 buttons.
 */
-static tButtonData ButtonData[NUMBER_OF_BUTTONS];
+static tButtonData ButtonData[BTN_NUM];
+static tButtonAction ButtonAction[CONN_PAGE_ACT_NUM];
+
+static unsigned char ButtonMode;
+static unsigned char LastButton;
 
 // Local function prototypes
-static void ChangeButtonState(unsigned char btnIndex, unsigned char btnState);
-static void CheckForAllButtonsOff(void);
+static void ChangeButtonState(unsigned char Index, unsigned char State);
+static void ButtonStateMachine(unsigned char ButtonOn, unsigned char Index);
+static void HandleButtonEvent(unsigned char Index, unsigned char Event);
 
-static void InitializeButtonDataStructures(void);
-
-
-static void ButtonStateMachine(unsigned char ButtonOn,
-                               unsigned char btnIndex);
-
-tButtonConfiguration ButtonCfg[NUMBER_OF_BUTTON_MODES][NUMBER_OF_BUTTONS];
-
-static const tButtonConfiguration cUnusedButtonConfiguration = 
-{
-  (BUTTON_ABSOLUTE_MASK | ALL_BUTTON_EVENTS_MASKED),
-  {InvalidMessage,InvalidMessage,InvalidMessage,InvalidMessage},
-  {NO_MSG_OPTIONS,NO_MSG_OPTIONS,NO_MSG_OPTIONS,NO_MSG_OPTIONS}
-};
-
-
-static void InitializeButtonConfigurationStructure(void);
-
-unsigned char GetAbsoluteButtonMask(unsigned char ButtonIndex);
-unsigned char GetButtonImmediateModeMask(unsigned char ButtonIndex);
-
-static void HandleButtonEvent(unsigned char ButtonIndex,
-                              unsigned char ButtonPressType);
-
-static tMessage OutgoingEventMsg;
-        
 /******************************************************************************/
 
-void InitializeButtons(void)
+void InitButton(void)
 {
   CONFIGURE_BUTTON_PINS();
   
-  InitializeButtonDataStructures();
-  
-  InitializeButtonConfigurationStructure();
-}
-
-static void InitializeButtonDataStructures(void)
-{
   // Initalize the button state structures. In this case it ends up being all
   // zeros, but that may not always be the case.
-  unsigned char ii;
-  for(ii = 0; ii < NUMBER_OF_BUTTONS; ii++)
+  unsigned char i;
+  for (i = 0; i < BTN_NUM; i++)
   {
-      ButtonData[ii].BtnFilter = 0;
-      ButtonData[ii].BtnState = BUTTON_STATE_OFF;
-      ButtonData[ii].BtnHoldCounter = 0;
+    ButtonData[i].BtnFilter = 0;
+    ButtonData[i].State = BUTTON_STATE_OFF;
+    ButtonData[i].BtnHoldCounter = 0;
   }
-  
+
+#ifdef DIGITAL
+  // init ButtonAction[] with DisconnButtonAction[]
+  for (i = 0; i < DISCONN_PAGE_ACT_NUM; ++i) ButtonAction[i] = DisconnAction[i];
+#endif
 }
 
 /*! This is the event handler for the Button Event Message that is called
@@ -125,79 +223,80 @@ void ButtonStateHandler(void)
   
   // This is the loop that handles managing the button state machine.
   // because this a state machine the mask must be applied again.
-  unsigned char btnIndex;
-  for(btnIndex = 0; btnIndex < NUMBER_OF_BUTTONS; btnIndex++)
+  unsigned char i;
+  for(i = 0; i < BTN_NUM; ++i)
   {
-    if ( ButtonData[btnIndex].BtnState != BUTTON_STATE_OFF )
+    if (ButtonData[i].State != BUTTON_STATE_OFF)
     {
-      ButtonStateMachine(portBtns & (0x01<<btnIndex),btnIndex);
+      if (ButtonData[i].State == BUTTON_STATE_DEBOUNCE)
+        ButtonMode = CurrentMode;
+      
+      ButtonStateMachine(portBtns & (0x01 << (i >= SW_UNUSED_INDEX ? i + 1 : i)), i);
     }
   }
-  
 }
 
-static void ButtonStateMachine(unsigned char ButtonOn,
-                               unsigned char btnIndex)
+static void ButtonStateMachine(unsigned char ButtonOn, unsigned char Index)
 {
-  if ( ButtonOn )
+  if (ButtonOn)
   {
-    if(   ButtonData[btnIndex].BtnState == BUTTON_STATE_OFF
-       || ButtonData[btnIndex].BtnState == BUTTON_STATE_DEBOUNCE )
+    if (ButtonData[Index].State == BUTTON_STATE_OFF ||
+        ButtonData[Index].State == BUTTON_STATE_DEBOUNCE)
     {  
       // Make it more "On"
-      ButtonData[btnIndex].BtnFilter++;  
+      ButtonData[Index].BtnFilter++;  
       
-      if(ButtonData[btnIndex].BtnFilter == BTN_ON_COUNT)
+      if (ButtonData[Index].BtnFilter == BTN_ON_COUNT)
       {
-        ChangeButtonState(btnIndex, BUTTON_STATE_PRESSED);
+        ChangeButtonState(Index, BUTTON_STATE_PRESSED);
       }
     }
     else  // it's on one of the on (pressed) states.
     {
-      if ( ButtonData[btnIndex].BtnHoldCounter < 65535 )
+      if (ButtonData[Index].BtnHoldCounter < 65535)
       {
-        ButtonData[btnIndex].BtnHoldCounter++;
+        ButtonData[Index].BtnHoldCounter++;
       }
               
-      
-      if(ButtonData[btnIndex].BtnHoldCounter == BTN_HOLD_COUNT)
+      if (ButtonData[Index].BtnHoldCounter == BTN_HOLD_COUNT)
       {
-        ChangeButtonState(btnIndex, BUTTON_STATE_HOLD);
+        PrintString("btn HOLD\r\n");
+        ChangeButtonState(Index, BUTTON_STATE_HOLD);
       }
-      
-      if(ButtonData[btnIndex].BtnHoldCounter == BTN_LONG_HOLD_COUNT)
-      {
-        ChangeButtonState(btnIndex, BUTTON_STATE_LONG_HOLD);
-      }
-    
     }
-  
   }
   else  // The button is not pressed, but it may still be in the on state
   {
-
     // see if we still have a filter count (still in the on state)
-    if( ButtonData[btnIndex].BtnFilter > 0 )
+    if (ButtonData[Index].BtnFilter > 0)
     {
-      ButtonData[btnIndex].BtnFilter--;  //  make it closer to off
+      ButtonData[Index].BtnFilter --;  //  make it closer to off
 
       // When we reach a filter count of zero, by definition we are in
       // the off state
-      if( ButtonData[btnIndex].BtnFilter == 0 )
+      if (ButtonData[Index].BtnFilter == 0)
       {
         // Don't go from the off state to the off state.  If we ramp
         // up but don't change to the BtnPressed state then that is
         // due to switch bounce
-        if(ButtonData[btnIndex].BtnState != BUTTON_STATE_OFF)
+        if (ButtonData[Index].State != BUTTON_STATE_OFF)
         {
-          ChangeButtonState(btnIndex, BUTTON_STATE_OFF); 
+          ChangeButtonState(Index, BUTTON_STATE_OFF); 
           
           // Clear the hold counter so we start at the original off state
-          ButtonData[btnIndex].BtnHoldCounter = 0;
+          ButtonData[Index].BtnHoldCounter = 0;
         
           // If this one is off, maybe they all are off.  When all
           // buttons are off, we stop the button timer ISR
-          CheckForAllButtonsOff( );
+          /*! Disable the button debounce ISR when all buttons are in the off state. */
+          // Go through the array of button structs looking for any buttons that are
+          // still on the on (not off) state.
+          unsigned char i;
+          for (i = 0; i < BTN_NUM; ++i)
+            if (ButtonData[i].State != BUTTON_STATE_OFF) break;
+          
+          // If all the buttons are off then stop the ISR
+          if (i == BTN_NUM) DisableRtcPrescaleInterruptUser(RTC_TIMER_BUTTON);
         }
       }
     }
@@ -210,316 +309,287 @@ static void ButtonStateMachine(unsigned char ButtonOn,
  * consistent place to determine a state change.  State changes normally cause
  * an event, so we want only one place that does that.
  *
- * \param btnIndex index of the button ( 0 to 7 )
- * \param btnState the button state to change to
+ * \param Index index of the button ( 0 to 7 )
+ * \param State the button state to change to
  *
  */
-static void ChangeButtonState(unsigned char btnIndex, unsigned char btnState)
+static void ChangeButtonState(unsigned char Index, unsigned char State)
 {
-
   /* pressing and releasing the button will cause menu change 
    *
    * but holding the button will cause execution
    *
    */
-  if (   btnState == BUTTON_STATE_PRESSED
-      && ButtonData[btnIndex].BtnState == BUTTON_STATE_DEBOUNCE
-      && GetButtonImmediateModeMask(btnIndex) == 0)
+  if (State == BUTTON_STATE_PRESSED &&
+      ButtonData[Index].State == BUTTON_STATE_DEBOUNCE)
   {
-    HandleButtonEvent(btnIndex,BUTTON_STATE_IMMEDIATE);
+    HandleButtonEvent(Index, BTN_EVT_IMDT);
     
     /* need to know that we are in the immediate state, but go to the 
      * button pressed state 
      */
-    btnState = BUTTON_STATE_PRESSED;
+    State = BUTTON_STATE_PRESSED;
   }
-  else if (   btnState == BUTTON_STATE_OFF 
-           && ButtonData[btnIndex].BtnState == BUTTON_STATE_PRESSED )
+  else if (State == BUTTON_STATE_HOLD)
   {
-    HandleButtonEvent(btnIndex,BUTTON_STATE_PRESSED);
-  }
-  else if (   btnState == BUTTON_STATE_OFF 
-           && ButtonData[btnIndex].BtnState == BUTTON_STATE_HOLD )
+    HandleButtonEvent(Index, BTN_EVT_HOLD);
+  }  
+  else if (State == BUTTON_STATE_OFF &&
+           ButtonData[Index].State == BUTTON_STATE_PRESSED)
   {
-    HandleButtonEvent(btnIndex,BUTTON_STATE_HOLD);
-  }
-  else if (   btnState == BUTTON_STATE_OFF 
-           && ButtonData[btnIndex].BtnState == BUTTON_STATE_LONG_HOLD )
-  {
-    HandleButtonEvent(btnIndex,BUTTON_STATE_LONG_HOLD);  
+    HandleButtonEvent(Index, BTN_EVT_RELS);
   }
   
   /* Update the state of the specified button after we have detected
    * a possible edge
    */
-  ButtonData[btnIndex].BtnState = btnState;
-
-}
-
-/*! Enable button callback */
-void EnableButtonAction(unsigned char DisplayMode,
-                        unsigned char ButtonIndex,
-                        unsigned char ButtonPressType)
-{
-  tButtonConfiguration* pLocalCfg = &(ButtonCfg[DisplayMode][ButtonIndex]);
-  
-  /* disable mask */  
-  switch (ButtonPressType)
-  {
-  case BUTTON_STATE_IMMEDIATE:
-    pLocalCfg->MaskTable &= ~(BUTTON_ABSOLUTE_MASK  | BUTTON_IMMEDIATE_MASK);
-    break;
-  case BUTTON_STATE_PRESSED:
-    pLocalCfg->MaskTable &= ~(BUTTON_ABSOLUTE_MASK | BUTTON_PRESS_MASK);
-    break;
-  case BUTTON_STATE_HOLD:
-    pLocalCfg->MaskTable &= ~(BUTTON_ABSOLUTE_MASK | BUTTON_HOLD_MASK);
-    break;
-  case BUTTON_STATE_LONG_HOLD:
-    pLocalCfg->MaskTable &= ~(BUTTON_ABSOLUTE_MASK | BUTTON_LONG_HOLD_MASK);
-    break;
-  default:
-    break;
-  }
-}
-
-/*! Enable button callback */
-void DefineButtonAction(unsigned char DisplayMode,
-                        unsigned char ButtonIndex,
-                        unsigned char ButtonPressType,
-                        unsigned char CallbackMsgType,
-                        unsigned char CallbackMsgOptions)
-{
-  EnableButtonAction(DisplayMode, ButtonIndex, ButtonPressType);
-  
-  tButtonConfiguration* pLocalCfg = &(ButtonCfg[DisplayMode][ButtonIndex]);
-  pLocalCfg->CallbackMsgType[ButtonPressType] = CallbackMsgType;
-  pLocalCfg->CallbackMsgOptions[ButtonPressType] = CallbackMsgOptions;
-}
-
-/*! Disable button callback for the specified mode and button press type */
-void DisableButtonAction(unsigned char DisplayMode,
-                         unsigned char ButtonIndex,
-                         unsigned char ButtonPressType)
-{
-  tButtonConfiguration* pLocalCfg = &(ButtonCfg[DisplayMode][ButtonIndex]);
-  
-  /* disable mask */  
-  switch (ButtonPressType)
-  {
-  case BUTTON_STATE_IMMEDIATE:
-    pLocalCfg->MaskTable |= BUTTON_IMMEDIATE_MASK;
-    break;
-  case BUTTON_STATE_PRESSED:
-    pLocalCfg->MaskTable |= BUTTON_PRESS_MASK;
-    break;
-  case BUTTON_STATE_HOLD:
-    pLocalCfg->MaskTable |= BUTTON_HOLD_MASK;
-    break;
-  case BUTTON_STATE_LONG_HOLD:
-    pLocalCfg->MaskTable |= BUTTON_LONG_HOLD_MASK;
-    break;
-  default:
-    break;
-  }
-
-  /* if all of the button actions are masked then
-   * turn on the absolute mask
-   */
-  if ( pLocalCfg->MaskTable == ALL_BUTTON_EVENTS_MASKED )
-  {
-    pLocalCfg->MaskTable |= BUTTON_ABSOLUTE_MASK;  
-  }
-
-/* Just disable the ISR, no need to clear it  */
-//  pLocalCfg->CallbackMsgType[ButtonPressType] = InvalidMessage;
-//  pLocalCfg->CallbackMsgOptions[ButtonPressType] = 0;
-
-}
-
-void CleanButtonCallbackOptions(unsigned char DisplayMode)
-{
-  unsigned char i, k;
-  for (i = 1; i < NUMBER_OF_BUTTONS; i++)
-  {
-    for (k = 0; k < NUMBER_OF_BUTTON_EVENT_TYPES; k++)
-    {
-      ButtonCfg[DisplayMode][i].CallbackMsgOptions[k] = 0;
-    }
-  }
-}
-
-/*! Read a button configuration 
- *
- * Another function could be added to read the entire structure
- */
-void ReadButtonConfiguration(unsigned char DisplayMode,
-                             unsigned char ButtonIndex,
-                             unsigned char ButtonPressType,
-                             unsigned char* pPayload)
-{
-  tButtonConfiguration* pLocalCfg = &(ButtonCfg[DisplayMode][ButtonIndex]);
-  
-  pPayload[0] = DisplayMode;
-  pPayload[1] = ButtonIndex;
-  pPayload[2] = pLocalCfg->MaskTable;
-  pPayload[3] = pLocalCfg->CallbackMsgType[ButtonPressType];
-  pPayload[4] = pLocalCfg->CallbackMsgOptions[ButtonPressType];
-
-}
-
-/*! Set all of the buttons to unused */
-static void InitializeButtonConfigurationStructure(void)
-{
-  unsigned char DisplayMode = 0;  
-  unsigned char ButtonIndex = 0;
-  
-  for ( DisplayMode = 0; DisplayMode < NUMBER_OF_BUTTON_MODES; DisplayMode++ )
-  {
-    for ( ButtonIndex = 0; ButtonIndex < NUMBER_OF_BUTTONS; ButtonIndex++ )
-    {
-      ButtonCfg[DisplayMode][ButtonIndex] = cUnusedButtonConfiguration;   
-    }
-  }
-    
+  ButtonData[Index].State = State;
 }
 
 /*! A valid button event has occurred.  Now send a message
  *
- * \param unsigned char ButtonIndex
- * \param unsigned char ButtonPressType
+ * \param unsigned char Index
+ * \param unsigned char Event
  */
-static void HandleButtonEvent(unsigned char ButtonIndex,
-                              unsigned char ButtonPressType)
+static void HandleButtonEvent(unsigned char Index, unsigned char Event)
 {
-  tButtonConfiguration* pLocalCfg = &(ButtonCfg[QueryButtonMode()][ButtonIndex]);
-  
-  eMessageType Type = (eMessageType)pLocalCfg->CallbackMsgType[ButtonPressType];
-  unsigned char Options = pLocalCfg->CallbackMsgOptions[ButtonPressType];
-  
-  if ( (pLocalCfg->MaskTable & (1 << ButtonPressType)) == 0 )
-  {
-    /* if the message type is non-zero then generate a message */
-    if ( Type != InvalidMessage )
-    {
-        /* if this button press is going to the bluetooth then allocate
-         * a buffer and add the button index
-         */
-        if ( Type == ButtonEventMsg )
-        {
-          SetupMessageAndAllocateBuffer(&OutgoingEventMsg, Type, Options);
-          OutgoingEventMsg.pBuffer[0] = ButtonIndex;
-          OutgoingEventMsg.pBuffer[1] = QueryButtonMode();
-          OutgoingEventMsg.pBuffer[2] = ButtonPressType;
-          OutgoingEventMsg.pBuffer[3] = Type;
-          OutgoingEventMsg.pBuffer[4] = Options;
-          OutgoingEventMsg.Length = 5;
-        }
-        else
-        {
-          SetupMessage(&OutgoingEventMsg,Type,Options);   
-        }
+  tMessage Msg;
 
-        RouteMsg(&OutgoingEventMsg);
-        
+//  PrintStringAndTwoDecimals("-Btn i:", Index, "e:", Event);
+//  PrintStringAndHexByte("LstBF:0x", LastButton);
+
+#ifdef DIGITAL
+  unsigned char Done = pdFALSE;
+
+  if (Event == BTN_EVT_HOLD)
+  {
+    if (Index == BTN_INDEX_C && LastButton == (BTN_INDEX_F << BTN_NO_SHFT | BTN_EVT_RELS) &&
+        CurrentIdlePage() == Menu1Page && BackLightOn())
+    {
+      SendMessage(&Msg, ServiceMenuMsg, MSG_OPT_NONE);
+      Done = pdTRUE;
     }
-        
+    else if (Index == BTN_INDEX_B && LastButton == (BTN_INDEX_E << BTN_NO_SHFT | BTN_EVT_HOLD) ||
+             Index == BTN_INDEX_E && LastButton == (BTN_INDEX_B << BTN_NO_SHFT | BTN_EVT_HOLD) ||
+             Index == BTN_INDEX_F)
+    {
+      SendMessage(&Msg, ResetMsg, Index == BTN_INDEX_F ? MSG_OPT_NONE : MASTER_RESET_OPTION);
+      Done = pdTRUE;
+    }
+  }
+  else if (Event == BTN_EVT_RELS)
+  {
+    if (ButtonMode != IDLE_MODE) ResetModeTimer();
+    
+    if (BackLightOn() || Index == BTN_INDEX_F)
+    {
+      SendMessage(&Msg, LedChange, LED_ON_OPTION);
+      if (Index == BTN_INDEX_F) Done = pdTRUE;
+    }
+  }
+    
+  if (Index != LastButton >> BTN_NO_SHFT && (Event == BTN_EVT_HOLD || Event == BTN_EVT_RELS))
+    LastButton = (Index << BTN_NO_SHFT) | Event;
+  
+//  PrintStringAndHexByte("-LstAF:0x", LastButton);
+
+  if (Done) return;
+  
+  const tButtonAction *pAction;
+  unsigned char ActNum, ModePage;
+  
+  if (PageType == PAGE_TYPE_MENU)
+  {
+    pAction = MenuAction;
+    ActNum = MENU_PAGE_ACT_NUM;
+    ModePage = CurrentIdlePage() - Menu1Page;
+  }
+  else if (CurrentIdlePage() == DisconnectedPage)
+  {// disconnected
+    pAction = DisconnAction;
+    ActNum = DISCONN_PAGE_ACT_NUM;
+    ModePage = ButtonMode;
+  }
+  else if (CurrentIdlePage() == ConnectedPage)
+  {
+    pAction = ButtonAction;
+    ActNum = CONN_PAGE_ACT_NUM;
+    ModePage = ButtonMode;
+  }
+  else
+  {// InitPage, StatusPage or CallPage
+    pAction = InitAction;
+    ActNum = INIT_PAGE_ACT_NUM;
+    ModePage = CurrentIdlePage() - InitPage;
   }
   
+//  PrintStringAndThreeDecimals("- CurrP:", CurrentIdlePage(), " ActNum:", ActNum, " ModePage:", ModePage);
+
+#else
+
+  const tButtonAction *pAction;
+  unsigned char ActNum, ModePage;
+
+  pAction = ButtonAction;
+  ActNum = CONN_PAGE_ACT_NUM;
+  ModePage = CurrentIdlePage();
+
+#endif
+
+  unsigned char i;
+  for (i = 0; i < ActNum; ++i)
+  {
+    if ((pAction[i].Info & BTN_NO_MASK) >> BTN_NO_SHFT == Index &&
+        (pAction[i].Info & BTN_MODE_PAGE_MASK) >> BTN_MODE_PAGE_SHFT == ModePage &&
+        (pAction[i].Info & BTN_EVT_MASK) == Event) break;
+  }
+  
+  if (i == ActNum) return;
+  
+  if (pAction[i].MsgType != InvalidMessage)
+  {
+    //PrintStringAndDecimal("-No mask:", Event);
+    /* if this button press is going to the bluetooth then allocate
+     * a buffer and add the button index
+     */
+    if (pAction[i].MsgType == ButtonEventMsg)
+    {
+//      PrintStringAndDecimal("- BtnEvtMsg:Evt:", Event);
+      SetupMessageAndAllocateBuffer(&Msg, pAction[i].MsgType, pAction[i].MsgOpt);
+      Msg.pBuffer[0] = (Index >= SW_UNUSED_INDEX) ? Index + 1 : Index;
+      Msg.pBuffer[1] = ButtonMode;
+      Msg.pBuffer[2] = Event;
+      Msg.pBuffer[3] = pAction[i].MsgType;
+      Msg.pBuffer[4] = pAction[i].MsgOpt;
+      Msg.Length = 5;
+      RouteMsg(&Msg);
+    }
+    else SendMessage(&Msg, pAction[i].MsgType, pAction[i].MsgOpt);
+  }
 }
- 
-/*! 
- * \note buttons masks are stored as '1' equals mask so it must be inverted 
- * before it is used 
+
+/*! Attach callback to button press type. Each button press type is associated
+ * with a display mode.
  *
- * \return 0 when bit is enabled, 1 when masked (mask==ignore)
+ * No error checking
+ *
+ * \param tHostMsg* pMsg - A message with a tButtonActionPayload payload
  */
-unsigned char GetAbsoluteButtonMask(unsigned char ButtonIndex)
+void EnableButtonMsgHandler(tMessage* pMsg)
 {
-  unsigned char Rval = 0;
-  
-  Rval = ButtonCfg[QueryButtonMode()][ButtonIndex].MaskTable;
-  Rval &= BUTTON_ABSOLUTE_MASK;
-  Rval = Rval << ButtonIndex;  
-  
-  return Rval;
-}
+  tButtonActionPayload *pAction = (tButtonActionPayload*)pMsg->pBuffer;
+  if (pAction->ButtonIndex > SW_UNUSED_INDEX) pAction->ButtonIndex --;
 
-/*! Determines if the immediate press of a button is masked.
- * 
- * \return 0 when bit is enabled, 1 when masked (mask==ignore)
- */
-unsigned char GetButtonImmediateModeMask(unsigned char ButtonIndex)
-{
-  unsigned char Rval = 0;
+  PrintStringAndThreeDecimals("-M:", pAction->DisplayMode, " i:", pAction->ButtonIndex,
+                              "E:", pAction->ButtonEvent);
   
-  Rval = ButtonCfg[QueryButtonMode()][ButtonIndex].MaskTable;
-  Rval &= BUTTON_IMMEDIATE_MASK;
-  Rval = Rval << ButtonIndex;  
+  unsigned char BtnInfo = pAction->DisplayMode << BTN_MODE_PAGE_SHFT |
+                          pAction->ButtonIndex << BTN_NO_SHFT |
+                          pAction->ButtonEvent;
   
-  return Rval;  
-}
-
-
-/*! Disable the button debounce ISR when all buttons are in the off state. */
-static void CheckForAllButtonsOff( )
-{
-  unsigned char btnIndex;
-  unsigned char AllButtonsOff = 1;
+  unsigned char i, k = CONN_PAGE_ACT_NUM;
   
-  // Go through the array of button structs looking for any buttons that are
-  // still on the on (not off) state.
-  for(btnIndex = 0; btnIndex < NUMBER_OF_BUTTONS; btnIndex++)
+  for (i = 0; i < CONN_PAGE_ACT_NUM; ++i)
   {
-    if(ButtonData[btnIndex].BtnState != BUTTON_STATE_OFF)
-    {
-     AllButtonsOff = 0;
-     break;        
-    }
+    if (ButtonAction[i].Info == BtnInfo) break;
+    else if (ButtonAction[i].MsgType == InvalidMessage && k == CONN_PAGE_ACT_NUM) k = i;
   }
   
-  // If all the buttons are off then stop the ISR
-  if(AllButtonsOff)
-  {
-    PrintString("AllButtonsOff\r\n");
+  if (i == CONN_PAGE_ACT_NUM && k < CONN_PAGE_ACT_NUM) i = k;
   
-    DisableRtcPrescaleInterruptUser(RTC_TIMER_BUTTON);
+  if (i < CONN_PAGE_ACT_NUM)
+  {
+    ButtonAction[i].Info = BtnInfo;
+    ButtonAction[i].MsgType = pAction->CallbackMsgType;
+    ButtonAction[i].MsgOpt = pAction->CallbackMsgOptions;
   }
+}
 
+/*! Remove callback for the specified button press type.
+ * Each button press type is associated with a display mode.
+ *
+ * \param tHostMsg* pMsg - A message with a tButtonActionPayload payload
+ */
+void DisableButtonMsgHandler(tMessage* pMsg)
+{
+  tButtonActionPayload *pAction = (tButtonActionPayload*)pMsg->pBuffer;
+  if (pAction->ButtonIndex > SW_UNUSED_INDEX) pAction->ButtonIndex --;
+
+//  PrintStringAndThreeDecimals("-M:", pAction->DisplayMode, " i:", pAction->ButtonIndex,
+//                              "E:", pAction->ButtonEvent);
+  
+  unsigned char BtnInfo = pAction->DisplayMode << BTN_MODE_PAGE_SHFT |
+                          pAction->ButtonIndex << BTN_NO_SHFT |
+                          pAction->ButtonEvent;
+  
+  unsigned char i;
+  for (i = 0; i < CONN_PAGE_ACT_NUM; ++i)
+  {
+    if (ButtonAction[i].Info == BtnInfo) ButtonAction[i].MsgType = InvalidMessage;
+  }
+}
+
+/*! Read configuration of a specified button.  This is used to read the
+ * configuration of a button that needs to be restored at a later time
+ * by the application.
+ *
+ * \param tHostMsg* pMsg - A message with a tButtonActionPayload payload
+ */
+void ReadButtonConfigHandler(tMessage* pMsg)
+{
+  tMessage Msg;
+  SetupMessageAndAllocateBuffer(&Msg, ReadButtonConfigResponse, MSG_OPT_NONE);
+  Msg.Length = pMsg->Length;
+
+  unsigned char i = 0;
+  for (; i< Msg.Length; ++i) Msg.pBuffer[i] = pMsg->pBuffer[i];
+
+  tButtonActionPayload *pAction = (tButtonActionPayload*)pMsg->pBuffer;
+  unsigned char BtnInfo = pAction->DisplayMode << BTN_MODE_PAGE_SHFT |
+                          pAction->ButtonIndex << BTN_NO_SHFT |
+                          pAction->ButtonEvent;
+  
+  
+  for (i = 0; i < CONN_PAGE_ACT_NUM; ++i)
+    if (ButtonAction[i].Info == BtnInfo) break;
+
+  if (i < CONN_PAGE_ACT_NUM)
+  {
+    if (Msg.pBuffer[1] >= SW_UNUSED_INDEX) Msg.pBuffer[1] ++;
+    Msg.pBuffer[3] = ButtonAction[i].MsgType;
+    Msg.pBuffer[4] = ButtonAction[i].MsgOpt;
+  }
+  
+  RouteMsg(&Msg);
 }
 
 /*******************************************************************************
-
 Purpose: Interrupt handler for the port 2 ISR.  Port 2 is configured as interrupt
 generating I/O.  All pins except P.4 have a normally open button to
 ground.  The internal resistor pullups are used to keep the pin normally
 high.  When the button is pressed, the pin is pulled low and an
 interrupt is generated.
-
 *******************************************************************************/
+
 #ifndef __IAR_SYSTEMS_ICC__
-#pragma CODE_SECTION(ButtonPortIsr,".text:_isr");
+#pragma CODE_SECTION(ButtonPortIsr, ".text:_isr");
 #endif
 
 #pragma vector=BUTTON_PORT_VECTOR
+
 __interrupt void ButtonPortIsr(void)
 {
   unsigned char ButtonInterruptFlags = BUTTON_PORT_IFG;
   unsigned char StartDebouncing = 0;
     
   unsigned char i;
-  for (i = 0; i < NUMBER_OF_BUTTONS; i++)
+  for (i = 0; i < BTN_NUM; ++i) // include button F
   {
-    /* if the button bit position is one then determine 
-     * if the button should be masked 
-     */
-    unsigned char temp = (ButtonInterruptFlags & (1<<i)) & ~GetAbsoluteButtonMask(i);
-    
-    if ( temp )
+    if (ButtonInterruptFlags & (1 << (i >= SW_UNUSED_INDEX ? i + 1 : i)))
     {
-      if ( ButtonData[i].BtnState == BUTTON_STATE_OFF )
+      if (ButtonData[i].State == BUTTON_STATE_OFF)
       {
-        ButtonData[i].BtnState = BUTTON_STATE_DEBOUNCE; 
+        ButtonData[i].State = BUTTON_STATE_DEBOUNCE; 
       }
       StartDebouncing = 1;
     }
@@ -531,8 +601,5 @@ __interrupt void ButtonPortIsr(void)
   {
     EnableRtcPrescaleInterruptUser(RTC_TIMER_BUTTON); 
   }
-
 }
-
-
 

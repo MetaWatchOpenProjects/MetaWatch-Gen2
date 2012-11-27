@@ -223,25 +223,18 @@ __interrupt void RTC_ISR(void)
     {
       DivideByFour = 0;
            
-      if( QueryRtcUserActive(RTC_TIMER_VIBRATION) )
+      if ( QueryRtcUserActive(RTC_TIMER_VIBRATION) )
       {
         VibrationMotorStateMachineIsr();
       }
 
-      if( QueryRtcUserActive(RTC_TIMER_BUTTON) )
+      if ( QueryRtcUserActive(RTC_TIMER_BUTTON) )
       {
-        SetupMessage(&Msg,ButtonStateMsg,NO_MSG_OPTIONS);
-        SendMessageToQueueFromIsr(BACKGROUND_QINDEX,&Msg); 
+        SetupMessage(&Msg, ButtonStateMsg,MSG_OPT_NONE);
+        SendMessageToQueueFromIsr(DISPLAY_QINDEX, &Msg);
         
         ExitLpm = 1;
       }
-
-      if ( QueryRtcUserActive(RTC_TIMER_USER_DEBUG_UART) )
-      {
-        DisableUartSmClkIsr();
-        ExitLpm = 1;
-      }
-
     }
     else
     {

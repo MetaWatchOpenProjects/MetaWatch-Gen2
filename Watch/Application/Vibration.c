@@ -32,7 +32,7 @@
 #include "hal_rtc.h"
 
 #include "DebugUart.h"
-#include "Background.h"
+#include "LcdDisplay.h"
 #include "Utilities.h"
 
 /******************************************************************************/
@@ -78,7 +78,7 @@ void SetVibrateModeHandler(tMessage* pMsg)
 
   // save the parameters from the message
   motorOn = pMsgData->Enable;
-
+  
   tWordByteUnion temp;
   temp.Bytes.byte0 = pMsgData->OnDurationLsb; 
   temp.Bytes.byte1 = pMsgData->OnDurationMsb;

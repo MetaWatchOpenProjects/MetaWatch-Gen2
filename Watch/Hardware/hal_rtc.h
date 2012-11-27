@@ -98,7 +98,7 @@ void halRtcGet(tRtcHostMsgPayload* pRtcData);
 #define RTC_TIMER_RESERVED        ( BIT1 )
 #define RTC_TIMER_BUTTON          ( BIT2 )
 #define RTC_TIMER_RESERVED3       ( BIT3 )
-#define RTC_TIMER_USER_DEBUG_UART ( BIT4 )
+#define RTC_TIMER_RESERVED4       ( BIT4 )
 #define RTC_TIMER_RESERVED5       ( BIT5 )
 
 

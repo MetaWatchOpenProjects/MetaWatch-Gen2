@@ -25,44 +25,63 @@
 #define PRE_INCLUDE_H
 
 /* patch selection (include at least one) */
-#define INCLUDE_1316_PATCH
-#define INCLUDE_1315_PATCH
+//#define INCLUDE_1316_PATCH ( 1 ) 
+//#define INCLUDE_1315_PATCH ( 0 )
 
-#if !defined(INCLUDE_1316_PATCH) && !defined(INCLUDE_1315_PATCH)
+#if !INCLUDE_1316_PATCH && !INCLUDE_1315_PATCH
 #error "At least one patch must be included"
 #endif
 
-/* add patch support for BLE */
-//#define USE_LOW_ENERGY
+/*! set this to one to enable watchdog */
+#define ENABLE_WATCHDOG ( 1 )
 
-/* use DMA to write data to LCD */
-#define DMA
+/*! 0 = normal operation 
+ *  1 = don't kick the watchdog test
+ *  2 = call force watchdog reset test
+ *  others = disabled
+ */
+#define WATCHDOG_TEST_MODE ( 0 )
+     
+/*! when 0 the watchdog timer and interrupt is used and an invalid password
+ * is used to reset the part, when 1 the watchdog expiring will cause the micro
+ * to reset and if ACLK goes away VLOCLK will be used.
+ */
+#define USE_FAILSAFE_WATCHDOG ( 1 )
 
-/* enable entry into low power mode 3 */
-#define LPM_ENABLED
+/*! light LED */
+#define USE_LED_FOR_WATCHDOG_DEBUG ( 0 ) 
 
-/* print task information */
-#undef TASK_DEBUG
+/*! use DMA to write data to LCD */
+#define LCD_DMA ( 1 )
 
-/* print debug messages for accelerometer, setup accelerometer for 25 hz */
-#undef ACCELEROMETER_DEBUG
+/*! enable entry into low power mode 3 */
+#define LPM_ENABLED ( 1 ) 
 
-/* light LED and wait forever instead of reset */
-#undef DEBUG_WATCHDOG_RESET
+/*! print task information */
+#define TASK_DEBUG ( 0 )
 
-/* perform software check of errata PMM15 */
-#undef CHECK_FOR_PMM15
+/*! perform software check of errata PMM15 */
+#define CHECK_FOR_PMM15 ( 1 ) 
 
-/* print stack usage information */
-#undef CHECK_STACK_USAGE
+/*! print stack usage information */
+#define CHECK_STACK_USAGE ( 1 )
 
-/* keep track of maximum queue depth */
-#undef CHECK_QUEUE_USAGE
+/*! keep track of maximum queue depth */
+#define CHECK_QUEUE_USAGE ( 0 )
 
-/* use debug pin 5 on development board to keep track of when SMCLK is on */
-#undef CLOCK_CONTROL_DEBUG
+/*! use debug pin 5 on development board to keep track of when SMCLK is on */
+#define CLOCK_CONTROL_DEBUG ( 0 )
 
-/* set all of the radio control pins to inputs so HCI tester can be used */
-#undef ISOLATE_RADIO
+/*! set all of the radio control pins to inputs so HCI tester can be used */
+#define ISOLATE_RADIO ( 0 )
 
+/*! print the value of power good */
+#define DEBUG_POWER_GOOD ( 0 ) 
+
+/*! when 0 the message type is printed in hex, when 1 it is not */
+#define DONT_PRINT_MESSAGE_TYPE ( 1 )
+   
+/*! use mutex to attempt to make string printing look prettier */
+#define PRETTY_PRINT ( 1 )
+   
 #endif /* PRE_INCLUDE_H */

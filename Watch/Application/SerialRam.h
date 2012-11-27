@@ -27,21 +27,63 @@
 #ifndef SERIAL_RAM_H
 #define SERIAL_RAM_H
 
-/*! This sets up the peripheral in the MSP430, the external serial ram, 
+#define BYTES_PER_QUAD          (288) //48x6
+#define BYTES_PER_QUAD_LINE     (6)
+#define HALF_SCREEN_ROWS        (LCD_ROW_NUM >> 1)
+#define QUAD_ROW_NUM            (HALF_SCREEN_ROWS)
+#define HALF_SCREEN_COLS        (LCD_COL_NUM >> 1)
+#define QUAD_NUM                (4)
+#define SRAM_HEADER_LEN         (3)
+#define LAYOUT_NUM              (4)
+#define LAYOUT_MASK             (0x0C)
+#define LAYOUT_SHFT             (2)
+
+#define LAYOUT_QUAD_SCREEN      (0)
+#define LAYOUT_UD_HALF_SCREEN   (1)
+#define LAYOUT_LR_HALF_SCREEN   (2)
+#define LAYOUT_FULL_SCREEN      (3)
+
+#define LAYOUT_MODE_SCREEN      (4)
+
+// two extra page for non-4Q idle screen
+#define IDLE_MODE_MENU          (4)
+#define IDLE_MODE_SERVICE       (5)
+#define IDLE_MODE_PAGE_MASK     (0x7)
+
+/* defines for write buffer command */
+#define MSG_OPT_WRTBUF_1_LINE      (0x10)
+#define MSG_OPT_WRTBUF_MULTILINE   (0x40)
+
+
+typedef struct
+{
+  unsigned char QuadNum;
+  unsigned char Step;
+} Layout_t;
+
+extern const Layout_t Layout[];
+
+unsigned char CurrentIdleScreen(void);
+
+// lower 4 bits used for 4 layouts' presense.
+unsigned char GetHomeWidgetLayout(void);
+
+/*! This sets up the peripheral in the MSP430, the external serial ram,
  * and clears the serial RAM memory to zero.
  */
 void SerialRamInit(void);
 
 /*! Handle the update display message */
-void UpdateDisplayHandler(tMessage* pMsg);
+void UpdateDisplayHandler(tMessage *pMsg);
 
 /*! Handle the load template message */
-void LoadTemplateHandler(tMessage* pMsg);
+void LoadTemplateHandler(tMessage *pMsg);
 
 /*! Handle the write buffer message */
-void WriteBufferHandler(tMessage* pMsg);
+void WriteBufferHandler(tMessage *pMsg);
 
+void SetWidgetList(tMessage *pMsg);
 
-void RamTestHandler(tMessage* pMsg);
+void RamTestHandler(tMessage *pMsg);
 
 #endif /* SERIAL_RAM_H */

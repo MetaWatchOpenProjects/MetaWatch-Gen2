@@ -20,7 +20,6 @@
 */
 /******************************************************************************/
 #include "FreeRTOS.h"
-#include "Fonts.h"
 #include "OledFonts.h"
 #include "DebugUart.h"
 
@@ -54,7 +53,6 @@ typedef struct
   etFontType Type;
   unsigned char Height;
   unsigned char Spacing;
-  
 } tOledFont;
 
 static tOledFont CurrentFont;
@@ -104,7 +102,6 @@ unsigned char MapDigitToIndex(unsigned char Digit)
   }
   
   return Result;
-  
 }
 
 
@@ -124,7 +121,6 @@ unsigned char GetCharacterWidth(unsigned char Character)
   }
   
   return Width;
-  
 }
 
 static unsigned int GetCharacterOffset(unsigned char Character)
@@ -145,10 +141,9 @@ static unsigned int GetCharacterOffset(unsigned char Character)
   }
   
   return Offset;
-  
 }
 
-unsigned char GetCharacterHeight(void)
+unsigned char GetFontHeight(void)
 {
   return CurrentFont.Height;  
 }
@@ -185,7 +180,6 @@ unsigned char MapCharacterToIndex(unsigned char CharIn)
   
   
   return Result;
-  
 }
 
 void GetCharacterBitmap(unsigned char Character,unsigned int * pBitmap)

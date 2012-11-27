@@ -114,9 +114,12 @@ void SetupTimerForAnalogDisplay( void )
 #pragma CODE_SECTION(TIMER0_B0_ISR,".text:_isr");
 #endif
 
-
+#ifndef BOOTLOADER
 #pragma vector=TIMER0_B0_VECTOR
 __interrupt void TIMER0_B0_ISR(void)
+#else
+void TIMER0_B0_ISR(void)
+#endif
 {
   NumberOfFastPulses--;
 

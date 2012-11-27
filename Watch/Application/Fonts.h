@@ -1,10 +1,10 @@
 //==============================================================================
 //  Copyright 2011 Meta Watch Ltd. - http://www.MetaWatch.org/
-// 
+//
 //  Licensed under the Meta Watch License, Version 1.0 (the "License");
 //  you may not use this file except in compliance with the License.
 //  You may obtain a copy of the License at
-//  
+//
 //      http://www.MetaWatch.org/licenses/license-1.0.html
 //
 //  Unless required by applicable law or agreed to in writing, software
@@ -26,36 +26,73 @@
 #ifndef FONTS_H
 #define FONTS_H
 
-/*! There are three fonts defined for the MetaWatch LCD 
+#define FONT_TYPE_TIME  (1)
+
+/*! There are three fonts defined for the MetaWatch LCD
  * they are 5, 7 and 16 pixels tall with variable width
  */
-typedef enum 
+typedef enum
 {
   MetaWatch5,
   MetaWatch7,
   MetaWatch16,
   MetaWatchTime,
-  MetaWatch5Oled,
-  MetaWatch7Oled,
-  MetaWatch16Oled,
-  MetaWatchIconOled
-  
+  MetaWatchTimeBlock,
+  TimeG
 } etFontType;
 
-/*! Use to size the bitmap used in the Display Task for printing characters FOR 
+/*! Font Structure
+ *
+ * \param Type is the enumerated type of font
+ * \param Height
+ * \param Spacing is the horizontal spacing that should be inserted when
+ * drawing characters
+ */
+typedef struct
+{
+  const unsigned char Height;
+  const unsigned char Spacing;
+  const unsigned char MaxWidth;
+  const unsigned char WidthInBytes;
+  const unsigned char Type; // if time font (0 - 9, :)
+  const unsigned char *pWidth;
+} tFont;
+
+/*! Use to size the bitmap used in the Display Task for printing characters FOR
  * THE LCD VERSION
  */
-#define MAX_FONT_ROWS ( 19 )
+#define MAX_FONT_ROWS ( 28 )
 
-/*! The maximum number of columns any font (or icon) requires.  This is 
+/*! The maximum number of columns any font (or icon) requires.  This is
  * used to define the size of the bitmap passed into font functions FOR THE
  * OLED version
  */
 #define MAX_FONT_COLUMNS ( 30 )
 
-#define TOTAL_TIME_CHARACTERS      ( 12 )
-#define TIME_CHARACTER_COLON_INDEX ( 10 )
-#define TIME_CHARACTER_SPACE_INDEX ( 11 )
+#define TOTAL_TIME_CHARACTERS       (12)
+#define TOTAL_TIME_BLOCK_CHARACTERS (11)
+#define TIME_CHARACTER_COLON_INDEX  (10)
+#define TIME_CHARACTER_SPACE_INDEX  (11)
+#define TIMEG_CHARACTER_NUM         (11)
+
+#define SPACE_CHAR_TO_ALPHANUM_OFFSET (0x15)
+#define NUM_TO_ALPHANUM_OFFSET (0x30)
+#define PRINTABLE_CHARACTERS (94)
+
+extern const unsigned char MetaWatch5table[PRINTABLE_CHARACTERS][5];
+extern const unsigned char MetaWatch7table[PRINTABLE_CHARACTERS][7];
+extern const unsigned int MetaWatch16table[PRINTABLE_CHARACTERS][16];
+extern const unsigned int MetaWatchTimeTable[TOTAL_TIME_CHARACTERS][19];
+extern const unsigned char MetaWatchTimeBlockTable[TOTAL_TIME_BLOCK_CHARACTERS][60];
+extern const unsigned char TimeGTable[TIMEG_CHARACTER_NUM][3*28];
+
+extern const unsigned char MetaWatch5width[PRINTABLE_CHARACTERS];
+extern const unsigned char MetaWatch7width[PRINTABLE_CHARACTERS];
+extern const unsigned char MetaWatch16width[PRINTABLE_CHARACTERS];
+extern const unsigned char MetaWatchTimeWidth[TOTAL_TIME_CHARACTERS];
+extern const unsigned char MetaWatchTimeBlockWidth[TOTAL_TIME_BLOCK_CHARACTERS];
+extern const unsigned char TimeGTableWidth[TIMEG_CHARACTER_NUM];
+
 
 /*! Convert a character into an index into the font table
  *
@@ -77,8 +114,8 @@ unsigned char MapDigitToIndex(unsigned char Digit);
  * \param pBitmap pointer to an array of integers that holds the bitmap
  *
  * \note pBitmap must point to an object large enough to hold the largest bitmap
- * 
- * \note For the LCD bitmaps the font height is the same as number of rows. 
+ *
+ * \note For the LCD bitmaps the font height is the same as number of rows.
  * If the width is less than 8 then each row is a byte.
  * If the width is less than 16 but > 8 then each row is a word.
  * The function works with ints so that it is generic for both types
@@ -91,6 +128,9 @@ void GetCharacterBitmap(unsigned char Character,unsigned int * pBitmap);
  * \param Character is the desired character
  * \return Width of character in columns
  */
+
+unsigned char *GetCharacterBitmapPointer(unsigned char Char);
+
 unsigned char GetCharacterWidth(unsigned char Character);
 
 /*! Set the font type used for future Get operations *
@@ -99,23 +139,25 @@ unsigned char GetCharacterWidth(unsigned char Character);
  */
 void SetFont(etFontType Type);
 
+const tFont *GetCurrentFont(void);
+
 /*! Set the font spacing for the current font*
  *
  * \param Spacing is the number of columns between characters
  *
  * \note The characters do not have any 'natural' spacing between them
  */
-void SetFontSpacing(unsigned char Spacing);
+//void SetFontSpacing(unsigned char Spacing);
 
-/*! 
- * \return The font spacing in columns 
+/*!
+ * \return The font spacing in columns
  */
 unsigned char GetFontSpacing(void);
 
 
-/*! 
- * \return The font height in rows 
+/*!
+ * \return The font height in rows
  */
-unsigned char GetCharacterHeight(void);
+unsigned char GetFontHeight(void);
 
 #endif /*FONTS_H*/

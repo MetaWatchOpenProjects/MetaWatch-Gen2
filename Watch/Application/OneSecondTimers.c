@@ -49,9 +49,7 @@ typedef struct
 
 } tOneSecondTimer;
 
-
 static tOneSecondTimer OneSecondTimers[TOTAL_ONE_SECOND_TIMERS];
-
 static xSemaphoreHandle OneSecondTimerMutex;
   
 void InitializeOneSecondTimers(void)
@@ -68,14 +66,11 @@ void InitializeOneSecondTimers(void)
     OneSecondTimers[i].Qindex = 0;
     OneSecondTimers[i].CallbackMsgType = InvalidMessage;
     OneSecondTimers[i].CallbackMsgOptions = 0;
-  
   }
 
   OneSecondTimerMutex = xSemaphoreCreateMutex();
   xSemaphoreGive(OneSecondTimerMutex);
-  
 }
-
 
 tTimerId AllocateOneSecondTimer(void)
 {
@@ -92,7 +87,6 @@ tTimerId AllocateOneSecondTimer(void)
       result = i;
       break;
     }
-
   }
 
   if ( result < 0 )
@@ -104,7 +98,6 @@ tTimerId AllocateOneSecondTimer(void)
   
   return result;
 }
-
 
 signed char DeallocateOneSecondTimer(tTimerId TimerId)
 {
@@ -133,8 +126,6 @@ signed char DeallocateOneSecondTimer(tTimerId TimerId)
 
   return result;
 }
-
-
 
 void StartOneSecondTimer(tTimerId TimerId)
 {
@@ -170,9 +161,7 @@ void SetupOneSecondTimer(tTimerId TimerId,
                          eMessageType CallbackMsgType,
                          unsigned char MsgOptions)
 {
-  
-  if (   OneSecondTimers[TimerId].Allocated == 0 
-      || TimerId < 0 )
+  if (OneSecondTimers[TimerId].Allocated == 0 || TimerId < 0)
   {
     PrintString("Timer not Allocated\r\n");
     return;
@@ -259,6 +248,5 @@ unsigned char OneSecondTimerHandlerIsr(void)
   }
   
   return ExitLpm;
-  
 }
 

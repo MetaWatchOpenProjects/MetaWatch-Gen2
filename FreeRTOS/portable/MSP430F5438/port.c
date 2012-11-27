@@ -116,8 +116,9 @@ portSTACK_TYPE *pxPortInitialiseStack( portSTACK_TYPE *pxTopOfStack, pdTASK_CODE
 	executing an ISR.  We want the stack to look just as if this has happened
 	so place a pointer to the start of the task on the stack first - followed
 	by the flags we want the task to use when it starts up. */
-	
+#pragma diag_suppress=Pe767 /* ignore conversion warning */	
 	*pxTopOfStack = ( portSTACK_TYPE ) pxCode;
+#pragma diag_default=Pe767
 	pxTopOfStack--;
 	*pxTopOfStack = ((( portSTACK_TYPE )((((unsigned long)(pxCode)) >>4) & (0x0000F000))) | portFLAGS_INT_ENABLED);
 	pxTopOfStack--;

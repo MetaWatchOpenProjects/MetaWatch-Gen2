@@ -20,7 +20,7 @@
  */
 /******************************************************************************/
 
-#include "hal_board_type.h"
+#include "msp430.h"
 #include "hal_calibration.h"
 
 /*! Calibration data structure
@@ -89,6 +89,11 @@ void InitializeCalibrationData(void)
   
 }
 
+unsigned int HardwareVersion(void)
+{
+  return CalibrationData.FlashRevision;
+}
+
 unsigned char QueryCalibrationValid(void)
 {
   return ValidCalibration;  
@@ -100,15 +105,19 @@ unsigned char GetBatteryCalibrationValue(void)
 }
 
 
+#define XCAP_MASK ( XCAP0+XCAP1 )
+
 void SetOscillatorCapacitorValues(void)
 {
+  /* zero XCAP bits because external capacitors are present 
+   * and because we are doing an or operation below.
+   */
+  UCSCTL6 &= ~XCAP_MASK;
+
   if ( ValidCalibration )
   {
-    /* zero XCAP bits */
-    UCSCTL6 &= ~(XCAP0+XCAP1);
-    
     /* we know the value is valid so shift it to the right position */
-    UCSCTL6 |= (CalibrationData.xtalCap << 2);
+    UCSCTL6 |= (CalibrationData.xtalCap << 2) & XCAP_MASK;
     
   }  
 }

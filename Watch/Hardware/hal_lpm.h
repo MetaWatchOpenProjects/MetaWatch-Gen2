@@ -44,6 +44,9 @@ void SetShippingModeFlag(void);
 /*! clear the shipping mode flag that allows the part to be placed into LPM4 */
 void ClearShippingModeFlag(void);
 
+/*! get the state of the shipping mode flag that allows the part to be placed into LPM4 */
+unsigned char GetShippingModeFlag(void);
+
 /*! reset the micro by writing to PMMCTL0 */
 void SoftwareReset(void);
 
@@ -52,15 +55,17 @@ void SoftwareReset(void);
 #define RST_PIN_ENABLED  ( 0x01 )
 #define RST_PIN_TOGGLED  ( 0x02 )
 
-/*! Query reset pin status
+/*! Query reset pin configuration
  *
- * \return 0 = not enabled, 1 = reset pin enabled
+ * \return 0 = disabled, 1 = enabled
  */
-unsigned char RstPin(void);
+unsigned char ResetPin(void);
 
-/*! Configure the reset pin functionality */
-//void ConfigureResetPinFunction(unsigned char Control);
+/*! Configure the reset pin functionality.  This does not save the state. 
+ * 
+ * \param Control 0 = disabled, 1 = enable, 2 = toggle
+ */
+void ConfigResetPin(unsigned char Control);
 
-void ConfigRstPin(unsigned char Control);
 
 #endif /* HAL_LPM_H */

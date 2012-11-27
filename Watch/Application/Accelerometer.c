@@ -20,6 +20,7 @@
 */
 /******************************************************************************/
 
+#include <string.h>
 #include "FreeRTOS.h"
 #include "task.h"
 #include "queue.h"
@@ -42,7 +43,6 @@
 
 static unsigned char WriteRegisterData;
 static unsigned char pReadRegisterData[16];
-static unsigned char InvertOption;
 static unsigned char Enabled = 0;
 /******************************************************************************/
 
@@ -68,7 +68,7 @@ void InitializeAccelerometer(void)
   vTaskDelay(ACCELEROMETER_POWER_UP_TIME_MS);
   TaskDelayLpmEnable();
  
-  PrintString("Accelerometer Initialization\r\n");
+//  PrintString("Accel Init\r\n");
  
 #if 0
   /* reset chip */
@@ -122,7 +122,7 @@ void InitializeAccelerometer(void)
   AccelerometerWrite(KIONIX_TDT_TIMER, &WriteRegisterData, ONE_BYTE);
   
   /* set tap low and high thresholds (default: 26 and 182) */
-  WriteRegisterData = 78;
+  WriteRegisterData = 40; //78;
   AccelerometerWrite(KIONIX_TDT_L_THRESH, &WriteRegisterData, ONE_BYTE);
   WriteRegisterData = 128;
   AccelerometerWrite(KIONIX_TDT_H_THRESH, &WriteRegisterData, ONE_BYTE);
@@ -138,12 +138,12 @@ void InitializeAccelerometer(void)
      
   /* single byte read test */
   AccelerometerRead(KIONIX_DCST_RESP,pReadRegisterData,1);
-  PrintStringAndHex("KIONIX_DCST_RESP (0x55) = 0x",pReadRegisterData[0]);
+  //PrintStringAndHex("KIONIX_DCST_RESP (0x55) = 0x",pReadRegisterData[0]);
   
   /* multiple byte read test */
   AccelerometerRead(KIONIX_WHO_AM_I,pReadRegisterData,2);
-  PrintStringAndHex("KIONIX_WHO_AM_I (0x01) = 0x",pReadRegisterData[0]);
-  PrintStringAndHex("KIONIX_TILT_POS_CUR (0x20) = 0x",pReadRegisterData[1]);  
+//  PrintStringAndHex("KIONIX_WHO_AM_I (0x01) = 0x",pReadRegisterData[0]);
+//  PrintStringAndHex("KIONIX_TILT_POS_CUR (0x20) = 0x",pReadRegisterData[1]);  
     
   /* 
    * KIONIX_CTRL_REG3 and DATA_CTRL_REG can remain at their default values 
@@ -175,7 +175,7 @@ void InitializeAccelerometer(void)
   AccelerometerDisable();
   ACCELEROMETER_INT_ENABLE();
   
-  PrintString("Accelerometer Init Complete\r\n");   
+//  PrintString("Accelerometer Init Complete\r\n");   
 }
 
 
@@ -198,8 +198,8 @@ void AccelerometerIsr(void)
    * occurred message
    */
   tMessage Msg;
-  SetupMessage(&Msg, AccelerometerSendDataMsg, NO_MSG_OPTIONS);  
-  SendMessageToQueueFromIsr(BACKGROUND_QINDEX, &Msg);
+  SetupMessage(&Msg, AccelerometerSendDataMsg, MSG_OPT_NONE);  
+  SendMessageToQueueFromIsr(DISPLAY_QINDEX, &Msg);
 }
 
 static void ReadInterruptReleaseRegister(void)
@@ -230,7 +230,8 @@ void AccelerometerSendDataHandler(void)
       || pReadRegisterData[4] != 0x24 
       || pReadRegisterData[5] != 0x28 )
   {
-    PrintString("Invalid i2c burst read\r\n");  
+    // need to be checked
+    //PrintString("Invalid i2c burst read\r\n");
   }
           
   /* single read */
@@ -238,52 +239,53 @@ void AccelerometerSendDataHandler(void)
   
   if (pReadRegisterData[0] != 0x55)
   {
-    PrintString("Invalid i2c Read\r\n"); 
+    PrintStringAndHex("Invalid i2c Read: ", pReadRegisterData[0]);
   }
 
   AccelerometerRead(KIONIX_INT_SRC_REG2, pReadRegisterData, ONE_BYTE);
 
   tMessage Msg;
-  if ((*pReadRegisterData & INT_TAP_SINGLE) == INT_TAP_SINGLE)
-  {
-//    InvertOption = (InvertOption == CONFIGURE_DISPLAY_OPTION_INVERT_DISPLAY) ? 
-//      CONFIGURE_DISPLAY_OPTION_DONT_INVERT_DISPLAY : 
-//      CONFIGURE_DISPLAY_OPTION_INVERT_DISPLAY;
-    
-//    SetupMessage(&Msg, ConfigureDisplay, InvertOption);
-//    RouteMsg(&Msg);
-  }
-  else if ((*pReadRegisterData & INT_TAP_DOUBLE) == INT_TAP_DOUBLE)
-  {
-    SetupMessage(&Msg, LedChange, LED_TOGGLE_OPTION);
-    RouteMsg(&Msg);
-  }
+  
+    if ((*pReadRegisterData & INT_TAP_SINGLE) == INT_TAP_SINGLE)
+    {
+      SendMessage(&Msg, LedChange, LED_ON_OPTION);
 
-  if (QueryPhoneConnected())
+      if (Connected(CONN_TYPE_HFP))
+      {
+          //SetupMessage(&Msg, HfpMsg, MSG_OPT_HFP_HANGUP);
+      }
+    else if ((*pReadRegisterData & INT_TAP_DOUBLE) == INT_TAP_DOUBLE)
+    {
+      if (Connected(CONN_TYPE_HFP))
+      {
+      //SetupMessage(&Msg, HfpMsg, MSG_OPT_HFP_VRCG);
+      }
+    }
+  }
+  
+  if (Connected(CONN_TYPE_MAIN))
   {
-    tMessage OutgoingMsg;
-
     if (SidControl == SID_CONTROL_SEND_INTERRUPT)
     {
-      SetupMessageAndAllocateBuffer(&OutgoingMsg,
+      SetupMessageAndAllocateBuffer(&Msg,
                             AccelerometerHostMsg,
                             ACCELEROMETER_HOST_MSG_IS_INTERRUPT_OPTION);
     }
     else
     {
-      SetupMessageAndAllocateBuffer(&OutgoingMsg,
+      SetupMessageAndAllocateBuffer(&Msg,
                                 AccelerometerHostMsg,
                                 ACCELEROMETER_HOST_MSG_IS_DATA_OPTION);
 
-      OutgoingMsg.Length = SidLength;
-      AccelerometerRead(SidAddr, OutgoingMsg.pBuffer, SidLength);
+      Msg.Length = SidLength;
+      AccelerometerRead(SidAddr, Msg.pBuffer, SidLength);
 
       // read orientation and tap status starting
-      // AccelerometerReadSingle(KIONIX_INT_SRC_REG1, OutgoingMsg.pBuffer + SidLength);
-      //*(OutgoingMsg.pBuffer + SidLength) = *pReadRegisterData;
-      //OutgoingMsg.Length ++;
+      // AccelerometerReadSingle(KIONIX_INT_SRC_REG1, Msg.pBuffer + SidLength);
+      //*(Msg.pBuffer + SidLength) = *pReadRegisterData;
+      //Msg.Length ++;
     }
-    RouteMsg(&OutgoingMsg);
+    RouteMsg(&Msg);
   }
 
   ReadInterruptReleaseRegister();
@@ -351,8 +353,8 @@ void AccelerometerSetupHandler(tMessage* pMsg)
       ACCELEROMETER_INT_ENABLE();  
     }
     break;
+    
   default:
-    PrintString("Unhandled Accelerometer Setup Option\r\n");
     break;
   }
 }
@@ -369,13 +371,13 @@ void AccelerometerAccessHandler(tMessage* pMsg)
   }
   else
   {
-    tMessage OutgoingMsg;
-    SetupMessageAndAllocateBuffer(&OutgoingMsg,
+    tMessage Msg;
+    SetupMessageAndAllocateBuffer(&Msg,
                                   AccelerometerResponseMsg,
                                   pPayload->Size);
     
     AccelerometerRead(pPayload->Address,
-                      &OutgoingMsg.pBuffer[ACCELEROMETER_DATA_START_INDEX],
+                      &Msg.pBuffer[ACCELEROMETER_DATA_START_INDEX],
                       pPayload->Size);  
   }
 }

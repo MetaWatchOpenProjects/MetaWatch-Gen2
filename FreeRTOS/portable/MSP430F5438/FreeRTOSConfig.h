@@ -116,8 +116,12 @@ occurs.
 #define configMAX_PRIORITIES                ((unsigned portBASE_TYPE)4)
 #define configMINIMAL_STACK_SIZE            ((unsigned portSHORT)90)
 
-#define configTOTAL_HEAP_SIZE               ((size_t)6000)
-
+#ifdef ANALOG
+#define configTOTAL_HEAP_SIZE               ((size_t)12044) //12228 12338 12254 12026 11904, 12070, 12198, 13500, 12206, 12308, 12344, 12406, 12440, 
+#else
+#define configTOTAL_HEAP_SIZE               ((size_t)12388) //12228 12338 12254 12026 11904, 12070, 12198, 13500, 12206, 12308, 12344, 12406, 12440,
+#endif 
+                                                     // 12316, 12270, 12340, 12300, 12276
 #define configMAX_TASK_NAME_LEN             (16)
 #define configUSE_TRACE_FACILITY            0
 #define configUSE_16_BIT_TICKS              1

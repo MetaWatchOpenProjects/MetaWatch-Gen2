@@ -47,7 +47,7 @@ typedef struct
 } tTaskInfo;
 
 
-#ifdef TASK_DEBUG
+#if TASK_DEBUG
 /*! Cycle through all of the tasks and display how much stack they are using 
  * (Prints information for one task each call)
  */
@@ -77,19 +77,50 @@ void CopyHostMsgPayload(unsigned char* pBuffer,
 /*! \return a pointer to the device name string */
 unsigned char * GetDeviceNameString(void);
 
-/*! return a pointer to the software version string */
-unsigned char * GetSoftwareVersionString(void);
-
 /*! Check the configuration of the power management module to make sure that
  * it is not setup in a mode that will cause problems
  */
 unsigned char PMM15Check(void);
 
+/******************************************************************************/
 
 /*! check how full a queue is */
 void CheckQueueUsage(xQueueHandle Qhandle);
 
 
-void ForceWatchdogReset(void);
+/******************************************************************************/
+
+void GenerateDisplayStringMessage(tString* pString,unsigned char Options);
+
+/******************************************************************************/
+
+#define MUX_MODE_OFF         ( 0 )
+#define MUX_MODE_SERIAL      ( 1 )
+#define MUX_MODE_GND         ( 2 ) 
+#define MUX_MODE_SPY_BI_WIRE ( 3 )
+
+#define MUX_MODE_DEFAULT_5V     ( MUX_MODE_SERIAL )
+#define MUX_MODE_DEFAULT_NORMAL ( MUX_MODE_GND )
+
+/*! Initialize NV value that controls the mux */
+void InitializeMuxMode(void);
+
+/*! return the mode the mux control should be in
+ * (output of micro can be overriden by pressing S1 (top right) during power-up
+ *
+ * \param PowerGood is 1 when 5V is present, 0 otherwise
+ * 
+ * \return 0 = mux off, 1 = serial, 2 = gnd, 3 = spy-bi-wire
+ */
+unsigned char GetMuxMode(unsigned char PowerGood);
+
+void SetMuxMode(unsigned char MuxMode, unsigned char PowerGood);
+
+/*! Initialize the state of the mux that allows the case back pins 
+ * to be serial port, GND, or spy-bi-wire
+ */
+void ChangeMuxMode(void);
+
+/******************************************************************************/
 
 #endif /* UTILITIES_H */

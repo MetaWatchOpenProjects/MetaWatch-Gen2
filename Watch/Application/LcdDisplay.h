@@ -31,59 +31,124 @@
 #ifndef LCD_DISPLAY_H
 #define LCD_DISPLAY_H
 
-#define NUM_LCD_ROWS  96
-#define NUM_LCD_COL   96
+#define LCD_ROW_NUM  96
+#define LCD_COL_NUM  96
+
+#define TEMPLATE_1 2  //starts at 2 because 0,1 are clear and fill
+#define TEMPLATE_2 3
+#define TEMPLATE_3 4
+#define TEMPLATE_4 5
+
+#define NORMAL_DISPLAY ( 0 )
+#define INVERT_DISPLAY ( 1 )
+
+//Set Default Positions
+#define DO_NOT_DISPLAY_ROW 0
+#define DO_NOT_DISPLAY_COL 255
+
+#define DEFAULT_HOURS_ROW 6
+#define DEFAULT_HOURS_COL 0
+#define DEFAULT_HOURS_COL_BIT BIT4
+
+#define DEFAULT_TIME_SEPARATOR_ROW 6
+#define DEFAULT_TIME_SEPARATOR_COL 3
+#define DEFAULT_TIME_SEPARATOR_COL_BIT BIT4
+
+#define DEFAULT_MINS_ROW 6
+#define DEFAULT_MINS_COL 4
+#define DEFAULT_MINS_COL_BIT BIT1
+
+#define DEFAULT_SECS_ROW 6
+#define DEFAULT_SECS_COL 7
+#define DEFAULT_SECS_COL_BIT BIT1
+
+#define DEFAULT_AM_PM_ROW 3
+#define DEFAULT_AM_PM_COL 8
+#define DEFAULT_AM_PM_COL_BIT BIT1
+
+#define DEFAULT_DOW_24HR_ROW 3
+#define DEFAULT_DOW_12HR_ROW 13
+#define DEFAULT_DOW_COL 8
+#define DEFAULT_DOW_COL_BIT BIT1
+
+#define DEFAULT_DATE_YEAR_ROW 13
+#define DEFAULT_DATE_YEAR_COL 8
+#define DEFAULT_DATE_YEAR_COL_BIT BIT1
+
+#define DEFAULT_DATE_FIRST_ROW 22   //month or day can be displayed in any order
+#define DEFAULT_DATE_FIRST_COL 8
+#define DEFAULT_DATE_FIRST_COL_BIT BIT1
+
+#define DEFAULT_DATE_SECOND_ROW 22  //month or day can be displayed in any order
+#define DEFAULT_DATE_SECOND_COL 10
+#define DEFAULT_DATE_SECOND_COL_BIT BIT0
+
+#define DEFAULT_DATE_SEPARATOR_ROW 22
+#define DEFAULT_DATE_SEPARATOR_COL 9
+#define DEFAULT_DATE_SEPARATOR_COL_BIT BIT4
+
+//Set Default Fonts
+#define DEFAULT_HOURS_FONT MetaWatchTime
+#define DEFAULT_TIME_SEPARATOR_FONT MetaWatchTime
+#define DEFAULT_MINS_FONT MetaWatchTime
+#define DEFAULT_SECS_FONT MetaWatchTime
+
+#define DEFAULT_AM_PM_FONT MetaWatch7
+
+#define DEFAULT_DOW_FONT MetaWatch7
+#define DEFAULT_DATE_YEAR_FONT MetaWatch7
+#define DEFAULT_DATE_MONTH_FONT MetaWatch7
+#define DEFAULT_DATE_DAY_FONT MetaWatch7
+#define DEFAULT_DATE_SEPARATOR_FONT MetaWatch7
+
+#define WATCH_DRAW_TOP                (0)
+#define IDLE_BUFFER_CONFIG_MASK       (BIT0)
+#define WATCH_DRAW_SCREEN_ROW_NUM     (30)
+
+#define PAGE_TYPE_IDLE     (0)
+#define PAGE_TYPE_INFO     (1)
+#define PAGE_TYPE_MENU     (2)
+
+extern const char VERSION[];
+extern unsigned char CurrentMode;
+extern unsigned char PageType;
+
+typedef enum
+{
+  ConnectedPage,
+  DisconnectedPage,
+  InitPage,
+  StatusPage,
+  CallPage,
+  Menu1Page,
+  Menu2Page,
+  Menu3Page
+} eIdleModePage;
 
 /*! Create task and queue for display task. Call from main or another task. */
 void InitializeDisplayTask(void);
-
-#define WATCH_CONTROLS_TOP       ( 0 )
-#define PHONE_CONTROLS_TOP       ( 1 )
-#define IDLE_BUFFER_CONFIG_MASK  ( BIT0 )
 
 /*! The phone can control all of the idle buffer or the bottom 2/3.
  * 
  * \return character indicating who controls top third of screen.  When it is
  * zero the watch controls the top.
  */
-unsigned char GetIdleBufferConfiguration(void);
+unsigned char ScreenControl(void);
+unsigned char InvertDisplay(void);
 
-
-#define NORMAL_DISPLAY ( 0 )
-#define INVERT_DISPLAY ( 1 )
-
-/*! 
- * \return 1 when display should be inverted 
- */
-unsigned char QueryInvertDisplay(void);
-
-/*! Get pointer to an LCD screen template
- *
- *\return NULL - NOT IMPLEMENTED - end result is to have phone be able to program
- * templates into the watch.
- */
-unsigned char* GetTemplatePointer(unsigned char TemplateSelect);
-
-/*!
- * \return 1 if the idle page being display is the normal idle page and
- * that a display update from the phone is allowed, 0 otherwise
- */
-//unsigned char QueryIdlePageNormal(void);
-
-/*! Initialize flash/ram value for the idle buffer configuration */
-void InitializeIdleBufferConfig(void);
-
-/*! Initialize flash/ram value for controlling whether or not the idle buffer
- *  is inverted */
-void InitializeIdleBufferInvert(void);
-
-/*! Initialize flash/ram value for whether or not to display seconds */
-void InitializeDisplaySeconds(void);
+void ResetModeTimer(void);
 
 /*! Called from RTC one second interrupt
  *
  * \return 1 if lpm should be exited, 0 otherwise
  */
 unsigned char LcdRtcUpdateHandlerIsr(void);
+
+unsigned char BackLightOn(void);
+
+unsigned char CurrentIdlePage(void);
+
+unsigned char BatteryPercentage(void);
+
 
 #endif /* LCD_DISPLAY_H */

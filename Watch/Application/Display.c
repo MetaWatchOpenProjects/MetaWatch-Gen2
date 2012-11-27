@@ -34,84 +34,6 @@
 #include "Wrapper.h"
 #include "OneSecondTimers.h"
 
-//static const unsigned char ConnStateName[NUMBER_OF_CONNECTION_STATES][13] =
-//{
-//  "Unknown", "Initializing", "ServerFail", "RadioOn", "Paired",
-//  "BRConnected", "LEConnected", "RadioOff", "RadioOffLoBa", "ShippingMode"
-//};
-
-/* these have the null character added at the end */
-tString pLocalBluetoothAddressString[] = "000000000000";
-tString pRemoteBluetoothAddressString[] = "000000000000";
-
-
-/* LocalBluetoothAddress == watch */
-void SetLocalBluetoothAddressString(unsigned char* pData)
-{
-  unsigned char i = 0;
-  
-  while (pLocalBluetoothAddressString[i] && pData[i])
-  {
-    pLocalBluetoothAddressString[i] = pData[i];
-    i++;
-  }
-}
-
-/* RemoteBluetoothAddress == phone */
-void SetRemoteBluetoothAddressString(unsigned char* pData)
-{
-  unsigned char i = 0;
-  
-  while (pRemoteBluetoothAddressString[i] && pData[i])
-  {
-    pRemoteBluetoothAddressString[i] = pData[i];
-    i++;
-  }
-}
-
-tString* GetLocalBluetoothAddressString(void)
-{
-  return pLocalBluetoothAddressString;
-}
-
-tString* GetRemoteBluetoothAddressString(void)
-{
-  return pRemoteBluetoothAddressString;  
-}
-
-/******************************************************************************/
-
-#define HARDWARE_REVISION_ADDRESS (0x1a07)
-
-unsigned char GetMsp430HardwareRevision(void)
-{
-  unsigned char *pDeviceType = 
-    (unsigned char *)(unsigned char *)HARDWARE_REVISION_ADDRESS;
-  
-  return pDeviceType[0]+'1';                         
-}
-
-/******************************************************************************/
-
-//unsigned char * QueryConnectionStateAndGetString(void)
-//{
-//  return (unsigned char*)ConnStateName[QueryConnectionState()];
-//}
-
-/******************************************************************************/
-
-static unsigned char ConnectedOnce = 0;
-
-void SetOnceConnected(unsigned char Once)
-{
-  ConnectedOnce = Once;
-}
-
-unsigned char OnceConnected(void)
-{
-  return ConnectedOnce;
-}
-
 /******************************************************************************/
 
 /* 
@@ -141,32 +63,42 @@ static unsigned char nvTimeFormat;
 static unsigned char nvDateFormat;
 static unsigned char nvLanguage;
 
-void InitializeTimeFormat(void)
+void Init12H(void)
 {
   nvTimeFormat = TWELVE_HOUR;
   OsalNvItemInit(NVID_TIME_FORMAT, sizeof(nvTimeFormat), &nvTimeFormat);
 }
 
-void InitializeDateFormat(void)
+unsigned char Get12H(void)
+{
+  return nvTimeFormat;  
+}
+
+void Set12H(unsigned char Fmt)
+{
+  nvTimeFormat = Fmt;
+}
+
+void InitMonthFirst(void)
 {
   nvDateFormat = MONTH_FIRST;
   OsalNvItemInit(NVID_DATE_FORMAT, sizeof(nvDateFormat), &nvDateFormat);
 }
 
-void InitializeLanguage(void)
+unsigned char GetMonthFirst(void)
+{
+  return nvDateFormat;
+}
+
+void SetMonthFirst(unsigned char Mon1st)
+{
+  nvDateFormat = Mon1st;
+}
+
+void InitLanguage(void)
 {
   nvLanguage = LANG_EN;
   OsalNvItemInit(NVID_LANGUAGE, sizeof(nvLanguage), &nvLanguage);
-}
-
-unsigned char GetTimeFormat(void)
-{
-  return nvTimeFormat;  
-}
-
-unsigned char GetDateFormat(void)
-{
-  return nvDateFormat;
 }
 
 unsigned char GetLanguage(void)
@@ -188,7 +120,7 @@ void ToggleLinkAlarmEnable(void)
   nvLinkAlarmEnable = !nvLinkAlarmEnable;
 }
 
-void InitializeLinkAlarmEnable(void)
+void InitLinkAlarmEnable(void)
 {
   nvLinkAlarmEnable = 1;
   OsalNvItemInit(NVID_LINK_ALARM_ENABLE, 
@@ -209,17 +141,16 @@ void GenerateLinkAlarm(void)
 {
   tMessage Msg;
   
-  SetupMessageAndAllocateBuffer(&Msg,SetVibrateMode,NO_MSG_OPTIONS);
-  
+  SetupMessageAndAllocateBuffer(&Msg,SetVibrateMode,MSG_OPT_NONE);
   tSetVibrateModePayload* pMsgData;
   pMsgData = (tSetVibrateModePayload*) Msg.pBuffer;
   
   pMsgData->Enable = 1;
-  pMsgData->OnDurationLsb = 0x00;
-  pMsgData->OnDurationMsb = 0x01;
-  pMsgData->OffDurationLsb = 0x00;
+  pMsgData->OnDurationLsb = 0xC8;
+  pMsgData->OnDurationMsb = 0x00;
+  pMsgData->OffDurationLsb = 0xF4;
   pMsgData->OffDurationMsb = 0x01;
-  pMsgData->NumberOfCycles = 1;
+  pMsgData->NumberOfCycles = 3;
   
   RouteMsg(&Msg);
 }
@@ -228,30 +159,39 @@ void GenerateLinkAlarm(void)
 
 static unsigned int nvApplicationModeTimeout;
 static unsigned int nvNotificationModeTimeout;
+static unsigned int nvMusicModeTimeout;
 
-void InitializeModeTimeouts(void)
+
+void InitModeTimeout(void)
 {
   
 #ifdef ANALOG
-  nvApplicationModeTimeout  = ONE_SECOND*60*10;
-  nvNotificationModeTimeout = ONE_SECOND*30;
+  nvApplicationModeTimeout  = ONE_SECOND * 60 * 10;
+  nvNotificationModeTimeout = ONE_SECOND * 30;
 #else
-  nvApplicationModeTimeout  = ONE_SECOND*60*10;
-  nvNotificationModeTimeout = ONE_SECOND*30;  
+  nvApplicationModeTimeout  = ONE_SECOND * 60 * 10;
+  nvNotificationModeTimeout = ONE_SECOND * 30;
+  nvMusicModeTimeout = ONE_SECOND * 60 * 10;
 #endif
   
-  OsalNvItemInit(NVID_APPLICATION_MODE_TIMEOUT,
+  OsalNvItemInit(NVID_APP_MODE_TIMEOUT,
                  sizeof(nvApplicationModeTimeout),
                  &nvApplicationModeTimeout);
   
-  OsalNvItemInit(NVID_NOTIFICATION_MODE_TIMEOUT,
+  OsalNvItemInit(NVID_NOTIF_MODE_TIMEOUT,
                  sizeof(nvNotificationModeTimeout),
                  &nvNotificationModeTimeout);
+
+  OsalNvItemInit(NVID_MUSIC_MODE_TIMEOUT,
+                 sizeof(nvMusicModeTimeout),
+                 &nvMusicModeTimeout);
 }
 
 unsigned int QueryModeTimeout(unsigned char Mode)
 {
-  return (Mode == APPLICATION_MODE ? nvApplicationModeTimeout : nvNotificationModeTimeout);  
+  if (Mode == MUSIC_MODE) return nvMusicModeTimeout;
+  if (Mode == NOTIF_MODE) return nvNotificationModeTimeout;
+  return nvApplicationModeTimeout;
 }
 
 /******************************************************************************/
@@ -295,19 +235,19 @@ unsigned char QueryConnectionDebug(void)
 
 /******************************************************************************/
 
-unsigned int nvPairingModeDurationInSeconds;
+unsigned int nvRadioOffTimeout;
 
-void InitializePairingModeDuration(void)
+void InitRadioOffTimeout(void)
 {
-  nvPairingModeDurationInSeconds = PAIRING_MODE_TIMEOUT_IN_SECONDS;
+  nvRadioOffTimeout = PAIRING_MODE_TIMEOUT_IN_SECONDS;
   OsalNvItemInit(NVID_PAIRING_MODE_DURATION, 
-                 sizeof(nvPairingModeDurationInSeconds), 
-                 &nvPairingModeDurationInSeconds);
+                 sizeof(nvRadioOffTimeout), 
+                 &nvRadioOffTimeout);
 }
 
-unsigned int GetPairingModeDurationInSeconds(void)
+unsigned int RadioOffTimeout(void)
 {
-  return nvPairingModeDurationInSeconds;  
+  return nvRadioOffTimeout;  
 }
 
 /******************************************************************************/
@@ -322,7 +262,7 @@ void InitializeSavePairingInfo(void)
                  &nvSavePairingInfo);
 }
 
-unsigned char QuerySavePairingInfo(void)
+unsigned char SavedPairingInfo(void)
 {
   return nvSavePairingInfo;  
 }

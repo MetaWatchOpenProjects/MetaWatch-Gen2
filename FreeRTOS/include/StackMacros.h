@@ -103,6 +103,7 @@
 	}
 
 #endif /* configCHECK_FOR_STACK_OVERFLOW > 0 */
+
 /*-----------------------------------------------------------*/
 
 #if( ( configCHECK_FOR_STACK_OVERFLOW > 0 ) && ( portSTACK_GROWTH > 0 ) )

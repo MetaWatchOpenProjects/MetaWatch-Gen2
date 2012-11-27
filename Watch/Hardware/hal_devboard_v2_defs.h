@@ -240,7 +240,7 @@
 #define SW_E_INDEX        ( 5 )
 #define SW_F_INDEX        ( 6 )
 #define SW_P_INDEX        ( 7 )
-#define NUMBER_OF_BUTTONS ( 8 )
+#define TOTAL_BTN_NUM     ( 8 )
 
 #ifdef ANALOG
   /* analog board has traces for all of the buttons but 
@@ -269,6 +269,23 @@
   BUTTON_PORT_IE  &= ~INT_EDGE_SEL_BUTTONS; \
   BUTTON_PORT_REN &= ~ALL_BUTTONS;          \
   BUTTON_PORT_OUT &= ~ALL_BUTTONS;          \
+}
+
+/* SHIPPING */ 
+/* S5 or SW_E is the button that takes the watch out of shipping mode */
+#define ENABLE_SHIPPING_WAKEUP() { \
+  P1IE = 0x00;                              \
+  PMMCTL0_H = 0xA5;                         \
+  PMMRIE = 0x0000;                          \
+  RTCPS0CTL = 0x0000;                       \
+  RTCPS1CTL = 0x0000;                       \
+  UCSCTL8 = 0x0700;                         \
+  BUTTON_PORT_REN = SW_E;                   \
+  BUTTON_PORT_OUT = SW_E;                   \
+  BUTTON_PORT_DIR &= ~SW_E;                 \
+  BUTTON_PORT_IES  =   SW_E;                \
+  BUTTON_PORT_IFG  =   0x00;                \
+  BUTTON_PORT_IE   =   SW_E;                \
 }
 
 // NOTE the the buttons are grounded. That means that we want to invert the bits

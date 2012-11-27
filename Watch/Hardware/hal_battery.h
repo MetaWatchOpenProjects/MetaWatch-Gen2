@@ -37,7 +37,8 @@
 #define BATTERY_FAST_CHARGE            ( 0x02 )
 #define BATTERY_CHARGE_DONE            ( 0x01 )
 #define BATTERY_CHARGE_OFF_FAULT_SLEEP ( 0x03 )
-
+#define EXTERNAL_POWER_GOOD            (1)
+#define NO_EXTERNAL_POWER              (0)
 
 /*! Configure the pins used for reading the battery state and 
  * charging the battery.
@@ -46,29 +47,32 @@ void ConfigureBatteryPins(void);
 
 /*! Read battery state and update charge output 
  *
+ * \param PowerGood 1 if power is good, 0 otherwise
+ *
  * \return 1 if the state of power good has changed, 0 otherwise
  *
  * \note Status can be used to update the LCD screen of a possible change
  * in battery charging state
  */
-unsigned char BatteryChargingControl(void);
+unsigned char BatteryChargingControl(unsigned char PowerGood);
 
 
 /*! Query whether or not the battery is charging
  *
  * \return 1 if the battery is charging else 0
  */
-unsigned char QueryBatteryCharging(void);
+unsigned char Charging(void);
 
 
 /*!
  * \return 1 if the power from the charger is present
  */
-unsigned char QueryPowerGood(void);
+unsigned char ExtPower(void);
 
 /*!
  * \return 1 if the battery charger is enabled
  */
-unsigned char QueryBatteryChargeEnabled(void);
+unsigned char ChargeEnabled(void);
+void EnableCharge(unsigned char Enable);
 
 #endif // HAL_BATTERY_H

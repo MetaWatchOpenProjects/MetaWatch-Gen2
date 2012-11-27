@@ -20,14 +20,18 @@
  */
 /******************************************************************************/
 #include "portmacro.h"
+#include "intrinsics.h"
 #include "hal_board_type.h"
 #include "hal_rtos_timer.h"
 #include "hal_lpm.h"
+#include "hal_miscellaneous.h"
 #include "HAL_UCS.h"
+#include "Messages.h"
+#include "LcdDriver.h"
+
 
 static void EnterLpm3(void);
 static void EnterShippingMode(void);
-static void ConfigureResetPinFunction(unsigned char Control);
 
 static unsigned char EnterShippingModeFlag = 0;
 static unsigned char TaskDelayLpmLockCount = 0;
@@ -46,31 +50,34 @@ void MSP430_LPM_ENTER(void)
 
 static void EnterLpm3(void)
 {
-#ifdef LPM_ENABLED
-    
-  /* Turn off the watchdog timer */
-  WDTCTL = WDTPW | WDTHOLD;
+#if LPM_ENABLED
 
   /*
-   * Enter a critical section to do so that we do not get switched out by the
+   * we are already in critical section so that we do not get switched out by the
    * OS in the middle of stopping the OS Scheduler.
    */
-  __disable_interrupt();
-  __no_operation();
   DisableRtosTick();
   
-  /* errata PMM11 divide MCLK by two before going to sleep */
-  MCLK_DIV(2);
+  /* errata PMM11 + PMM12 divide MCLK by two before going to sleep */
+  if ( QueryErrataGroup1() )
+  {
+    MCLK_DIV(2);
+  }
+  
   DEBUG1_HIGH();
+  
   
   __enable_interrupt();
   LPM3;
   __no_operation();
   DEBUG1_LOW();
 
-  /* errata PMM11 - wait to put MCLK into normal mode */
-  __delay_cycles(100);
-  MCLK_DIV(1);
+  /* errata PMM11 + PMM12 - wait to put MCLK into normal mode */
+  if ( QueryErrataGroup1() )
+  {
+    __delay_cycles(100);
+    MCLK_DIV(1);
+  }
   
   /* Generate a vTickIsr by setting the flag to trigger an interrupt
    * You can't call vTaskIncrementTick and vTaskSwitchContext from within a
@@ -96,17 +103,26 @@ void ClearShippingModeFlag(void)
   EnterShippingModeFlag = 0;  
 }
 
+unsigned char GetShippingModeFlag(void)
+{
+    return (EnterShippingModeFlag);
+}
+
 static void EnterShippingMode(void)
 {
   /* Turn off the watchdog timer */
   WDTCTL = WDTPW | WDTHOLD;
-  
-  ConfigRstPin(RST_PIN_ENABLED);
+#ifdef DIGITAL
+  ClearLcd();
+#endif
+  ConfigResetPin(RST_PIN_ENABLED);
   
   __delay_cycles(100000);
   
   __disable_interrupt();
   __no_operation();
+  
+  DisableRtosTick();
   
   /* 
    * the radio draws more current in reset than it does after 
@@ -122,7 +138,12 @@ static void EnterShippingMode(void)
   APPLE_POWER_DISABLE();
   ACCELEROMETER_INT_DISABLE();
   DISABLE_BUTTONS();
-
+  
+#ifdef DIGITAL
+  /* SHIPPING */
+  ENABLE_SHIPPING_WAKEUP();
+#endif
+  
   SELECT_ACLK(SELA__REFOCLK);                
   SELECT_FLLREF(SELREF__REFOCLK); 
   UCSCTL8 &= ~SMCLKREQEN;
@@ -132,10 +153,9 @@ static void EnterShippingMode(void)
   XT1_Stop();
   
   /* turn off the regulator */
-  unsigned char temp = PMMCTL0_L;
   PMMCTL0_H = PMMPW_H;
-  PMMCTL0_L = PMMREGOFF | temp;
-  LPM4;
+  PMMCTL0_L = PMMREGOFF;
+  __low_power_mode_4();
   __no_operation();
   __no_operation();
   
@@ -145,9 +165,6 @@ static void EnterShippingMode(void)
 
 void SoftwareReset(void)
 {
-  /* let the uart drain */
-  __delay_cycles(100000);
-  
   PMMCTL0 = PMMPW | PMMSWBOR;
 }
 
@@ -177,13 +194,15 @@ unsigned char GetTaskDelayLockCount(void)
 
 static unsigned char nvRstNmiConfiguration;
 
-unsigned char RstPin(void)
+unsigned char ResetPin(void)
 {
   return nvRstNmiConfiguration;  
 }
 
-static void ConfigureResetPinFunction(unsigned char Control)
+void ConfigResetPin(unsigned char Control)
 {
+  Control = RST_PIN_TOGGLED ? !nvRstNmiConfiguration : Control;
+  
   switch (Control)
   {
   case RST_PIN_ENABLED:
@@ -202,8 +221,3 @@ static void ConfigureResetPinFunction(unsigned char Control)
   }
 }
 
-void ConfigRstPin(unsigned char Control)
-{
-  ConfigureResetPinFunction(
-    Control == RST_PIN_TOGGLED? !nvRstNmiConfiguration : Control);  
-}

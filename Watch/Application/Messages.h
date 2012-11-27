@@ -26,10 +26,21 @@
 /*******************************************************************************
     Description:  Constants related to the host packet format
 *******************************************************************************/
+#include "hal_lcd.h"
+
 #define HOST_MSG_BUFFER_LENGTH  ( 32 )
 #define HOST_MSG_HEADER_LENGTH  ( 4 )
 #define HOST_MSG_CRC_LENGTH     ( 2 )
+#define HOST_MSG_OVERHEAD_LENTH ( 6 )
+#define HOST_MSG_PAYLOAD_LENTH  (14)
 #define HOST_MSG_START_FLAG     ( 0x01 )
+
+// see BufferPool.c
+#define MSG_RELATIVE_INDEX_FLG  (-4)
+#define MSG_RELATIVE_INDEX_LEN  (-3)
+#define MSG_RELATIVE_INDEX_TYPE (-2)
+#define MSG_RELATIVE_INDEX_OPT  (-1)
+
 /* 26 */
 #define HOST_MSG_MAX_PAYLOAD_LENGTH \
   (HOST_MSG_BUFFER_LENGTH - HOST_MSG_HEADER_LENGTH - HOST_MSG_CRC_LENGTH)
@@ -50,10 +61,7 @@ typedef struct
   unsigned char Type;
   unsigned char Options;
   unsigned char * pBuffer;
-
 } tMessage;
-
-
 
 /*! Host Message Packet Format
  *
@@ -96,66 +104,6 @@ typedef struct
 
 #endif
 
-#define NO_MSG_OPTIONS      ( 0 )
-#define NONZERO_MSG_OPTIONS ( 0xff )
-
-#define HOST_MSG_TYPE_INDEX ( 2 )
-
-/* defines for write buffer command */
-#define WRITE_BUFFER_TWO_LINES     ( 0x00 )
-#define WRITE_BUFFER_ONE_LINE      ( 0x10 )
-#define WRITE_BUFFER_ONE_LINE_MASK ( 0x10 )
-
-/*! The serial ram message is formatted so that it can be overlaid onto the
- * message from the host (so that a buffer allocation does not have to be
- * performed and there is one less message copy).
- *
- * \param Reserved0
- * \param Reserved1
- * \param SerialRamCommand is the command for the serial ram (read/write)
- * \param AddressMsb
- * \param AddressLsb
- * \param pLineA[12] is pixel data (and AddressMsb2 for second write)
- * \param AddressLsb2
- * \param pLineB[12]
- * \param Reserved31
- *
- */
-typedef struct
-{
-  unsigned char RowSelectA;
-  unsigned char pLineA[12];
-  unsigned char RowSelectB;
-  unsigned char pLineB[12];
-
-} tSerialRamPayload;
-
-/*! The LCD message is formatted so that it can be written directly to the LCD
- *
- * \param LcdCommand is the lcd write command for the LCD
- * \param RowNumber is the row on the LCD
- * \param pLine[12] is a line of LCD data
- * \param Dummy1
- * \param Dummy2
- *
- */
-typedef struct
-{
-  unsigned char Reserved0;
-  unsigned char Reserved1;
-  unsigned char LcdCommand;
-  unsigned char RowNumber;
-  unsigned char pLine[12];
-  unsigned char Dummy1;
-  unsigned char Dummy2;
-
-} tLcdMessagePayload;
-
-#define LCD_MESSAGE_CMD_INDEX        ( 2 )
-#define LCD_MESSAGE_ROW_NUMBER_INDEX ( 3 )
-#define LCD_MESSAGE_LINE_INDEX       ( 4 )
-
-
 /*! Message type enumeration
  *
  * for this processor the default is 16 bits for an enumeration
@@ -169,9 +117,9 @@ typedef enum
   GetInfoString = 0x03,
   GetInfoStringResponse = 0x04,
   DiagnosticLoopback = 0x05,
-  EnterShippingModeMsg = 0x06,
-  SoftwareResetMsg = 0x07,
-  ConnectionTimeoutMsg = 0x08,
+  ShippingModeMsg = 0x06,
+  ResetMsg = 0x07,
+  ConnTimeoutMsg = 0x08,
   TurnRadioOnMsg = 0x09,
   TurnRadioOffMsg = 0x0a,
   ReadRssiMsg = 0x0b,
@@ -192,6 +140,9 @@ typedef enum
   OledCrownMenuMsg = 0x16,
   OledCrownMenuButtonMsg = 0x17,
 
+  /* Music Play State */
+  MusicPlayStateMsg = 0x18,
+  
   /*
    * Status and control
    */
@@ -199,6 +150,8 @@ typedef enum
   /* move the hands hours, mins and seconds */
   AdvanceWatchHandsMsg = 0x20,
 
+  TestModeMsg = 0x21,
+  
   /* config and (dis)enable vibrate */
   SetVibrateMode = 0x23,
 
@@ -214,27 +167,37 @@ typedef enum
   NvalOperationResponseMsg = 0x31,
 
   /* status of the current display operation */
-  StatusChangeEvent = 0x33,
+  ModeChangeIndMsg = 0x33,
 
   ButtonEventMsg = 0x34,
 
   GeneralPurposePhoneMsg = 0x35,
   GeneralPurposeWatchMsg = 0x36,
+  WrapperTaskCheckInMsg = 0x37,
+  DisplayTaskCheckInMsg = 0x38,
+  
   /*
    * LCD display related commands
    */
-  WriteBuffer = 0x40,
+  WriteBufferMsg = 0x40,
   ConfigureDisplay = 0x41,
   ConfigureIdleBufferSize = 0x42,
   UpdateDisplay = 0x43,
   LoadTemplate = 0x44,
-  Unused_0x45 = 0x45,
+
+  ExtAppMsg = 0x45,
+  ExtAppIndMsg = 0x4a,
+  
   EnableButtonMsg = 0x46,
   DisableButtonMsg = 0x47,
   ReadButtonConfigMsg = 0x48,
   ReadButtonConfigResponse = 0x49,
-  Unused_0x4a = 0x4a,
-
+  EraseTemplateMsg = 0x4b,
+  WriteToTemplateMsg = 0x4c,
+  SetHomeWidgetSettingsMsg = 0x4d,
+  UpdateHomeWidgetMsg = 0x4e,
+  WriteHomeWidgetDoneMsg = 0x4f,
+  SetExtWidgetMsg = 0x50,
   /* */
   BatteryChargeControl = 0x52,
   BatteryConfigMsg = 0x53,
@@ -258,33 +221,46 @@ typedef enum
    * Watch/Internal Use Only
    *
    ****************************************************************************/
-  IdleUpdate = 0xa0,
+  IdleUpdateMsg = 0xa0,
+  SetWidgetListMsg = 0xa1, // for new UI
   WatchDrawnScreenTimeout = 0xa2,
-  SplashTimeoutMsg = 0xa3,
   Unused_0xa4 = 0xa4,
   Unused_0xa5 = 0xa5,
   ChangeModeMsg = 0xa6,
   ModeTimeoutMsg = 0xa7,
   WatchStatusMsg = 0xa8,
   MenuModeMsg = 0xa9,
-  BarCode = 0xaa,
+  ServiceMenuMsg = 0xaa,
   ListPairedDevicesMsg = 0xab,
-  ConnectionStateChangeMsg = 0xac,
+  BluetoothStateChangeMsg = 0xac,
   ModifyTimeMsg = 0xad,
   MenuButtonMsg = 0xae,
   ToggleSecondsMsg = 0xaf,
 
-  // BLE messages
-  SetCallbackTimerMsg = 0xb0,
-  CallbackTimeoutMsg = 0xb1,
-  UpdateConnParameterMsg = 0xb2,
+  /* BLE messages */
+  SetHeartbeatMsg = 0xb0,
+  HeartbeatIndMsg = 0xb1,
+  UpdConnParamMsg = 0xb2,
+  
+  /* HFP messages */
+  CallerIdIndMsg = 0xb3,
+  CallerNameMsg = 0xb4,
+  CallerIdMsg = 0xb5,
+  HfpMsg = 0xb6,
+  
+  /* MAP messages */
+  MapMsg = 0xb7,
+  MapIndMsg = 0xb8,
+  ConnChangeMsg = 0xb9,
+  
+  UpdWgtIndMsg = 0xba,
   
   LedChange = 0xc0,
 
   QueryMemoryMsg = 0xd0,
   RamTestMsg = 0xd1,
   RateTestMsg = 0xd2,
-
+  
   AccelerometerHostMsg = 0xe0,
   AccelerometerEnableMsg  = 0xe1,
   AccelerometerDisableMsg = 0xe2,
@@ -294,10 +270,184 @@ typedef enum
   AccelerometerSetupMsg = 0xe6,
 
   RadioPowerControlMsg = 0xf0,
-  AdvertisingDataMsg = 0xf1
+  
+  EnableAdvMsg = 0xf1,
+  SetAdvDataMsg = 0xf2,
+  SetScanRespMsg = 0xf3,
 
 } eMessageType;
 
+#define MAXIMUM_MESSAGE_TYPES ( 256 )
+
+#define MSG_OPT_NONE        ( 0 )
+#define NONZERO_MSG_OPTIONS ( 0xff )
+#define HOST_MSG_TYPE_INDEX ( 2 )
+
+#define MSG_OPT_NEWUI              (0x80)
+#define MSG_OPT_HOME_WGT           (0x40)
+#define MSG_OPT_WGT_LAYOUT_MASK    (0x0C)
+#define MSG_OPT_WGT_LAYOUT_SHFT    (2)
+
+/* options for mode change */
+#define MSG_OPT_CHGMOD_IND        (0x80)
+
+/* options for UpdateDisplay */
+#define MSG_OPT_PAGE_NO           (0x0C)
+#define MSG_OPT_TURN_PAGE         (0x0C)
+#define MSG_OPT_PRV_PAGE          (0x08)
+#define MSG_OPT_NXT_PAGE          (0x04)
+#define MSG_OPT_SET_PAGE          (0x20)
+#define MSG_OPT_UPD_HWGT          (0x20)
+#define MSG_OPT_UPD_GRID_BIT      (0x40)
+#define MSG_OPT_UPD_INTERNAL      (0x10)
+#define SET_PAGE_SHFT             (2)
+
+/* options */
+#define NUMBER_OF_BUFFERS          ( 2 )
+#define NUMBER_OF_BUFFER_STATUS    ( 4 )
+#define BUFFER_CLEAN               ( 0 )
+#define BUFFER_READING             ( 1 )
+#define BUFFER_WRITING             ( 2 )
+#define BUFFER_WRITTEN             ( 3 )
+#define BUFFER_UNAVAILABLE         ( 0xFF )
+#define BUFFER_WRITTEN_MASK        ( BIT5 )
+#define BUFFER_TYPE_READ           ( 0 )
+#define BUFFER_TYPE_WRITE          ( 1 )
+#define BUFFER_TYPE_RECENT         ( 2 )
+#define BUFFER_STATUS_MASK         ( 0x7F )
+#define BUFFER_STATUS_RECENT       ( 0x80 )
+#define NUMBER_OF_READ_BUFFER_SEL_RULES ( 2 )
+#define NUMBER_OF_WRITE_BUFFER_SEL_RULES ( 3 )
+
+/* options for the indication message */
+#define MSG_OPT_IND_HEARTBEAT  (0)
+#define MSG_OPT_IND_CALLERID   (1)
+
+/* options for the heartbeat message */
+#define MSG_OPT_HEARTBEAT_STOP (0x55)
+
+/* options for MAP State message */
+#define MSG_OPT_MAP_DISC_MAS   (0)
+#define MSG_OPT_MAP_OPEN_MAS   (1)
+#define MSG_OPT_MAP_OPEN_MNS   (2)
+#define MSG_OPT_MAP_FLDR_LST   (3)
+#define MSG_OPT_MAP_SET_FLDR   (4)
+#define MSG_OPT_MAP_MESG_LST   (5)
+#define MSG_OPT_MAP_GET_MESG   (6)
+
+/* options for HFP message */
+#define MSG_OPT_HFP_HANGUP     (0)
+#define MSG_OPT_HFP_VRCG       (1)
+#define MSG_OPT_HFP_OPEN_AG    (2)
+#define MSG_OPT_HFP_RING_STOP  (3)
+#define MSG_OPT_HFP_DSCN_SCO   (4)
+
+#define SHOW_NOTIF_CALLER_ID   (0)
+#define SHOW_NOTIF_CALLER_NAME (1)
+#define SHOW_NOTIF_END         (2)
+#define SHOW_NOTIF_REJECT_CALL (3)
+
+/* options for MAP Indication message */
+#define MSG_OPT_MAP_IND_TYPE        (0)
+#define MSG_OPT_MAP_IND_SENDER      (1)
+#define MSG_OPT_MAP_IND_SUBJECT     (2)
+#define MSG_OPT_MAP_IND_BODY        (3)
+#define MSG_OPT_MAP_IND_BODY_END    (4)
+
+/* options for Bluetooth state change */
+#define MSG_OPT_BT_STATE_DISCONN    (1)
+
+/* options for connecting HFP/MAP  */
+#define MSG_OPT_CONN_HFP_MAP        (1)
+#define TIMEOUT_TO_CONNECT_MAP_HFP  (1)
+#define TIMEOUT_FOR_CONNECTING_MAP_HFP (10)
+
+/* make mode definitions the same as buffer definitions */
+#define IDLE_MODE         (0)
+#define APP_MODE          (1)
+#define NOTIF_MODE        (2)
+#define MUSIC_MODE        (3)
+#define MODE_NUM          (4)
+#define MODE_MASK         (0x3)
+
+/* these should match the display modes for idle, application, notification,
+ * and scroll modes
+ */
+#define NORMAL_IDLE_SCREEN_BUTTON_MODE ( 0 )
+#define WATCH_DRAWN_SCREEN_BUTTON_MODE ( 1 )
+#define APPLICATION_SCREEN_BUTTON_MODE ( 4 )
+#define NOTIFICATION_BUTTON_MODE       ( 2 )
+#define SCROLL_BUTTON_MODE             ( 3 )
+
+#define UPDATE_COPY_MASK                       ( BIT4 )
+#define COPY_ACTIVE_TO_DRAW_DURING_UPDATE      ( BIT4 )
+#define FORCE_UPDATE_MASK                      ( BIT5 )
+#define NO_COPY_DURING_UPDATE                  ( 0    )
+
+#define DRAW_BUFFER_ACTIVATION_MASK ( BIT5 )
+//#define ACTIVATE_DRAW_BUFFER        ( 0 )
+#define FORCE_UPDATE                ( BIT5 )
+
+#define IDLE_TIMER_UPDATE_TYPE_MASK ( BIT6 )
+#define RESTART_IDLE_TIMER          ( BIT6 )
+#define PERIODIC_IDLE_UPDATE        ( 0 )
+
+/* button option */
+#define RESET_DISPLAY_TIMER ( 1 )
+
+/* configure mode option */
+#define SAVE_MODE_CONFIGURATION_MASK ( BIT4 )
+
+
+/*! The serial ram message is formatted so that it can be overlaid onto the
+ * message from the host (so that a buffer allocation does not have to be
+ * performed and there is one less message copy).
+ *
+ * \param Reserved0
+ * \param Reserved1
+ * \param SerialRamCommand is the command for the serial ram (read/write)
+ * \param AddressMsb
+ * \param AddressLsb
+ * \param pLineA[BYTES_PER_LINE] is pixel data (and AddressMsb2 for second write)
+ * \param AddressLsb2
+ * \param pLineB[BYTES_PER_LINE]
+ * \param Reserved31
+ *
+ */
+typedef struct
+{
+  unsigned char RowSelectA;
+  unsigned char pLineA[BYTES_PER_LINE];
+  unsigned char RowSelectB;
+  unsigned char pLineB[BYTES_PER_LINE];
+
+} tSerialRamPayload;
+
+/*! The LCD message is formatted so that it can be written directly to the LCD
+ * \param Reserved bytes are required by LcdDriver.c
+ * \param LcdCommand is the lcd write command for the LCD
+ * \param RowNumber is the row on the LCD
+ * \param pLine[BYTES_PER_LINE] is a line of LCD data
+ * \param Dummy1
+ * \param Dummy2
+ *
+ */
+typedef struct
+{
+  unsigned char Reserved0;
+  unsigned char Reserved1;
+  unsigned char LcdCommand;
+  unsigned char RowNumber;
+  unsigned char pLine[BYTES_PER_LINE];
+  unsigned char Dummy1;
+  unsigned char Dummy2;
+} tLcdData;
+
+#define LCD_DATA_SIZE   (sizeof(tLcdData))
+
+#define LCD_MESSAGE_CMD_INDEX        ( 2 )
+#define LCD_MESSAGE_ROW_NUMBER_INDEX ( 3 )
+#define LCD_MESSAGE_LINE_INDEX       ( 4 )
 
 #define LED_OFF_OPTION      ( 0x00 )
 #define LED_ON_OPTION       ( 0x01 )
@@ -392,6 +542,126 @@ typedef struct
 
 } tSetVibrateModePayload;
 
+/*! Write To Template Strucutre
+ *
+ * @param TemplateSelect (the first bye of payload) selects which template will
+ * be written to
+ * @param RowSelectA 1st row to be written
+ * @param pLineA Data written to 1st row
+ * @param RowSelectB 2st row to be written (optional)
+ * @param pLineB Data written to 2nd row (optional)
+ */
+typedef struct
+{
+  unsigned char TemplateSelect;
+  unsigned char RowSelectA;
+  unsigned char pLineA[12];
+  unsigned char RowSelectB;
+  unsigned char pLineB[12];
+
+} tWriteToTemplateMsgPayload;
+
+/*! Custom Date Time Position message payload Strucutre
+ *
+ * @param HoursRow - row pixel (0-95)
+ * @param HoursCol - column pixel (0-95)
+ * @param MinsRow - row pixel (0-95)
+ * @param MinsCol - column pixel (0-95)
+ * @param SecsRow - row pixel (0-95)
+ * @param SecsCol - column pixel (0-95)
+ * @param AmPmRow - row pixel (0-95)
+ * @param AmPmCol - column pixel (0-95)
+ * @param DowRow - row pixel (0-95)
+ * @param DowCol - column pixel (0-95)
+ * @param YearRow - row pixel (0-95)
+ * @param YearCol - column pixel (0-95)
+ * @param MonthRow - row pixel (0-95)
+ * @param MonthCol - column pixel (0-95)
+ * @param DayRow - row pixel (0-95)
+ * @param DayCol - column pixel (0-95)
+ * @param DateSeparatorRow - row pixel (0-95)
+ * @param DateSeparatorCol - column pixel (0-95)
+ *
+ */
+typedef struct
+{
+  unsigned char HoursRow;
+  unsigned char HoursCol;
+  unsigned char TimeSeparatorRow;
+  unsigned char TimeSeparatorCol;
+  unsigned char MinsRow;
+  unsigned char MinsCol;
+  unsigned char SecsRow;
+  unsigned char SecsCol;
+  unsigned char AmPmRow;
+  unsigned char AmPmCol;
+  unsigned char DowRow;
+  unsigned char DowCol;
+  unsigned char YearRow;
+  unsigned char YearCol;
+  unsigned char MonthRow;
+  unsigned char MonthCol;
+  unsigned char DayRow;
+  unsigned char DayCol;
+  unsigned char DateSeparatorRow;
+  unsigned char DateSeparatorCol;
+
+} tSetCustomPosMsgPayload;
+
+/*! Custom Idle Icons Position message payload Strucutre
+ *
+ * @param BluetoothOffRow - row pixel (0-95)
+ * @param BluetoothOffCol - column pixel (0-95)
+ * @param PhoneDisconnectedRow - row pixel (0-95)
+ * @param PhoneDisconnectedCol - column pixel (0-95)
+ * @param BatteryChargingRow - row pixel (0-95)
+ * @param BatteryChargingCol - column pixel (0-95)
+ * @param LowBatteryRow - row pixel (0-95)
+ * @param LowBatteryCol - column pixel (0-95)
+ *
+ */
+typedef struct
+{
+  unsigned char BluetoothOffRow;
+  unsigned char BluetoothOffCol;
+  unsigned char PhoneDisconnectedRow;
+  unsigned char PhoneDisconnectedCol;
+  unsigned char BatteryChargingRow;
+  unsigned char BatteryChargingCol;
+  unsigned char LowBatteryRow;
+  unsigned char LowBatteryCol;
+
+} tSetCustomIdleIconsPosMsgPayload;
+
+/*! Custom Date Time Font message payload Strucutre
+ *
+ * @param HoursFont - font type
+ * @param MinsFont - font type
+ * @param SecsFont - font type
+ * @param AmPmFont - font type
+ * @param DayOfWeekFont - font type
+ * @param YearFont - font type
+ * @param MonthFont - font type
+ * @param DayFont - font type
+ * @param DateSeparatorFont - font type
+ *
+ */
+typedef struct
+{
+  unsigned char HoursFont;
+  unsigned char TimeSeparatorFont;
+  unsigned char MinsFont;
+  unsigned char SecsFont;
+  unsigned char AmPmFont;
+
+  unsigned char DayOfWeekFont;
+  unsigned char YearFont;
+  unsigned char MonthFont;
+  unsigned char DayFont;
+  unsigned char DateSeparatorFont;
+
+} tSetCustomFontMsgPayload;
+
 /*!
  * \param Year is a 12 bit value
  * \param Month of the year - 1 to 12
@@ -410,84 +680,14 @@ typedef struct
   unsigned char DayOfWeek;
   unsigned char Hour;
   unsigned char Minute;
-  unsigned char Second;	
+  unsigned char Second;
 
 } tRtcHostMsgPayload;
-
-/*! Load Template Strucutre
- *
- * /param TemplateSelect (the first bye of payload) selects what will be filled
- * into display memory.
- */
-typedef struct
-{
-  unsigned char TemplateSelect;
-
-} tLoadTemplatePayload;
-
-/* options */
-#define IDLE_BUFFER_SELECT         ( 0x00 )
-#define APPLICATION_BUFFER_SELECT  ( 0x01 )
-#define NOTIFICATION_BUFFER_SELECT ( 0x02 )
-#define SCROLL_BUFFER_SELECT       ( 0x03 )
-#define BUFFER_SELECT_MASK         ( 0x0F )
-#define NUMBER_OF_BUFFERS          ( 2 )
-#define NUMBER_OF_BUFFER_STATUS    ( 4 )
-#define BUFFER_CLEAN               ( 0 )
-#define BUFFER_READING             ( 1 )
-#define BUFFER_WRITING             ( 2 )
-#define BUFFER_WRITTEN             ( 3 )
-#define BUFFER_UNAVAILABLE         ( 0xFF )
-#define BUFFER_WRITTEN_MASK        ( BIT5 )
-#define BUFFER_TYPE_READ           ( 0 )
-#define BUFFER_TYPE_WRITE          ( 1 )
-#define BUFFER_TYPE_RECENT         ( 2 )
-#define BUFFER_STATUS_MASK         ( 0x7F )
-#define BUFFER_STATUS_RECENT       ( 0x80 )
-#define NUMBER_OF_READ_BUFFER_SEL_RULES ( 2 )
-#define NUMBER_OF_WRITE_BUFFER_SEL_RULES ( 3 )
-
-/* make mode definitions the same as buffer definitions */
-#define IDLE_MODE         ( IDLE_BUFFER_SELECT )
-#define APPLICATION_MODE  ( APPLICATION_BUFFER_SELECT )
-#define NOTIFICATION_MODE ( NOTIFICATION_BUFFER_SELECT )
-#define SCROLL_MODE       ( SCROLL_BUFFER_SELECT )
-#define NUMBER_OF_MODES   ( 4 )
-#define MODE_MASK         ( BUFFER_SELECT_MASK )
-
-/* these should match the display modes for idle, application, notification,
- * and scroll modes
- */
-#define NORMAL_IDLE_SCREEN_BUTTON_MODE ( 0 )
-#define APPLICATION_SCREEN_BUTTON_MODE ( 1 )
-#define NOTIFICATION_BUTTON_MODE       ( 2 )
-#define SCROLL_BUTTON_MODE             ( 3 )
-#define WATCH_DRAWN_SCREEN_BUTTON_MODE ( 4 )
-#define NUMBER_OF_BUTTON_MODES         ( 5 )
-
-#define UPDATE_COPY_MASK                       ( BIT4 )
-#define COPY_ACTIVE_TO_DRAW_DURING_UPDATE      ( BIT4 )
-#define FORCE_UPDATE_MASK                      ( BIT5 )
-#define NO_COPY_DURING_UPDATE                  ( 0    )
-
-#define DRAW_BUFFER_ACTIVATION_MASK ( BIT5 )
-//#define ACTIVATE_DRAW_BUFFER        ( 0 )
-#define FORCE_UPDATE                ( BIT5 )
-
-#define IDLE_TIMER_UPDATE_TYPE_MASK ( BIT6 )
-#define RESTART_IDLE_TIMER          ( BIT6 )
-#define PERIODIC_IDLE_UPDATE        ( 0 )
-
-/* button option */
-#define RESET_DISPLAY_TIMER ( 1 )
-
-/* configure mode option */
-#define SAVE_MODE_CONFIGURATION_MASK ( BIT4 )
 
 /*!
  * \param DisplayMode is Idle, Application, or Notification
  * \param ButtonIndex is the button index
- * \param ButtonPressType is immediate, pressed, hold, or long hold
+ * \param ButtonEvent is immediate, pressed, hold, or long hold
  * \param CallbackMsgType is the callback message type for the button event
  * \param CallbackMsgOptions is the options to send with the message
  */
@@ -495,7 +695,7 @@ typedef struct
 {
   unsigned char DisplayMode;
   unsigned char ButtonIndex;
-  unsigned char ButtonPressType;
+  unsigned char ButtonEvent;
   unsigned char CallbackMsgType;
   unsigned char CallbackMsgOptions;
 
@@ -510,7 +710,7 @@ typedef enum
   eScScrollComplete = 0x10,
   eScScrollRequest = 0x11
 
-} eStatusChangeEvents;
+} eModeChangeEvent;
 
 /* OSAL Nv operation message */
 #define NVAL_INIT_OPERATION     ( 0x00 )
@@ -555,16 +755,22 @@ typedef struct
 
 
 /* Menu Button Message Options */
-#define MENU_BUTTON_OPTION_RESERVED                     ( 0x00 )
-#define MENU_BUTTON_OPTION_TOGGLE_DISCOVERABILITY       ( 0x01 )
-#define MENU_BUTTON_OPTION_TOGGLE_LINK_ALARM            ( 0x02 )
-#define MENU_BUTTON_OPTION_EXIT                         ( 0x03 )
-#define MENU_BUTTON_OPTION_TOGGLE_BLUETOOTH             ( 0x04 )
-#define MENU_BUTTON_OPTION_TOGGLE_SECURE_SIMPLE_PAIRING ( 0x05 )
-#define MENU_BUTTON_OPTION_TOGGLE_RST_NMI_PIN           ( 0x06 )
-#define MENU_BUTTON_OPTION_DISPLAY_SECONDS              ( 0x07 )
-#define MENU_BUTTON_OPTION_INVERT_DISPLAY               ( 0x08 )
-#define MENU_BUTTON_OPTION_TOGGLE_ACCEL                 ( 0x09 )
+#define MENU_BUTTON_OPTION_RESERVED                     (0)
+#define MENU_BUTTON_OPTION_TOGGLE_DISCOVERABILITY       (1)
+#define MENU_BUTTON_OPTION_TOGGLE_LINK_ALARM            (2)
+#define MENU_BUTTON_OPTION_EXIT                         (3)
+#define MENU_BUTTON_OPTION_TOGGLE_BLUETOOTH             (4)
+#define MENU_BUTTON_OPTION_TOGGLE_SECURE_SIMPLE_PAIRING (5)
+#define MENU_BUTTON_OPTION_TOGGLE_RST_NMI_PIN           (6)
+#define MENU_BUTTON_OPTION_DISPLAY_SECONDS              (7)
+#define MENU_BUTTON_OPTION_INVERT_DISPLAY               (8)
+#define MENU_BUTTON_OPTION_TOGGLE_ACCEL                 (9)
+#define MENU_BUTTON_OPTION_TOGGLE_ENABLE_CHARGING       (10)
+#define MENU_BUTTON_OPTION_ENTER_BOOTLOADER_MODE        (11)
+#define MENU_BUTTON_OPTION_TOGGLE_SERIAL_SBW_GND        (12)
+#define MENU_BUTTON_OPTION_TOGGLE_DELETE_PAIRING        (13)
+#define MENU_BUTTON_OPTION_TOGGLE_SBW_OFF_CLIP          (14)
+#define MENU_BUTTON_OPTION_MENU1                        (15)
 
 #define PAIRING_CONTROL_OPTION_DISABLE_PAIRING ( 0x01 )
 #define PAIRING_CONTROL_OPTION_ENABLE_PAIRING  ( 0x02 )
@@ -696,10 +902,5 @@ typedef struct
 #define CONFIGURE_DISPLAY_OPTION_DONT_INVERT_DISPLAY  ( 3 )
 #define CONFIGURE_DISPLAY_OPTION_INVERT_DISPLAY       ( 4 )
 /******************************************************************************/
-typedef struct
-{
-  unsigned int Timeout;
-  unsigned char Repeat;
-} tSetCallbackTimerPayload;
 
 #endif  /* MESSAGES_H */

@@ -338,7 +338,7 @@ signed portBASE_TYPE xTaskGenericCreate( pdTASK_CODE pxTaskCode, const signed ch
 {
 signed portBASE_TYPE xReturn;
 tskTCB * pxNewTCB;
-  
+
 	/* Allocate the memory required by the TCB and stack for the new task,
 	checking that the allocation was successful. */
 	pxNewTCB = prvAllocateTCBAndStack( usStackDepth, puxStackBuffer );
@@ -368,7 +368,9 @@ tskTCB * pxNewTCB;
 		#if( portSTACK_GROWTH < 0 )
 		{
 			pxTopOfStack = pxNewTCB->pxStack + ( usStackDepth - 1 );
+#pragma diag_suppress=Pe1053      
 			pxTopOfStack = ( portSTACK_TYPE * ) ( ( ( unsigned long ) pxTopOfStack ) & ( ( unsigned long ) ~portBYTE_ALIGNMENT_MASK  ) );
+#pragma diag_default=Pe1053
 		}
 		#else
 		{
@@ -476,13 +478,13 @@ tskTCB * pxNewTCB;
 		}
 	}
 
-#ifdef TASK_DEBUG
+#if TASK_DEBUG
   extern unsigned char UTL_RegisterFreeRtosTask(void *xTaskHandle,
                                                 unsigned int StackDepth);
-    
+
   UTL_RegisterFreeRtosTask( ( xTaskHandle ) pxNewTCB,usStackDepth);
 #endif
-  
+
 	return xReturn;
 }
 /*-----------------------------------------------------------*/
@@ -664,6 +666,7 @@ tskTCB * pxNewTCB;
 				/* The list item will be inserted in wake time order. */
 				listSET_LIST_ITEM_VALUE( &( pxCurrentTCB->xGenericListItem ), xTimeToWake );
 
+#pragma diag_suppress=Pa082 /* ignore order of volatile access warning */
 				if( xTimeToWake < xTickCount )
 				{
 					/* Wake time has overflowed.  Place this item in the
@@ -676,6 +679,7 @@ tskTCB * pxNewTCB;
 					current block list. */
 					vListInsert( ( xList * ) pxDelayedTaskList, ( xListItem * ) &( pxCurrentTCB->xGenericListItem ) );
 				}
+#pragma diag_default=Pa082
 			}
 			xAlreadyYielded = xTaskResumeAll();
 		}
@@ -980,11 +984,11 @@ void vTaskStartScheduler( void )
 portBASE_TYPE xReturn;
 
 	/* Add the idle task at the lowest priority. */
-	xReturn = xTaskCreate(prvIdleTask, 
-                        (signed char *) "IDLE", 
+	xReturn = xTaskCreate(prvIdleTask,
+                        (signed char *) "IDLE",
                         IDLE_TASK_SIZE,
-                        (void *) NULL, 
-                        ( tskIDLE_PRIORITY | portPRIVILEGE_BIT ), 
+                        (void *) NULL,
+                        ( tskIDLE_PRIORITY | portPRIVILEGE_BIT ),
                         &IdleTaskHandle );
 
 	if( xReturn == pdPASS )
@@ -1559,14 +1563,16 @@ void vTaskSwitchContext( void )
 	}
 	#endif
 
+#pragma diag_suppress=Pa082
 	taskFIRST_CHECK_FOR_STACK_OVERFLOW();
 	taskSECOND_CHECK_FOR_STACK_OVERFLOW();
+#pragma diag_default=Pa082
 
 	/* Find the highest priority queue that contains ready tasks. */
 	while( listLIST_IS_EMPTY( &( pxReadyTasksLists[ uxTopReadyPriority ] ) ) )
 	{
 		--uxTopReadyPriority;
-    
+
 #if 0
     if ( uxTopReadyPriority > uxTopUsedPriority )
     {
@@ -1577,7 +1583,7 @@ void vTaskSwitchContext( void )
 #endif
 }
 
-  
+
 	/* listGET_OWNER_OF_NEXT_ENTRY walks through the list, so the tasks of the
 	same priority get an equal share of the processor time. */
 	listGET_OWNER_OF_NEXT_ENTRY( pxCurrentTCB, &( pxReadyTasksLists[ uxTopReadyPriority ] ) );
@@ -1622,6 +1628,7 @@ portTickType xTimeToWake;
 
 			listSET_LIST_ITEM_VALUE( &( pxCurrentTCB->xGenericListItem ), xTimeToWake );
 
+#pragma diag_suppress=Pa082 /* ignore order of volatile access warning */
 			if( xTimeToWake < xTickCount )
 			{
 				/* Wake time has overflowed.  Place this item in the overflow list. */
@@ -1632,6 +1639,7 @@ portTickType xTimeToWake;
 				/* The wake time has not overflowed, so we can use the current block list. */
 				vListInsert( ( xList * ) pxDelayedTaskList, ( xListItem * ) &( pxCurrentTCB->xGenericListItem ) );
 			}
+#pragma diag_default=Pa082
 		}
 	}
 	#else
@@ -2042,9 +2050,9 @@ tskTCB *pxNewTCB;
 			}
 			#endif			
 			
-			sprintf(pcStatusString, ( char * ) "%s\t\t%c\t%u\t%u\t%u\r\n", 
-              pxNextTCB->pcTaskName, cStatus, 
-              ( unsigned int ) pxNextTCB->uxPriority, usStackRemaining, 
+			sprintf(pcStatusString, ( char * ) "%s\t\t%c\t%u\t%u\t%u\r\n",
+              pxNextTCB->pcTaskName, cStatus,
+              ( unsigned int ) pxNextTCB->uxPriority, usStackRemaining,
               ( unsigned int ) pxNextTCB->uxTCBNumber );
 			
       strcat( ( char * ) pcWriteBuffer, ( char * ) pcStatusString );

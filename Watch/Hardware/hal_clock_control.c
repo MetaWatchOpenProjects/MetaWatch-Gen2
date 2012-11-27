@@ -22,6 +22,7 @@
 
 #include "portmacro.h"
 #include "hal_board_type.h"
+#include "hal_miscellaneous.h"
 
 /* resetting the UARTs did not solve the power consumption problem */
 static unsigned char SmClkRequests;
@@ -29,37 +30,40 @@ static unsigned char SmClkRequests;
 /* enable the SMCLK and keep track of a new user */
 void EnableSmClkUser(unsigned char User)
 {
-
-  portENTER_CRITICAL();
-  
-#ifdef CLOCK_CONTROL_DEBUG
-  DEBUG5_HIGH();
+  if ( QueryErrataGroup1() )
+  {
+    portENTER_CRITICAL();
+    
+#if CLOCK_CONTROL_DEBUG
+    DEBUG5_HIGH();
 #endif
-  
-  SmClkRequests |= User;
-  
-  UCSCTL8 |= SMCLKREQEN;
-  
-  portEXIT_CRITICAL();
-  
+    
+    SmClkRequests |= User;
+    
+    UCSCTL8 |= SMCLKREQEN;
+    
+    portEXIT_CRITICAL();
+  }
 }  
 
 /* remove a user and disable clock if there are 0 users */
 void DisableSmClkUser(unsigned char User)
 {
-  portENTER_CRITICAL();
-  
-  SmClkRequests &= ~User;
-    
-  if ( SmClkRequests == 0 )
+  if ( QueryErrataGroup1() )
   {
-    UCSCTL8 &= ~SMCLKREQEN;
+    portENTER_CRITICAL();
     
-#ifdef CLOCK_CONTROL_DEBUG
-    DEBUG5_LOW();
+    SmClkRequests &= ~User;
+      
+    if ( SmClkRequests == 0 )
+    {
+      UCSCTL8 &= ~SMCLKREQEN;
+      
+#if CLOCK_CONTROL_DEBUG
+      DEBUG5_LOW();
 #endif
-  };
-  
-  portEXIT_CRITICAL();
-  
+    };
+    
+    portEXIT_CRITICAL();
+  }
 }

@@ -243,7 +243,7 @@
 #define SW_E_INDEX        ( 5 )
 #define SW_F_INDEX        ( 6 )
 #define SW_P_INDEX        ( 7 )
-#define NUMBER_OF_BUTTONS ( 8 )
+#define TOTAL_BTN_NUM     ( 8 )
 
 #ifdef ANALOG
   /* analog board has traces for all of the buttons but 

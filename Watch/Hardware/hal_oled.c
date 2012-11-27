@@ -112,8 +112,12 @@ void OledWrite(unsigned char Command,unsigned char* pData,unsigned char Length)
 #define OLED_I2C_RXIFG         ( 10 )
 #define OLED_I2C_TXIFG         ( 12 )
 
+#ifndef BOOTLOADER
 #pragma vector = USCI_OLED_I2C_VECTOR
 __interrupt void OLED_I2C_ISR(void)
+#else
+void OLED_I2C_ISR(void)
+#endif
 {
   switch(__even_in_range(USCI_OLED_I2C_IV,12))
   {
