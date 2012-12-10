@@ -28,12 +28,13 @@
 *******************************************************************************/
 #include "hal_lcd.h"
 
-#define HOST_MSG_BUFFER_LENGTH  ( 32 )
-#define HOST_MSG_HEADER_LENGTH  ( 4 )
-#define HOST_MSG_CRC_LENGTH     ( 2 )
-#define HOST_MSG_OVERHEAD_LENTH ( 6 )
-#define HOST_MSG_PAYLOAD_LENTH  (14)
-#define HOST_MSG_START_FLAG     ( 0x01 )
+#define MSG_BUFFER_LENGTH  ( 32 )
+#define MSG_HEADER_LENGTH  ( 4 )
+#define MSG_CRC_LENGTH     ( 2 )
+#define MSG_OVERHEAD_LENTH ( 6 )
+#define MSG_PAYLOAD_LENTH  (14)
+#define MSG_FRM_START      (0x01)
+#define FRAME_HEADER_LEN   (2) // Flag + frame length
 
 // see BufferPool.c
 #define MSG_RELATIVE_INDEX_FLG  (-4)
@@ -42,8 +43,8 @@
 #define MSG_RELATIVE_INDEX_OPT  (-1)
 
 /* 26 */
-#define HOST_MSG_MAX_PAYLOAD_LENGTH \
-  (HOST_MSG_BUFFER_LENGTH - HOST_MSG_HEADER_LENGTH - HOST_MSG_CRC_LENGTH)
+#define MSG_MAX_PAYLOAD_LENGTH \
+  (MSG_BUFFER_LENGTH - MSG_HEADER_LENGTH - MSG_CRC_LENGTH)
 
 
 /*! Message Format
@@ -96,7 +97,7 @@ typedef struct
   unsigned char Length;
   unsigned char Type;
   unsigned char Options;
-  unsigned char pPayload[HOST_MSG_MAX_PAYLOAD_LENGTH];
+  unsigned char pPayload[MSG_MAX_PAYLOAD_LENGTH];
   unsigned char crcLsb;
   unsigned char crcMsb;
 
@@ -281,7 +282,7 @@ typedef enum
 
 #define MSG_OPT_NONE        ( 0 )
 #define NONZERO_MSG_OPTIONS ( 0xff )
-#define HOST_MSG_TYPE_INDEX ( 2 )
+#define MSG_TYPE_INDEX ( 2 )
 
 #define MSG_OPT_NEWUI              (0x80)
 #define MSG_OPT_HOME_WGT           (0x40)
@@ -340,7 +341,7 @@ typedef enum
 #define MSG_OPT_HFP_VRCG       (1)
 #define MSG_OPT_HFP_OPEN_AG    (2)
 #define MSG_OPT_HFP_RING_STOP  (3)
-#define MSG_OPT_HFP_DSCN_SCO   (4)
+#define MSG_OPT_HFP_SCO_CONN   (4)
 
 #define SHOW_NOTIF_CALLER_ID   (0)
 #define SHOW_NOTIF_CALLER_NAME (1)
@@ -463,7 +464,7 @@ typedef struct
 #define PAGE_CONTROL_INVALIDATE_AND_FILL  ( 0x30 )
 #define PAGE_CONTROL_ACTIVATE             ( 0x40 )
 
-#define WRITE_OLED_BUFFER_MAX_PAYLOAD ( HOST_MSG_MAX_PAYLOAD_LENGTH - 3 )
+#define WRITE_OLED_BUFFER_MAX_PAYLOAD ( MSG_MAX_PAYLOAD_LENGTH - 3 )
 
 /*!
  *
@@ -481,7 +482,7 @@ typedef struct
 
 } tWriteOledBufferPayload;
 
-#define WRITE_SCROLL_BUFFER_MAX_PAYLOAD ( HOST_MSG_MAX_PAYLOAD_LENGTH - 1 )
+#define WRITE_SCROLL_BUFFER_MAX_PAYLOAD ( MSG_MAX_PAYLOAD_LENGTH - 1 )
 
 /*!
  * \param Size is the number of columns being written
@@ -833,7 +834,7 @@ typedef union
 typedef struct
 {
   unsigned char GeneralPurposeType;
-  unsigned char pData[HOST_MSG_MAX_PAYLOAD_LENGTH-1];
+  unsigned char pData[MSG_MAX_PAYLOAD_LENGTH-1];
 
 } tGeneralPurposePayload;
 
@@ -884,8 +885,8 @@ typedef struct
 #define ACCELEROMETER_SETUP_SID_LENGTH_OPTION               ( 5 )
 #define ACCELEROMETER_SETUP_INTERRUPT_ENABLE_DISABLE_OPTION ( 6 )
 
-#define ACCELEROMETER_HOST_MSG_IS_DATA_OPTION      ( 1 )
-#define ACCELEROMETER_HOST_MSG_IS_INTERRUPT_OPTION ( 2 )
+#define ACCELEROMETER_MSG_IS_DATA_OPTION      ( 1 )
+#define ACCELEROMETER_MSG_IS_INTERRUPT_OPTION ( 2 )
 
 
 /******************************************************************************/

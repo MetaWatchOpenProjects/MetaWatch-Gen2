@@ -70,13 +70,6 @@ void RouteMsg(tMessage* pMsg);
  */
 void SendMessageToQueueFromIsr(unsigned char Qindex,tMessage* pMsg);
 
-/*! Let routing know handle of wrapper queue.  This function is used so that the
- * number of queues can change without affecting the stack.
- *
- * \param WrapperQueueHandle - handle for wrapper queue (spp or ble)
- */
-void AssignWrapperQueueHandle(xQueueHandle WrapperHandle);
-
 /*! Set the message parameters.  Safe to call when in interrupt context.
  *
  * \param pMsg is a pointer to a message

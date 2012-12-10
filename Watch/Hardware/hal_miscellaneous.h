@@ -24,10 +24,6 @@
 #ifndef HAL_MISCELLANEOUS_H
 #define HAL_MISCELLANEOUS_H
 
-void SaveResetSource(void);
-
-unsigned int GetResetSource(void);
-
 /*! Reads the hardware revision register in the MSP430
  *
  * \return Character representation of revision (Example: 'E')

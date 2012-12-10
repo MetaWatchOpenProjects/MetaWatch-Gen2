@@ -200,7 +200,7 @@ static const tMsgInfo MsgInfo[MAXIMUM_MESSAGE_TYPES] =
   {"CallerIdIndMsg",              SPP_TASK_QINDEX,   1 }, /* 0xb3 */
   {"CallerNameMsg",               DISPLAY_QINDEX,    1 }, /* 0xb4 */
   {"CallerIdMsg",                 DISPLAY_QINDEX,    1 }, /* 0xb5 */
-  {"HfpMsg",                      SPP_TASK_QINDEX,   0 }, /* 0xb6 */
+  {"HfpMsg",                      SPP_TASK_QINDEX,   1 }, /* 0xb6 */
   {"MapMsg",                      SPP_TASK_QINDEX,   0 }, /* 0xb7 */
   {"MapIndMsg",                   SPP_TASK_QINDEX,   1 }, /* 0xb8 */
   {"ConnChgMsg",                  SPP_TASK_QINDEX,   1 }, /* 0xb9 */

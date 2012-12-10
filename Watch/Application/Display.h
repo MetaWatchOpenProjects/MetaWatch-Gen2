@@ -105,7 +105,7 @@ unsigned char GetLanguage(void);
 /******************************************************************************/
 
 /*! \return 1 if the link alarm is enabled, 0 if it is not */
-unsigned char QueryLinkAlarmEnable(void);
+unsigned char LinkAlarmEnable(void);
 
 /*! Toggle the state of the link Alarm control bit */
 void ToggleLinkAlarmEnable(void);

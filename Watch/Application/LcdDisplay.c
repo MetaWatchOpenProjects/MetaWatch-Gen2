@@ -56,10 +56,6 @@
 #include "IdleTask.h"
 #include "TestMode.h"
 
-#define DISPLAY_TASK_QUEUE_LENGTH 16
-#define DISPLAY_TASK_STACK_SIZE  	(configMINIMAL_STACK_SIZE + 100) //total 48-88
-#define DISPLAY_TASK_PRIORITY     (tskIDLE_PRIORITY + 1)
-
 #define IDLE_FULL_UPDATE   (0)
 #define DATE_TIME_ONLY     (1)
 
@@ -325,12 +321,17 @@ static unsigned char RateTestCallback(void);
  *
  * \return none, result is to start the display task
  */
+
+#define DISPLAY_TASK_QUEUE_LENGTH 16
+#define DISPLAY_TASK_STACK_SIZE  	(configMINIMAL_STACK_SIZE + 100) //total 48-88
+#define DISPLAY_TASK_PRIORITY     (tskIDLE_PRIORITY + 1)
+
 void InitializeDisplayTask(void)
 {
   InitMyBuffer();
 
   QueueHandles[DISPLAY_QINDEX] =
-    xQueueCreate( DISPLAY_TASK_QUEUE_LENGTH, MESSAGE_QUEUE_ITEM_SIZE  );
+    xQueueCreate(DISPLAY_TASK_QUEUE_LENGTH, MESSAGE_QUEUE_ITEM_SIZE);
 
   // task function, task name, stack len, task params, priority, task handle
   xTaskCreate(DisplayTask,
@@ -647,10 +648,7 @@ static void DisplayQueueMessageHandler(tMessage* pMsg)
     break;
 
   case LinkAlarmMsg:
-    if (QueryLinkAlarmEnable())
-    {
-      GenerateLinkAlarm();
-    }
+    if (LinkAlarmEnable()) GenerateLinkAlarm();
     break;
 
   case ModeTimeoutMsg:
@@ -739,7 +737,7 @@ static void IdleUpdateHandler(void)
 {
   PageType = PAGE_TYPE_IDLE;
 
-  if (CurrentPage[PageType] == InitPage) DrawDateTime();
+  if (CurrentPage[PageType] == InitPage || NvIdle == WATCH_DRAW_TOP) DrawDateTime();
   
   if (OnceConnected())
     CreateAndSendMessage(UpdateDisplay, IDLE_MODE | MSG_OPT_NEWUI | MSG_OPT_UPD_INTERNAL);
@@ -1095,7 +1093,7 @@ static void DrawMenu1(void)
                           RIGHT_BUTTON_COLUMN,
                           BUTTON_ICON_SIZE_IN_COLUMNS);
 
-  CopyColumnsIntoMyBuffer(QueryLinkAlarmEnable() ? pLinkAlarmOnIcon : pLinkAlarmOffIcon,
+  CopyColumnsIntoMyBuffer(LinkAlarmEnable() ? pLinkAlarmOnIcon : pLinkAlarmOffIcon,
                           BUTTON_ICON_C_D_ROW,
                           BUTTON_ICON_SIZE_IN_ROWS,
                           LEFT_BUTTON_COLUMN,
@@ -1208,6 +1206,13 @@ static void WatchStatusScreenHandler(void)
                           9,
                           IconInfo[ICON_SET_BATTERY_V].Width);
 
+  gRow = 27+4;
+  gColumn = 5;
+  gBitColumnMask = BIT4;
+  SetFont(MetaWatch5);
+
+  if (PairedDeviceType() == DEVICE_TYPE_BLE) WriteFontString("BLE");
+  else if (PairedDeviceType() == DEVICE_TYPE_SPP) WriteFontString("BR");
   /* display battery voltage */
   
   gRow = 27+2;
@@ -1474,10 +1479,9 @@ static void CopyColumnsIntoMyBuffer(unsigned char const* pImage,
 
 static void UpdateHomeWidget(unsigned char Option)
 {
-  if (CurrentPage[PageType] == InitPage) {DrawDateTime(); return;}
-
   if (CurrentMode != IDLE_MODE || PageType != PAGE_TYPE_IDLE) return;
-  
+  if (CurrentPage[PageType] == InitPage || NvIdle == WATCH_DRAW_TOP) {DrawDateTime(); return;}
+
   unsigned char LayoutType = GetHomeWidgetLayout();
   if (!LayoutType) return; // no hw on current idle screen
   

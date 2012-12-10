@@ -266,7 +266,7 @@ void WatchdogTimerIsr(void)
   WATCHDOG_LED_DELAY();
 #endif
 
-  /* write the inverse of the password and cause a reset */
+  /* write the inverse of the password and cause a PUC reset */
   WDTCTL = ~WDTPW; 
 }
 

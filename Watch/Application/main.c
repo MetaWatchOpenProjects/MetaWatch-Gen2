@@ -93,13 +93,18 @@
 /* 430    11/22/12  Mu Yang  Show splash till BT is successfully turned on.   */
 /* 431    11/24/12  Mu Yang  Metaboot cmdbuf to 8; no reject call.            */
 /* 432    11/24/12  Mu Yang  Call end due 5s timeout; APP_VER for metaboot.   */
+/* 433    11/28/12  Mu Yang  Receiving multi-msgs handling for Android 4.2.   */
+/* 434    11/28/12  Mu Yang  SPP receving handling support for Android 4.2.   */
+/* 435    12/06/12  Mu Yang  Back compatible with MWM-CE.                     */
+/* 436    12/07/12  Mu Yang  Add BLE/BR mark to Status screen.                */
+/* 437    12/07/12  Mu Yang  Replace WDReset(PUC) by SwReset(BOR).            */
 /******************************************************************************/
 
 
-#define APP_VER  "1.1"
+#define APP_VER  "1.2"
 
 const char VERSION[] = APP_VER;
-const char BUILD[] = "432";
+const char BUILD[] = "437";
 
 #include "FreeRTOS.h"
 #include "semphr.h"

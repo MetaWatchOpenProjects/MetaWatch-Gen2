@@ -110,7 +110,7 @@ unsigned char GetLanguage(void)
 
 static unsigned char nvLinkAlarmEnable;
 
-unsigned char QueryLinkAlarmEnable(void)
+unsigned char LinkAlarmEnable(void)
 {
   return nvLinkAlarmEnable;  
 }

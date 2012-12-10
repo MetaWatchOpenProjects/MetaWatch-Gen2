@@ -131,19 +131,6 @@ static void PrintQueueNameIsFull(unsigned char Qindex)
   }
 }
 
-#if 0
-/* this was kept for reference */
-static void SendMessageToQueueWait(unsigned char Qindex, tMessage* pMsg)
-{
-  /* wait */
-  if ( xQueueSend(QueueHandles[Qindex], pMsg, portMAX_DELAY) == errQUEUE_FULL )
-  { 
-    PrintQueueNameIsFull(Qindex);
-    SendToFreeQueue(pMsg);
-  }
-}
-#endif
-
 /* send a message to a specific queue from an isr 
  * routing requires 25 us
  * putting a message into a queue (in interrupt context) requires 28 us
@@ -178,10 +165,18 @@ void SendMessageToQueueFromIsr(unsigned char Qindex, tMessage* pMsg)
     portYIELD();
   }
 #endif
-  
 }
 
-void AssignWrapperQueueHandle(xQueueHandle WrapperHandle)
+#if 0
+/* this was kept for reference */
+static void SendMessageToQueueWait(unsigned char Qindex, tMessage* pMsg)
 {
-  QueueHandles[SPP_TASK_QINDEX] = WrapperHandle;  
+  /* wait */
+  if ( xQueueSend(QueueHandles[Qindex], pMsg, portMAX_DELAY) == errQUEUE_FULL )
+  { 
+    PrintQueueNameIsFull(Qindex);
+    SendToFreeQueue(pMsg);
+  }
 }
+#endif
+

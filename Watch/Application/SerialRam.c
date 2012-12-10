@@ -508,7 +508,7 @@ void UpdateDisplayHandler(tMessage* pMsg)
 
 //  PrintStringAndHexByte("- UpdDsp Opt:0x", pMsg->Options);
   
-  if (pMsg->Options & MSG_OPT_NEWUI) //for idle update only
+  if ((pMsg->Options & MSG_OPT_NEWUI) && ScreenControl() != WATCH_DRAW_TOP) //for idle update only
   {
     if (!(pMsg->Options & MSG_OPT_UPD_INTERNAL) && pMsg->Options & MSG_OPT_SET_PAGE)
     { // set current page only
@@ -536,7 +536,7 @@ void UpdateDisplayHandler(tMessage* pMsg)
       return; // will get back internal upddisp when updhomewgt done
     }
     
-    PrintCharacter('U');
+//    PrintCharacter('U');
     xSemaphoreTake(SramMutex, portMAX_DELAY);
 
     QuadAddr_t QuadAddr;

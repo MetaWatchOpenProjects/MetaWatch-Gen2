@@ -31,7 +31,11 @@
 #define CONN_TYPE_ANY   (0x0F)
 #define CONN_TYPE_MAIN  (CONN_TYPE_BLE | CONN_TYPE_SPP)
 
+#define DEVICE_TYPE_BLE     (0x01)
+#define DEVICE_TYPE_SPP     (0x02)
+
 //IND means connection change is indicated by stack callback
+// 0x80 means CONN
 #define CONN_CHG_IND            (0x40)
 #define CONN_CHG_IND_CONN       (0xC0)
 #define CONN_CHG_IND_DSCONN     (0x40)
@@ -63,6 +67,8 @@ typedef struct
 
 /*! Return a pointer to the wrapper version string */
 tVersion GetWrapperVersion(void);
+
+unsigned char PairedDeviceType(void);
 
 /******************************************************************************/
 

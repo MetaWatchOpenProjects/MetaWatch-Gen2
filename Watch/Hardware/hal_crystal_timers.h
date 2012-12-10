@@ -36,10 +36,10 @@
 /*! Crystal timer 2 is used by the OLED display task */
 #define CRYSTAL_TIMER_ID2 ( 2 )
 
-/*! Crystal timer 3 is used by BLE */
+/*! Crystal timer 3 is used by Tunnel */
 #define CRYSTAL_TIMER_ID3 ( 3 )
 
-/*! Crystal timer 4 is unused */
+/*! Crystal timer 4 is used by HFP */
 #define CRYSTAL_TIMER_ID4 ( 4 )
 
 /*! Start a timer that will expire in the specified number of ticks 

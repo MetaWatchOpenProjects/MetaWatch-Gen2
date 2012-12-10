@@ -269,13 +269,13 @@ void AccelerometerSendDataHandler(void)
     {
       SetupMessageAndAllocateBuffer(&Msg,
                             AccelerometerHostMsg,
-                            ACCELEROMETER_HOST_MSG_IS_INTERRUPT_OPTION);
+                            ACCELEROMETER_MSG_IS_INTERRUPT_OPTION);
     }
     else
     {
       SetupMessageAndAllocateBuffer(&Msg,
                                 AccelerometerHostMsg,
-                                ACCELEROMETER_HOST_MSG_IS_DATA_OPTION);
+                                ACCELEROMETER_MSG_IS_DATA_OPTION);
 
       Msg.Length = SidLength;
       AccelerometerRead(SidAddr, Msg.pBuffer, SidLength);

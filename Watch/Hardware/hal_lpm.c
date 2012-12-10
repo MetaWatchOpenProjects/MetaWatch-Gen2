@@ -111,7 +111,7 @@ unsigned char GetShippingModeFlag(void)
 static void EnterShippingMode(void)
 {
   /* Turn off the watchdog timer */
-  WDTCTL = WDTPW | WDTHOLD;
+  WDTCTL = WDTPW + WDTHOLD;
 #ifdef DIGITAL
   ClearLcd();
 #endif

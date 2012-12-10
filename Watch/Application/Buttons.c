@@ -104,12 +104,12 @@ typedef  struct
 
 #ifdef DIGITAL
 
-#define CONN_PAGE_ACT_NUM      (15)
+#define CONN_PAGE_ACT_NUM      (20) // 3rd party needs 16
 
 static const tButtonAction DisconnAction[] =
 {
   {BTN_A | IDLE_PAGE | BTN_EVT_IMDT, ChangeModeMsg, NOTIF_MODE | MSG_OPT_UPD_INTERNAL},
-  {BTN_B | IDLE_PAGE | BTN_EVT_IMDT, UpdateDisplay, NOTIF_MODE | IDLE_MODE | MSG_OPT_NEWUI | MSG_OPT_NXT_PAGE | MSG_OPT_UPD_INTERNAL},
+  {BTN_B | IDLE_PAGE | BTN_EVT_IMDT, UpdateDisplay, IDLE_MODE | MSG_OPT_NEWUI | MSG_OPT_NXT_PAGE | MSG_OPT_UPD_INTERNAL},
   {BTN_C | IDLE_PAGE | BTN_EVT_RELS, MenuModeMsg, Menu1Page},
   {BTN_D | IDLE_PAGE | BTN_EVT_IMDT, WatchStatusMsg, 0},
   {BTN_E | IDLE_PAGE | BTN_EVT_IMDT, ChangeModeMsg, MUSIC_MODE | MSG_OPT_UPD_INTERNAL},
@@ -503,6 +503,7 @@ void EnableButtonMsgHandler(tMessage* pMsg)
     ButtonAction[i].MsgType = pAction->CallbackMsgType;
     ButtonAction[i].MsgOpt = pAction->CallbackMsgOptions;
   }
+  else PrintString2("# DefBtn", CR);
 }
 
 /*! Remove callback for the specified button press type.

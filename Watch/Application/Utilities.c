@@ -26,6 +26,8 @@
 
 #include "hal_board_type.h"
 #include "hal_battery.h"
+#include "hal_lpm.h"
+
 #include "Messages.h"
 #include "MessageQueues.h"
 
@@ -142,7 +144,7 @@ void vApplicationStackOverflowHook( xTaskHandle *pxTask, char *pcTaskName )
 {
   /* try to print task name */
   PrintString2("# Stack overflow:",(tString*)pcTaskName);
-  ForceWatchdogReset();
+  SoftwareReset();
 }
 
 /******************************************************************************/

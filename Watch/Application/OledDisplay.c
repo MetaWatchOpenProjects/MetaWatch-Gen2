@@ -465,7 +465,7 @@ static void DisplayQueueMessageHandler(tMessage* pMsg)
     break;
     
   case LinkAlarmMsg:
-    if ( QueryLinkAlarmEnable() )
+    if ( LinkAlarmEnable() )
     {
       DisplayLinkAlarmFace();
       GenerateLinkAlarm();  
@@ -1908,7 +1908,7 @@ static void DisplayLinkAlarmToggleFace(void)
   
   StartBuildingOledScreen(BottomOled);
   SetFont(MetaWatch7Oled);
-  if ( QueryLinkAlarmEnable() )
+  if ( LinkAlarmEnable() )
   {
     BuildOledScreenAddString("Link Alarm On");  
   }
