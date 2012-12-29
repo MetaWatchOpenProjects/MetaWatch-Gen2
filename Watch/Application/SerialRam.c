@@ -456,6 +456,7 @@ static unsigned int GetAddr(WidgetHeader_t *pData)
       return Addr;
     }
   }
+  
   //find right buffer according to row
   Addr = pCurrWidgetList[i].Buffers[pData->Row / QUAD_ROW_NUM] * BYTES_PER_QUAD +
          (pData->Row % QUAD_ROW_NUM) * BYTES_PER_QUAD_LINE + WGT_BUF_START_ADDR;

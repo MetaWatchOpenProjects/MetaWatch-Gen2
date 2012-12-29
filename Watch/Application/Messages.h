@@ -242,6 +242,7 @@ typedef enum
   SetHeartbeatMsg = 0xb0,
   HeartbeatIndMsg = 0xb1,
   UpdConnParamMsg = 0xb2,
+  ConnParamChgIndMsg = 0xbb,
   
   /* HFP messages */
   CallerIdIndMsg = 0xb3,
@@ -323,6 +324,7 @@ typedef enum
 /* options for the indication message */
 #define MSG_OPT_IND_HEARTBEAT  (0)
 #define MSG_OPT_IND_CALLERID   (1)
+#define MSG_OPT_HB_MWM         (0)
 
 /* options for the heartbeat message */
 #define MSG_OPT_HEARTBEAT_STOP (0x55)
@@ -357,11 +359,6 @@ typedef enum
 
 /* options for Bluetooth state change */
 #define MSG_OPT_BT_STATE_DISCONN    (1)
-
-/* options for connecting HFP/MAP  */
-#define MSG_OPT_CONN_HFP_MAP        (1)
-#define TIMEOUT_TO_CONNECT_MAP_HFP  (1)
-#define TIMEOUT_FOR_CONNECTING_MAP_HFP (10)
 
 /* make mode definitions the same as buffer definitions */
 #define IDLE_MODE         (0)

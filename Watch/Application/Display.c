@@ -141,7 +141,7 @@ void GenerateLinkAlarm(void)
 {
   tMessage Msg;
   
-  SetupMessageAndAllocateBuffer(&Msg,SetVibrateMode,MSG_OPT_NONE);
+  SetupMessageAndAllocateBuffer(&Msg, SetVibrateMode, MSG_OPT_NONE);
   tSetVibrateModePayload* pMsgData;
   pMsgData = (tSetVibrateModePayload*) Msg.pBuffer;
   
@@ -150,7 +150,7 @@ void GenerateLinkAlarm(void)
   pMsgData->OnDurationMsb = 0x00;
   pMsgData->OffDurationLsb = 0xF4;
   pMsgData->OffDurationMsb = 0x01;
-  pMsgData->NumberOfCycles = 3;
+  pMsgData->NumberOfCycles = 1; //3
   
   RouteMsg(&Msg);
 }

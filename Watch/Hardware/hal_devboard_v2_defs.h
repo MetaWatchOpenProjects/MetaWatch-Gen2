@@ -32,7 +32,7 @@
 #define LCD_5V_BIT  BIT0
 
 #define DISABLE_DISPLAY_POWER() { LCD_5V_POUT &= ~LCD_5V_BIT; }
-#define DISABLE_LCD_ENABLE() { LCD_ENABLE_POUT &= LCD_ENABLE_PIN; }
+#define DISABLE_LCD_ENABLE() { LCD_ENABLE_POUT &= ~LCD_ENABLE_PIN; }
 
 #define LCD_ENABLE_PDIR ( P3DIR )
 #define LCD_ENABLE_POUT ( P3OUT )
@@ -327,7 +327,7 @@
 #define GC1_PDIR ( P6DIR )
 #define GC1_POUT ( P6OUT )
 #define GC1_PSEL ( P6SEL )
-#define GC1_PIN ( BIT0 )
+#define GC1_PIN  ( BIT0 )
 
 #define GC2_PDIR ( P6DIR )
 #define GC2_POUT ( P6OUT )
@@ -527,6 +527,7 @@
 #define ACCELEROMETER_INT_PIE  ( P1IE )
 
 #define ACCELEROMETER_POWER_POUT ( P9OUT )
+#define ACCELEROMETER_POWER_PDIR ( P9DIR )
 #define ACCELEROMETER_POWER_PINS ( BIT1 | BIT2 )
 
 /* this is for reference only (it doesn't control anything) */

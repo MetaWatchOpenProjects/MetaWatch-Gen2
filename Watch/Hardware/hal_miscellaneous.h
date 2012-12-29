@@ -49,13 +49,6 @@ void DetermineErrata(void);
 /*! return 1 if workarounds for errata group 1 are required */
 unsigned char QueryErrataGroup1(void);
 
-/*! 
- * This sets all of the pins to outputs.
- * It is up to each peripheral's driver to setup their pins 
- */
-void SetAllPinsToOutputs(void);
-
-
 /*! Send the 32 kHz clock to the Bluetooth Radio */
 void SetupAclkToRadio(void);
 

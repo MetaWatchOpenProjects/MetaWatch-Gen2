@@ -24,7 +24,7 @@
 #ifndef PRE_INCLUDE_H
 #define PRE_INCLUDE_H
 
-/* patch selection (include at least one) */
+/* patch selection (include at least one in IAR or CCS defined symbols) */
 //#define INCLUDE_1316_PATCH ( 1 ) 
 //#define INCLUDE_1315_PATCH ( 0 )
 

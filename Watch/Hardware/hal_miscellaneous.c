@@ -84,26 +84,6 @@ static void BluetoothSidebandConfig(unsigned char BoardConfiguration);
 
 /******************************************************************************/
 
-void SetAllPinsToOutputs(void)
-{
-  // jtag (don't set the pins high or spy-bi-wire won't work)
-  PJOUT  = 0;
-  PJDIR = 0xff;
-
-  /* prevent floating inputs */
-  P1DIR = 0xFF;
-  P2DIR = 0xFF;
-  P3DIR = 0xFF;
-  P4DIR = 0xFF;
-  P5DIR = 0xFF;
-  P6DIR = 0xFF;
-  P7DIR = 0xFF;
-  P8DIR = 0xFF;
-  P9DIR = 0xFF;
-  P10DIR = 0xFF;
-  P11DIR = 0xFF;
-}
-
 void SetupAclkToRadio(void)
 {
   // Setting DIR = 1 and SEL = 1 enables ACLK out on P11.0
@@ -170,8 +150,6 @@ void SetupClockAndPowerManagementModule(void)
 /* The following is responsible for initializing the target hardware.*/
 void ConfigureDefaultIO(unsigned char BoardConfiguration)
 {
-  SetAllPinsToOutputs();
-
   SetupAclkToRadio();
 
   BluetoothSidebandConfig(BoardConfiguration);
@@ -184,7 +162,7 @@ void ConfigureDefaultIO(unsigned char BoardConfiguration)
 #endif
 
 #ifdef DIGITAL
-  DISABLE_LCD_LED();
+//  DISABLE_LCD_LED();
 #endif
 
   CONFIG_SRAM_PINS();

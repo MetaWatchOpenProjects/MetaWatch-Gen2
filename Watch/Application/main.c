@@ -98,13 +98,30 @@
 /* 435    12/06/12  Mu Yang  Back compatible with MWM-CE.                     */
 /* 436    12/07/12  Mu Yang  Add BLE/BR mark to Status screen.                */
 /* 437    12/07/12  Mu Yang  Replace WDReset(PUC) by SwReset(BOR).            */
+/* 438    12/11/12  Mu Yang  Add battery icon to initial screens.             */
+/* 439    12/12/12  Mu Yang  Integrate Andrew's changes to WDT:               */
+/*                            - remove ResetWatchdog() from idle loop         */
+/*                              [WDT controlled entirely by task check-in]    */
+/*                            - remove set all pins to output function        */
+/*                            - don't touch watchdog in Flash routines        */
+/*                            - fix macro for enabling accelerometer power    */
+/* 440    12/13/12  Mu Yang  set midium interval for music mode.              */
+/* 441    12/14/12  Mu Yang  Increase Display message queue to 30.            */
+/* 442    12/15/12  Mu Yang  Master reset when entering bootloader mode.      */
+/* 443    12/15/12  Mu Yang  Fix vibrating after flashing: InitBtn;Splshing.  */
+/* 444    12/18/12  Mu Yang  Move InitBtn/InitRtc to end of main().           */
+/* 445    12/20/12  Mu Yang  Fix button not responsive after flashing.        */
+/* 446    12/22/12  Mu Yang  Fix wrongly entering Ship mode after flashing.   */
+/* 447    12/25/12  Mu Yang  Fix 1st-boot-after-flashing-fail by changing     */
+/*                           heap size 12328 to 12334 (diff learned from 439) */
+/* 448    12/26/12  Mu Yang  Integrate new patch from TI.                     */
 /******************************************************************************/
 
 
 #define APP_VER  "1.2"
 
 const char VERSION[] = APP_VER;
-const char BUILD[] = "437";
+const char BUILD[] = "448";
 
 #include "FreeRTOS.h"
 #include "semphr.h"
@@ -210,6 +227,7 @@ __root const image_data_t imageData = {&EndOfImage, __DATE__, TOOLSET, APP_VER};
 
 void main(void)
 {
+  ENABLE_LCD_LED();
   
 #if ENABLE_WATCHDOG
   RestartWatchdog();
@@ -248,11 +266,11 @@ void main(void)
   SetupClockAndPowerManagementModule();
   
   OsalNvInit(0);
-  
+
   /* change the mux settings according to presense of the charging clip */
   InitializeMuxMode();
   ChangeMuxMode();
-  
+
   InitDebugUart();
   TestModeControl();
 
@@ -261,17 +279,19 @@ void main(void)
   ConfigureDefaultIO(GetBoardConfiguration());
 
   InitializeDebugFlags();
+
 //  InitButton();
+
   InitializeVibration();
   InitializeOneSecondTimers();
 
   InitializeBufferPool();
-
   InitializeWrapperTask();
-
   InitializeRealTimeClock();
 
   InitializeDisplayTask();
+
+  DISABLE_LCD_LED();
 
 #if CHECK_FOR_PMM15
   /* make sure error pmm15 does not exist */
@@ -289,9 +309,10 @@ void main(void)
   
   /* if a watchdog occurred then print and save information about the source */
   WatchdogTimeoutHandler(GetResetSource());
-  
+
   PrintString("Starting Task Scheduler\r\n");
   SetUartNormalMode();
+
   vTaskStartScheduler();
 
   /* if vTaskStartScheduler exits an error occured. */

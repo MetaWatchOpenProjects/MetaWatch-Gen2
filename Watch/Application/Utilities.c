@@ -103,10 +103,8 @@ void UTL_FreeRtosTaskStackCheck( void )
   PrintTaskIndex++;
   if ( PrintTaskIndex >= TaskIndex )
   {
-    PrintTaskIndex = 3;
-    
-    tMessage Msg;
-    SetupMessage(&Msg, QueryMemoryMsg, MSG_OPT_NONE);
+    PrintTaskIndex = 3;    
+    CreateAndSendMessage(&Msg, QueryMemoryMsg, MSG_OPT_NONE);
   }
 }
 
@@ -129,18 +127,18 @@ unsigned char * GetDeviceNameString(void)
 }
 
 /* called in each task but currently disabled */
-void CheckStackUsage(xTaskHandle TaskHandle,tString * TaskName)
+void CheckStackUsage(xTaskHandle TaskHandle, tString *TaskName)
 {
 #if CHECK_STACK_USAGE
 
   portBASE_TYPE HighWater = uxTaskGetStackHighWaterMark(TaskHandle);
-  PrintStringAndDecimal(TaskName,HighWater);
+  PrintStringAndDecimal(TaskName, HighWater);
 
 #endif
   
 }
 
-void vApplicationStackOverflowHook( xTaskHandle *pxTask, char *pcTaskName )
+void vApplicationStackOverflowHook(xTaskHandle *pxTask, char *pcTaskName)
 {
   /* try to print task name */
   PrintString2("# Stack overflow:",(tString*)pcTaskName);
@@ -154,8 +152,8 @@ void vApplicationStackOverflowHook( xTaskHandle *pxTask, char *pcTaskName )
 unsigned char PMM15Check (void)
 {
   // First check if SVSL/SVML is configured for fast wake-up
-  if ( (!(SVSMLCTL & SVSLE)) || ((SVSMLCTL & SVSLE) && (SVSMLCTL & SVSLFP)) ||
-       (!(SVSMLCTL & SVMLE)) || ((SVSMLCTL & SVMLE) && (SVSMLCTL & SVMLFP)) )
+  if ((!(SVSMLCTL & SVSLE)) || ((SVSMLCTL & SVSLE) && (SVSMLCTL & SVSLFP)) ||
+      (!(SVSMLCTL & SVMLE)) || ((SVSMLCTL & SVMLE) && (SVSMLCTL & SVMLFP)))
   { 
     // Next Check SVSH/SVMH settings to see if settings are affected by PMM15
     if ((SVSMHCTL & SVSHE) && (!(SVSMHCTL & SVSHFP)))

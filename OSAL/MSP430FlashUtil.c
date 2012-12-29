@@ -43,7 +43,6 @@
 
 #include "MSP430FlashUtil.h"
 
-static unsigned char SavedWatchdogSetting;
 static unsigned char FlowDisabled;
 
 /* disable interrupts during flash cycles
@@ -53,14 +52,11 @@ static unsigned char FlowDisabled;
  */
 #define START_FLASH_CYCLE() {              \
   portENTER_CRITICAL();                    \
-  SavedWatchdogSetting =  WDTCTL & 0xFF;   \
-  WDTCTL = WDTPW + WDTHOLD;                \
   FlowDisabled = QueryFlowDisabled();      \
   if ( !FlowDisabled ) DisableFlow();      \
 }                                          \
   
 #define END_FLASH_CYCLE() {              \
-  WDTCTL = WDTPW + SavedWatchdogSetting; \
   if ( !FlowDisabled ) EnableFlow();     \
   portEXIT_CRITICAL();                   \
 }

@@ -182,7 +182,7 @@ static const tMsgInfo MsgInfo[MAXIMUM_MESSAGE_TYPES] =
   {"SetWgtListMsg",               DISPLAY_QINDEX,    1 }, /* 0xa1 */
   {"WatchDrawnTout",              DISPLAY_QINDEX,    0 }, /* 0xa2 */
   {InvalidMsg,                    FREE_QINDEX,       0 }, /* 0xa3 */
-  {InvalidMsg,                    FREE_QINDEX,       0 }, /* 0xa4 */
+  {"UnusedMsg",                   DISPLAY_QINDEX,    1 }, /* 0xa4 */
   {InvalidMsg,                    FREE_QINDEX,       0 }, /* 0xa5 */
   {"ChgModMsg",                   DISPLAY_QINDEX,    1 }, /* 0xa6 */
   {"ModeTimeoutMsg",              DISPLAY_QINDEX,    0 }, /* 0xa7 */
@@ -205,7 +205,7 @@ static const tMsgInfo MsgInfo[MAXIMUM_MESSAGE_TYPES] =
   {"MapIndMsg",                   SPP_TASK_QINDEX,   1 }, /* 0xb8 */
   {"ConnChgMsg",                  SPP_TASK_QINDEX,   1 }, /* 0xb9 */
   {"UpdWgtIndMsg",                SPP_TASK_QINDEX,   1 }, /* 0xba */
-  {InvalidMsg,                    FREE_QINDEX,       0 }, /* 0xbb */
+  {"ConnParamIndMsg",             SPP_TASK_QINDEX,   1 }, /* 0xbb */
   {InvalidMsg,                    FREE_QINDEX,       0 }, /* 0xbc */
   {InvalidMsg,                    FREE_QINDEX,       0 }, /* 0xbd */
   {InvalidMsg,                    FREE_QINDEX,       0 }, /* 0xbe */

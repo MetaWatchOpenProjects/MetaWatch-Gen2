@@ -49,8 +49,9 @@
 #define RTC_PRESCALE_ONE_IFG  ( 10 )
 
 #define RTCCAL_VALUE_MASK ( 0x3f )
+#define RTC_USER_MASK     (0x05)
 
-static unsigned char RtcInUseMask;
+static unsigned char RtcInUseMask = 0;
 
 void InitializeRealTimeClock( void )
 {
@@ -105,14 +106,9 @@ void InitializeRealTimeClock( void )
   RTCMIN = (unsigned int)58;
   RTCSEC = (unsigned int)0;
 
-
   // Enable the RTC
   RTCCTL01 &= ~RTCHOLD;  
-  
 }
-
-
-
 
 void halRtcSet(tRtcHostMsgPayload* pRtcData)
 {
@@ -147,21 +143,18 @@ void halRtcGet(tRtcHostMsgPayload* pRtcData)
   pRtcData->Hour = RTCHOUR;
   pRtcData->Minute = RTCMIN;
   pRtcData->Second = RTCSEC;
-
 }
-
-
 
 void EnableRtcPrescaleInterruptUser(unsigned char UserMask)
 {
   portENTER_CRITICAL();
    
   // If not currently enabled, enable the timer ISR
-  if( RtcInUseMask == 0 )
-  {
+//  if((RtcInUseMask & RTC_USER_MASK) == 0)
+//  {
     RTCPS0CTL |= RT0PSIE;
-  }
-  
+//  }
+
   RtcInUseMask |= UserMask;
    
   portEXIT_CRITICAL();
@@ -176,18 +169,17 @@ void DisableRtcPrescaleInterruptUser(unsigned char UserMask)
   RtcInUseMask &= ~UserMask;
       
   // If there are no more users, disable the interrupt
-  if( RtcInUseMask == 0 )
+  if ((RtcInUseMask & RTC_USER_MASK) == 0)
   {
     RTCPS0CTL &= ~RT0PSIE;
   }
   
   portEXIT_CRITICAL();
-
 }
 
 unsigned char QueryRtcUserActive(unsigned char UserMask)
 {
-  return RtcInUseMask & UserMask;
+  return (RtcInUseMask & UserMask);
 }
 
 

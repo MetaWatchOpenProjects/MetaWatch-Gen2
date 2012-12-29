@@ -54,7 +54,7 @@ tString ConversionString[6];
 
 /******************************************************************************/
 
-unsigned char NormalMode;
+static unsigned char NormalMode = 0;
 
 /******************************************************************************/
 
@@ -527,35 +527,24 @@ void vApplicationMallocFailedHook(size_t xWantedSize)
 
 /******************************************************************************/
 
-static unsigned char TestModeEnabled;
+static unsigned char TestModeEnabled = 0;
 
 static void EnableTestMode(void)
 {
-  if ( !TestModeEnabled )
-  { 
-    EnableSmClkUser(TEST_MODE_USER);
-    
-    InitTestMode();
-    
-    /* read any characters */
-    UCA3RXBUF;
-    
-    UCA3IE |= UCRXIE;
-    
-    TestModeEnabled = 1;
-  }
+  EnableSmClkUser(TEST_MODE_USER);
+  InitTestMode();
+  
+  /* read any characters */
+  UCA3RXBUF;
+  UCA3IE |= UCRXIE;
+  TestModeEnabled = 1;
 }
 
 static void DisableTestMode(void)
 {
-  if ( TestModeEnabled )
-  {
-    UCA3IE &= ~UCRXIE;
-  
-    DisableSmClkUser(TEST_MODE_USER);
- 
-    TestModeEnabled = 0;
-  }
+  UCA3IE &= ~UCRXIE;
+  DisableSmClkUser(TEST_MODE_USER);
+  TestModeEnabled = 0;
 }
 
 void TestModeControl(void)
@@ -564,10 +553,7 @@ void TestModeControl(void)
   {
     if (!TestModeEnabled) EnableTestMode();
   }
-  else if (TestModeEnabled)
-  {
-    DisableTestMode();
-  }  
+  else if (TestModeEnabled) DisableTestMode();
 }
 
 /******************************************************************************/

@@ -38,7 +38,7 @@ static unsigned char TaskDelayLpmLockCount = 0;
 
 void MSP430_LPM_ENTER(void)
 {
-  if ( EnterShippingModeFlag )
+  if ( EnterShippingModeFlag == 1)
   {
     EnterShippingMode();  
   }

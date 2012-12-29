@@ -355,7 +355,7 @@ static void HandleButtonEvent(unsigned char Index, unsigned char Event)
 {
   tMessage Msg;
 
-//  PrintStringAndTwoDecimals("-Btn i:", Index, "e:", Event);
+  PrintStringAndTwoDecimals("- BtnEvt i:", Index, "e:", Event);
 //  PrintStringAndHexByte("LstBF:0x", LastButton);
 
 #ifdef DIGITAL
@@ -446,25 +446,26 @@ static void HandleButtonEvent(unsigned char Index, unsigned char Event)
   
   if (i == ActNum) return;
   
-  if (pAction[i].MsgType != InvalidMessage)
+  //PrintStringAndDecimal("-No mask:", Event);
+  /* if this button press is going to the bluetooth then allocate
+   * a buffer and add the button index
+   */
+  if (pAction[i].MsgType == ButtonEventMsg)
   {
-    //PrintStringAndDecimal("-No mask:", Event);
-    /* if this button press is going to the bluetooth then allocate
-     * a buffer and add the button index
-     */
-    if (pAction[i].MsgType == ButtonEventMsg)
-    {
-//      PrintStringAndDecimal("- BtnEvtMsg:Evt:", Event);
-      SetupMessageAndAllocateBuffer(&Msg, pAction[i].MsgType, pAction[i].MsgOpt);
-      Msg.pBuffer[0] = (Index >= SW_UNUSED_INDEX) ? Index + 1 : Index;
-      Msg.pBuffer[1] = ButtonMode;
-      Msg.pBuffer[2] = Event;
-      Msg.pBuffer[3] = pAction[i].MsgType;
-      Msg.pBuffer[4] = pAction[i].MsgOpt;
-      Msg.Length = 5;
-      RouteMsg(&Msg);
-    }
-    else SendMessage(&Msg, pAction[i].MsgType, pAction[i].MsgOpt);
+    PrintStringAndDecimal("- BtnEvtMsg:Evt:", Event);
+    SetupMessageAndAllocateBuffer(&Msg, pAction[i].MsgType, pAction[i].MsgOpt);
+    Msg.pBuffer[0] = (Index >= SW_UNUSED_INDEX) ? Index + 1 : Index;
+    Msg.pBuffer[1] = ButtonMode;
+    Msg.pBuffer[2] = Event;
+    Msg.pBuffer[3] = pAction[i].MsgType;
+    Msg.pBuffer[4] = pAction[i].MsgOpt;
+    Msg.Length = 5;
+    RouteMsg(&Msg);
+  }
+  else if (pAction[i].MsgType != InvalidMessage)
+  {
+    SendMessage(&Msg, pAction[i].MsgType, pAction[i].MsgOpt);
+    PrintStringAndTwoHexBytes(" M O:0x", pAction[i].MsgType, pAction[i].MsgOpt);
   }
 }
 
@@ -482,6 +483,7 @@ void EnableButtonMsgHandler(tMessage* pMsg)
 
   PrintStringAndThreeDecimals("-M:", pAction->DisplayMode, " i:", pAction->ButtonIndex,
                               "E:", pAction->ButtonEvent);
+  PrintStringAndTwoHexBytes(" M O:0x", pAction->CallbackMsgType, pAction->CallbackMsgOptions);
   
   unsigned char BtnInfo = pAction->DisplayMode << BTN_MODE_PAGE_SHFT |
                           pAction->ButtonIndex << BTN_NO_SHFT |

@@ -113,7 +113,7 @@ unsigned char PageType = PAGE_TYPE_IDLE;
 
 static eIdleModePage CurrentPage[PAGE_TYPE_NUM];
 
-static unsigned char Splashing;
+static unsigned char Splashing = pdTRUE;
 static unsigned char gBitColumnMask;
 static unsigned char gColumn;
 static unsigned char gRow;
@@ -273,7 +273,7 @@ static void DrawText(unsigned char *pText, unsigned char Len, unsigned char X, u
 static void DrawBitmap(const unsigned char *pBitmap, unsigned char X, unsigned char Y, unsigned char W, unsigned char H, unsigned char BmpWidthInBytes);
 static const unsigned char *GetBatteryIcon(unsigned char Id);
 
-static void InitBackgroundTask(void);
+static void InitBackground(void);
 static void InitializeBatteryMonitorInterval(void);
 static void ShowNotification(tString *pString, unsigned char Type);
 
@@ -297,6 +297,7 @@ static void NvUpdater(tNvalOperationPayload *pNval);
 static void EnterBootloader(void);
 static void BatteryChargeControlHandler(void);
 static void HandleVersionInfo(void);
+static void DrawBatteryOnIdleScreen(unsigned char Row, unsigned char Col, etFontType Font);
 
 /******************************************************************************/
 
@@ -322,14 +323,12 @@ static unsigned char RateTestCallback(void);
  * \return none, result is to start the display task
  */
 
-#define DISPLAY_TASK_QUEUE_LENGTH 16
+#define DISPLAY_TASK_QUEUE_LENGTH 30
 #define DISPLAY_TASK_STACK_SIZE  	(configMINIMAL_STACK_SIZE + 100) //total 48-88
 #define DISPLAY_TASK_PRIORITY     (tskIDLE_PRIORITY + 1)
 
 void InitializeDisplayTask(void)
 {
-  InitMyBuffer();
-
   QueueHandles[DISPLAY_QINDEX] =
     xQueueCreate(DISPLAY_TASK_QUEUE_LENGTH, MESSAGE_QUEUE_ITEM_SIZE);
 
@@ -345,7 +344,7 @@ void InitializeDisplayTask(void)
   ClearShippingModeFlag();
 }
 
-static void InitBackgroundTask(void)
+static void InitBackground(void)
 {
   InitializeRstNmiConfiguration();
 
@@ -438,12 +437,10 @@ static void DisplayTask(void *pvParameters)
     PrintString("Display Queue not created!\r\n");
   }
 
-  InitBackgroundTask();
+  InitBackground();
   
   LcdPeripheralInit();
-//  unsigned char ModePage = 0;
-//  OsalNvItemInit(NVID_DISPLAY_MODE_PAGE, sizeof(ModePage), &ModePage);
-//  if (ModePage) //<##>
+  InitMyBuffer();
   DisplayStartupScreen();
   SerialRamInit();
 
@@ -758,6 +755,8 @@ static void ChangeModeHandler(unsigned char Option)
   
   if (Option & MSG_OPT_CHGMOD_IND) return; // ask for current idle page only
     
+  if (Mode == MUSIC_MODE) SendMessage(&Msg, UpdConnParamMsg, MidiumInterval);
+  
   if (Mode != IDLE_MODE)
   {
     PageType = PAGE_TYPE_IDLE;
@@ -769,10 +768,7 @@ static void ChangeModeHandler(unsigned char Option)
                         Mode);
     StartOneSecondTimer(DisplayTimerId);
     
-    if (Option & MSG_OPT_UPD_INTERNAL)
-    {
-      SendMessage(&Msg, UpdateDisplay, Option);
-    }
+    if (Option & MSG_OPT_UPD_INTERNAL) SendMessage(&Msg, UpdateDisplay, Option);
   }
   else
   {
@@ -818,7 +814,7 @@ static void BluetoothStateChangeHandler(tMessage *pMsg)
 
       pMsg->Options = NOTIF_MODE | (TMPL_NOTIF_MODE << 4);
       LoadTemplateHandler(pMsg);
-      
+
       InitButton();
     }
   }
@@ -1193,42 +1189,22 @@ static void WatchStatusScreenHandler(void)
                           STATUS_ICON_SIZE_IN_ROWS,
                           LEFT_STATUS_ICON_COLUMN,
                           STATUS_ICON_SIZE_IN_COLUMNS);
-
+  // Connection status
   CopyColumnsIntoMyBuffer(Connected(CONN_TYPE_MAIN) ? pConnectedIcon : pDisconnectedIcon,
                           3,
                           STATUS_ICON_SIZE_IN_ROWS,
                           CENTER_STATUS_ICON_COLUMN,
                           STATUS_ICON_SIZE_IN_COLUMNS);
 
-  CopyColumnsIntoMyBuffer(GetBatteryIcon(ICON_SET_BATTERY_V),
-                          6,
-                          IconInfo[ICON_SET_BATTERY_V].Height,
-                          9,
-                          IconInfo[ICON_SET_BATTERY_V].Width);
-
-  gRow = 27+4;
+  gRow = 31;
   gColumn = 5;
   gBitColumnMask = BIT4;
   SetFont(MetaWatch5);
 
   if (PairedDeviceType() == DEVICE_TYPE_BLE) WriteFontString("BLE");
   else if (PairedDeviceType() == DEVICE_TYPE_SPP) WriteFontString("BR");
-  /* display battery voltage */
-  
-  gRow = 27+2;
-  gColumn = 8;
-  gBitColumnMask = BIT5;
-  SetFont(MetaWatch7);
 
-  unsigned char BattVal = BatteryPercentage();
-  
-  if (BattVal == 100) WriteFontString("100");
-  else
-  {
-    WriteFontCharacter(BattVal > 9 ? BattVal / 10 +'0' : ' ');
-    WriteFontCharacter(BattVal % 10 +'0');
-  }
-  WriteFontCharacter('%');
+  DrawBatteryOnIdleScreen(6, 9, MetaWatch7);
 
   // Add Wavy line
   gRow += 12;
@@ -1266,6 +1242,29 @@ static void WatchStatusScreenHandler(void)
   
   PageType = PAGE_TYPE_INFO;
   CurrentPage[PageType] = StatusPage;
+}
+
+static void DrawBatteryOnIdleScreen(unsigned char Row, unsigned char Col, etFontType Font)
+{
+  // Battery
+  CopyColumnsIntoMyBuffer(GetBatteryIcon(ICON_SET_BATTERY_V), Row,
+    IconInfo[ICON_SET_BATTERY_V].Height, Col, IconInfo[ICON_SET_BATTERY_V].Width);
+
+  SetFont(Font);
+  gRow = Row + (Font == MetaWatch7 ? 23 : 21); //29
+  gColumn = Col - 1; //8
+  gBitColumnMask = (Font == MetaWatch7) ? BIT4 : BIT7;
+
+  unsigned char BattVal = BatteryPercentage();
+  
+  if (BattVal < 100)
+  {
+    WriteFontCharacter(BattVal > 9 ? BattVal / 10 +'0' : ' ');
+    WriteFontCharacter(BattVal % 10 +'0');
+  }
+  else WriteFontString("100");
+
+  WriteFontCharacter('%');
 }
 
 static void ListPairedDevicesHandler(void)
@@ -1810,6 +1809,7 @@ static void DrawDateTime()
     WriteFontCharacter(TIME_CHARACTER_COLON_INDEX);
     DrawSecs();
   }
+  else if (Charging()) DrawBatteryOnIdleScreen(3, 9, MetaWatch5);
   else
   {
     if (Get12H() == TWELVE_HOUR)
@@ -1993,7 +1993,7 @@ static void WriteFontCharacter(unsigned char Character)
   unsigned char i;
   unsigned char row;
 
-  for (i = 0 ; i < CharacterWidth && gColumn < BYTES_PER_LINE; i++ )
+  for (i = 0 ; i < CharacterWidth && gColumn < BYTES_PER_LINE; i++)
   {
   	for(row = 0; row < CharacterRows; row++)
     {

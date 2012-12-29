@@ -46,7 +46,7 @@ static unsigned char RxIndex;
 
 /******************************************************************************/
 
-tString CmdString[MAX_COMMAND_LENGTH];
+static tString CmdString[MAX_COMMAND_LENGTH];
 
 /******************************************************************************/
 

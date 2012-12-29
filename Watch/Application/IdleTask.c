@@ -80,8 +80,6 @@ void vApplicationIdleHook(void)
 
   {
 
-    RestartWatchdog();
-    
     /* Call MSP430 Utility function to enable low power mode 3.     */
     /* Put OS and Processor to sleep. Will need an interrupt        */
     /* to wake us up from here.   */
@@ -120,6 +118,14 @@ void UpdateWatchdogInfo(void)
 
 void WatchdogTimeoutHandler(unsigned char ResetSource)
 {
+  /* always print information about the number of watchdogs that have occured */
+  unsigned char nvWatchdogCount = 0;
+  OsalNvItemInit(NVID_WATCHDOG_RESET_COUNT,
+                 sizeof(nvWatchdogCount),
+                 &nvWatchdogCount);
+
+  PrintStringAndDecimal("Total Watchdogs: ",nvWatchdogCount);
+   
   if ( ResetSource == SYSRSTIV_WDTTO || ResetSource == SYSRSTIV_WDTKEY )
   {
     if ( ResetSource == SYSRSTIV_WDTTO )
@@ -145,18 +151,15 @@ void WatchdogTimeoutHandler(unsigned char ResetSource)
     /* 
      * now save the information
      */
-    
-    unsigned char nvWatchdogCount = 0;
-    OsalNvItemInit(NVID_WATCHDOG_RESET_COUNT,
-                   sizeof(nvWatchdogCount),
-                   &nvWatchdogCount);
-    
-    PrintStringAndDecimal("Total Watchdogs: ",nvWatchdogCount);
-     
+
     /* If a watchdog is occurring over and over we don't want to ruin the flash.
      * Limit to 255 writes until code is reflashed or phone clears value
      */
-    if ( nvWatchdogCount != 0xFF )
+#if WATCHDOG_TEST_MODE == 0
+    if ( nvWatchdogCount < 0xFF )
+#else
+    if ( nvWatchdogCount < 0x01 )
+#endif
     {
       nvWatchdogCount++;
       OsalNvWrite(NVID_WATCHDOG_RESET_COUNT,

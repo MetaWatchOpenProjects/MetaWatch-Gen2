@@ -94,7 +94,8 @@ typedef enum
 {
   DefaultInterval,
   LongInterval,
-  ShortInterval
+  ShortInterval,
+  MidiumInterval
 } IntervalType_t;
 
 /*! Determine if the bluetooth link is in the connected state.  
