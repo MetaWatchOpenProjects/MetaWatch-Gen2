@@ -269,8 +269,10 @@ void WatchdogTimerIsr(void)
   WATCHDOG_LED_DELAY();
 #endif
 
+  // BOR reset
+  PMMCTL0 = PMMPW | PMMSWBOR;
   /* write the inverse of the password and cause a PUC reset */
-  WDTCTL = ~WDTPW; 
+//  WDTCTL = ~WDTPW; 
 }
 
 /******************************************************************************/

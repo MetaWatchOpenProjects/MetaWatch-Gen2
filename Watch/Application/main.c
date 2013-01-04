@@ -115,13 +115,15 @@
 /* 447    12/25/12  Mu Yang  Fix 1st-boot-after-flashing-fail by changing     */
 /*                           heap size 12328 to 12334 (diff learned from 439) */
 /* 448    12/26/12  Mu Yang  Integrate new patch from TI.                     */
+/* 449    12/31/12  Mu Yang  Optimise MAP message handing.                    */
+/* 450    12/31/12  Mu Yang  Change WDT reset from PUC to BOR.                */
 /******************************************************************************/
 
 
 #define APP_VER  "1.2"
 
 const char VERSION[] = APP_VER;
-const char BUILD[] = "448";
+const char BUILD[] = "450";
 
 #include "FreeRTOS.h"
 #include "semphr.h"

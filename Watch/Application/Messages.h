@@ -337,6 +337,7 @@ typedef enum
 #define MSG_OPT_MAP_SET_FLDR   (4)
 #define MSG_OPT_MAP_MESG_LST   (5)
 #define MSG_OPT_MAP_GET_MESG   (6)
+#define MSG_OPT_MAP_CLOSE_MAP  (7)
 
 /* options for HFP message */
 #define MSG_OPT_HFP_HANGUP     (0)
