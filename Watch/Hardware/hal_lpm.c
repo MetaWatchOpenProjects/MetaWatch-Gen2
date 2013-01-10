@@ -65,10 +65,9 @@ static void EnterLpm3(void)
   }
   
   DEBUG1_HIGH();
-  
-  
-  __enable_interrupt();
-  LPM3;
+
+  /* leave fll control alone SCG0 (ucs7) */
+  _BIS_SR(SCG1+CPUOFF + GIE);
   __no_operation();
   DEBUG1_LOW();
 

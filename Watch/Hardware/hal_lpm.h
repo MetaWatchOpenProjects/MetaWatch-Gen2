@@ -28,8 +28,13 @@
 
 /* 
  * MSP430 Exit LPM3 macro
-*/
-#define EXIT_LPM_ISR() (LPM3_EXIT)
+ *
+ * This is different from the default in that it doesn't
+ * modify the FLL control bit (SCG0) when exiting LPM
+ * 
+ * This intrinsic function clears the bits on return from the interrupt
+ */
+#define EXIT_LPM_ISR() { _BIC_SR_IRQ(SCG1+OSCOFF+CPUOFF); __no_operation(); }
 
 /*!
  * Put the processor into LPM3.  If the shipping mode flag is set then

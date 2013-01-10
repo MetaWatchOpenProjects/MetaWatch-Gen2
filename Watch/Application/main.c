@@ -117,13 +117,14 @@
 /* 448    12/26/12  Mu Yang  Integrate new patch from TI.                     */
 /* 449    12/31/12  Mu Yang  Optimise MAP message handing.                    */
 /* 450    12/31/12  Mu Yang  Change WDT reset from PUC to BOR.                */
+/* 451    01/09/13  Mu Yang  Integrate Andrew's fix for UCS7 and 10.          */
 /******************************************************************************/
 
 
 #define APP_VER  "1.2"
 
 const char VERSION[] = APP_VER;
-const char BUILD[] = "450";
+const char BUILD[] = "451";
 
 #include "FreeRTOS.h"
 #include "semphr.h"

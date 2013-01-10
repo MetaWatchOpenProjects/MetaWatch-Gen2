@@ -327,7 +327,7 @@ typedef enum
 #define MSG_OPT_HB_MWM         (0)
 
 /* options for the heartbeat message */
-#define MSG_OPT_HEARTBEAT_STOP (0x55)
+#define MSG_OPT_HEARTBEAT_MASTER (0x0)
 
 /* options for MAP State message */
 #define MSG_OPT_MAP_DISC_MAS   (0)

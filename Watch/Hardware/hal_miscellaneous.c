@@ -119,6 +119,7 @@ void SetupClockAndPowerManagementModule(void)
   Init_FLL_Settle(configCPU_CLOCK_HZ/configTICK_RATE_HZ, ACLK_MULTIPLIER);
   
   // Disable FLL loop control for older revision part
+  /*! todo */
   if ( QueryErrataGroup1() )
   {
     __bis_SR_register(SCG0);

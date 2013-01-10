@@ -248,6 +248,7 @@ void Init_FLL_Settle(unsigned int fsystem, unsigned int ratio)
   x = ratio << 5;
   Init_FLL(fsystem, ratio);
   
+  /* from changes in Init_FLL we know that fll is now enabled */
   while (x--) {
    __delay_cycles(30); 
   }
@@ -257,14 +258,17 @@ static void Init_FLL(unsigned int fsystem, unsigned int ratio)
 {
   unsigned int d, dco_div_bits;
   unsigned int mode;
-  unsigned int srRegisterState;
+//  unsigned int srRegisterState;
 
   mode = 0;
+
+  /* we only run this at startup and we want the fll enabled on exit */
+#if 0
   // Save actual state of FLL loop control, then disable it. This is needed to
   // prevent the FLL from acting as we are making fundamental modifications to
   // the clock setup.
   srRegisterState = __get_SR_register() & SCG0;
-  __bic_SR_register(SCG0);  
+#endif
   
   d = ratio;
   dco_div_bits = FLLD__2;        // Have at least a divider of 2
@@ -282,6 +286,9 @@ static void Init_FLL(unsigned int fsystem, unsigned int ratio)
     d >>= 1;
   }
 
+  // Disable FLL
+  __bis_SR_register(SCG0);  
+  
   UCSCTL0 = 0x0000;              // Set DCO to lowest Tap
 
   UCSCTL2 &= ~(0x03FF);          // Reset FN bits
@@ -304,11 +311,22 @@ static void Init_FLL(unsigned int fsystem, unsigned int ratio)
   else
 	UCSCTL1 = DCORSEL_7;
 
+  // Re-enable FLL
+  __bic_SR_register(SCG0);
+  
   while (SFRIFG1 & OFIFG) {                               // Check OFIFG fault flag
     UCSCTL7 &= ~(DCOFFG+XT1LFOFFG+XT1HFOFFG+XT2OFFG);     // Clear OSC flaut Flags
     SFRIFG1 &= ~OFIFG;                                    // Clear OFIFG fault flag
   }
 
+  /* Init fll is only run at startup - We want the fll enabled when
+   * this function is complete (so don't save a restore setting)
+   */
+#if 0
+  // Restore previous SCG0
+  __bis_SR_register(srRegisterState);	                  
+#endif
+  
   if (mode == 1) {                              		  // fsystem > 16000
     SELECT_MCLK_SMCLK(SELM__DCOCLK + SELS__DCOCLK);       // Select DCOCLK
   }
@@ -316,5 +334,4 @@ static void Init_FLL(unsigned int fsystem, unsigned int ratio)
     SELECT_MCLK_SMCLK(SELM__DCOCLKDIV + SELS__DCOCLKDIV); // Select DCODIVCLK
   }
   
-  __bis_SR_register(srRegisterState);	                  // Restore previous SCG0
 }
