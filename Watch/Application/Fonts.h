@@ -54,7 +54,7 @@ typedef struct
   const unsigned char Spacing;
   const unsigned char MaxWidth;
   const unsigned char WidthInBytes;
-  const unsigned char Type; // if time font (0 - 9, :)
+  const unsigned char Type; // ,:0-9 for time font
   const unsigned char *pWidth;
 } tFont;
 

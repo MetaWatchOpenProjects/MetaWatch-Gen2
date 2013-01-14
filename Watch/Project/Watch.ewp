@@ -101,7 +101,7 @@
         </option>
         <option>
           <name>GStackHeapOverride</name>
-          <state>1</state>
+          <state>0</state>
         </option>
         <option>
           <name>GStackSize2</name>
@@ -109,7 +109,7 @@
         </option>
         <option>
           <name>GHeapSize2</name>
-          <state>0</state>
+          <state>160</state>
         </option>
         <option>
           <name>RadioDataModelType</name>
@@ -117,7 +117,7 @@
         </option>
         <option>
           <name>GHeap20Size</name>
-          <state>0</state>
+          <state>80</state>
         </option>
         <option>
           <name>GeneralMisraRules98</name>
@@ -663,7 +663,7 @@
         </option>
         <option>
           <name>OutputFile</name>
-          <state>DigitalWatch.d43</state>
+          <state>gen2.d43</state>
         </option>
         <option>
           <name>OutputFormat</name>
@@ -857,7 +857,7 @@
         </option>
         <option>
           <name>ExtraOutputFile</name>
-          <state>DigitalWatch.a43</state>
+          <state>gen2.a43</state>
         </option>
         <option>
           <name>ExtraOutputFormat</name>
@@ -891,7 +891,7 @@
         </option>
         <option>
           <name>XExtraOptions</name>
-          <state>-C $PROJ_DIR$\..\..\Stack\Api\IAR\Stack2.r43</state>
+          <state>-C $PROJ_DIR$\..\..\Stack\Api\IAR\Stack.r43</state>
           <state>-C $PROJ_DIR$\..\..\Stack\Api\IAR\libBluetopia.a</state>
           <state>-C $PROJ_DIR$\..\..\Stack\Api\IAR\libSS1BTGAT.a</state>
           <state>-C $PROJ_DIR$\..\..\Stack\Api\IAR\libSS1BTMAP.a</state>

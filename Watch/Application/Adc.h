@@ -31,6 +31,9 @@
 #define CRITICAL_BT_OFF  (0)
 #define CRITICAL_WARNING (1)
 
+#define BATTERY_FULL_LEVEL            (4000)
+#define BATTERY_CRITICAL_LEVEL        (3300)
+
 /*! Initialize the Analog-to-Digital Conversion peripheral.  Set the outputs from
  * the micro to the correct state.  The ADC is used to read the 
  * hardware configuration registers, the battery voltage, and the value from the
@@ -86,6 +89,8 @@ unsigned int ReadLightSenseAverage(void);
 void SetBatteryLevels(unsigned char * pData);
 
 unsigned int BatteryCriticalLevel(unsigned char Type);
+
+unsigned char BatteryPercentage(void);
 
 /*! Reads battery sense value and takes the appropriate action.
  *

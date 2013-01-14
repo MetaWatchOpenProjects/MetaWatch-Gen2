@@ -256,7 +256,6 @@ void SetWidgetList(tMessage *pMsg)
 //    for (i=0; pCurrWidgetList[i].Id != RESERVED_WIDGET_ID; ++i) PrintHex(pCurrWidgetList[i].Id);
 //    PrintString(CR);
     PrintStringAndHex("Tg:", BufTag);
-    PrintString(":)\r\n");
 
     if (NewHomeWidget)
     {

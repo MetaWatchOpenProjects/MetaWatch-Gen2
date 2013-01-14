@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <projectDescription>
-	<name>Apollo</name>
+	<name>MetaWatch</name>
 	<comment></comment>
 	<projects>
 	</projects>
@@ -84,7 +84,7 @@
 		<link>
 			<name>Application</name>
 			<type>2</type>
-			<locationURI>PARENT-2-PROJECT_LOC/Watch/Application</locationURI>
+			<locationURI>PARENT-1-PROJECT_LOC/Application</locationURI>
 		</link>
 		<link>
 			<name>FreeRTOS</name>
@@ -94,7 +94,7 @@
 		<link>
 			<name>Hardware</name>
 			<type>2</type>
-			<locationURI>PARENT-2-PROJECT_LOC/Watch/Hardware</locationURI>
+			<locationURI>PARENT-1-PROJECT_LOC/Hardware</locationURI>
 		</link>
 		<link>
 			<name>OSAL</name>

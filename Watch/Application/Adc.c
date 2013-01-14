@@ -397,7 +397,87 @@ void LowBatteryMonitor(unsigned char PowerGood)
   
 }
 
+unsigned int ReadBatterySense(void)
+{
+  return BatterySense;
+}
 
+/* this used to return 0 if the measurement is not valid (yet) 
+ * but then the display doesn't have a valid value for 80 seconds.
+ */
+unsigned int ReadBatterySenseAverage(void)
+{
+  unsigned int SampleTotal = 0;
+  unsigned int Result = 0;
+  
+  if ( BatterySenseAverageReady )
+  {
+  	unsigned char i;
+    for (i = 0; i < MAX_SAMPLES; i++)
+    {
+      SampleTotal += BatterySenseSamples[i];
+    }
+    
+    Result = SampleTotal/MAX_SAMPLES;
+  }
+  else
+  {
+    Result = BatterySense;  
+  }
+
+  return Result;
+  
+}
+
+unsigned char BatteryPercentage(void)
+{
+  int BattVal = ReadBatterySenseAverage();
+  if (BattVal > BATTERY_FULL_LEVEL) BattVal = BATTERY_FULL_LEVEL;
+  BattVal -= BatteryCriticalLevel(CRITICAL_BT_OFF);
+  BattVal = BattVal > 0 ? BattVal * 10 /
+    ((BATTERY_FULL_LEVEL - BatteryCriticalLevel(CRITICAL_BT_OFF)) / 10) : 0;
+    
+//  PrintStringAndTwoDecimals("- Batt%:", BattVal,  "Aver:", ReadBatterySenseAverage());
+  return (unsigned char)BattVal;
+}
+
+/* Set new low battery levels and save them to flash */
+void SetBatteryLevels(unsigned char * pData)
+{
+  LowBatteryWarningLevel = pData[0] * (unsigned int)100;
+  LowBatteryBtOffLevel = pData[1] * (unsigned int)100;
+  
+  OsalNvWrite(NVID_LOW_BATTERY_WARNING_LEVEL,
+              NV_ZERO_OFFSET,
+              sizeof(LowBatteryWarningLevel),
+              &LowBatteryWarningLevel); 
+      
+  OsalNvWrite(NVID_LOW_BATTERY_BTOFF_LEVEL,
+              NV_ZERO_OFFSET,
+              sizeof(LowBatteryBtOffLevel),
+              &LowBatteryBtOffLevel);    
+}
+
+unsigned int BatteryCriticalLevel(unsigned char Type)
+{
+  return Type == CRITICAL_BT_OFF ? LowBatteryBtOffLevel : LowBatteryWarningLevel;
+}
+
+/* Initialize the low battery levels and read them from flash if they exist */
+void InitializeLowBatteryLevels(void)
+{
+  LowBatteryWarningLevel = DEFAULT_LOW_BATTERY_WARNING_LEVEL;
+  LowBatteryBtOffLevel = DEFAULT_LOW_BATTERY_BTOFF_LEVEL;
+    
+  OsalNvItemInit(NVID_LOW_BATTERY_WARNING_LEVEL,
+                 sizeof(LowBatteryWarningLevel), 
+                 &LowBatteryWarningLevel);
+   
+  OsalNvItemInit(NVID_LOW_BATTERY_BTOFF_LEVEL, 
+                 sizeof(LowBatteryBtOffLevel), 
+                 &LowBatteryBtOffLevel);
+  
+}
 
 void LightSenseCycle(void)
 {
@@ -463,38 +543,6 @@ static void EndAdcCycle(void)
 
 }
 
-unsigned int ReadBatterySense(void)
-{
-  return BatterySense;
-}
-
-/* this used to return 0 if the measurement is not valid (yet) 
- * but then the display doesn't have a valid value for 80 seconds.
- */
-unsigned int ReadBatterySenseAverage(void)
-{
-  unsigned int SampleTotal = 0;
-  unsigned int Result = 0;
-  
-  if ( BatterySenseAverageReady )
-  {
-  	unsigned char i;
-    for (i = 0; i < MAX_SAMPLES; i++)
-    {
-      SampleTotal += BatterySenseSamples[i];
-    }
-    
-    Result = SampleTotal/MAX_SAMPLES;
-  }
-  else
-  {
-    Result = BatterySense;  
-  }
-
-  return Result;
-  
-}
-
 unsigned int ReadLightSense(void)
 {
   return LightSense;  
@@ -522,44 +570,6 @@ unsigned int ReadLightSenseAverage(void)
   }
   
   return Result;
-}
-
-/* Set new low battery levels and save them to flash */
-void SetBatteryLevels(unsigned char * pData)
-{
-  LowBatteryWarningLevel = pData[0] * (unsigned int)100;
-  LowBatteryBtOffLevel = pData[1] * (unsigned int)100;
-  
-  OsalNvWrite(NVID_LOW_BATTERY_WARNING_LEVEL,
-              NV_ZERO_OFFSET,
-              sizeof(LowBatteryWarningLevel),
-              &LowBatteryWarningLevel); 
-      
-  OsalNvWrite(NVID_LOW_BATTERY_BTOFF_LEVEL,
-              NV_ZERO_OFFSET,
-              sizeof(LowBatteryBtOffLevel),
-              &LowBatteryBtOffLevel);    
-}
-
-unsigned int BatteryCriticalLevel(unsigned char Type)
-{
-  return Type == CRITICAL_BT_OFF ? LowBatteryBtOffLevel : LowBatteryWarningLevel;
-}
-
-/* Initialize the low battery levels and read them from flash if they exist */
-void InitializeLowBatteryLevels(void)
-{
-  LowBatteryWarningLevel = DEFAULT_LOW_BATTERY_WARNING_LEVEL;
-  LowBatteryBtOffLevel = DEFAULT_LOW_BATTERY_BTOFF_LEVEL;
-    
-  OsalNvItemInit(NVID_LOW_BATTERY_WARNING_LEVEL,
-                 sizeof(LowBatteryWarningLevel), 
-                 &LowBatteryWarningLevel);
-   
-  OsalNvItemInit(NVID_LOW_BATTERY_BTOFF_LEVEL, 
-                 sizeof(LowBatteryBtOffLevel), 
-                 &LowBatteryBtOffLevel);
-  
 }
 
 /******************************************************************************/

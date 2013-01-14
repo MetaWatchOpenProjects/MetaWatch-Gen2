@@ -118,13 +118,16 @@
 /* 449    12/31/12  Mu Yang  Optimise MAP message handing.                    */
 /* 450    12/31/12  Mu Yang  Change WDT reset from PUC to BOR.                */
 /* 451    01/09/13  Mu Yang  Integrate Andrew's fix for UCS7 and 10.          */
+/* 452    01/11/13  Mu Yang  Integrate SS1-417 HCI code.                      */
+/* 453    01/13/13  Mu Yang  Remove UCS7/10 fix due to "Not HCILL Action" err.*/
+/* 454    01/13/13  Mu Yang  Add fix to hal_ucs for UCS7/10.                  */
 /******************************************************************************/
 
 
 #define APP_VER  "1.2"
 
 const char VERSION[] = APP_VER;
-const char BUILD[] = "451";
+const char BUILD[] = "454";
 
 #include "FreeRTOS.h"
 #include "semphr.h"

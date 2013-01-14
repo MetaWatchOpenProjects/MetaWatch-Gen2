@@ -240,7 +240,7 @@ typedef enum
 
   /* BLE messages */
   SetHeartbeatMsg = 0xb0,
-  HeartbeatIndMsg = 0xb1,
+  TunnelTimeoutMsg = 0xb1,
   UpdConnParamMsg = 0xb2,
   ConnParamChgIndMsg = 0xbb,
   

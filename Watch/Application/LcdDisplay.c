@@ -71,8 +71,6 @@
 #define TEMPLATE_ID_MASK              (0x7F)
 #define FLASH_TEMPLATE_BIT            (BIT7)
 
-#define BATTERY_FULL_LEVEL            (4000)
-#define BATTERY_CRITICAL_LEVEL        (3300)
 #define BATTERY_LEVEL_NUMBER          (7)
 #define BATTERY_LEVEL_INTERVAL        ((BATTERY_FULL_LEVEL - BATTERY_CRITICAL_LEVEL) / BATTERY_LEVEL_NUMBER)
 
@@ -2534,18 +2532,6 @@ static unsigned char RateTestCallback(void)
   return ExitLpm;
 }
 #endif
-
-unsigned char BatteryPercentage(void)
-{
-  int BattVal = ReadBatterySenseAverage();
-  if (BattVal > BATTERY_FULL_LEVEL) BattVal = BATTERY_FULL_LEVEL;
-  BattVal -= BatteryCriticalLevel(CRITICAL_BT_OFF);
-  BattVal = BattVal > 0 ? BattVal * 10 /
-    ((BATTERY_FULL_LEVEL - BatteryCriticalLevel(CRITICAL_BT_OFF)) / 10) : 0;
-    
-//  PrintStringAndTwoDecimals("- Batt%:", BattVal,  "Aver:", ReadBatterySenseAverage());
-  return (unsigned char)BattVal;
-}
 
 /******************************************************************************/
 /*
