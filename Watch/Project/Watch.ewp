@@ -1052,13 +1052,13 @@
       <name>$PROJ_DIR$\..\Application\Messages.h</name>
     </file>
     <file>
-      <name>Z:\Code\apollo\Watch\Application\OledDisplay.c</name>
+      <name>$PROJ_DIR$\..\Application\OledDisplay.c</name>
       <excluded>
         <configuration>Watch</configuration>
       </excluded>
     </file>
     <file>
-      <name>Z:\Code\apollo\Watch\Application\OledFonts.c</name>
+      <name>$PROJ_DIR$\..\Application\OledFonts.c</name>
       <excluded>
         <configuration>Watch</configuration>
       </excluded>
@@ -1076,7 +1076,7 @@
       <name>$PROJ_DIR$\..\Application\Statistics.c</name>
     </file>
     <file>
-      <name>Z:\Code\apollo\Watch\Application\TestMode.c</name>
+      <name>$PROJ_DIR$\..\Application\TestMode.c</name>
     </file>
     <file>
       <name>$PROJ_DIR$\..\Application\Utilities.c</name>
@@ -1220,7 +1220,7 @@
       <name>$PROJ_DIR$\..\Hardware\hal_accelerometer.c</name>
     </file>
     <file>
-      <name>Z:\Code\apollo\Watch\Hardware\hal_analog_display.c</name>
+      <name>$PROJ_DIR$\..\Hardware\hal_analog_display.c</name>
       <excluded>
         <configuration>Watch</configuration>
       </excluded>
@@ -1244,7 +1244,7 @@
       <name>$PROJ_DIR$\..\Hardware\hal_miscellaneous.c</name>
     </file>
     <file>
-      <name>Z:\Code\apollo\Watch\Hardware\hal_oled.c</name>
+      <name>$PROJ_DIR$\..\Hardware\hal_oled.c</name>
       <excluded>
         <configuration>Watch</configuration>
       </excluded>
@@ -1259,7 +1259,7 @@
       <name>$PROJ_DIR$\..\Hardware\hal_vibe.c</name>
     </file>
     <file>
-      <name>Z:\Code\apollo\Watch\Hardware\OledDriver.c</name>
+      <name>$PROJ_DIR$\..\Hardware\OledDriver.c</name>
       <excluded>
         <configuration>Watch</configuration>
       </excluded>
@@ -1280,7 +1280,7 @@
   <group>
     <name>Patch</name>
     <file>
-      <name>Z:\Code\apollo\Patch\PatchSelection.c</name>
+      <name>$PROJ_DIR$\..\..\Patch\PatchSelection.c</name>
     </file>
   </group>
   <file>
