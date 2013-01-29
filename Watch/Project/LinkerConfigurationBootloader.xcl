@@ -260,7 +260,7 @@
 //  1. Set the end address of the third CRC segment to 0x45BFF.  This is the last value
 //     specified in the -J2 line shown below. Build and link the code.
 //  2. Get the address of _IMAGE_END as shown in the .map file and replace the end
-//     address of the third segment with this value.  Build and link the code.
+//     address of the third segment with this value.  Build and link the code again.
 //
 //  This is somewhat cumbersome but there is no way with XLINK to dynamically set
 //  the addresses such that all of the first and second segments along with third segment
@@ -270,5 +270,4 @@
 // Checksum
 //
 
-// STEP 1
 -J2,crc16,,,,2=APPL_SEG_BEG-0xF1FF,0xFA00-0xFDFF,0x10000-0x42B9E
