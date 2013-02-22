@@ -31,16 +31,7 @@ extern const char OK[];
 extern const char NOK[];
 extern const char CR[];
 
-/*! Initialize the uart peripheral and create mutex */
-void InitDebugUart(void);
-
-/*! when 1 the uart cannot be written to when interrupts are disabled 
- * (prevent long periods of time in interrupt context)
- * This should be called before the scheduler is started
- */
-void SetUartNormalMode(void);
-
-void TestModeControl(void);
+void EnableDebugUart(unsigned char Enable);
 
 /******************************************************************************/
 

@@ -65,7 +65,10 @@
 #define portACLK_FREQUENCY_HZ			   ((portTickType)32768)
 #define portINITIAL_CRITICAL_NESTING	((unsigned portSHORT)10)
 
-#define portFLAGS_INT_ENABLED			   ((portSTACK_TYPE)0x08)
+/*
+ * Also disable SCG0 bit 
+ */
+#define portFLAGS_INT_ENABLED_FLL_DISABLED ((portSTACK_TYPE)0x48)
 
 /* We require the address of the pxCurrentTCB variable, but don't want to know
 any details of its type. */
@@ -120,7 +123,7 @@ portSTACK_TYPE *pxPortInitialiseStack( portSTACK_TYPE *pxTopOfStack, pdTASK_CODE
 	*pxTopOfStack = ( portSTACK_TYPE ) pxCode;
 #pragma diag_default=Pe767
 	pxTopOfStack--;
-	*pxTopOfStack = ((( portSTACK_TYPE )((((unsigned long)(pxCode)) >>4) & (0x0000F000))) | portFLAGS_INT_ENABLED);
+	*pxTopOfStack = ((( portSTACK_TYPE )((((unsigned long)(pxCode)) >>4) & (0x0000F000))) | portFLAGS_INT_ENABLED_FLL_DISABLED);
 	pxTopOfStack--;
 
 	/* Next the general purpose registers. */

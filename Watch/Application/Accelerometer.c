@@ -39,12 +39,16 @@
 #include "Wrapper.h"
 
 /******************************************************************************/
-#define XYZ_DATA_LENGTH    (6)
+#define ACCELEROMETER_POWER_UP_TIME_MS (20)
+#define XYZ_DATA_LENGTH                 (6)
+
+#define ACCEL_STATE_UNKNOWN             (0)
+#define ACCEL_STATE_INIT                (1)
+#define ACCEL_STATE_DISABLED            (2)
+#define ACCEL_STATE_ENABLED             (3)
 
 static unsigned char WriteRegisterData;
 static unsigned char pReadRegisterData[16];
-static unsigned char Enabled = 0;
-/******************************************************************************/
 
 /* send interrupt only or send data (Send Interrupt Data [SID]) */
 static unsigned char OperatingModeRegister;
@@ -52,40 +56,30 @@ static unsigned char InterruptControl;
 static unsigned char SidControl;
 static unsigned char SidAddr;
 static unsigned char SidLength;
+static unsigned char AccelState;
 
 /******************************************************************************/
 
+static void InitAccelerometer(void);
+static void AccelerometerSendDataHandler(void);
+static void AccelerometerSetupHandler(tMessage* pMsg);
+static void AccelerometerAccessHandler(tMessage* pMsg);
+static void EnableAccelerometer(void);
+static void DisableAccelerometer(void);
 static void ReadInterruptReleaseRegister(void);
 
 /******************************************************************************/
 
-void InitializeAccelerometer(void)
+static void InitAccelerometer(void)
 {
   InitAccelerometerPeripheral();
-  
+
   /* make sure accelerometer has had 20 ms to power up */
   TaskDelayLpmDisable();
   vTaskDelay(ACCELEROMETER_POWER_UP_TIME_MS);
   TaskDelayLpmEnable();
- 
-//  PrintString("Accel Init\r\n");
- 
-#if 0
-  /* reset chip */
-  WriteRegisterData = PC1_STANDBY_MODE;
-  AccelerometerWrite(KIONIX_CTRL_REG1, &WriteRegisterData, ONE_BYTE);
 
-  WriteRegisterData = SRST;
-  AccelerometerWrite(KIONIX_CTRL_REG3, &WriteRegisterData, ONE_BYTE);
-  
-  /* wait until reset is complete */
-  while ( WriteRegisterData & SRST )
-  {
-    AccelerometerRead(KIONIX_CTRL_REG3,&WriteRegisterData,ONE_BYTE);  
-  }
-#endif
-  
-  /* 
+  /*
    * make sure part is in standby mode because some registers can only
    * be changed when the part is not active.
    */
@@ -167,17 +161,14 @@ void InitializeAccelerometer(void)
   /* setup the default for the AccelerometerEnable command */
   OperatingModeRegister = PC1_OPERATING_MODE | RESOLUTION_12BIT | 
     TAP_ENABLE_TDTE | TILT_ENABLE_TPE; // | WUF_ENABLE;
-  InterruptControl = INTERRUPT_CONTROL_DISABLE_INTERRUPT; 
+  InterruptControl = INTERRUPT_CONTROL_DISABLE_INTERRUPT;
   SidControl = SID_CONTROL_SEND_DATA;
   SidAddr = KIONIX_XOUT_L;
-  SidLength = XYZ_DATA_LENGTH;
-  
-  AccelerometerDisable();
-  ACCELEROMETER_INT_ENABLE();
-  
-//  PrintString("Accelerometer Init Complete\r\n");   
-}
+  SidLength = XYZ_DATA_LENGTH;  
 
+  AccelState = ACCEL_STATE_INIT;
+  PrintString2("- Accel Initd", CR);
+}
 
 /* 
  * The interrupt can either send a message to the host or
@@ -218,7 +209,7 @@ static void ReadInterruptReleaseRegister(void)
 /* Send interrupt notification to the phone or 
  * read data from the accelerometer and send it to the phone
  */
-void AccelerometerSendDataHandler(void)
+static void AccelerometerSendDataHandler(void)
 {
   /* burst read */
   AccelerometerRead(KIONIX_TDT_TIMER, pReadRegisterData, 6);
@@ -246,23 +237,12 @@ void AccelerometerSendDataHandler(void)
 
   tMessage Msg;
   
-    if ((*pReadRegisterData & INT_TAP_SINGLE) == INT_TAP_SINGLE)
-    {
-      SendMessage(&Msg, LedChange, LED_ON_OPTION);
-
-      if (Connected(CONN_TYPE_HFP))
-      {
-          //SetupMessage(&Msg, HfpMsg, MSG_OPT_HFP_HANGUP);
-      }
-    else if ((*pReadRegisterData & INT_TAP_DOUBLE) == INT_TAP_DOUBLE)
-    {
-      if (Connected(CONN_TYPE_HFP))
-      {
-      //SetupMessage(&Msg, HfpMsg, MSG_OPT_HFP_VRCG);
-      }
-    }
+  if ((*pReadRegisterData & INT_TAP_SINGLE) == INT_TAP_SINGLE)
+  {
+    SendMessage(&Msg, LedChange, LED_ON_OPTION);
   }
-  
+//  else if ((*pReadRegisterData & INT_TAP_DOUBLE) == INT_TAP_DOUBLE)
+
   if (Connected(CONN_TYPE_MAIN))
   {
     if (SidControl == SID_CONTROL_SEND_INTERRUPT)
@@ -291,67 +271,92 @@ void AccelerometerSendDataHandler(void)
   ReadInterruptReleaseRegister();
 }
 
-void AccelerometerEnable(void)
+static void EnableAccelerometer(void)
 {
   /* put into the mode specified by the OperatingModeRegister */
-  AccelerometerWrite(KIONIX_CTRL_REG1,&OperatingModeRegister,ONE_BYTE);
+  AccelerometerWrite(KIONIX_CTRL_REG1, &OperatingModeRegister, ONE_BYTE);
   
-  if ( InterruptControl == INTERRUPT_CONTROL_ENABLE_INTERRUPT )
+  if (InterruptControl == INTERRUPT_CONTROL_ENABLE_INTERRUPT)
   {
     ReadInterruptReleaseRegister();
   }
   ACCELEROMETER_INT_ENABLE();
-  Enabled = 1;
+  AccelState = ACCEL_STATE_ENABLED;
 }
 
-void AccelerometerDisable(void)
+static void DisableAccelerometer(void)
 {   
   /* put into low power mode */
   WriteRegisterData = PC1_STANDBY_MODE;
   AccelerometerWrite(KIONIX_CTRL_REG1,&WriteRegisterData,ONE_BYTE);
 
   ACCELEROMETER_INT_DISABLE();
-  Enabled = 0;
+  AccelState = ACCEL_STATE_DISABLED;
 }
 
-unsigned char QueryAccelerometerState(void)
+void HandleAccelerometer(tMessage *pMsg)
 {
-  return Enabled;
+  if (AccelState == ACCEL_STATE_UNKNOWN) InitAccelerometer();
+
+  switch (pMsg->Type)
+  {
+  case EnableAccelerometerMsg:
+    if (AccelState == ACCEL_STATE_DISABLED) EnableAccelerometer();
+    break;
+
+  case DisableAccelerometerMsg:
+    if (AccelState == ACCEL_STATE_ENABLED) DisableAccelerometer();
+    break;
+
+  case AccelerometerSendDataMsg:
+    AccelerometerSendDataHandler();
+    break;
+
+  case AccelerometerAccessMsg:
+    AccelerometerAccessHandler(pMsg);
+    break;
+
+  case AccelerometerSetupMsg:
+    AccelerometerSetupHandler(pMsg);
+    break;
+
+  default:
+    break;
+  }
 }
 
-/* 
+/*
  * Control how the msp430 responds to an interrupt,
  * control function of EnableAccelerometerMsg,
  * and allow enabling and disabling interrupt in msp430
  */
-void AccelerometerSetupHandler(tMessage* pMsg)
-{
+static void AccelerometerSetupHandler(tMessage* pMsg)
+{  
   switch (pMsg->Options)
   {
   case ACCELEROMETER_SETUP_OPMODE_OPTION:
     OperatingModeRegister = pMsg->pBuffer[0];
     break;
+
   case ACCELEROMETER_SETUP_INTERRUPT_CONTROL_OPTION:
     InterruptControl = pMsg->pBuffer[0];
     break;
+
   case ACCELEROMETER_SETUP_SID_CONTROL_OPTION:
     SidControl = pMsg->pBuffer[0];
     break;
+
   case ACCELEROMETER_SETUP_SID_ADDR_OPTION:
     SidAddr = pMsg->pBuffer[0];
     break;
+
   case ACCELEROMETER_SETUP_SID_LENGTH_OPTION:
     SidLength = pMsg->pBuffer[0];
     break;
+
   case ACCELEROMETER_SETUP_INTERRUPT_ENABLE_DISABLE_OPTION:
-    if ( pMsg->pBuffer[0] == 0 )
-    {
-      ACCELEROMETER_INT_DISABLE(); 
-    }
-    else
-    {
-      ACCELEROMETER_INT_ENABLE();  
-    }
+    if (pMsg->pBuffer[0] == 0) {ACCELEROMETER_INT_DISABLE();}
+    else {ACCELEROMETER_INT_ENABLE();}
     break;
     
   default:
@@ -360,7 +365,7 @@ void AccelerometerSetupHandler(tMessage* pMsg)
 }
 
 /* Perform a read or write access of the accelerometer */
-void AccelerometerAccessHandler(tMessage* pMsg)
+static void AccelerometerAccessHandler(tMessage* pMsg)
 {
   tAccelerometerAccessPayload* pPayload = 
     (tAccelerometerAccessPayload*) pMsg->pBuffer;
@@ -380,4 +385,13 @@ void AccelerometerAccessHandler(tMessage* pMsg)
                       &Msg.pBuffer[ACCELEROMETER_DATA_START_INDEX],
                       pPayload->Size);  
   }
+}
+
+
+/* This interrupt port is used by the Bluetooth stack.
+ * Do not change the name of this function because it is externed.
+ */
+void AccelerometerPinIsr(void)
+{
+  AccelerometerIsr();
 }

@@ -31,15 +31,13 @@
 #define CRITICAL_BT_OFF  (0)
 #define CRITICAL_WARNING (1)
 
-#define BATTERY_FULL_LEVEL            (4000)
-#define BATTERY_CRITICAL_LEVEL        (3300)
+#define BATTERY_FULL_LEVEL        (4140)
+#define BATTERY_CRITICAL_LEVEL    (3300)
+#define BATTERY_LEVEL_RANGE       (BATTERY_FULL_LEVEL - BATTERY_CRITICAL_LEVEL)
+#define BATTERY_LEVEL_NUMBER      (7)
+#define BATTERY_LEVEL_INTERVAL    (BATTERY_LEVEL_RANGE / BATTERY_LEVEL_NUMBER)
 
-/*! Initialize the Analog-to-Digital Conversion peripheral.  Set the outputs from
- * the micro to the correct state.  The ADC is used to read the 
- * hardware configuration registers, the battery voltage, and the value from the
- * light sensor.
-*/
-void InitializeAdc(void);
+void InitAdc(void);
 
 /*! Start an ADC cycle to read battery voltage.  This function must
  * be called from a task.  It will return when finished.  The result can be 
@@ -47,38 +45,11 @@ void InitializeAdc(void);
  */
 void BatterySenseCycle(void);
 
-/*! Start an ADC cycle to read the light sensor.  This function must
- * be called from a task.  It will return when finished.  It waits until the
- * light sensor is ready to send data. The result can be read using the calling
- * ReadLightSense.
- */
-void LightSenseCycle(void);
-
-/*! Returns the last Battery Sense value
+/*! Returns the average of the last 10 Battery Sense ADC cycles
  *
  *\return Battery Voltage in millivolts
  */
-unsigned int ReadBatterySense(void);
-
-/*! Returns the last Light Sense value
- *
- *\return Light Sense in millivolts
- */
-unsigned int ReadLightSense(void);
-
-/*! Returns the average of the last 10 Battery Sense ADC cycles 
- *
- *\return Battery Voltage in millivolts
- */
-unsigned int ReadBatterySenseAverage(void);
-
-/*! Returns the average of the last 10 Light Sensor analog to digital 
- * conversions
- *
- *\return Light Sense in millivolts
- */
-unsigned int ReadLightSenseAverage(void);
-
+unsigned int BatteryLevel(void);
 
 /*! Set the values of the low battery warning message and the value at which
  * the bluetooth radio should be turned off
@@ -102,22 +73,28 @@ unsigned char BatteryPercentage(void);
  * sent to the phone, and the bluetooth radio will be turned off.
  * 
  */
+void CheckBatteryLow(void);
 
-
-void LowBatteryMonitor(unsigned char PowerGood);
-
-
-/*! Set the default values for the low battery levels stored in flash if they
- * do not exist.  If they exists then read them from flash and store them
- * into a variable in ram
+/*! Start an ADC cycle to read the light sensor.  This function must
+ * be called from a task.  It will return when finished.  It waits until the
+ * light sensor is ready to send data. The result can be read using the calling
+ * ReadLightSense.
  */
-void InitializeLowBatteryLevels(void);
+void LightSenseCycle(void);
 
-/******************************************************************************/
-
-/*! The board revision was going to be used to determine what patch to load
+/*! Returns the last Light Sense value
  *
+ *\return Light Sense in millivolts
  */
-unsigned char GetBoardConfiguration(void);
+unsigned int ReadLightSense(void);
+
+void ReadLightSensorHandler(void);
+
+/*! Returns the average of the last 10 Light Sensor analog to digital 
+ * conversions
+ *
+ *\return Light Sense in millivolts
+ */
+unsigned int ReadLightSenseAverage(void);
 
 #endif // ADC_H

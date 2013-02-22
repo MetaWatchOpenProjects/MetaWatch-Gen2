@@ -1,5 +1,5 @@
 //==============================================================================
-//  Copyright 2011 Meta Watch Ltd. - http://www.MetaWatch.org/
+//  Copyright 2013 Meta Watch Ltd. - http://www.MetaWatch.org/
 // 
 //  Licensed under the Meta Watch License, Version 1.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -28,30 +28,80 @@
 #include "HAL_UCS.h"
 #include "Messages.h"
 #include "LcdDriver.h"
+#include "DebugUart.h"
 
+static unsigned char ShippingModeEnabled = 0;
+static unsigned char TaskDelayLpmLockCount = 0;
 
 static void EnterLpm3(void);
-static void EnterShippingMode(void);
-
-static unsigned char EnterShippingModeFlag = 0;
-static unsigned char TaskDelayLpmLockCount = 0;
 
 void MSP430_LPM_ENTER(void)
 {
-  if ( EnterShippingModeFlag == 1)
+#if SHIPPING_MODE
+  if (ShippingModeEnabled == 1)
   {
-    EnterShippingMode();  
+    /* Turn off the watchdog timer */
+    WDTCTL = WDTPW + WDTHOLD;
+#ifdef DIGITAL
+    ClearLcd();
+#endif
+    ConfigResetPin(RST_PIN_ENABLED);
+    
+    __delay_cycles(100000);
+    
+    __disable_interrupt();
+    __no_operation();
+    
+    DisableRtosTick();
+    
+    /* 
+     * the radio draws more current in reset than it does after 
+     * the patch is loaded
+     */
+    
+    DISABLE_LCD_POWER();
+    DISABLE_LCD_ENABLE();
+    BATTERY_CHARGE_DISABLE();
+    LIGHT_SENSOR_SHUTDOWN();
+    BATTERY_SENSE_DISABLE();
+    HARDWARE_CFG_SENSE_DISABLE();
+    APPLE_POWER_DISABLE();
+    ACCELEROMETER_INT_DISABLE();
+    DISABLE_BUTTONS();
+    
+#ifdef DIGITAL
+    /* SHIPPING */
+    ENABLE_SHIPPING_WAKEUP();
+#endif
+    
+    SELECT_ACLK(SELA__REFOCLK);                
+    SELECT_FLLREF(SELREF__REFOCLK); 
+    UCSCTL8 &= ~SMCLKREQEN;
+    UCSCTL6 |= SMCLKOFF;
+    /* disable aclk */
+    P11SEL &= ~BIT0;
+    XT1_Stop();
+    
+    /* turn off the regulator */
+    PMMCTL0_H = PMMPW_H;
+    PMMCTL0_L = PMMREGOFF;
+    __low_power_mode_4();
+    __no_operation();
+    __no_operation();
+    
+    /* should not get here without a power event */
+    SoftwareReset();
   }
-  else
-  {
+  else EnterLpm3(); 
+#else
     EnterLpm3();  
-  }  
+#endif
 }
 
 static void EnterLpm3(void)
 {
 #if LPM_ENABLED
-
+//  PrintString2("- EnterLpm", CR);
   /*
    * we are already in critical section so that we do not get switched out by the
    * OS in the middle of stopping the OS Scheduler.
@@ -67,10 +117,7 @@ static void EnterLpm3(void)
   DEBUG1_HIGH();
 
   /* leave fll control alone SCG0 (ucs7) */
-  //_BIS_SR(SCG1 + CPUOFF + GIE);
-  
-  __enable_interrupt();
-  LPM3;
+  _BIS_SR(SCG1 + CPUOFF + GIE);
   __no_operation();
   DEBUG1_LOW();
 
@@ -95,74 +142,14 @@ static void EnterLpm3(void)
 #endif  
 }
 
-void SetShippingModeFlag(void)
+void EnableShippingMode(void)
 {
-  EnterShippingModeFlag = 1;  
+  ShippingModeEnabled = 1;
 }
 
-void ClearShippingModeFlag(void)
+unsigned char ShippingMode(void)
 {
-  EnterShippingModeFlag = 0;  
-}
-
-unsigned char GetShippingModeFlag(void)
-{
-    return (EnterShippingModeFlag);
-}
-
-static void EnterShippingMode(void)
-{
-  /* Turn off the watchdog timer */
-  WDTCTL = WDTPW + WDTHOLD;
-#ifdef DIGITAL
-  ClearLcd();
-#endif
-  ConfigResetPin(RST_PIN_ENABLED);
-  
-  __delay_cycles(100000);
-  
-  __disable_interrupt();
-  __no_operation();
-  
-  DisableRtosTick();
-  
-  /* 
-   * the radio draws more current in reset than it does after 
-   * the patch is loaded
-   */
-  
-  DISABLE_DISPLAY_POWER();
-  DISABLE_LCD_ENABLE();
-  BATTERY_CHARGE_DISABLE();
-  LIGHT_SENSOR_SHUTDOWN();
-  BATTERY_SENSE_DISABLE();
-  HARDWARE_CFG_SENSE_DISABLE();
-  APPLE_POWER_DISABLE();
-  ACCELEROMETER_INT_DISABLE();
-  DISABLE_BUTTONS();
-  
-#ifdef DIGITAL
-  /* SHIPPING */
-  ENABLE_SHIPPING_WAKEUP();
-#endif
-  
-  SELECT_ACLK(SELA__REFOCLK);                
-  SELECT_FLLREF(SELREF__REFOCLK); 
-  UCSCTL8 &= ~SMCLKREQEN;
-  UCSCTL6 |= SMCLKOFF;
-  /* disable aclk */
-  P11SEL &= ~BIT0;
-  XT1_Stop();
-  
-  /* turn off the regulator */
-  PMMCTL0_H = PMMPW_H;
-  PMMCTL0_L = PMMREGOFF;
-  __low_power_mode_4();
-  __no_operation();
-  __no_operation();
-  
-  /* should not get here without a power event */
-  SoftwareReset();
+  return ShippingModeEnabled;
 }
 
 void SoftwareReset(void)
@@ -192,34 +179,18 @@ unsigned char GetTaskDelayLockCount(void)
   return TaskDelayLpmLockCount;  
 }
 
-/******************************************************************************/
-
-static unsigned char nvRstNmiConfiguration;
-
-unsigned char ResetPin(void)
+void ConfigResetPin(unsigned char Set)
 {
-  return nvRstNmiConfiguration;  
-}
-
-void ConfigResetPin(unsigned char Control)
-{
-  Control = RST_PIN_TOGGLED ? !nvRstNmiConfiguration : Control;
-  
-  switch (Control)
+  if (Set)
   {
-  case RST_PIN_ENABLED:
-    nvRstNmiConfiguration = RST_PIN_ENABLED;
-    SFRRPCR |= SYSRSTRE;
-    SFRRPCR &= ~SYSNMI;
-    break;
-    
-  case RST_PIN_DISABLED:
-  default:
     /* enable nmi functionality but don't enable the interrupt */
-    nvRstNmiConfiguration = RST_PIN_DISABLED;
     SFRRPCR &= ~SYSRSTRE;
     SFRRPCR |= SYSNMI;
-    break;
+  }
+  else
+  {
+    SFRRPCR |= SYSRSTRE;
+    SFRRPCR &= ~SYSNMI;
   }
 }
 

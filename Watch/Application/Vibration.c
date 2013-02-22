@@ -52,7 +52,7 @@ static unsigned int nextActionTime;
 /******************************************************************************/
 
 
-void InitializeVibration(void)
+void InitVibration(void)
 {
   // Make sure the vibe motor is off
   SetVibeMotorState(pdFALSE);
@@ -64,11 +64,9 @@ void InitializeVibration(void)
   VibeEventTimerCount = 0;    
 }
 
-
 /* Handle the message from the host that starts a vibration event */
 void SetVibrateModeHandler(tMessage* pMsg)
 {
-
   // overlay a structure pointer on the data section
   tSetVibrateModePayload* pMsgData;
   pMsgData = (tSetVibrateModePayload*) pMsg->pBuffer;
@@ -116,7 +114,6 @@ void SetVibrateModeHandler(tMessage* pMsg)
 
   // Set/clear  the port bit that controls the motor
   SetVibeMotorState(motorOn);
-
 }
 
 /* 
@@ -158,7 +155,6 @@ void VibrationMotorStateMachineIsr(void)
         motorOn = pdTRUE;
         nextActionTime +=  timeOn;
       }
-  
     }
   
     // Set/clean the port bit that controls the motor
@@ -170,5 +166,4 @@ void VibrationMotorStateMachineIsr(void)
     DisableRtcPrescaleInterruptUser(RTC_TIMER_VIBRATION);
     DisableVibratorPwm();   
   }
-  
 }

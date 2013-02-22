@@ -298,7 +298,7 @@
 #define BAT_CHARGE_ENABLE_PIN  BIT2
 #define BAT_CHARGE_STAT1       BIT3
 #define BAT_CHARGE_STAT2       BIT4
-#define BAT_CHARGE_PWR_GOOD    BIT5
+#define BAT_CHARGE_PWR_BIT     BIT5
 
 // Enable charging, asserted low
 #define BATTERY_CHARGE_ENABLE()   { BAT_CHARGE_OUT &= ~BAT_CHARGE_ENABLE_PIN; }

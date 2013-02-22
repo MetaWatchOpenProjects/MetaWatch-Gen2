@@ -24,55 +24,28 @@
 #ifndef HAL_BATTERY_H
 #define HAL_BATTERY_H
 
-/*! The state of the battery charging circuit is dedcoded from the bits on 
- *  port 6 
- *
- *   Stat2    Stat1      Status                  Hex value
- *    0          0       Precharge                   0x00
- *    1          0       Fast charge                 0x10
- *    0          1       Charge Done                 0x08
- *    1          1       Timer Fault or Sleep        0x18
- */
-#define BATTERY_PRECHARGE              ( 0x00 )
-#define BATTERY_FAST_CHARGE            ( 0x02 )
-#define BATTERY_CHARGE_DONE            ( 0x01 )
-#define BATTERY_CHARGE_OFF_FAULT_SLEEP ( 0x03 )
-#define EXTERNAL_POWER_GOOD            (1)
-#define NO_EXTERNAL_POWER              (0)
+#define CLIP_OFF        (0)
+#define CLIP_ON         (1)
+#define CLIP_INIT       (0xFF)
 
-/*! Configure the pins used for reading the battery state and 
- * charging the battery.
- */
-void ConfigureBatteryPins(void);
+void InitBattery(void);
 
-/*! Read battery state and update charge output 
- *
- * \param PowerGood 1 if power is good, 0 otherwise
- *
- * \return 1 if the state of power good has changed, 0 otherwise
- *
- * \note Status can be used to update the LCD screen of a possible change
- * in battery charging state
- */
-unsigned char BatteryChargingControl(unsigned char PowerGood);
-
-
-/*! Query whether or not the battery is charging
- *
- * \return 1 if the battery is charging else 0
- */
+/*! Query whether or not the battery is charging */
 unsigned char Charging(void);
 
+/*! Return whether the power from the charger is present */
+unsigned char ClipOn(void);
 
-/*!
- * \return 1 if the power from the charger is present
- */
-unsigned char ExtPower(void);
+/*! Return whether clip state is changed */
+unsigned char CheckClip(void);
+
+/*! read battery, charging or checkbatterylow */
+void CheckBattery(void);
 
 /*!
  * \return 1 if the battery charger is enabled
  */
 unsigned char ChargeEnabled(void);
-void EnableCharge(unsigned char Enable);
+void ToggleCharging(void);
 
 #endif // HAL_BATTERY_H

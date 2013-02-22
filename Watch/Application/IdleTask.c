@@ -1,10 +1,10 @@
 //==============================================================================
-//  Copyright Meta Watch Ltd. - http://www.MetaWatch.org/
-//
+//  Copyright 2013 Meta Watch Ltd. - http://www.MetaWatch.org/
+// 
 //  Licensed under the Meta Watch License, Version 1.0 (the "License");
 //  you may not use this file except in compliance with the License.
 //  You may obtain a copy of the License at
-//
+//  
 //      http://www.MetaWatch.org/licenses/license-1.0.html
 //
 //  Unless required by applicable law or agreed to in writing, software
@@ -13,12 +13,6 @@
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
 //==============================================================================
-
-/******************************************************************************/
-/*! \file IdleTask.c
-*
-*/
-/******************************************************************************/
 
 #include "FreeRTOS.h"
 #include "task.h"
@@ -39,18 +33,11 @@
 #include "Utilities.h"
 #include "IdleTask.h"
 
-#include "OSAL_Nv.h"
-#include "NvIds.h"
-
-/******************************************************************************/
-
 __no_init __root static tWatchdogInfo WatchdogInfo @ WATCHDOG_INFO_ADDR;
+__no_init __root static unsigned int niWdtCounter @ WATCHDOG_COUNTER_ADDR;
+extern unsigned int niReset;
 
-/******************************************************************************/
-
-static unsigned char TaskCheckInFlags;
-
-/******************************************************************************/
+static void PrintResetSource(unsigned int Source);
 
 void vApplicationIdleHook(void)
 {
@@ -60,35 +47,34 @@ void vApplicationIdleHook(void)
    *
    * This will stop the OS scheduler.
    */ 
+#if 0
   DEBUG5_HIGH();
- 
+#endif
+
   /* enter a critical section so that the flags can be checked */
   __disable_interrupt();
   __no_operation();
   
   /* the watchdog is set at 16 seconds.
-   * the battery interval rate is set a 8 seconds
+   * the battery interval rate is set a 10 seconds
    * each task checks in at the battery interval rate
    */
   UpdateWatchdogInfo();
- 
-  if (   GetShippingModeFlag() 
-      || (   WatchdogInfo.SppReadyToSleep
-          && WatchdogInfo.TaskDelayLockCount == 0
-          && WatchdogInfo.DisplayMessagesWaiting == 0
-          && WatchdogInfo.SppMessagesWaiting == 0 ) )
 
+  if ((WatchdogInfo.SppReadyToSleep &&
+      WatchdogInfo.TaskDelayLockCount == 0 &&
+      WatchdogInfo.DisplayMessagesWaiting == 0 &&
+      WatchdogInfo.SppMessagesWaiting == 0) ||
+      ShippingMode())
   {
-
     /* Call MSP430 Utility function to enable low power mode 3.     */
     /* Put OS and Processor to sleep. Will need an interrupt        */
     /* to wake us up from here.   */
     MSP430_LPM_ENTER();
 
     /* If we get here then interrupts are enabled */
-    extern xTaskHandle IdleTaskHandle;
+//    extern xTaskHandle IdleTaskHandle;
 //    CheckStackUsage(IdleTaskHandle,"~IdlTsk ");
-
   }
   else
   {
@@ -97,15 +83,29 @@ void vApplicationIdleHook(void)
     __no_operation();
   }
 
+#if 0
   DEBUG5_LOW();
-  
+#endif
 }
+
+void CheckQueueUsage(xQueueHandle Qhandle)
+{
+#if CHECK_QUEUE_USAGE
+  portBASE_TYPE waiting = Qhandle->uxMessagesWaiting + 1;
+  
+  if (waiting > Qhandle->MaxWaiting)
+  {
+    Qhandle->MaxWaiting = waiting;    
+  }
+#endif
+}
+     
+/******************************************************************************/
 
 /* 8 us */
 void UpdateWatchdogInfo(void)
 {
   WatchdogInfo.SppReadyToSleep = SerialPortReadyToSleep();
-
   WatchdogInfo.TaskDelayLockCount = GetTaskDelayLockCount();
 
   WatchdogInfo.DisplayMessagesWaiting =
@@ -115,93 +115,29 @@ void UpdateWatchdogInfo(void)
     QueueHandles[SPP_TASK_QINDEX]->uxMessagesWaiting;
 }
 
-
-void WatchdogTimeoutHandler(unsigned char ResetSource)
+void ShowWatchdogInfo(void)
 {
-  /* always print information about the number of watchdogs that have occured */
-  unsigned char nvWatchdogCount = 0;
-  OsalNvItemInit(NVID_WATCHDOG_RESET_COUNT,
-                 sizeof(nvWatchdogCount),
-                 &nvWatchdogCount);
+  if (niReset == FLASH_RESET_CODE) niWdtCounter = 0;
 
-  PrintStringAndDecimal("Total Watchdogs: ",nvWatchdogCount);
-   
-  if ( ResetSource == SYSRSTIV_WDTTO || ResetSource == SYSRSTIV_WDTKEY )
+  unsigned int ResetSource = GetResetSource();
+  PrintResetSource(ResetSource);
+
+  if (ResetSource == SYSRSTIV_WDTTO || ResetSource == SYSRSTIV_WDTKEY)
   {
-    if ( ResetSource == SYSRSTIV_WDTTO )
-    {
-      PrintString("## Watchdog Failsafe\r\n");
-    }
-    else
-    {
-      PrintString("## Forced Watchdog Timeout\r\n");
-    }
-    
-    PrintStringAndDecimal("SppReadyToSleep ",WatchdogInfo.SppReadyToSleep);
-    
-    PrintStringAndDecimal("TaskDelayLockCount ",
-                          WatchdogInfo.TaskDelayLockCount);
-    
-    PrintStringAndDecimal("DisplayMessagesWaiting ",
-                          WatchdogInfo.DisplayMessagesWaiting);
-    
-    PrintStringAndDecimal("SppMessagesWaiting ",
-                          WatchdogInfo.SppMessagesWaiting);
-    
-    /* 
-     * now save the information
-     */
-
-    /* If a watchdog is occurring over and over we don't want to ruin the flash.
-     * Limit to 255 writes until code is reflashed or phone clears value
-     */
-#if WATCHDOG_TEST_MODE == 0
-    if ( nvWatchdogCount < 0xFF )
-#else
-    if ( nvWatchdogCount < 0x01 )
-#endif
-    {
-      nvWatchdogCount++;
-      OsalNvWrite(NVID_WATCHDOG_RESET_COUNT,
-                  NV_ZERO_OFFSET,
-                  sizeof(nvWatchdogCount),
-                  &nvWatchdogCount);
-    
-      OsalNvItemInit(NVID_WATCHDOG_INFORMATION,
-                     sizeof(WatchdogInfo),
-                     &WatchdogInfo);
-    
-      OsalNvWrite(NVID_WATCHDOG_INFORMATION,
-                  NV_ZERO_OFFSET,
-                  sizeof(WatchdogInfo),
-                  &WatchdogInfo);
-    }
+    PrintString3("# WDT ", ResetSource == SYSRSTIV_WDTTO ? "Failsafe" : "Forced", CR);
+    PrintStringAndDecimal("SppReadyToSleep ", WatchdogInfo.SppReadyToSleep);
+    PrintStringAndDecimal("TaskDelayLockCount ", WatchdogInfo.TaskDelayLockCount);
+    PrintStringAndDecimal("DisplayMsgWaiting ", WatchdogInfo.DisplayMessagesWaiting);
+    PrintStringAndDecimal("SppMsgWaiting ", WatchdogInfo.SppMessagesWaiting);
+    niWdtCounter ++;
   }
   
+  PrintStringAndDecimal("Total Watchdogs: ", niWdtCounter);
 }
 
-/******************************************************************************/
-/******************************************************************************/
-
-void CheckQueueUsage(xQueueHandle Qhandle)
+void ResetWatchdog(void)
 {
-#if CHECK_QUEUE_USAGE
-  portBASE_TYPE waiting = Qhandle->uxMessagesWaiting + 1;
-  
-  if (  waiting > Qhandle->MaxWaiting )
-  {
-    Qhandle->MaxWaiting = waiting;    
-  }
-#endif
-}
-     
-/******************************************************************************/
-
-void RestartWatchdog(void)
-{
-#if ENABLE_WATCHDOG
-
-  /* set watchdog for 16 second timeout 
+  /* set watchdog for 16 second timeout
    * write password, select aclk, WDTIS_3 means divide by 512*1024 = 16 s;
    * WDTIS_2: 4 mins 
    */
@@ -218,15 +154,12 @@ void RestartWatchdog(void)
   SFRIE1 |= WDTIE;
 
 #endif
-
-#endif /* ENABLE_WATCHDOG */
-  
 }
 
 #define WATCHDOG_LED_DELAY() { __delay_us(2000000); }
 
 /* this is for unrecoverable errors */
-void ForceWatchdogReset(void)
+void WatchdogReset(void)
 {
   __disable_interrupt();
 
@@ -241,7 +174,6 @@ void ForceWatchdogReset(void)
   /* write the inverse of the password and cause a reset */
   WDTCTL = ~WDTPW;
 #endif
-  
 }
 
 /******************************************************************************/
@@ -270,9 +202,9 @@ void WatchdogTimerIsr(void)
 #endif
 
   // BOR reset
-  PMMCTL0 = PMMPW | PMMSWBOR;
+//  PMMCTL0 = PMMPW | PMMSWBOR;
   /* write the inverse of the password and cause a PUC reset */
-//  WDTCTL = ~WDTPW; 
+  WDTCTL = ~WDTPW; 
 }
 
 /******************************************************************************/
@@ -282,63 +214,53 @@ void WatchdogTimerIsr(void)
  */
 void TaskCheckIn(etTaskCheckInId TaskId)
 {
-  portENTER_CRITICAL();  
-  
-  TaskCheckInFlags |= (1 << (unsigned char)TaskId);
+  static unsigned char TaskCheckInFlags = 0;
 
-#if WATCHDOG_TEST_MODE == 0
-  if ( TaskCheckInFlags == ALL_TASKS_HAVE_CHECKED_IN )
+  portENTER_CRITICAL();
+  
+  TaskCheckInFlags |= (1 << TaskId);
+
+  if (TaskCheckInFlags == ALL_TASKS_HAVE_CHECKED_IN)
   {
     /* all tasks have checked in - so the flags can be cleared
      * and the watchdog can be kicked
      */
     TaskCheckInFlags = 0;
-    RestartWatchdog();
+    ResetWatchdog();
   }
-#endif
   
   portEXIT_CRITICAL();
-//  PrintStringAndHexByte("- ChkIn:0x", TaskCheckInFlags);
 }
 
-/******************************************************************************/
+/* Prints reset code and the interrupt type */
+static void PrintResetSource(unsigned int Source)
+{  
+  PrintString("ResetSource 0x");
+  PrintHex(Source);
 
-void PrintResetSource(void)
-{
-  unsigned int source = GetResetSource();
-  
-#if 1
-
-  PrintStringAndHexByte("ResetSource 0x",(unsigned char)source);
-
-#else
-  
-  switch(source)
+#if 0
+  PrintString(" - ");
+  switch (Source)
   {
-    
-  case 0x0000: PrintString("ResetSource 0x0000 - No interrupt pending\r\n"); break;
-  case 0x0002: PrintString("ResetSource 0x0002 - Brownout (BOR) (highest priority)\r\n"); break;
-  case 0x0004: PrintString("ResetSource 0x0004 - RST/NMI (BOR)\r\n"); break;
-  case 0x0006: PrintString("ResetSource 0x0006 - PMMSWBOR (BOR)\r\n"); break;
-  case 0x0008: PrintString("ResetSource 0x0008 - Wakeup from LPMx.5 (BOR)\r\n"); break;
-  case 0x000A: PrintString("ResetSource 0x000A - Security violation (BOR)\r\n"); break;
-  case 0x000C: PrintString("ResetSource 0x000C - SVSL (POR)\r\n"); break;
-  case 0x000E: PrintString("ResetSource 0x000E - SVSH (POR)\r\n"); break;
-  case 0x0010: PrintString("ResetSource 0x0010 - SVML_OVP (POR)\r\n"); break;
-  case 0x0012: PrintString("ResetSource 0x0012 - SVMH_OVP (POR)\r\n"); break;
-  case 0x0014: PrintString("ResetSource 0x0014 - PMMSWPOR (POR)\r\n"); break;
-  case 0x0016: PrintString("ResetSource 0x0016 - WDT time out (PUC)\r\n"); break;
-  case 0x0018: PrintString("ResetSource 0x0018 - WDT password violation (PUC)\r\n"); break;
-  case 0x001A: PrintString("ResetSource 0x001A - Flash password violation (PUC)\r\n"); break;
-  case 0x001C: PrintString("ResetSource 0x001C - PLL unlock (PUC)\r\n"); break;
-  case 0x001E: PrintString("ResetSource 0x001E - PERF peripheral/configuration area fetch (PUC)\r\n"); break;
-  case 0x0020: PrintString("ResetSource 0x0020 - PMM password violation (PUC)\r\n"); break;
-  default:     PrintString("ResetSource 0x???? - Unknown\r\n"); break;
-    
+  case 0x0000: PrintString("No interrupt pending"); break;
+  case 0x0002: PrintString("Brownout (BOR) (highest priority)"); break;
+  case 0x0004: PrintString("RST/NMI (BOR)"); break;
+  case 0x0006: PrintString("PMMSWBOR (BOR)"); break;
+  case 0x0008: PrintString("Wakeup from LPMx.5 (BOR)"); break;
+  case 0x000A: PrintString("Security violation (BOR)"); break;
+  case 0x000C: PrintString("SVSL (POR)"); break;
+  case 0x000E: PrintString("SVSH (POR)"); break;
+  case 0x0010: PrintString("SVML_OVP (POR)"); break;
+  case 0x0012: PrintString("SVMH_OVP (POR)"); break;
+  case 0x0014: PrintString("PMMSWPOR (POR)"); break;
+  case 0x0016: PrintString("WDT time out (PUC)"); break;
+  case 0x0018: PrintString("WDT password violation (PUC)"); break;
+  case 0x001A: PrintString("Flash password violation (PUC)"); break;
+  case 0x001C: PrintString("PLL unlock (PUC)"); break;
+  case 0x001E: PrintString("PERF peripheral/configuration area fetch (PUC)"); break;
+  case 0x0020: PrintString("PMM password violation (PUC)"); break;
+  default:     PrintString("Unknown"); break;
   }
 #endif
-  
-  
+  PrintString(CR);
 }
-
-/******************************************************************************/

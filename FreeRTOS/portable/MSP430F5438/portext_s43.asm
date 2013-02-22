@@ -62,9 +62,9 @@
              PUBLIC vTickISRCheck
              
 portSAVE_CONTEXT MACRO
-                 bic      #CPUOFF+SCG1+SCG0,0(SP)
+                 ;bic.w   #CPUOFF+SCG1+SCG0,0(SP)
                  ; this change is for FLL mod
-                 ;bic      #CPUOFF+SCG1,0(SP)
+                 bic.w    #CPUOFF+SCG1,0(SP)
                  pushm.a  #0x0c, r15
                  movx.w   &usCriticalNesting, r15
                  pushx.w  r15
@@ -109,8 +109,8 @@ xPortStartScheduler:
 vPortYield:
 ;                /* Mimic an interrupt by pushing the SR. */
 ;               /* SR is 16-bits in 430X architecture */
-                bic.w     #CPUOFF+SCG1+SCG0,SR 
-                ;bic.w     #CPUOFF+SCG1,SR 
+                ;bic.w     #CPUOFF+SCG1+SCG0,SR 
+                bic.w     #CPUOFF+SCG1,SR 
                 pushx.w    SR
 ;                /* Now the SR is stacked we can disable interrupts. */
                 dint

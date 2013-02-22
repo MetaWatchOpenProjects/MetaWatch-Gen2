@@ -37,7 +37,7 @@
 #include "Statistics.h"
 #include "task.h"
 #include "Utilities.h"
-#include "TestMode.h"
+#include "TermMode.h"
 
 /******************************************************************************/
 
@@ -46,31 +46,18 @@ const char NOK[] = "# ";
 const char CR[] = "\r\n";
 const char SPACE[] = " ";
 
-/******************************************************************************/
+tString ConversionString[6];
+static unsigned char DebugEnabled;
+static xSemaphoreHandle UartMutex = 0;
 
+static void InitDebugUart(void);
 static void WriteTxBuffer(const tString * pBuf);
 
-tString ConversionString[6];
-
 /******************************************************************************/
-
-static unsigned char NormalMode = 0;
-
-/******************************************************************************/
-
-static void EnableTestMode(void);
-static void DisableTestMode(void);
-
-/******************************************************************************/
-
-static xSemaphoreHandle UartMutex;
-
-/******************************************************************************/
-
 /* if interrupts are disabled then return */
 #define GIE_CHECK() {                         \
-  if (  (__get_interrupt_state() & GIE) == 0  \
-      && NormalMode == 1 )                    \
+  if ((__get_interrupt_state() & GIE) == 0    \
+      || DebugEnabled == pdFALSE)             \
   {                                           \
     return;                                   \
   }                                           \
@@ -91,7 +78,7 @@ static xSemaphoreHandle UartMutex;
 
 /******************************************************************************/
 
-void InitDebugUart(void)
+static void InitDebugUart(void)
 {
   UCA3CTL1 = UCSWRST;
   
@@ -104,44 +91,28 @@ void InitDebugUart(void)
   P10SEL |= BIT4;
   P10SEL |= BIT5;
   
+  /* clear status */
+  UCA3STAT = 0;
+  
+  /* take uart out of reset */
   UCA3CTL1 &= ~UCSWRST; 
   
   /* prime transmitter */
   UCA3IE = 0;
-  UCA3IFG = UCTXIFG;
+  UCA3IFG = 0; //UCTXIFG;
   
   UartMutex = xSemaphoreCreateMutex();
-
   xSemaphoreGive(UartMutex);
   
   WriteTxBuffer("\r\n\r\n**** DebugUart ****\r\n\r\n");
-
 }
 
-void SetUartNormalMode(void)
+void EnableDebugUart(unsigned char Enable)
 {
-  NormalMode = 1;
-}
+  if (!UartMutex) InitDebugUart();
 
-static void WriteTxBuffer(const tString * pBuf)
-{
-  EnableSmClkUser(BT_DEBUG_UART_USER);
-  
-  unsigned char i = 0;
-
-  while ( pBuf[i] != 0 )
-  {
-    /* writing buffer clears TXIFG */
-    UCA3TXBUF = pBuf[i++];
-    
-    /* wait for transmit complete flag */
-    while( (UCA3IFG & UCTXIFG) == 0 );
-  }
-  
-  /* wait until transmit is done */
-  while(UCA3STAT & UCBUSY); 
-  DisableSmClkUser(BT_DEBUG_UART_USER);
- 
+  DebugEnabled = Enable;
+  EnableTermMode(Enable);
 }
 
 #ifndef __IAR_SYSTEMS_ICC__
@@ -157,24 +128,36 @@ __interrupt void DebugUartIsr(void)
 {
   unsigned char ExitLpm = 0;
   
-  switch(__even_in_range(UCA3IV,4))
+  // Vector 2 - RXIFG; Vector 4 - TXIFG
+  switch (__even_in_range(UCA3IV, 4))
   {
-  case 0:break;                             // Vector 0 - no interrupt
-  case 2:                                   // Vector 2 - RXIFG
-    ExitLpm = RxTestModeCharacterIsr(UCA3RXBUF);
-    break;
-    
-  case 4:break;                             // Vector 4 - TXIFG
+  case 2: ExitLpm = TermModeIsr();
   default: break;
   }
   
-  if ( ExitLpm )
-  {
-    EXIT_LPM_ISR();  
-  }
+  if (ExitLpm) EXIT_LPM_ISR();
 }
 
 /******************************************************************************/
+static void WriteTxBuffer(const tString * pBuf)
+{
+  EnableSmClkUser(BT_DEBUG_UART_USER);
+  
+  unsigned char i = 0;
+
+  while (pBuf[i] != 0)
+  {
+    /* writing buffer clears TXIFG */
+    UCA3TXBUF = pBuf[i++];
+    
+    /* wait for transmit complete flag */
+    while( (UCA3IFG & UCTXIFG) == 0 );
+  }
+  
+  /* wait until transmit is done */
+  while(UCA3STAT & UCBUSY); 
+  DisableSmClkUser(BT_DEBUG_UART_USER);
+}
 
 /*! convert a 16 bit value into a string */
 void ToDecimalString(unsigned int Value, tString * pString)
@@ -509,7 +492,6 @@ void PrintTimeStamp(void)
   WriteTxBuffer(ConversionString);
   WriteTxBuffer(SPACE);
   GIVE_MUTEX();
-  
 }
 
 /* callback from FreeRTOS 
@@ -524,36 +506,3 @@ void vApplicationMallocFailedHook(size_t xWantedSize)
   
   __no_operation();
 }
-
-/******************************************************************************/
-
-static unsigned char TestModeEnabled = 0;
-
-static void EnableTestMode(void)
-{
-  EnableSmClkUser(TEST_MODE_USER);
-  InitTestMode();
-  
-  /* read any characters */
-  UCA3RXBUF;
-  UCA3IE |= UCRXIE;
-  TestModeEnabled = 1;
-}
-
-static void DisableTestMode(void)
-{
-  UCA3IE &= ~UCRXIE;
-  DisableSmClkUser(TEST_MODE_USER);
-  TestModeEnabled = 0;
-}
-
-void TestModeControl(void)
-{
-  if (ExtPower())
-  {
-    if (!TestModeEnabled) EnableTestMode();
-  }
-  else if (TestModeEnabled) DisableTestMode();
-}
-
-/******************************************************************************/

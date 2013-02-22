@@ -14,34 +14,13 @@
 //  limitations under the License.
 //==============================================================================
 
-/******************************************************************************/
-/*! \file Accelerometer.h
- *
- */
-/******************************************************************************/
-
 #ifndef ACCELEROMETER_H
 #define ACCELEROMETER_H
 
-/******************************************************************************/
-
-#define ACCELEROMETER_POWER_UP_TIME_MS ( 20 )
-
-/******************************************************************************/
-   
-void InitializeAccelerometer(void);
+void HandleAccelerometer(tMessage *pMsg);
 
 /*! The accelerometer is configured to wake up on a certain threshold */
-void AccelerometerIsr(void);
-
-void AccelerometerSendDataHandler(void);
-void AccelerometerSetupHandler(tMessage* pMsg);
-void AccelerometerAccessHandler(tMessage* pMsg);
-void AccelerometerEnable(void);
-void AccelerometerDisable(void);
-unsigned char QueryAccelerometerState(void);
-
-/******************************************************************************/
-
+//void AccelerometerIsr(void);
+//void AccelerometerPinIsr(void);
 
 #endif /*ACCELEROMETER_H */

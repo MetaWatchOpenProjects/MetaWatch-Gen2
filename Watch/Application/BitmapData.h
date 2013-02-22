@@ -24,7 +24,8 @@
 
 #define BYTES_PER_SCREEN          (1152)
 #define SPLASH_ROWS               (32)
-#define TEMPLATE_NUM_FLASH_PAGES  2
+#define TEMPLATE_NUM_FLASH_PAGES  (2)
+#define HAL_FLASH_PAGE_SIZE       (512)
 #define TEMPLATE_FLASH_SIZE       (HAL_FLASH_PAGE_SIZE * TEMPLATE_NUM_FLASH_PAGES)
 
 #define TMPL_NOTIF_MODE           (0)

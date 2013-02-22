@@ -49,9 +49,6 @@ void DetermineErrata(void);
 /*! return 1 if workarounds for errata group 1 are required */
 unsigned char QueryErrataGroup1(void);
 
-/*! Send the 32 kHz clock to the Bluetooth Radio */
-void SetupAclkToRadio(void);
-
 /*! Setup the CPU clock and the power managment module.
  * This function uses TI provided routines to start the crystal
  * and setup the FLL.
@@ -66,7 +63,13 @@ void SetupClockAndPowerManagementModule(void);
  * catch-all
  * \note Board Configuration must be valid before this is called
  */
-void ConfigureDefaultIO(unsigned char BoardConfiguration);
+void ConfigureDefaultIO(void);
 
+/******************************************************************************/
+
+/*! The board revision was going to be used to determine what patch to load
+ *
+ */
+unsigned char GetBoardConfiguration(void);
 
 #endif /* HAL_MISCELLANEOUS_H */

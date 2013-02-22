@@ -109,7 +109,6 @@
 #define PAGE_TYPE_INFO     (1)
 #define PAGE_TYPE_MENU     (2)
 
-extern const char VERSION[];
 extern unsigned char CurrentMode;
 extern unsigned char PageType;
 
@@ -126,15 +125,9 @@ typedef enum
 } eIdleModePage;
 
 /*! Create task and queue for display task. Call from main or another task. */
-void InitializeDisplayTask(void);
+void CreateDisplayTask(void);
 
-/*! The phone can control all of the idle buffer or the bottom 2/3.
- * 
- * \return character indicating who controls top third of screen.  When it is
- * zero the watch controls the top.
- */
-unsigned char ScreenControl(void);
-unsigned char InvertDisplay(void);
+void Init(void);
 
 void ResetModeTimer(void);
 
@@ -148,7 +141,8 @@ unsigned char BackLightOn(void);
 
 unsigned char CurrentIdlePage(void);
 
-unsigned char BatteryPercentage(void);
+void EnterBootloader(void);
 
+void WhoAmI(void);
 
 #endif /* LCD_DISPLAY_H */

@@ -60,7 +60,7 @@ void DisableRtcPrescaleInterruptUser(unsigned char user);
  *
  * \note This function does not change the value of the RTC
  */
-void InitializeRealTimeClock( void );
+void InitRealTimeClock( void );
 
 /*! Sets the RTC 
  *

@@ -67,7 +67,7 @@ static void SetBufferPoolFailureBit(void)
   SoftwareReset();
 }
 
-void InitializeBufferPool( void )
+void InitBufferPool(void)
 {
   unsigned int  i;              // loop counter
   unsigned char* pMsgBuffer;    // holds the address of the msg buffer to add to the queue

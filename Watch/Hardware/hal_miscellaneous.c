@@ -31,8 +31,11 @@
 #include "HAL_PMM.h"
 #include "HAL_UCS.h"
 
-/******************************************************************************/
+unsigned char BoardType;
 
+static unsigned char PMM15Check (void);
+
+/******************************************************************************/
 #define HARDWARE_REVISION_ADDRESS (0x1a07)
 
 unsigned char GetMsp430HardwareRevision(void)
@@ -44,9 +47,7 @@ unsigned char GetMsp430HardwareRevision(void)
 }
 
 /******************************************************************************/
-
 static unsigned char ErrataGroup1;
-
 
 /* see header file */
 void DetermineErrata(void)
@@ -63,7 +64,6 @@ void DetermineErrata(void)
     ErrataGroup1 = 1;
     break;
   }
-  
 }
 
 unsigned char QueryErrataGroup1(void)
@@ -80,24 +80,12 @@ unsigned char QueryErrataGroup1(void)
 void SetRadioControlPinsToInputs(void);
 #endif
 
-static void BluetoothSidebandConfig(unsigned char BoardConfiguration);
+static void BluetoothSidebandConfig(void);
 
 /******************************************************************************/
 
-void SetupAclkToRadio(void)
-{
-  // Setting DIR = 1 and SEL = 1 enables ACLK out on P11.0
-  // and disable MCLK and SMCLK
-  P11DIR |= BIT0;
-  P11SEL |= BIT0;
-
-}
-
-
 void SetupClockAndPowerManagementModule(void)
 {
-  unsigned int status;
-
   // see Frequency vs Supply Voltage in MSP4305438A data sheet
   SetVCore(PMMCOREV_2);
 
@@ -105,11 +93,7 @@ void SetupClockAndPowerManagementModule(void)
   P7SEL |= BIT0 + BIT1;
 
   // Startup LFXT1 32 kHz crystal
-  do
-  {
-    status = LFXT_Start_Timeout(XT1DRIVE_0, 50000);
-
-  } while(status == UCS_STATUS_ERROR);
+  while (LFXT_Start_Timeout(XT1DRIVE_0, 50000) == UCS_STATUS_ERROR);
 
   // select the sources for the FLL reference and ACLK
   SELECT_ACLK(SELA__XT1CLK);
@@ -118,11 +102,8 @@ void SetupClockAndPowerManagementModule(void)
   // 512 * 32768 = 16777216 / 1024
   Init_FLL_Settle(configCPU_CLOCK_HZ/configTICK_RATE_HZ, ACLK_MULTIPLIER);
   
-  // Disable FLL loop control for older revision part
-  if ( QueryErrataGroup1() )
-  {
-    __bis_SR_register(SCG0);
-  }
+  // Disable FLL loop control
+  __bis_SR_register(SCG0);
   
   // setup for quick wake up from interrupt and
   // minimal power consumption in sleep mode
@@ -142,27 +123,65 @@ void SetupClockAndPowerManagementModule(void)
                                             // stays on in LPM3,enhanced protect
 
   // Wait until high side, low side settled
-  while (((PMMIFG & SVSMLDLYIFG) == 0)&&((PMMIFG & SVSMHDLYIFG) == 0));
+  while ((PMMIFG & SVSMLDLYIFG) == 0 && (PMMIFG & SVSMHDLYIFG) == 0);
   CLEAR_PMM_IFGS();
 
+#if CHECK_FOR_PMM15
+  /* make sure error pmm15 does not exist */
+  while (PMM15Check());
+#endif
+
+  if (ErrataGroup1)
+  {
+    /* Errata PMM17 - automatic prolongation mechanism
+    * SVSLOW is disabled
+    */
+    *(unsigned int*)(0x0110) = 0x9602;
+    *(unsigned int*)(0x0112) |= 0x0800;
+  }
+}
+
+/*! Check the configuration of the power management module to make sure that
+ * it is not setup in a mode that will cause problems
+ */
+static unsigned char PMM15Check (void)
+{
+  // First check if SVSL/SVML is configured for fast wake-up
+  if ((!(SVSMLCTL & SVSLE)) || ((SVSMLCTL & SVSLE) && (SVSMLCTL & SVSLFP)) ||
+      (!(SVSMLCTL & SVMLE)) || ((SVSMLCTL & SVMLE) && (SVSMLCTL & SVMLFP)))
+  { 
+    // Next Check SVSH/SVMH settings to see if settings are affected by PMM15
+    if ((SVSMHCTL & SVSHE) && (!(SVSMHCTL & SVSHFP)))
+    {
+      if ( (!(SVSMHCTL & SVSHMD)) ||
+           ((SVSMHCTL & SVSHMD) && (SVSMHCTL & SVSMHACE)) )
+        return 1; // SVSH affected configurations
+    }
+
+    if ((SVSMHCTL & SVMHE) && (!(SVSMHCTL & SVMHFP)) && (SVSMHCTL & SVSMHACE))
+      return 1; // SVMH affected configurations
+  }
+
+  return 0; // SVS/M settings not affected by PMM15
 }
 
 /* The following is responsible for initializing the target hardware.*/
-void ConfigureDefaultIO(unsigned char BoardConfiguration)
+void ConfigureDefaultIO(void)
 {
-  SetupAclkToRadio();
+  // Setting DIR = 1 and SEL = 1 enables ACLK out on P11.0
+  // and disable MCLK and SMCLK
+  P11DIR |= BIT0;
+  P11SEL |= BIT0;
 
-  BluetoothSidebandConfig(BoardConfiguration);
+  BluetoothSidebandConfig();
 
+#if ANALOG
   CONFIG_OLED_PINS();
+#endif
 
 #ifdef HW_DEVBOARD_V2
   CONFIG_DEBUG_PINS();
   CONFIG_LED_PINS();
-#endif
-
-#ifdef DIGITAL
-//  DISABLE_LCD_LED();
 #endif
 
   CONFIG_SRAM_PINS();
@@ -170,15 +189,46 @@ void ConfigureDefaultIO(unsigned char BoardConfiguration)
 
   CONFIG_ACCELEROMETER_PINS();
 
-  if ( BoardConfiguration >= 5 )
-  {
-    ENABLE_ACCELEROMETER_POWER();
-  }
+  if (BoardType >= 2) ENABLE_ACCELEROMETER_POWER();
 
 #if ISOLATE_RADIO
   SetRadioControlPinsToInputs();
 #endif
+}
 
+/* these pins were originally used for debug
+ * on later boards they are not connected to the radio
+ *
+ */
+static void BluetoothSidebandConfig(void)
+{
+  if (BoardType < 2)
+  {
+#ifdef HW_DEVBOARD_V2
+    /* BT_CLK_REQ on devboard == BT_IO2 on watch
+     * (BT_CLK_REQ is not connected on watch's MSP430)
+     */
+    BT_CLK_REQ_CONIFIG_AS_INPUT();
+    BT_IO1_CONFIG_AS_OUTPUT_LOW();
+    BT_IO2_CONFIG_AS_OUTPUT_LOW();
+#else
+    BT_CLK_REQ_CONIFIG_AS_OUTPUT_LOW();
+    BT_IO1_CONFIG_AS_OUTPUT_LOW();
+    BT_IO2_CONFIG_AS_INPUT();
+#endif
+  }
+  else
+  {
+    /* todo: check power consumption on actual hardware */
+    BT_CLK_REQ_CONIFIG_AS_OUTPUT_LOW();
+    BT_IO1_CONFIG_AS_OUTPUT_LOW();
+    BT_IO2_CONFIG_AS_OUTPUT_LOW();
+  }
+}
+
+unsigned char GetBoardConfiguration(void)
+{
+  return BoardType;
 }
 
 #if ISOLATE_RADIO
@@ -206,38 +256,6 @@ static void SetRadioControlPinsToInputs(void)
 
   /* BT_RST */
   P10OUT &= ~BIT3;
-
 }
 #endif
 
-/* these pins were originally used for debug
- * on later boards they are not connected to the radio
- *
- */
-static void BluetoothSidebandConfig(unsigned char BoardConfiguration)
-{
-
-  if ( BoardConfiguration < 5 )
-  {
-#ifdef HW_DEVBOARD_V2
-    /* BT_CLK_REQ on devboard == BT_IO2 on watch
-     * (BT_CLK_REQ is not connected on watch's MSP430)
-     */
-    BT_CLK_REQ_CONIFIG_AS_INPUT();
-    BT_IO1_CONFIG_AS_OUTPUT_LOW();
-    BT_IO2_CONFIG_AS_OUTPUT_LOW();
-#else
-    BT_CLK_REQ_CONIFIG_AS_OUTPUT_LOW();
-    BT_IO1_CONFIG_AS_OUTPUT_LOW();
-    BT_IO2_CONFIG_AS_INPUT();
-#endif
-  }
-  else
-  {
-    /* todo: check power consumption on actual hardware */
-    BT_CLK_REQ_CONIFIG_AS_OUTPUT_LOW();
-    BT_IO1_CONFIG_AS_OUTPUT_LOW();
-    BT_IO2_CONFIG_AS_OUTPUT_LOW();
-  }
-
-}

@@ -20,18 +20,18 @@ static const tMsgInfo MsgInfo[MAXIMUM_MESSAGE_TYPES] =
 {
   {InvalidMsg,                    FREE_QINDEX,       1 }, /* 0x00 */
   {"GetDevTypeMsg",               DISPLAY_QINDEX,    1 }, /* 0x01 */
-  {"GetDevTypeResp",              SPP_TASK_QINDEX,   1 }, /* 0x02 */
+  {"GetDevTypeResp",              SPP_TASK_QINDEX,   0 }, /* 0x02 */
   {"GetInfoMsg",                  DISPLAY_QINDEX,    1 }, /* 0x03 */
-  {"GetInfoResp",                 SPP_TASK_QINDEX,   1 }, /* 0x04 */
+  {"GetInfoResp",                 SPP_TASK_QINDEX,   0 }, /* 0x04 */
   {"DiagLoopback",                SPP_TASK_QINDEX,   1 }, /* 0x05 */
   {"ShippingModMsg",              SPP_TASK_QINDEX,   1 }, /* 0x06 */
   {"SoftResetMsg",                DISPLAY_QINDEX,    1 }, /* 0x07 */
   {"ConnTimeoutMsg",              SPP_TASK_QINDEX,   1 }, /* 0x08 */
-  {"TurnRadioOnMsg",              SPP_TASK_QINDEX,   1 }, /* 0x09 */
-  {"TurnRadioOffMsg",             SPP_TASK_QINDEX,   1 }, /* 0x0a */
+  {"TurnRadioOnMsg",              SPP_TASK_QINDEX,   0 }, /* 0x09 */
+  {"TurnRadioOffMsg",             SPP_TASK_QINDEX,   0 }, /* 0x0a */
   {"ReadRssiMsg",                 SPP_TASK_QINDEX,   1 }, /* 0x0b */
-  {"PairCtrlMsg",                 SPP_TASK_QINDEX,   1 }, /* 0x0c */
-  {"ReadRssiResp",                SPP_TASK_QINDEX,   1 }, /* 0x0d */
+  {"PairCtrlMsg",                 SPP_TASK_QINDEX,   0 }, /* 0x0c */
+  {"ReadRssiResp",                SPP_TASK_QINDEX,   0 }, /* 0x0d */
   {"SniffCtrlMsg",                SPP_TASK_QINDEX,   1 }, /* 0x0e */
   {"LnkAlmMsg",                   DISPLAY_QINDEX,    1 }, /* 0x0f */
   {"OledWrtBufMsg",               DISPLAY_QINDEX,    0 }, /* 0x10 */
@@ -42,7 +42,7 @@ static const tMsgInfo MsgInfo[MAXIMUM_MESSAGE_TYPES] =
   {"OleShowIdleBufMsg",           DISPLAY_QINDEX,    0 }, /* 0x15 */
   {"OleCrwnMenuMsg",              DISPLAY_QINDEX,    0 }, /* 0x16 */
   {"OleCrwnMenuBtnMsg",           DISPLAY_QINDEX,    0 }, /* 0x17 */
-  {"MusicPlayStateMsg",           DISPLAY_QINDEX,    1 }, /* 0x18 */
+  {"MusicStateMsg",               DISPLAY_QINDEX,    1 }, /* 0x18 */
   {InvalidMsg,                    FREE_QINDEX,       0 }, /* 0x19 */
   {InvalidMsg,                    FREE_QINDEX,       0 }, /* 0x1a */
   {InvalidMsg,                    FREE_QINDEX,       0 }, /* 0x1b */
@@ -50,10 +50,10 @@ static const tMsgInfo MsgInfo[MAXIMUM_MESSAGE_TYPES] =
   {InvalidMsg,                    FREE_QINDEX,       0 }, /* 0x1d */
   {InvalidMsg,                    FREE_QINDEX,       0 }, /* 0x1e */
   {InvalidMsg,                    FREE_QINDEX,       0 }, /* 0x1f */
-  {"MvWatchHandMsg",              DISPLAY_QINDEX,    0 }, /* 0x20 */
-  {"TstModMsg",                   DISPLAY_QINDEX,    1 }, /* 0x21 */
+  {"WatchHandMsg",                DISPLAY_QINDEX,    0 }, /* 0x20 */
+  {"TermModMsg",                  DISPLAY_QINDEX,    1 }, /* 0x21 */
   {InvalidMsg,                    FREE_QINDEX,       0 }, /* 0x22 */
-  {"SetVbrModeMsg",               DISPLAY_QINDEX,    0 }, /* 0x23 */
+  {"SetVbrMsg",                   DISPLAY_QINDEX,    0 }, /* 0x23 */
   {"BtnStateMsg",                 DISPLAY_QINDEX,    0 }, /* 0x24 */
   {InvalidMsg,                    FREE_QINDEX,       0 }, /* 0x25 */
   {"SetRtcMsg",                   DISPLAY_QINDEX,    0 }, /* 0x26 */
@@ -66,11 +66,11 @@ static const tMsgInfo MsgInfo[MAXIMUM_MESSAGE_TYPES] =
   {InvalidMsg,                    FREE_QINDEX,       0 }, /* 0x2d */
   {InvalidMsg,                    FREE_QINDEX,       0 }, /* 0x2e */
   {InvalidMsg,                    FREE_QINDEX,       0 }, /* 0x2f */
-  {"NvalMsg",                     DISPLAY_QINDEX,    1 }, /* 0x30 */
-  {"NvalResp",                    SPP_TASK_QINDEX,   1 }, /* 0x31 */
+  {"NvalMsg",                     DISPLAY_QINDEX,    0 }, /* 0x30 */
+  {"NvalResp",                    SPP_TASK_QINDEX,   0 }, /* 0x31 */
   {InvalidMsg,                    FREE_QINDEX,       0 }, /* 0x32 */
-  {"ModChgIndMsg",                SPP_TASK_QINDEX,   1 }, /* 0x33 */
-  {"BtnEventMsg",                 SPP_TASK_QINDEX,   1 }, /* 0x34 */
+  {"ModChgIndMsg",                SPP_TASK_QINDEX,   0 }, /* 0x33 */
+  {"BtnEventMsg",                 SPP_TASK_QINDEX,   0 }, /* 0x34 */
   {"GeneralPhoneMsg",             SPP_TASK_QINDEX,   0 }, /* 0x35 */
   {"GeneralWatchMsg",             DISPLAY_QINDEX,    0 }, /* 0x36 */
   {"WrpTskMsg",                   SPP_TASK_QINDEX,   0 }, /* 0x37 */
@@ -91,7 +91,7 @@ static const tMsgInfo MsgInfo[MAXIMUM_MESSAGE_TYPES] =
   {"EnBtnMsg",                    DISPLAY_QINDEX,    0 }, /* 0x46 */
   {"DisBtnMsg",                   DISPLAY_QINDEX,    1 }, /* 0x47 */
   {"RdBtnConfMsg",                DISPLAY_QINDEX,    1 }, /* 0x48 */
-  {"RdBtnConfResp",               SPP_TASK_QINDEX,   1 }, /* 0x49 */
+  {"RdBtnConfResp",               SPP_TASK_QINDEX,   0 }, /* 0x49 */
   {"ExtAppIndMsg",                SPP_TASK_QINDEX,   1 }, /* 0x4a */
   {"EraseTmplMsg",                DISPLAY_QINDEX,    1 }, /* 0x4b */
   {"WrtTmplMsg",                  DISPLAY_QINDEX,    1 }, /* 0x4c */
@@ -179,12 +179,12 @@ static const tMsgInfo MsgInfo[MAXIMUM_MESSAGE_TYPES] =
   {InvalidMsg,                    FREE_QINDEX,       0 }, /* 0x9e */
   {InvalidMsg,                    FREE_QINDEX,       0 }, /* 0x9f */
   {"IdleUpdMsg",                  DISPLAY_QINDEX,    0 }, /* 0xa0 */
-  {"SetWgtListMsg",               DISPLAY_QINDEX,    1 }, /* 0xa1 */
+  {"SetWgtListMsg",               DISPLAY_QINDEX,    0 }, /* 0xa1 */
   {"WatchDrawnTout",              DISPLAY_QINDEX,    0 }, /* 0xa2 */
   {InvalidMsg,                    FREE_QINDEX,       0 }, /* 0xa3 */
   {"UnusedMsg",                   DISPLAY_QINDEX,    1 }, /* 0xa4 */
   {InvalidMsg,                    FREE_QINDEX,       0 }, /* 0xa5 */
-  {"ChgModMsg",                   DISPLAY_QINDEX,    1 }, /* 0xa6 */
+  {"ChgModMsg",                   DISPLAY_QINDEX,    0 }, /* 0xa6 */
   {"ModeTimeoutMsg",              DISPLAY_QINDEX,    0 }, /* 0xa7 */
   {"WatchStatusMsg",              DISPLAY_QINDEX,    0 }, /* 0xa8 */
   {"MenuModeMsg",                 DISPLAY_QINDEX,    0 }, /* 0xa9 */
@@ -194,18 +194,18 @@ static const tMsgInfo MsgInfo[MAXIMUM_MESSAGE_TYPES] =
   {"ModifyTimeMsg",               DISPLAY_QINDEX,    1 }, /* 0xad */
   {"MenuBtnMsg",                  DISPLAY_QINDEX,    1 }, /* 0xae */
   {"ToggleSecMsg",                DISPLAY_QINDEX,    1 }, /* 0xaf */
-  {"SetHBMsg",                    SPP_TASK_QINDEX,   1 }, /* 0xb0 */
-  {"HBIndMsg",                    SPP_TASK_QINDEX,   0 }, /* 0xb1 */
-  {"UpdConnParamMsg",             SPP_TASK_QINDEX,   1 }, /* 0xb2 */
+  {"SetHBMsg",                    SPP_TASK_QINDEX,   0 }, /* 0xb0 */
+  {"TunnelToutMsg",               SPP_TASK_QINDEX,   1 }, /* 0xb1 */
+  {"UpdConnParamMsg",             SPP_TASK_QINDEX,   0 }, /* 0xb2 */
   {"CallerIdIndMsg",              SPP_TASK_QINDEX,   1 }, /* 0xb3 */
   {"CallerNameMsg",               DISPLAY_QINDEX,    1 }, /* 0xb4 */
   {"CallerIdMsg",                 DISPLAY_QINDEX,    1 }, /* 0xb5 */
-  {"HfpMsg",                      SPP_TASK_QINDEX,   1 }, /* 0xb6 */
+  {"HfpMsg",                      SPP_TASK_QINDEX,   0 }, /* 0xb6 */
   {"MapMsg",                      SPP_TASK_QINDEX,   0 }, /* 0xb7 */
   {"MapIndMsg",                   SPP_TASK_QINDEX,   1 }, /* 0xb8 */
-  {"ConnChgMsg",                  SPP_TASK_QINDEX,   1 }, /* 0xb9 */
-  {"UpdWgtIndMsg",                SPP_TASK_QINDEX,   1 }, /* 0xba */
-  {"ConnParamIndMsg",             SPP_TASK_QINDEX,   1 }, /* 0xbb */
+  {"ConnChgMsg",                  SPP_TASK_QINDEX,   0 }, /* 0xb9 */
+  {"UpdWgtIndMsg",                SPP_TASK_QINDEX,   0 }, /* 0xba */
+  {"ConnParamIndMsg",             SPP_TASK_QINDEX,   0 }, /* 0xbb */
   {InvalidMsg,                    FREE_QINDEX,       0 }, /* 0xbc */
   {InvalidMsg,                    FREE_QINDEX,       0 }, /* 0xbd */
   {InvalidMsg,                    FREE_QINDEX,       0 }, /* 0xbe */

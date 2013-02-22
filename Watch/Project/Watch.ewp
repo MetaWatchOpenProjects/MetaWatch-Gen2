@@ -101,7 +101,7 @@
         </option>
         <option>
           <name>GStackHeapOverride</name>
-          <state>0</state>
+          <state>1</state>
         </option>
         <option>
           <name>GStackSize2</name>
@@ -126,7 +126,7 @@
         </option>
         <option>
           <name>RadioHeapSizeType</name>
-          <state>0</state>
+          <state>1</state>
         </option>
         <option>
           <name>RadioHardwareMultiplierType</name>
@@ -890,10 +890,10 @@
         </option>
         <option>
           <name>XExtraOptions</name>
-          <state>-C $PROJ_DIR$\..\..\Stack\Api\IAR\Stack.r43</state>
-          <state>-C $PROJ_DIR$\..\..\Stack\Api\IAR\libBluetopia.a</state>
-          <state>-C $PROJ_DIR$\..\..\Stack\Api\IAR\libSS1BTGAT.a</state>
-          <state>-C $PROJ_DIR$\..\..\Stack\Api\IAR\libSS1BTMAP.a</state>
+          <state>-C $PROJ_DIR$\..\..\Stack\Api\IAR\wrapper.r43</state>
+          <state>-C $PROJ_DIR$\..\..\Stack\Api\IAR\stack.a</state>
+          <state>-C $PROJ_DIR$\..\..\Stack\Api\IAR\libgat.a</state>
+          <state>-C $PROJ_DIR$\..\..\Stack\Api\IAR\libmap.a</state>
         </option>
         <option>
           <name>OverlaySystemMap</name>
@@ -3013,9 +3013,6 @@
       <name>$PROJ_DIR$\..\Application\DebugUart.c</name>
     </file>
     <file>
-      <name>$PROJ_DIR$\..\Application\Display.c</name>
-    </file>
-    <file>
       <name>$PROJ_DIR$\..\Application\Fonts.c</name>
     </file>
     <file>
@@ -3034,35 +3031,16 @@
       <name>$PROJ_DIR$\..\Application\main.c</name>
     </file>
     <file>
-      <name>$PROJ_DIR$\..\Application\MessageInfo.h</name>
-    </file>
-    <file>
       <name>$PROJ_DIR$\..\Application\MessageQueues.c</name>
     </file>
     <file>
-      <name>$PROJ_DIR$\..\Application\Messages.h</name>
-    </file>
-    <file>
-      <name>$PROJ_DIR$\..\Application\OledDisplay.c</name>
-      <excluded>
-        <configuration>Gen2</configuration>
-        <configuration>Gen1</configuration>
-        <configuration>Bootloader</configuration>
-      </excluded>
-    </file>
-    <file>
-      <name>$PROJ_DIR$\..\Application\OledFonts.c</name>
-      <excluded>
-        <configuration>Gen2</configuration>
-        <configuration>Gen1</configuration>
-        <configuration>Bootloader</configuration>
-      </excluded>
+      <name>$PROJ_DIR$\..\Application\MuxMode.c</name>
     </file>
     <file>
       <name>$PROJ_DIR$\..\Application\OneSecondTimers.c</name>
     </file>
     <file>
-      <name>$PROJ_DIR$\..\Application\PreInclude.h</name>
+      <name>$PROJ_DIR$\..\Application\Property.c</name>
     </file>
     <file>
       <name>$PROJ_DIR$\..\Application\SerialRam.c</name>
@@ -3071,22 +3049,13 @@
       <name>$PROJ_DIR$\..\Application\Statistics.c</name>
     </file>
     <file>
-      <name>$PROJ_DIR$\..\Application\TestMode.c</name>
+      <name>$PROJ_DIR$\..\Application\TermMode.c</name>
     </file>
     <file>
       <name>$PROJ_DIR$\..\Application\Utilities.c</name>
     </file>
     <file>
       <name>$PROJ_DIR$\..\Application\Vibration.c</name>
-    </file>
-  </group>
-  <group>
-    <name>Bootloader</name>
-    <file>
-      <name>$PROJ_DIR$\..\Bootloader\AltVect.s43</name>
-    </file>
-    <file>
-      <name>$PROJ_DIR$\..\Bootloader\cstartup.s43</name>
     </file>
   </group>
   <group>
@@ -3249,6 +3218,9 @@
       <name>$PROJ_DIR$\..\Hardware\hal_rtos_timer.c</name>
     </file>
     <file>
+      <name>$PROJ_DIR$\..\Hardware\hal_software_fll.c</name>
+    </file>
+    <file>
       <name>$PROJ_DIR$\..\Hardware\hal_vibe.c</name>
     </file>
     <file>
@@ -3265,12 +3237,6 @@
     <file>
       <name>$PROJ_DIR$\..\..\OSAL\MSP430FlashUtil.c</name>
     </file>
-    <file>
-      <name>$PROJ_DIR$\..\..\OSAL\NvIds.h</name>
-    </file>
-    <file>
-      <name>$PROJ_DIR$\..\..\OSAL\OSAL_Nv.c</name>
-    </file>
   </group>
   <group>
     <name>Patch</name>
@@ -3278,9 +3244,6 @@
       <name>$PROJ_DIR$\..\..\Patch\PatchSelection.c</name>
     </file>
   </group>
-  <file>
-    <name>$PROJ_DIR$\LinkerConfigurationBootloader.xcl</name>
-  </file>
 </project>
 
 

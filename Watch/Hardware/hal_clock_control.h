@@ -35,11 +35,11 @@
 #define BT_UART_USER        BIT0
 #define BT_DEBUG_UART_USER  BIT1
 #define ADC_USER            BIT2
-#define OLED_I2C_USER       BIT3
+#define FLL_USER            BIT3
 #define LCD_USER            BIT4
 #define SERIAL_RAM_USER     BIT5
 #define ACCELEROMETER_USER  BIT6
-#define TEST_MODE_USER      BIT7
+#define TERM_MODE_USER      BIT7
 
 /*! determine if the msp430 requires the sm clock workaround 
  * if the work around is required then

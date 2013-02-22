@@ -33,9 +33,9 @@
 /*! timers are not handled using lists
  * so don't allocate more timers than are required
 */
-#define TOTAL_ONE_SECOND_TIMERS ( 5 )
-
-#define ONE_SECOND ( 1 )
+#define TOTAL_ONE_SECOND_TIMERS (5)
+#define ONE_SECOND              (1)
+#define UNASSIGNED_ID           (-1)
 
 /*! setting the repeat count to 0xFF causes a timer to repeat forever */
 #define NO_REPEAT      ( 0 )
@@ -44,9 +44,6 @@
 /*! Timer id is a signed character but is typedefed so compiler helps keep
  * track of things */
 typedef signed char tTimerId;
-
-/*! Initalize the One Second Timer module */
-void InitializeOneSecondTimers(void);
 
 /*! One Second Timer handler that occurs in interrupt context */
 unsigned char OneSecondTimerHandlerIsr(void);
@@ -61,10 +58,8 @@ signed char AllocateOneSecondTimer(void);
 /*! De-allocate a one second timer
  *
  * \param TimerId is the ID of the timer to de-allocate
- * 
- * returns >= 0 TimerId, < 0 error
 */
-signed char DeallocateOneSecondTimer(tTimerId TimerId);
+void DeallocateOneSecondTimer(tTimerId TimerId);
 
 /*! Start timer associated with TimerId */
 void StartOneSecondTimer(tTimerId TimerId);

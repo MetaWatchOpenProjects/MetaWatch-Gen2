@@ -29,13 +29,30 @@
 #define LCD_5V_PDIR P4DIR
 #define LCD_5V_POUT P4OUT
 #define LCD_5V_BIT  BIT0
+  
+#define ENABLE_LCD_POWER() { \
+  LCD_5V_PDIR |= LCD_5V_BIT; \
+  LCD_5V_POUT |= LCD_5V_BIT; \
+}
 
-#define DISABLE_DISPLAY_POWER() { LCD_5V_POUT &= ~LCD_5V_BIT; }
-#define DISABLE_LCD_ENABLE() { LCD_ENABLE_POUT &= ~LCD_ENABLE_PIN; }
+#define DISABLE_LCD_POWER() { \
+  LCD_5V_PDIR |= LCD_5V_BIT; \
+  LCD_5V_POUT &= ~LCD_5V_BIT; \
+}
 
 #define LCD_ENABLE_PDIR ( P3DIR )
 #define LCD_ENABLE_POUT ( P3OUT )
 #define LCD_ENABLE_PIN  ( BIT6 )
+
+#define ENABLE_LCD_ENABLE() { \
+  LCD_ENABLE_PDIR |= LCD_ENABLE_PIN; \
+  LCD_ENABLE_POUT |= LCD_ENABLE_PIN; \
+}
+
+#define DISABLE_LCD_ENABLE() { \
+  LCD_ENABLE_PDIR |= LCD_ENABLE_PIN; \
+  LCD_ENABLE_POUT &= ~LCD_ENABLE_PIN; \
+}
 
 #define LCD_CS_PDIR ( P3DIR )
 #define LCD_CS_POUT ( P3OUT )
@@ -56,11 +73,10 @@
 
 #define CONFIG_LCD_PINS() { \
   LCD_SPI_PORT_SEL |= LCD_SPI_SIMO_BIT; \
-  LCD_SPI_PORT_SEL |= LCD_SPI_CLK_BIT; \
-  LCD_ENABLE_PDIR |= LCD_ENABLE_PIN; \
-  LCD_ENABLE_POUT |= LCD_ENABLE_PIN; \
-  LCD_CS_PDIR |= LCD_CS_PIN; \
-  LCD_CS_DEASSERT(); \
+  LCD_SPI_PORT_SEL |= LCD_SPI_CLK_BIT;  \
+  ENABLE_LCD_ENABLE();                  \
+  LCD_CS_PDIR |= LCD_CS_PIN;            \
+  LCD_CS_DEASSERT();                    \
 }
 
 // labeled EL_EN on schematic
@@ -292,7 +308,7 @@
 #define BAT_CHARGE_ENABLE_PIN  BIT2
 #define BAT_CHARGE_STAT1       BIT3
 #define BAT_CHARGE_STAT2       BIT4
-#define BAT_CHARGE_PWR_GOOD    BIT5
+#define BAT_CHARGE_PWR_BIT     BIT5
 
 // Enable charging, asserted low
 #define BATTERY_CHARGE_ENABLE()   { BAT_CHARGE_OUT &= ~BAT_CHARGE_ENABLE_PIN; }

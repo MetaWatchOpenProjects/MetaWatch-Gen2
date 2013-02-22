@@ -117,7 +117,8 @@
 //
 
 //-D_RAM_BEG=1C00 Save 16 bytes for values shared between bootloader and app
--D_RAM_BEG=1C10
+// save extra 32 bytes for persistent usage
+-D_RAM_BEG=1C30
 -D_RAM_END=5B7F
 -D_INTVEC_SIZE=0x80
 -D_INTRAM_BEG=(_RAM_END+1)
@@ -127,9 +128,9 @@
 //
 
 // Uncomment for command line use
-//-D_STACK_SIZE=80
-//-D_DATA16_HEAP_SIZE=80
-//-D_DATA20_HEAP_SIZE=80
+-D_STACK_SIZE=8C //140; real: 128 + 8 (reserved)
+-D_DATA16_HEAP_SIZE=0
+-D_DATA20_HEAP_SIZE=0
 
 
 // -----------------------------------------------
@@ -176,9 +177,9 @@
 -Z(CONST)INFOD=1800-187F
 
 // OSAL NV
--D_NV_BEGIN=0x0F200
--D_NV_END=0x0F9FF
--Z(CODE)NV_ADDRESS_SPACE=_NV_BEGIN-_NV_END
+//-D_NV_BEGIN=0x0F200
+//-D_NV_END=0x0F9FF
+//-Z(CODE)NV_ADDRESS_SPACE=_NV_BEGIN-_NV_END
 
 // Watch Faces Template memory
 -D_TEMPLATE_FLASH_MEM_BEGIN=0x459ff //0x44400
@@ -260,7 +261,7 @@
 //  1. Set the end address of the third CRC segment to 0x45BFF.  This is the last value
 //     specified in the -J2 line shown below. Build and link the code.
 //  2. Get the address of _IMAGE_END as shown in the .map file and replace the end
-//     address of the third segment with this value.  Build and link the code again.
+//     address of the third segment with this value.  Build and link the code.
 //
 //  This is somewhat cumbersome but there is no way with XLINK to dynamically set
 //  the addresses such that all of the first and second segments along with third segment
@@ -270,4 +271,10 @@
 // Checksum
 //
 
--J2,crc16,,,,2=APPL_SEG_BEG-0xF1FF,0xFA00-0xFDFF,0x10000-0x42B9E
+// STEP 1
+//-J2,crc16,,,,2=APPL_SEG_BEG-0xF1FF,0xFA00-0xFDFF,0x10000-APPL_SEG_END
+
+// STEP 2
+// If you set a breakpoint in main and it isn't reached then you probably 
+// forgot step 2. Or you are stuck in bootloader mode.
+-J2,crc16,,,,2=APPL_SEG_BEG-0xF1FF,0xFA00-0xFDFF,0x10000-0x3FF66

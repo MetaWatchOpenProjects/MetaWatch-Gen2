@@ -28,7 +28,7 @@
 /*! Setup the timer that controls vibration and setup
  * the pins that control the motor
  */
-void InitializeVibration(void);
+void InitVibration(void);
 
 /*! The function is called periodically by the control task to control the
  * pulsing of the vibration motor on and off.

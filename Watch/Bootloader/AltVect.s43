@@ -32,7 +32,9 @@
         EXTERN  WatchdogTimerIsr
         EXTERN  bl_Main
         EXTERN UnusedIsr
-
+        EXTERN TIMER0_B1_VECTOR_ISR
+        EXTERN TIMER0_B0_VECTOR_ISR
+        
         EVEN
 ?alt_vect_id:
   REPT 41                    
@@ -56,8 +58,8 @@
         DC16    UnusedIsr  // USCI_B0_VECTOR_ISR
         DC16    UnusedIsr  // USCI_A0_VECTOR_ISR
         DC16    WatchdogTimerIsr
-        DC16    UnusedIsr   // timer0_b1_interrupt_handler
-        DC16    UnusedIsr   // timer0_b0_interrupt_handler
+        DC16    TIMER0_B1_VECTOR_ISR
+        DC16    TIMER0_B0_VECTOR_ISR
         DC16    UnusedIsr   // UNMI_VECTOR_ISR
         DC16    UnusedIsr   // SYSNMI_VECTOR_ISR
         DC16    bl_Main     // this is the real reset vector

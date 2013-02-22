@@ -1,4 +1,3 @@
-
 //==============================================================================
 //  Copyright 2013 Meta Watch Ltd. - http://www.MetaWatch.org/
 // 
@@ -15,11 +14,29 @@
 //  limitations under the License.
 //==============================================================================
 
-#ifndef HAL_SOFTWARE_FLL_H
-#define HAL_SOFTWARE_FLL_H
+#ifndef MUX_MODE_H
+#define MUX_MODE_H
 
-void EnableSoftwareFll(void);
+#define MUX_MODE_SERIAL      ( 1 )
+#define MUX_MODE_GND         ( 0 ) 
+#define MUX_MODE_SPY_BI_WIRE ( 2 )
+#define MUX_MODE_OFF         ( 3 )
 
-void DisableSoftwareFll(void);
+#define MUX_MODE_DEFAULT_5V     ( MUX_MODE_SERIAL )
+#define MUX_MODE_DEFAULT_NORMAL ( MUX_MODE_GND )
 
-#endif /* HAL_SOFTWARE_FLL_H */ 
+/*! return the mode the mux control should be in
+ * (output of micro can be overriden by pressing A (top right) during power-up
+ *
+ * \return 0 = gnd, 1 = serial, 2 = spy-bi-wire
+ */
+unsigned char GetMuxMode(void);
+
+void SetMuxMode(unsigned char MuxMode);
+
+/*! Initialize the state of the mux that allows the case back pins 
+ * to be serial port, GND, or spy-bi-wire
+ */
+void ChangeMuxMode(unsigned char ClipOn);
+
+#endif /* MUX_MODE_H */

@@ -258,8 +258,11 @@ static void Init_FLL(unsigned int fsystem, unsigned int ratio)
 {
   unsigned int d, dco_div_bits;
   unsigned int mode;
-//  unsigned int srRegisterState;
-
+  
+#if 0
+  unsigned int srRegisterState;
+#endif
+  
   mode = 0;
 
   /* we only run this at startup and we want the fll enabled on exit */

@@ -53,7 +53,7 @@
 
 static unsigned char RtcInUseMask = 0;
 
-void InitializeRealTimeClock( void )
+void InitRealTimeClock( void )
 {
   RtcInUseMask = 0;
   
@@ -61,7 +61,7 @@ void InitializeRealTimeClock( void )
   RTCCTL01 = RTCHOLD;
 
   // use calibration data to adjust real time clock frequency
-  if ( QueryCalibrationValid() )
+  if (ValidCalibration())
   {
     signed char RtcCalibrationValue = GetRtcCalibrationValue();
     
@@ -76,9 +76,7 @@ void InitializeRealTimeClock( void )
       /* adjust up */
       RTCCTL2 |= RTCCALS;
     }
-    
   }
-  
   
   // Set the counter for RTC mode
   RTCCTL01 |= RTCMODE;

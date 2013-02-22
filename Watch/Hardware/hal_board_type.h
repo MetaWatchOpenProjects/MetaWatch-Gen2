@@ -36,9 +36,11 @@
   #include "hal_devboard_v2_defs.h"
 
   #ifdef ANALOG
-    #define SPP_DEVICE_NAME "MetaWatch DB111"
+    #define BR_DEVICE_NAME "MetaWatch DB111"
+    
   #elif defined(DIGITAL)
-    #define SPP_DEVICE_NAME "MetaWatch DB12"
+    #define BR_DEVICE_NAME "MetaWatch DB12"
+    
   #else
     #error "ANALOG or DIGITAL not defined"
   #endif
@@ -49,13 +51,13 @@
 
     #include "hal_digital_v2_defs.h"
 
-    #define SPP_DEVICE_NAME "MetaWatch SW12"
+    #define BR_DEVICE_NAME "MetaWatch SW12"
 
   #elif defined(ANALOG)
 
     #include "hal_analog_v2_defs.h"
 
-    #define SPP_DEVICE_NAME "MetaWatch WDS111"
+    #define BR_DEVICE_NAME "MetaWatch WDS111"
 
   #else
 

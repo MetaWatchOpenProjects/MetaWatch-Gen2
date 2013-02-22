@@ -34,7 +34,6 @@
 #include "Wrapper.h"
 #include "Utilities.h"
 #include "MessageQueues.h"
-#include "Display.h"
 #include "OneSecondTimers.h"
 #include "LcdDisplay.h"
 
@@ -109,7 +108,7 @@ typedef  struct
 static const tButtonAction DisconnAction[] =
 {
   {BTN_A | IDLE_PAGE | BTN_EVT_IMDT, ChangeModeMsg, NOTIF_MODE | MSG_OPT_UPD_INTERNAL},
-  {BTN_B | IDLE_PAGE | BTN_EVT_IMDT, UpdateDisplay, IDLE_MODE | MSG_OPT_NEWUI | MSG_OPT_NXT_PAGE | MSG_OPT_UPD_INTERNAL},
+  {BTN_B | IDLE_PAGE | BTN_EVT_IMDT, UpdateDisplayMsg, IDLE_MODE | MSG_OPT_NEWUI | MSG_OPT_NXT_PAGE | MSG_OPT_UPD_INTERNAL},
   {BTN_C | IDLE_PAGE | BTN_EVT_RELS, MenuModeMsg, Menu1Page},
   {BTN_D | IDLE_PAGE | BTN_EVT_IMDT, WatchStatusMsg, 0},
   {BTN_E | IDLE_PAGE | BTN_EVT_IMDT, ChangeModeMsg, MUSIC_MODE | MSG_OPT_UPD_INTERNAL},
@@ -355,7 +354,7 @@ static void HandleButtonEvent(unsigned char Index, unsigned char Event)
 {
   tMessage Msg;
 
-  PrintStringAndTwoDecimals("- BtnEvt i:", Index, "e:", Event);
+//  PrintStringAndTwoDecimals("- BtnEvt i:", Index, "e:", Event);
 //  PrintStringAndHexByte("LstBF:0x", LastButton);
 
 #ifdef DIGITAL
@@ -465,7 +464,7 @@ static void HandleButtonEvent(unsigned char Index, unsigned char Event)
   else if (pAction[i].MsgType != InvalidMessage)
   {
     SendMessage(&Msg, pAction[i].MsgType, pAction[i].MsgOpt);
-    PrintStringAndTwoHexBytes(" M O:0x", pAction[i].MsgType, pAction[i].MsgOpt);
+//    PrintStringAndTwoHexBytes(" M O:0x", pAction[i].MsgType, pAction[i].MsgOpt);
   }
 }
 
@@ -481,10 +480,10 @@ void EnableButtonMsgHandler(tMessage* pMsg)
   tButtonActionPayload *pAction = (tButtonActionPayload*)pMsg->pBuffer;
   if (pAction->ButtonIndex > SW_UNUSED_INDEX) pAction->ButtonIndex --;
 
-  PrintStringAndThreeDecimals("-M:", pAction->DisplayMode, " i:", pAction->ButtonIndex,
-                              "E:", pAction->ButtonEvent);
-  PrintStringAndTwoHexBytes(" M O:0x", pAction->CallbackMsgType, pAction->CallbackMsgOptions);
-  
+//  PrintStringAndThreeDecimals("-M:", pAction->DisplayMode, " i:", pAction->ButtonIndex,
+//                              "E:", pAction->ButtonEvent);
+//  PrintStringAndTwoHexBytes(" M O:0x", pAction->CallbackMsgType, pAction->CallbackMsgOptions);
+//  
   unsigned char BtnInfo = pAction->DisplayMode << BTN_MODE_PAGE_SHFT |
                           pAction->ButtonIndex << BTN_NO_SHFT |
                           pAction->ButtonEvent;

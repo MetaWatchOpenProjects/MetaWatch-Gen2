@@ -52,7 +52,9 @@ typedef struct
 static tOneSecondTimer OneSecondTimers[TOTAL_ONE_SECOND_TIMERS];
 static xSemaphoreHandle OneSecondTimerMutex;
   
-void InitializeOneSecondTimers(void)
+static void InitOneSecondTimers(void);
+
+static void InitOneSecondTimers(void)
 {
   /* clear information for all of the timers */
   unsigned char i;
@@ -74,57 +76,44 @@ void InitializeOneSecondTimers(void)
 
 tTimerId AllocateOneSecondTimer(void)
 {
-  signed char result = -1;
-
-  xSemaphoreTake(OneSecondTimerMutex,portMAX_DELAY);
+  if (!OneSecondTimerMutex) InitOneSecondTimers();
+  
+  xSemaphoreTake(OneSecondTimerMutex, portMAX_DELAY);
 
   unsigned char i;
-  for( i = 0; i < TOTAL_ONE_SECOND_TIMERS; i++)
+  for (i = 0; i < TOTAL_ONE_SECOND_TIMERS; ++i)
   {
-    if ( OneSecondTimers[i].Allocated == 0 )
+    if (OneSecondTimers[i].Allocated == 0)
     {
       OneSecondTimers[i].Allocated = 1;
-      result = i;
       break;
     }
   }
 
-  if ( result < 0 )
-  {
-    PrintString("Unable to allocate Timer\r\n");
-  }
-  
+  if (i == TOTAL_ONE_SECOND_TIMERS) PrintString("# Unable to allocate Timer\r\n");
+
   xSemaphoreGive(OneSecondTimerMutex);
   
-  return result;
+  return (i < TOTAL_ONE_SECOND_TIMERS ? i : -1);
 }
 
-signed char DeallocateOneSecondTimer(tTimerId TimerId)
+void DeallocateOneSecondTimer(tTimerId TimerId)
 {
-  signed char result = -1;
-
-  if ( TimerId < 0 )
+  if (TimerId < 0)
   {
-    PrintString("Invalid Timer Id\r\n");  
+    PrintString2("# Invalid TimerId", CR);
+    return;
   }
   
   portENTER_CRITICAL();
 
-  if ( OneSecondTimers[TimerId].Allocated == 1 )
+  if (OneSecondTimers[TimerId].Allocated == 1)
   {
     OneSecondTimers[TimerId].Allocated = 0;
     OneSecondTimers[TimerId].Running = 0;
-    result = TimerId;
   }
 
   portEXIT_CRITICAL();
-
-  if ( result < 0 )
-  {
-    PrintString("Unable to deallocate timer!\r\n");
-  }
-
-  return result;
 }
 
 void StartOneSecondTimer(tTimerId TimerId)
@@ -137,19 +126,15 @@ void StartOneSecondTimer(tTimerId TimerId)
   }
   
   portENTER_CRITICAL();
-
   OneSecondTimers[TimerId].Running = 1;
   OneSecondTimers[TimerId].DownCounter = OneSecondTimers[TimerId].Timeout;
-  
   portEXIT_CRITICAL();
 }
 
 void StopOneSecondTimer(tTimerId TimerId)
 {
   portENTER_CRITICAL();
-
   OneSecondTimers[TimerId].Running = 0;
-  
   portEXIT_CRITICAL();
 }
 
@@ -177,28 +162,6 @@ void SetupOneSecondTimer(tTimerId TimerId,
     
   portEXIT_CRITICAL();
 }
-
-#if 0
-void ChangeOneSecondTimerTimeout(tTimerId TimerId,
-                                 unsigned int Timeout)
-{
-  OneSecondTimers[TimerId].Timeout = Timeout;
-}
-
-void ChangeOneSecondTimerMsgOptions(tTimerId TimerId,
-                                    unsigned char MsgOptions)
-{
-  OneSecondTimers[TimerId].CallbackMsgOptions = MsgOptions;
-}
-
-void ChangeOneSecondTimerMsgCallback(tTimerId TimerId,
-                                     eMessageType CallbackMsgType;
-                                     unsigned char MsgOptions)
-{
-  OneSecondTimers[TimerId].CallbackMsgType = CallbackMsgType;
-  OneSecondTimers[TimerId].CallbackMsgOptions = MsgOptions;
-}
-#endif
 
 /* this should be as fast as possible because it happens in interrupt context
  * and it also often occurs when the part is sleeping

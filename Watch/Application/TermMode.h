@@ -1,5 +1,5 @@
 //==============================================================================
-//  Copyright 2011 Meta Watch Ltd. - http://www.MetaWatch.org/
+//  Copyright 2013 Meta Watch Ltd. - http://www.MetaWatch.org/
 //
 //  Licensed under the Meta Watch License, Version 1.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -14,15 +14,13 @@
 //  limitations under the License.
 //==============================================================================
 
-#ifndef TEST_MODE_H
-#define TEST_MODE_H
+#ifndef TERM_MODE_H
+#define TERM_MODE_H
 
-void InitTestMode(void);
+void EnableTermMode(unsigned char Enable);
 
-unsigned char RxTestModeCharacterIsr(unsigned char Character);
+unsigned char TermModeIsr(void);
 
-void TestModeCommandHandler(void);
+void TermModeHandler(void);
 
-void WhoAmI(void);
-
-#endif /* TEST_MODE_H */
+#endif /* TERM_MODE_H */

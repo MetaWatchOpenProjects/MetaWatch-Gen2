@@ -34,7 +34,7 @@
 /*! Initialize memory used by the buffer pool.  The buffer pool is a queue
  * that holds free memory buffers that are used for tHostMsg messages.
  */
-void InitializeBufferPool(void);
+void InitBufferPool(void);
 
 /*! Remove a message from the free buffer pool 
  * 

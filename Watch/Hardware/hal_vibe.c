@@ -23,6 +23,30 @@
 #include "hal_board_type.h"
 #include "hal_vibe.h"
 
+#ifdef HW_DEVBOARD_V2
+
+/* The timer used for the vibrator on the Digital version of the 
+ * development board is now required for the Software FLL. 
+ */
+
+void SetVibeMotorState(unsigned char motorOn)
+{
+}
+
+void SetupVibrationMotorTimerAndPwm(void)
+{
+}
+
+void EnableVibratorPwm(void)
+{
+}
+
+void DisableVibratorPwm(void)
+{
+}
+
+#else // not the devboard
+
 static unsigned char VibeEnableControl = 1;
 
 void VibeEnable(void)
@@ -34,84 +58,6 @@ void VibeDisable(void)
 {
   VibeEnableControl = 0;  
 }
-
-#ifdef HW_DEVBOARD_V2
-#ifdef DIGITAL
-
-#define START_VIBE_PWM_TIMER() { TB0CTL |= TBSSEL__ACLK | MC__UP | ID_0; }
-#define STOP_VIBE_PWM_TIMER()  { TB0CTL = 0; }
-
-
-void SetVibeMotorState(unsigned char motorOn)
-{
-  if(motorOn && VibeEnableControl)
-  {
-    P4SEL |= BIT3;  
-  }
-  else
-  {
-    P4SEL &= ~BIT3;
-  }
-}
-
-void SetupVibrationMotorTimerAndPwm(void)
-{
-  // Start with P7.3 as an output
-  P4OUT &= ~BIT3;   
-  P4SEL &= ~BIT3;   
-  P4DIR |=  BIT3;   
-
-  STOP_VIBE_PWM_TIMER();
-  
-  // No expansion divide
-  TB0EX0 = 0;
-
-  // Compare channel 3 is used as an output 
-  // (set on CCR3/ reset on CCR0)
-  TB0CCTL3 = OUTMOD_3;         
-  TB0CCR0 = 5-1;
-  TB0CCR3 = 3;
-}
-
-void EnableVibratorPwm(void)
-{
-  START_VIBE_PWM_TIMER();  
-}
-
-void DisableVibratorPwm(void)
-{
-  STOP_VIBE_PWM_TIMER();
-}
-
-#else
-
-/* todo:?! I don't understand why this mode causes a line on the LCD */
-
-void SetVibeMotorState(unsigned char motorOn) 
-{
-
-}
-
-void SetupVibrationMotorTimerAndPwm(void)
-{
-//  P4OUT &= ~BIT3;   
-//  P4SEL &= ~BIT3;   
-//  P4DIR |=  BIT3;
-}
-
-void EnableVibratorPwm(void)
-{
-
-}
-
-void DisableVibratorPwm(void)
-{
-
-}
-
-#endif  // DIGITAL
-
-#else // not the devboard
 
 #define START_VIBE_PWM_TIMER() { TA1CTL |= TASSEL__ACLK | MC__UPDOWN | ID_0; }
 #define STOP_VIBE_PWM_TIMER()  { TA1CTL = 0; }

@@ -42,7 +42,6 @@ typedef struct
   unsigned char batteryCal;
   unsigned char xtalCap;           
   signed char rtcCal;            
-
 } tCalibrationData;
 
 #ifdef __IAR_SYSTEMS_ICC__
@@ -60,50 +59,24 @@ __no_init static const tCalibrationData CalibrationData;
 tCalibrationData CalibrationData;
 #endif
 
-static unsigned char ValidCalibration;
-
-void InitializeCalibrationData(void)
-{
-  ValidCalibration = 1;
-  
-  if (   CalibrationData.FlashRevision == 0x0000
-      || CalibrationData.FlashRevision == 0xFFFF )
-  {
-    ValidCalibration = 0;  
-  }
-  
-  if ( CalibrationData.batteryCal > 254 )
-  {
-    ValidCalibration = 0;  
-  }
-  
-  if ( CalibrationData.xtalCap > 3 )
-  {
-    ValidCalibration = 0;  
-  }
-  
-  if ( CalibrationData.rtcCal > 63 || CalibrationData.rtcCal < -63 )
-  {
-    ValidCalibration = 0;
-  }
-  
-}
-
 unsigned int HardwareVersion(void)
 {
   return CalibrationData.FlashRevision;
 }
 
-unsigned char QueryCalibrationValid(void)
+unsigned char ValidCalibration(void)
 {
-  return ValidCalibration;  
+  return (CalibrationData.FlashRevision != 0x0000 &&
+          CalibrationData.FlashRevision != 0xFFFF &&
+          CalibrationData.batteryCal <= 254 &&
+          CalibrationData.xtalCap <= 3 &&
+          CalibrationData.rtcCal >= -63 && CalibrationData.rtcCal <= 63);
 }
 
 unsigned char GetBatteryCalibrationValue(void)
 {
   return CalibrationData.batteryCal; 
 }
-
 
 #define XCAP_MASK ( XCAP0+XCAP1 )
 
@@ -114,11 +87,10 @@ void SetOscillatorCapacitorValues(void)
    */
   UCSCTL6 &= ~XCAP_MASK;
 
-  if ( ValidCalibration )
+  if (ValidCalibration())
   {
     /* we know the value is valid so shift it to the right position */
     UCSCTL6 |= (CalibrationData.xtalCap << 2) & XCAP_MASK;
-    
   }  
 }
 

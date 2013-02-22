@@ -25,18 +25,10 @@
 #ifndef HAL_CALIBRATION_H
 #define HAL_CALIBRATION_H
 
-/*! Read the calibration data from information memory segment A and determine
- * if is valid.
- *
- * This should be the first thing called in main after disabling watchdog.
- *
- */
-void InitializeCalibrationData(void);
-
 /*!
  * \return 1 if calibration is valid
  */
-unsigned char QueryCalibrationValid(void);
+unsigned char ValidCalibration(void);
 
 unsigned int HardwareVersion(void);
 

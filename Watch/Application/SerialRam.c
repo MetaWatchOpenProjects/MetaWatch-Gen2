@@ -27,6 +27,7 @@
 #include "semphr.h"
 #include "hal_board_type.h"
 #include "hal_clock_control.h"
+#include "hal_miscellaneous.h"
 #include "hal_battery.h"
 #include "hal_lcd.h"
 #include "Messages.h"
@@ -34,13 +35,12 @@
 #include "DebugUart.h"
 #include "SerialRam.h"
 #include "LcdDriver.h"
-#include "Display.h"
 #include "LcdDisplay.h"
 #include "Utilities.h"
 #include "Adc.h"
-#include "OSAL_Nv.h"
 #include "BitmapData.h"
 #include "Wrapper.h"
+#include "Property.h"
 
 /******************************************************************************/
 
@@ -91,7 +91,6 @@ static unsigned char ReadData = 0x00;
 static unsigned char DmaBusy  = 0;
 
 static signed char CurrentPage = 0;
-static unsigned char ShowGrid = 0;
 
 static xSemaphoreHandle SramMutex;
 
@@ -138,7 +137,6 @@ typedef struct
 
 static const unsigned char ModePriority[] = {NOTIF_MODE, APP_MODE, IDLE_MODE, MUSIC_MODE};
 
-static void ClearMemory(void);
 static void SetupCycle(unsigned int Address,unsigned char CycleType);
 static void WriteBlockToSram(const unsigned char* pData,unsigned int Size);
 static void WriteData20BlockToSram(unsigned char __data20* pData,unsigned int Size);
@@ -172,8 +170,8 @@ void SetWidgetList(tMessage *pMsg)
     "T:", (pMsg->Options & WGTLST_PARTS_MASK) >> WGTLST_PARTS_SHFT,
     "Num:", WidgetNum);
 
-  PrintString("M:");
-  for(; i<WidgetNum; ++i) {PrintHex(pMsgWgtLst[i].Id); PrintHex(pMsgWgtLst[i].Layout);} PrintString(CR);
+//  PrintString("M:");
+//  for(; i<WidgetNum; ++i) {PrintHex(pMsgWgtLst[i].Id); PrintHex(pMsgWgtLst[i].Layout);} PrintString(CR);
 
   if (pNextWidget == NULL) // first time call, only add widgets
   {
@@ -204,7 +202,7 @@ void SetWidgetList(tMessage *pMsg)
     }
     else if (pCurrWidget->Id > pMsgWgtLst->Id)
     { // add new widget: cpy msg to next; msg and next ++; curr stays
-      PrintString("+"); PrintHex(pMsgWgtLst->Id);
+//      PrintString("+"); PrintHex(pMsgWgtLst->Id);
 
       pNextWidget->Id = pMsgWgtLst->Id;
       pNextWidget->Layout = pMsgWgtLst->Layout;
@@ -270,7 +268,7 @@ static void AssignWidgetBuffer(Widget_t *pWidget)
 {
   unsigned QuadNum = Layout[(pWidget->Layout & LAYOUT_MASK) >> LAYOUT_SHFT].QuadNum;
   unsigned char i;
-  PrintCharacter('[');
+//  PrintCharacter('[');
 
   for (i = 0; i < QuadNum; ++i)
   {
@@ -284,12 +282,12 @@ static void AssignWidgetBuffer(Widget_t *pWidget)
 
       // add "..." template
         LoadBuffer(Tag, pWidgetTemplate[TMPL_WGT_LOADING]);
-        PrintDecimal(Tag);
+//        PrintDecimal(Tag);
         break;
       }
     }
   }
-  PrintString("]\r\n");
+//  PrintString("]\r\n");
 }
 
 static void FreeWidgetBuffer(Widget_t *pWidget)
@@ -508,7 +506,7 @@ void UpdateDisplayHandler(tMessage* pMsg)
 
 //  PrintStringAndHexByte("- UpdDsp Opt:0x", pMsg->Options);
   
-  if ((pMsg->Options & MSG_OPT_NEWUI) && ScreenControl() != WATCH_DRAW_TOP) //for idle update only
+  if ((pMsg->Options & MSG_OPT_NEWUI) && GetProperty(PROP_PHONE_DRAW_TOP)) //for idle update only
   {
     if (!(pMsg->Options & MSG_OPT_UPD_INTERNAL) && pMsg->Options & MSG_OPT_SET_PAGE)
     { // set current page only
@@ -524,8 +522,8 @@ void UpdateDisplayHandler(tMessage* pMsg)
     }
     
     //Add grid if the bit is not set (default)
-    if (!(pMsg->Options & MSG_OPT_UPD_INTERNAL)) ShowGrid = !(pMsg->Options & MSG_OPT_UPD_GRID_BIT);
-    
+//    if (!(pMsg->Options & MSG_OPT_UPD_INTERNAL)) ShowGrid = !(pMsg->Options & MSG_OPT_UPD_GRID_BIT);
+
     // not in idle mode idle page
     if (CurrentMode != IDLE_MODE || PageType != PAGE_TYPE_IDLE) return;
 
@@ -588,7 +586,7 @@ void UpdateDisplayHandler(tMessage* pMsg)
             LcdData.pLine[c + BYTES_PER_QUAD_LINE * k] = ~LcdData.pLine[c + BYTES_PER_QUAD_LINE * k];
         }
 
-        if (ShowGrid)
+        if (GetProperty(PROP_WIDGET_GRID))
         {
           // Rule 1: outer upper and lower horizontal boarders
 //          if (Row == 0 || Row == LCD_ROW_NUM - 1)
@@ -664,7 +662,7 @@ void UpdateDisplayHandler(tMessage* pMsg)
     PrintStringAndDecimal("- UpdDsp PgTp:", PageType);
     
     // determine starting line
-    unsigned char StartRow = (Mode == IDLE_MODE && ScreenControl() == WATCH_DRAW_TOP) ?
+    unsigned char StartRow = (Mode == IDLE_MODE && !GetProperty(PROP_PHONE_DRAW_TOP)) ?
                             WATCH_DRAW_SCREEN_ROW_NUM : 0;
     unsigned char RowNum = LCD_ROW_NUM - StartRow;
 
@@ -768,34 +766,6 @@ static void WriteData20BlockToSram(unsigned char __data20* pData,unsigned int Si
   WaitForDmaEnd();
 }
 
-static void ClearBufferInSram(unsigned int Address,
-                              unsigned char Data,
-                              unsigned int Size)
-{
-  DmaBusy = 1;
-  SetupCycle(Address,SPI_WRITE);
-
-  /* USCIA0 TXIFG is the DMA trigger */
-  DMACTL0 = DMA0TSEL_17;
-
-  __data16_write_addr((unsigned short) &DMA0SA,(unsigned long) &Data);
-
-  __data16_write_addr((unsigned short) &DMA0DA,(unsigned long) &UCA0TXBUF);
-
-  DMA0SZ = Size;
-
-  /*
-   * single transfer, DON'T increment source address, source byte and dest byte,
-   * level sensitive, enable interrupt, clear interrupt flag
-   */
-  DMA0CTL = DMADT_0 + DMASBDB + DMALEVEL + DMAIE;
-
-  /* start the transfer */
-  DMA0CTL |= DMAEN;
-
-  WaitForDmaEnd();
-}
-
 static void SetupCycle(unsigned int Address,unsigned char CycleType)
 {
   EnableSmClkUser(SERIAL_RAM_USER);
@@ -877,32 +847,28 @@ static void ReadBlock(unsigned char* pWriteData,unsigned char* pReadData)
   DMA0CTL |= DMAEN;
 }
 
-static void ClearMemory(void)
+static void ClearSram(unsigned int Address, unsigned char Data, unsigned int Size)
 {
   DmaBusy = 1;
-  SetupCycle(MODE_BUF_START_ADDR, SPI_WRITE);
+  SetupCycle(Address, SPI_WRITE);
 
   /* USCIA0 TXIFG is the DMA trigger */
   DMACTL0 = DMA0TSEL_17;
 
-  __data16_write_addr((unsigned short) &DMA0SA,(unsigned long) &DummyData);
-
+  __data16_write_addr((unsigned short) &DMA0SA,(unsigned long) &Data);
   __data16_write_addr((unsigned short) &DMA0DA,(unsigned long) &UCA0TXBUF);
 
-  /* Fill 0 to address before 16 idle screen buffers */
-  DMA0SZ = MODE_BUFFER_SIZE;
+  DMA0SZ = Size;
 
   /*
-   * single transfer, source byte and dest byte,
+   * single transfer, DON'T increment source address, source byte and dest byte,
    * level sensitive, enable interrupt, clear interrupt flag
    */
   DMA0CTL = DMADT_0 + DMASBDB + DMALEVEL + DMAIE;
 
   /* start the transfer */
   DMA0CTL |= DMAEN;
-
   WaitForDmaEnd();
-
 }
 
 /* Load a template from flash into a draw buffer (ram)
@@ -933,7 +899,7 @@ void LoadTemplateHandler(tMessage* pMsg)
   else
   {
     /* clear or fill the screen */
-    ClearBufferInSram(Addr, *pMsg->pBuffer ? 0xFF : 0x00, BYTES_PER_SCREEN);
+    ClearSram(Addr, *pMsg->pBuffer ? 0xFF : 0x00, BYTES_PER_SCREEN);
   }
 }
 
@@ -959,7 +925,7 @@ void SerialRamInit(void)
   SRAM_SIMO_PSEL |= SRAM_SIMO_PIN;
 
   /* 3 pin SPI master, MSB first, clock inactive when low, phase is 1 */
-  UCA0CTL0 |= UCMST+UCMSB+UCCKPH+UCSYNC;
+  UCA0CTL0 |= UCMST + UCMSB + UCCKPH + UCSYNC;
 
   UCA0CTL1 |= UCSSEL__SMCLK;
 
@@ -991,7 +957,7 @@ void SerialRamInit(void)
   unsigned char FinalSrValue = DEFAULT_SR_VALUE;
   unsigned char DefaultSrValue = FINAL_SR_VALUE;
 
-  if ( GetBoardConfiguration() >= 5 )
+  if ( GetBoardConfiguration() >= 2 )
   {
     DefaultSrValue = DEFAULT_SR_VALUE_256;
     FinalSrValue = FINAL_SR_VALUE_256;
@@ -1031,7 +997,7 @@ void SerialRamInit(void)
   SRAM_CSN_DEASSERT();
 
   /* now use the DMA to clear the serial ram */
-  ClearMemory();
+  ClearSram(MODE_BUF_START_ADDR, DummyData, MODE_BUFFER_SIZE);
 
   unsigned char i;
   for (i = 0; i < MAX_WIDGET_NUM + MAX_WIDGET_NUM; ++i)
@@ -1057,19 +1023,11 @@ __interrupt void DMA_ISR(void)
   /* 0 is no interrupt and remainder are channels 0-7 */
   switch(__even_in_range(DMAIV,16))
   {
-  case 0:
-    break;
-  case 2:
-    DmaBusy = 0;
-    break;
-  case 4:
-    DmaBusy = 0;
-    break;
-  case 6:
-    LcdDmaIsr();
-    break;
-  default:
-    break;
+  case 0: break;
+  case 2: DmaBusy = 0; break;
+  case 4: DmaBusy = 0; break;
+  case 6: LcdDmaIsr(); break;
+  default: break;
   }
 }
 
@@ -1077,6 +1035,6 @@ void RamTestHandler(tMessage* pMsg)
 {
   PrintString("* SRAM Test *\r\n");
   unsigned int i = 0;
-  for (; i < 0xffff; ++i) ClearBufferInSram(0x0,0x0,1000);
+  for (; i < 0xffff; ++i) ClearSram(0x0,0x0,1000);
   PrintString("* Done *\r\n");
 }

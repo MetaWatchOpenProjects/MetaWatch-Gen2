@@ -113,10 +113,10 @@ typedef enum
 {
   InvalidMessage = 0x00,
 
-  GetDeviceType = 0x01,
-  GetDeviceTypeResponse = 0x02,
-  GetInfoString = 0x03,
-  GetInfoStringResponse = 0x04,
+  DevTypeMsg = 0x01,
+  DevTypeRespMsg = 0x02,
+  VerInfoMsg = 0x03,
+  VerInfoRespMsg = 0x04,
   DiagnosticLoopback = 0x05,
   ShippingModeMsg = 0x06,
   ResetMsg = 0x07,
@@ -151,7 +151,7 @@ typedef enum
   /* move the hands hours, mins and seconds */
   AdvanceWatchHandsMsg = 0x20,
 
-  TestModeMsg = 0x21,
+  TermModeMsg = 0x21,
   
   /* config and (dis)enable vibrate */
   SetVibrateMode = 0x23,
@@ -159,13 +159,13 @@ typedef enum
   ButtonStateMsg = 0x24,
 
   /* Sets the RTC */
-  SetRealTimeClock = 0x26,
-  GetRealTimeClock = 0x27,
-  GetRealTimeClockResponse = 0x28,
+  SetRtcMsg = 0x26,
+  GetRtcMsg = 0x27,
+  RtcRespMsg = 0x28,
 
   /* osal nv */
   NvalOperationMsg = 0x30,
-  NvalOperationResponseMsg = 0x31,
+  PropRespMsg = 0x31,
 
   /* status of the current display operation */
   ModeChangeIndMsg = 0x33,
@@ -181,9 +181,9 @@ typedef enum
    * LCD display related commands
    */
   WriteBufferMsg = 0x40,
-  ConfigureDisplay = 0x41,
+  SecInvertMsg = 0x41,
   ConfigureIdleBufferSize = 0x42,
-  UpdateDisplay = 0x43,
+  UpdateDisplayMsg = 0x43,
   LoadTemplate = 0x44,
 
   ExtAppMsg = 0x45,
@@ -200,7 +200,7 @@ typedef enum
   WriteHomeWidgetDoneMsg = 0x4f,
   SetExtWidgetMsg = 0x50,
   /* */
-  BatteryChargeControl = 0x52,
+  MonitorBatteryMsg = 0x52,
   BatteryConfigMsg = 0x53,
   LowBatteryWarningMsgHost = 0x54,
   LowBatteryBtOffMsgHost = 0x55,
@@ -253,10 +253,10 @@ typedef enum
   /* MAP messages */
   MapMsg = 0xb7,
   MapIndMsg = 0xb8,
+
   ConnChangeMsg = 0xb9,
-  
   UpdWgtIndMsg = 0xba,
-  
+
   LedChange = 0xc0,
 
   QueryMemoryMsg = 0xd0,
@@ -264,8 +264,8 @@ typedef enum
   RateTestMsg = 0xd2,
   
   AccelerometerHostMsg = 0xe0,
-  AccelerometerEnableMsg  = 0xe1,
-  AccelerometerDisableMsg = 0xe2,
+  EnableAccelerometerMsg  = 0xe1,
+  DisableAccelerometerMsg = 0xe2,
   AccelerometerSendDataMsg = 0xe3,
   AccelerometerAccessMsg = 0xe4,
   AccelerometerResponseMsg = 0xe5,
@@ -293,7 +293,7 @@ typedef enum
 /* options for mode change */
 #define MSG_OPT_CHGMOD_IND        (0x80)
 
-/* options for UpdateDisplay */
+/* options for UpdateDisplayMsg */
 #define MSG_OPT_PAGE_NO           (0x0C)
 #define MSG_OPT_TURN_PAGE         (0x0C)
 #define MSG_OPT_PRV_PAGE          (0x08)
@@ -360,6 +360,7 @@ typedef enum
 
 /* options for Bluetooth state change */
 #define MSG_OPT_BT_STATE_DISCONN    (1)
+#define MSG_OPT_INIT_BONDING        (1)
 
 /* make mode definitions the same as buffer definitions */
 #define IDLE_MODE         (0)
@@ -847,8 +848,8 @@ typedef struct
 #define SNIFF_RESERVED_OPTION      ( 0 )
 #define AUTO_SNIFF_ENABLE_OPTION   ( 1 )
 #define AUTO_SNIFF_DISABLE_OPTION  ( 2 )
-#define SNIFF_ENTER_OPTION         ( 3 )
-#define SNIFF_EXIT_OPTION          ( 4 )
+#define MSG_OPT_ENTER_SNIFF         ( 3 )
+#define MSG_OPT_EXIT_SNIFF          ( 4 )
 #define SNIFF_ENTER_FAILED_OPTION  ( 5 )
 #define SNIFF_EXIT_FAILED_OPTION   ( 6 )
 
@@ -896,10 +897,10 @@ typedef struct
 /******************************************************************************/
 
 #define CONFIGURE_DISPLAY_OPTION_RESERVED             ( 0 )
-#define CONFIGURE_DISPLAY_OPTION_DONT_DISPLAY_SECONDS ( 1 )
-#define CONFIGURE_DISPLAY_OPTION_DISPLAY_SECONDS      ( 2 )
-#define CONFIGURE_DISPLAY_OPTION_DONT_INVERT_DISPLAY  ( 3 )
-#define CONFIGURE_DISPLAY_OPTION_INVERT_DISPLAY       ( 4 )
+#define MSG_OPT_HIDE_SECOND ( 1 )
+#define MSG_OPT_SHOW_SECOND      ( 2 )
+#define MSG_OPT_NORMAL_DISPLAY  ( 3 )
+#define MSG_OPT_INVERT_DISPLAY       ( 4 )
 /******************************************************************************/
 
 #endif  /* MESSAGES_H */

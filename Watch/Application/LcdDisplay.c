@@ -1,5 +1,5 @@
 //==============================================================================
-//  Copyright 2011 Meta Watch Ltd. - http://www.MetaWatch.org/
+//  Copyright 2013 Meta Watch Ltd. - http://www.MetaWatch.org/
 //
 //  Licensed under the Meta Watch License, Version 1.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -44,17 +44,17 @@
 #include "Accelerometer.h"
 #include "Buttons.h"
 #include "Statistics.h"
-#include "OSAL_Nv.h"
 #include "Vibration.h"
-#include "NvIds.h"
-#include "Display.h"
 #include "SerialRam.h"
 #include "Icons.h"
 #include "Fonts.h"
 #include "LcdDisplay.h"
 #include "BitmapData.h"
 #include "IdleTask.h"
-#include "TestMode.h"
+#include "TermMode.h"
+#include "BufferPool.h"
+#include "MuxMode.h"
+#include "Property.h"
 
 #define IDLE_FULL_UPDATE   (0)
 #define DATE_TIME_ONLY     (1)
@@ -71,45 +71,62 @@
 #define TEMPLATE_ID_MASK              (0x7F)
 #define FLASH_TEMPLATE_BIT            (BIT7)
 
-#define BATTERY_LEVEL_NUMBER          (7)
-#define BATTERY_LEVEL_INTERVAL        ((BATTERY_FULL_LEVEL - BATTERY_CRITICAL_LEVEL) / BATTERY_LEVEL_NUMBER)
-
 #define DRAW_OPT_SEPARATOR            (':')
 #define DRAW_OPT_OVERLAP_BT           (1)
 #define DRAW_OPT_OVERLAP_BATTERY      (2)
 #define DRAW_OPT_OVERLAP_SEC          (4)
 
 #define MUSIC_STATE_START_ROW         (43)
+#define BATTERY_MONITOR_INTERVAL      (10) //second
 
-#define INTERVAL_SEC_BATTERY_MONITOR  (10)
+/*! Languages */ 
+#define LANG_EN (0)
+#define LANG_FI (1)
+#define LANG_DE (2)
 
 extern const char BUILD[];
 extern const char VERSION[];
+extern unsigned int niReset;
+extern char niBuild[];
+/*
+ * days of week are 0-6 and months are 1-12
+ */
+static const tString DaysOfTheWeek[3][7][4] =
+{
+  {"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"},
+  {"su", "ma", "ti", "ke", "to", "pe", "la"},
+  {"So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"}
+};
+
+const tString MonthsOfYear[3][13][7] =
+{
+  {"???","Jan","Feb","Mar","Apr","May","June",
+  "July","Aug","Sep","Oct","Nov","Dec"},
+  {"???","tami", "helmi", "maalis", "huhti", "touko", "kesä",
+   "heinä", "elo", "syys", "loka", "marras", "joulu"},
+  {"???","Jan","Feb","Mar","Apr","Mai","Jun",
+   "Jul","Aug","Sep","Okt","Nov","Dez"}
+};
 
 /* background.c */
-static unsigned int nvBatteryMonitorIntervalInSeconds;
 static unsigned char LedOn;
-static tTimerId BatteryMonitorTimerId;
-static tTimerId LedTimerId;
-unsigned char nvRstNmiConfiguration;
+static tTimerId BatteryTimerId;
+static tTimerId LedTimerId = UNASSIGNED_ID;
+static tTimerId DisplayTimerId = UNASSIGNED_ID;
 
 xTaskHandle DisplayHandle;
 
-static tMessage DisplayMsg;
-static tTimerId DisplayTimerId;
 static unsigned char RtcUpdateEnable = 0;
 static unsigned char lastMin = 61;
 
 static tLcdLine pMyBuffer[LCD_ROW_NUM];
 
-static unsigned char NvIdle;
-static unsigned char nvIdleBufferInvert;
-static unsigned char nvDisplaySeconds = 0;
-
 unsigned char CurrentMode = IDLE_MODE;
 unsigned char PageType = PAGE_TYPE_IDLE;
 
 static eIdleModePage CurrentPage[PAGE_TYPE_NUM];
+
+static const unsigned int ModeTimeout[] = {65535, 600, 30, 600}; // seconds
 
 static unsigned char Splashing = pdTRUE;
 static unsigned char gBitColumnMask;
@@ -214,14 +231,11 @@ static void ChangeModeHandler(unsigned char Option);
 static void ModeTimeoutHandler();
 static void WatchStatusScreenHandler(void);
 static void ListPairedDevicesHandler(void);
-static void ConfigureDisplayHandler(tMessage* pMsg);
-static void ConfigureIdleBufferSizeHandler(tMessage* pMsg);
 static void ModifyTimeHandler(tMessage* pMsg);
 static void MenuModeHandler(unsigned char Option);
 static void MenuButtonHandler(unsigned char MsgOptions);
-static void ToggleSecondsHandler(void);
 static void ServiceMenuHandler(void);
-static void ToggleSerialGndSbw(unsigned char PowerGood);
+static void ToggleSerialGndSbw(void);
 static void BluetoothStateChangeHandler(tMessage *pMsg);
 
 /******************************************************************************/
@@ -271,203 +285,123 @@ static void DrawText(unsigned char *pText, unsigned char Len, unsigned char X, u
 static void DrawBitmap(const unsigned char *pBitmap, unsigned char X, unsigned char Y, unsigned char W, unsigned char H, unsigned char BmpWidthInBytes);
 static const unsigned char *GetBatteryIcon(unsigned char Id);
 
-static void InitBackground(void);
-static void InitializeBatteryMonitorInterval(void);
 static void ShowNotification(tString *pString, unsigned char Type);
 
-/*! Initialize flash/ram value for the idle buffer configuration */
-static void InitializeIdleBufferConfig(void);
-
-/*! Initialize flash/ram value for controlling whether or not the idle buffer
- *  is inverted */
-static void InitializeIdleBufferInvert(void);
-
-/*! Initialize flash/ram value for whether or not to display seconds */
-static void InitializeDisplaySeconds(void);
-
 static void LedChangeHandler(tMessage* pMsg);
-static void InitializeRstNmiConfiguration(void);
 static void ReadBatteryVoltageHandler(void);
-static void ReadLightSensorHandler(void);
 static void NvalOperationHandler(tMessage* pMsg);
 static void SoftwareResetHandler(tMessage* pMsg);
-static void NvUpdater(tNvalOperationPayload *pNval);
-static void EnterBootloader(void);
-static void BatteryChargeControlHandler(void);
+static void MonitorBattery(void);
 static void HandleVersionInfo(void);
 static void DrawBatteryOnIdleScreen(unsigned char Row, unsigned char Col, etFontType Font);
+static void HandleSecInvert(unsigned char Val);
 
 /******************************************************************************/
-
-#ifdef RAM_TEST
-static tTimerId RamTestTimerId;
-#endif
-
-/******************************************************************************/
-
-#ifdef RATE_TEST
-static unsigned char RateTestCallback(void);
-#define RATE_TEST_INTERVAL_MS ( 1000 )
-#endif
-
-
-/******************************************************************************/
-
-/*! Initialize the LCD display task
- *
- * Initializes the display driver, clears the display buffer and starts the
- * display task
- *
- * \return none, result is to start the display task
- */
 
 #define DISPLAY_TASK_QUEUE_LENGTH 30
 #define DISPLAY_TASK_STACK_SIZE  	(configMINIMAL_STACK_SIZE + 100) //total 48-88
 #define DISPLAY_TASK_PRIORITY     (tskIDLE_PRIORITY + 1)
 
-void InitializeDisplayTask(void)
+void CreateDisplayTask(void)
 {
   QueueHandles[DISPLAY_QINDEX] =
     xQueueCreate(DISPLAY_TASK_QUEUE_LENGTH, MESSAGE_QUEUE_ITEM_SIZE);
 
+  if (QueueHandles[DISPLAY_QINDEX] == 0) SoftwareReset();
+
   // task function, task name, stack len, task params, priority, task handle
-  xTaskCreate(DisplayTask,
-              (const signed char *)"DISPLAY",
-              DISPLAY_TASK_STACK_SIZE,
-              NULL,
-              DISPLAY_TASK_PRIORITY,
-              &DisplayHandle);
-  
-  PrintString3("Build:", BUILD, CR);
-  ClearShippingModeFlag();
+  xTaskCreate(DisplayTask, "DISPLAY", DISPLAY_TASK_STACK_SIZE, NULL, DISPLAY_TASK_PRIORITY, &DisplayHandle);
 }
 
-static void InitBackground(void)
-{
-  InitializeRstNmiConfiguration();
-
-  /*
-   * check on the battery
-   */
-  ConfigureBatteryPins();
-  BatteryChargingControl(ExtPower());
-  BatterySenseCycle();
-
-  /*
-   * now set up a timer that will cause the battery to be checked at
-   * a regular frequency.
-   */
-  BatteryMonitorTimerId = AllocateOneSecondTimer();
-
-  InitializeBatteryMonitorInterval();
-
-  SetupOneSecondTimer(BatteryMonitorTimerId,
-                      nvBatteryMonitorIntervalInSeconds,
-                      REPEAT_FOREVER,
-                      DISPLAY_QINDEX,
-                      BatteryChargeControl,
-                      MSG_OPT_NONE);
-
-  StartOneSecondTimer(BatteryMonitorTimerId);
-
-  /*
-   * Setup a timer to use with the LED for the LCD.
-   */
-  LedTimerId = AllocateOneSecondTimer();
-
-  SetupOneSecondTimer(LedTimerId,
-                      ONE_SECOND * 5,
-                      NO_REPEAT,
-                      DISPLAY_QINDEX,
-                      LedChange,
-                      LED_OFF_OPTION);
-
-#if RAM_TEST
-
-  RamTestTimerId = AllocateOneSecondTimer();
-
-  SetupOneSecondTimer(RamTestTimerId,
-                      ONE_SECOND*20,
-                      NO_REPEAT,
-                      DISPLAY_QINDEX,
-                      RamTestMsg,
-                      MSG_OPT_NONE);
-
-  StartOneSecondTimer(RamTestTimerId);
-
-#endif
-
-  InitializeAccelerometer();
-  tMessage Msg;
-  SetupMessageAndAllocateBuffer(&Msg,
-                                AccelerometerSetupMsg,
-                                ACCELEROMETER_SETUP_INTERRUPT_CONTROL_OPTION);
-
-  Msg.pBuffer[0] = INTERRUPT_CONTROL_ENABLE_INTERRUPT;
-  Msg.Length = 1;
-  RouteMsg(&Msg);
-
-  /* don't call AccelerometerEnable() directly. Use a message*/
-//  SetupMessage(&Msg,AccelerometerEnableMsg,MSG_OPT_NONE);
-//  RouteMsg(&Msg);
-
-#if RATE_TEST
-  StartCrystalTimer(CRYSTAL_TIMER_ID3,RateTestCallback,RATE_TEST_INTERVAL_MS);
-#endif
-
-  /****************************************************************************/
-
-#if WATCHDOG_TEST_MODE == 2
-  /* force watchdog after the scheduler has started */
-  ForceWatchdogReset();
-#endif
-}
-
-/*! LCD Task Main Loop
- *
- * \param pvParameters
- *
- */
+/*! LCD Task Main Loop */
 static void DisplayTask(void *pvParameters)
 {
-  if ( QueueHandles[DISPLAY_QINDEX] == 0 )
-  {
-    PrintString("Display Queue not created!\r\n");
-  }
-
-  InitBackground();
+  static tMessage Msg;
   
+  Init();
+
+  for(;;)
+  {
+    if (xQueueReceive(QueueHandles[DISPLAY_QINDEX], &Msg, portMAX_DELAY))
+    {
+      PrintMessageType(&Msg);
+      DisplayQueueMessageHandler(&Msg);
+      SendToFreeQueue(&Msg);
+      CheckStackUsage(DisplayHandle, "~DspStk ");
+      CheckQueueUsage(QueueHandles[DISPLAY_QINDEX]);
+    }
+  }
+}
+
+void Init(void)
+{  
+  __disable_interrupt();
+
+  ENABLE_LCD_LED();
+  DISABLE_LCD_POWER();
+
+  /* clear shipping mode, if set to allow configuration */
+  PMMCTL0_H = PMMPW_H;
+  PM5CTL0 &= ~LOCKLPM5;  
+  PMMCTL0_H = 0x00;
+  
+  /* disable DMA during read-modify-write cycles */
+  DMACTL4 = DMARMWDIS;
+
+  DetermineErrata();
+  
+#ifdef BOOTLOADER
+  /*
+   * enable RAM alternate interrupt vectors
+   * these are defined in AltVect.s43 and copied to RAM by cstartup
+   */
+  SYSCTL |= SYSRIVECT;
+  ClearBootloaderSignature();
+#else
+  SaveResetSource();
+#endif
+  
+  SetupClockAndPowerManagementModule();
+  
+  CheckResetCode();
+  if (niReset != NO_RESET_CODE) InitProperty();
+
+  InitBufferPool(); // message queue
+
+  InitBattery();
+  CheckClip();
+
+  PrintString2("\r\n*** ", niReset == FLASH_RESET_CODE ? "FLASH" :
+    (niReset == MASTER_RESET_CODE ? "MASTER" : "NORMAL"));
+  PrintString3(":", niBuild, CR);
+  
+  ShowWatchdogInfo();
+  WhoAmI();
+
+  /* timer for battery checking at a regular frequency. */
+  BatteryTimerId = AllocateOneSecondTimer();
+  SetupOneSecondTimer(BatteryTimerId,
+                      BATTERY_MONITOR_INTERVAL,
+                      REPEAT_FOREVER,
+                      DISPLAY_QINDEX,
+                      MonitorBatteryMsg,
+                      MSG_OPT_NONE);
+  StartOneSecondTimer(BatteryTimerId);
+
+  InitVibration();
+  InitRealTimeClock(); // enable rtc interrupt
+
   LcdPeripheralInit();
   InitMyBuffer();
   DisplayStartupScreen();
   SerialRamInit();
 
-  InitializeIdleBufferConfig();
-  InitializeIdleBufferInvert();
-  InitializeDisplaySeconds();
-  InitLinkAlarmEnable();
-  InitModeTimeout();
-  Init12H();
-  InitMonthFirst();
   DisplayTimerId = AllocateOneSecondTimer();
 
-#if !ISOLATE_RADIO
   /* turn the radio on; initialize the serial port profile or BLE/GATT */
   CreateAndSendMessage(TurnRadioOnMsg, MSG_OPT_NONE);
-#endif
 
-  for(;;)
-  {
-    if( pdTRUE == xQueueReceive(QueueHandles[DISPLAY_QINDEX],
-                                &DisplayMsg, portMAX_DELAY) )
-    {
-      PrintMessageType(&DisplayMsg);
-      DisplayQueueMessageHandler(&DisplayMsg);
-      SendToFreeQueue(&DisplayMsg);
-//      CheckStackUsage(DisplayHandle, "~DspStk ");
-      CheckQueueUsage(QueueHandles[DISPLAY_QINDEX]);
-    }
-  }
+  DISABLE_LCD_LED();
 }
 
 /*! Display the startup image or Splash Screen */
@@ -489,7 +423,7 @@ static void DisplayQueueMessageHandler(tMessage* pMsg)
 {
   tMessage Msg;
   
-  switch(pMsg->Type)
+  switch (pMsg->Type)
   {
   case WriteBufferMsg:
     WriteBufferHandler(pMsg);
@@ -499,7 +433,7 @@ static void DisplayQueueMessageHandler(tMessage* pMsg)
     SetWidgetList(pMsg);
     break;
   
-  case UpdateDisplay:
+  case UpdateDisplayMsg:
     UpdateDisplayHandler(pMsg);
     break;
     
@@ -507,6 +441,10 @@ static void DisplayQueueMessageHandler(tMessage* pMsg)
     UpdateHomeWidget(pMsg->Options);
     break;
     
+  case MonitorBatteryMsg:
+    MonitorBattery();
+    break;
+
   case BluetoothStateChangeMsg:
     BluetoothStateChangeHandler(pMsg);
     break;
@@ -543,11 +481,7 @@ static void DisplayQueueMessageHandler(tMessage* pMsg)
     break;
   
   case ConfigureIdleBufferSize:
-    ConfigureIdleBufferSizeHandler(pMsg);
-    break;
-
-  case ConfigureDisplay:
-    ConfigureDisplayHandler(pMsg);
+    SetProperty(PROP_PHONE_DRAW_TOP, *pMsg->pBuffer ? PROP_PHONE_DRAW_TOP : 0);
     break;
 
   case ModifyTimeMsg:
@@ -566,8 +500,8 @@ static void DisplayQueueMessageHandler(tMessage* pMsg)
     EnableButtonMsgHandler(pMsg);
     break;
 
-  case GetDeviceType:
-    SetupMessageAndAllocateBuffer(&Msg, GetDeviceTypeResponse, MSG_OPT_NONE);
+  case DevTypeMsg:
+    SetupMessageAndAllocateBuffer(&Msg, DevTypeRespMsg, MSG_OPT_NONE);
     Msg.pBuffer[0] = BOARD_TYPE;
 
 #ifdef WATCH
@@ -579,7 +513,7 @@ static void DisplayQueueMessageHandler(tMessage* pMsg)
     PrintStringAndDecimal("- DevTypeResp:", Msg.pBuffer[0]);
     break;
 
-  case GetInfoString:
+  case VerInfoMsg:
     HandleVersionInfo();
     break;
     
@@ -587,7 +521,7 @@ static void DisplayQueueMessageHandler(tMessage* pMsg)
     SetVibrateModeHandler(pMsg);
     break;
 
-  case SetRealTimeClock:
+  case SetRtcMsg:
     halRtcSet((tRtcHostMsgPayload*)pMsg->pBuffer);
 
 #ifdef DIGITAL
@@ -595,8 +529,8 @@ static void DisplayQueueMessageHandler(tMessage* pMsg)
 #endif
     break;
 
-  case GetRealTimeClock:
-    SetupMessageAndAllocateBuffer(&Msg, GetRealTimeClockResponse, MSG_OPT_NONE);
+  case GetRtcMsg:
+    SetupMessageAndAllocateBuffer(&Msg, RtcRespMsg, MSG_OPT_NONE);
     halRtcGet((tRtcHostMsgPayload*)Msg.pBuffer);
     Msg.Length = sizeof(tRtcHostMsgPayload);
     RouteMsg(&Msg);
@@ -612,10 +546,6 @@ static void DisplayQueueMessageHandler(tMessage* pMsg)
 
   case ReadButtonConfigMsg:
     ReadButtonConfigHandler(pMsg);
-    break;
-
-  case BatteryChargeControl:
-    BatteryChargeControlHandler();
     break;
 
   case LedChange:
@@ -637,13 +567,31 @@ static void DisplayQueueMessageHandler(tMessage* pMsg)
   case NvalOperationMsg:
     NvalOperationHandler(pMsg);
     break;
-      
+
+  case SecInvertMsg:
+    HandleSecInvert(pMsg->Options);
+    break;
+
   case LoadTemplate:
     LoadTemplateHandler(pMsg);
     break;
 
   case LinkAlarmMsg:
-    if (LinkAlarmEnable()) GenerateLinkAlarm();
+    if (!GetProperty(PROP_DISABLE_LINK_ALARM))
+    {
+      SetupMessageAndAllocateBuffer(&Msg, SetVibrateMode, MSG_OPT_NONE);
+      tSetVibrateModePayload* pMsgData;
+      pMsgData = (tSetVibrateModePayload *)Msg.pBuffer;
+      
+      pMsgData->Enable = 1;
+      pMsgData->OnDurationLsb = 0xC8;
+      pMsgData->OnDurationMsb = 0x00;
+      pMsgData->OffDurationLsb = 0xF4;
+      pMsgData->OffDurationMsb = 0x01;
+      pMsgData->NumberOfCycles = 1; //3
+      
+      RouteMsg(&Msg);
+    }
     break;
 
   case ModeTimeoutMsg:
@@ -662,12 +610,8 @@ static void DisplayQueueMessageHandler(tMessage* pMsg)
     IdleUpdateHandler();
     break;
 
-  case ToggleSecondsMsg:
-    ToggleSecondsHandler();
-    break;
-    
-  case TestModeMsg:
-    TestModeCommandHandler();
+  case TermModeMsg:
+    TermModeHandler();
     break;
     
   case LowBatteryWarningMsg:
@@ -685,29 +629,20 @@ static void DisplayQueueMessageHandler(tMessage* pMsg)
     WriteToTemplateHandler(pMsg);
     break;
 
-  case AccelerometerEnableMsg:
-    AccelerometerEnable();
-    break;
-
-  case AccelerometerDisableMsg:
-    AccelerometerDisable();
-    break;
-
+  case EnableAccelerometerMsg:
+  case DisableAccelerometerMsg:
   case AccelerometerSendDataMsg:
-    AccelerometerSendDataHandler();
-    break;
-
   case AccelerometerAccessMsg:
-    AccelerometerAccessHandler(pMsg);
-    break;
-
   case AccelerometerSetupMsg:
-    AccelerometerSetupHandler(pMsg);
+
+    HandleAccelerometer(pMsg);
     break;
 
+#if ENABLE_LIGHT_SENSOR
   case ReadLightSensorMsg:
     ReadLightSensorHandler();
     break;
+#endif
 
   case RateTestMsg:
     SetupMessageAndAllocateBuffer(&Msg, DiagnosticLoopback, MSG_OPT_NONE);
@@ -732,10 +667,10 @@ static void IdleUpdateHandler(void)
 {
   PageType = PAGE_TYPE_IDLE;
 
-  if (CurrentPage[PageType] == InitPage || NvIdle == WATCH_DRAW_TOP) DrawDateTime();
+  if (CurrentPage[PageType] == InitPage || !GetProperty(PROP_PHONE_DRAW_TOP)) DrawDateTime();
   
   if (OnceConnected())
-    CreateAndSendMessage(UpdateDisplay, IDLE_MODE | MSG_OPT_NEWUI | MSG_OPT_UPD_INTERNAL);
+    CreateAndSendMessage(UpdateDisplayMsg, IDLE_MODE | MSG_OPT_NEWUI | MSG_OPT_UPD_INTERNAL);
   else DrawConnectionScreen();
 }
 
@@ -753,20 +688,20 @@ static void ChangeModeHandler(unsigned char Option)
   
   if (Option & MSG_OPT_CHGMOD_IND) return; // ask for current idle page only
     
-  if (Mode == MUSIC_MODE) SendMessage(&Msg, UpdConnParamMsg, MidiumInterval);
+  if (Mode == MUSIC_MODE) SendMessage(&Msg, UpdConnParamMsg, ShortInterval);
   
   if (Mode != IDLE_MODE)
   {
     PageType = PAGE_TYPE_IDLE;
     SetupOneSecondTimer(DisplayTimerId,
-                        QueryModeTimeout(Mode),
+                        ModeTimeout[Mode],
                         NO_REPEAT,
                         DISPLAY_QINDEX,
                         ModeTimeoutMsg,
                         Mode);
     StartOneSecondTimer(DisplayTimerId);
     
-    if (Option & MSG_OPT_UPD_INTERNAL) SendMessage(&Msg, UpdateDisplay, Option);
+    if (Option & MSG_OPT_UPD_INTERNAL) SendMessage(&Msg, UpdateDisplayMsg, Option);
   }
   else
   {
@@ -886,19 +821,10 @@ static void MenuModeHandler(unsigned char Option)
 static void MenuButtonHandler(unsigned char MsgOptions)
 {
   tMessage Msg;
-  unsigned char RstControl;
   
   switch (MsgOptions)
   {
   case MENU_BUTTON_OPTION_EXIT:
-
-    /* save all of the non-volatile items */
-//    SaveSecureSimplePairingState();
-    SaveLinkAlarmEnable();
-    RstControl = ResetPin();
-    OsalNvWrite(NVID_RSTNMI_CONFIGURATION, NV_ZERO_OFFSET, sizeof(RstControl), &RstControl);
-    OsalNvWrite(NVID_IDLE_BUFFER_INVERT, NV_ZERO_OFFSET, sizeof(nvIdleBufferInvert), &nvIdleBufferInvert);
-    OsalNvWrite(NVID_DISPLAY_SECONDS, NV_ZERO_OFFSET, sizeof(nvDisplaySeconds), &nvDisplaySeconds);
 
     IdleUpdateHandler();
     break;
@@ -910,17 +836,17 @@ static void MenuButtonHandler(unsigned char MsgOptions)
     break;
 
   case MENU_BUTTON_OPTION_DISPLAY_SECONDS:
-    nvDisplaySeconds = !nvDisplaySeconds;
+    ToggleProperty(PROP_TIME_SECOND);
     MenuModeHandler(0);
     break;
     
   case MENU_BUTTON_OPTION_TOGGLE_LINK_ALARM:
-    ToggleLinkAlarmEnable();
+    ToggleProperty(PROP_DISABLE_LINK_ALARM);
     MenuModeHandler(0);
     break;
 
   case MENU_BUTTON_OPTION_INVERT_DISPLAY:
-    nvIdleBufferInvert = !nvIdleBufferInvert;
+    ToggleProperty(PROP_INVERT_DISPLAY);
     MenuModeHandler(0);
     break;
 
@@ -928,18 +854,18 @@ static void MenuButtonHandler(unsigned char MsgOptions)
     break;
   
   case MENU_BUTTON_OPTION_TOGGLE_RST_NMI_PIN:
-    ConfigResetPin(RST_PIN_TOGGLED);
+    ToggleProperty(PROP_RSTNMI);
+    ConfigResetPin(GetProperty(PROP_RSTNMI));
     MenuModeHandler(0);
     break;
 
   case MENU_BUTTON_OPTION_TOGGLE_SERIAL_SBW_GND:
-
-    ToggleSerialGndSbw(EXTERNAL_POWER_GOOD);
+    ToggleSerialGndSbw();
     MenuModeHandler(0);
     break;
     
   case MENU_BUTTON_OPTION_TOGGLE_ENABLE_CHARGING:
-    EnableCharge(!ChargeEnabled());
+    ToggleCharging();
     MenuModeHandler(0);
     break;
     
@@ -947,65 +873,20 @@ static void MenuButtonHandler(unsigned char MsgOptions)
     EnterBootloader();
     break;
 
-/*
-  case MENU_BUTTON_OPTION_TOGGLE_SBW_OFF_CLIP:
-    ToggleSerialGndSbw(NO_EXTERNAL_POWER);
-    MenuModeHandler(0);
-    break;
-
-  case MENU_BUTTON_OPTION_TOGGLE_SECURE_SIMPLE_PAIRING:
-    if ( BluetoothState() != Initializing )
-    {
-      SetupMessage(&Msg, PairingControlMsg, PAIRING_CONTROL_OPTION_TOGGLE_SSP);
-      RouteMsg(&Msg);
-    }
-    break;
-
-  case MENU_BUTTON_OPTION_TOGGLE_DISCOVERABILITY:
-  
-    SetupMessage(&Msg, PairingControlMsg, QueryDiscoverable() ?
-      PAIRING_CONTROL_OPTION_DISABLE_PAIRING :
-      PAIRING_CONTROL_OPTION_ENABLE_PAIRING);
-      
-    RouteMsg(&Msg);
-    MenuModeHandler(0);
-    break;
-
-  case MENU_BUTTON_OPTION_TOGGLE_ACCEL:
-
-    SetupMessage(&Msg, QueryAccelerometerState() ?
-      AccelerometerDisableMsg : AccelerometerEnableMsg,
-      MSG_OPT_NONE);
-
-    RouteMsg(&Msg);
-    MenuModeHandler(0);
-    break;
-*/
   default:
     break;
   }
 }
 
-static void ToggleSecondsHandler(void)
+static void ToggleSerialGndSbw(void)
 {
-  nvDisplaySeconds = !nvDisplaySeconds;
-  PrintStringAndDecimal("- TglSec:", nvDisplaySeconds);
-  if (!nvDisplaySeconds) UpdateHomeWidget(MSG_OPT_NONE);
-}
-
-static void ToggleSerialGndSbw(unsigned char PowerGood)
-{
-  unsigned char MuxMode = GetMuxMode(PowerGood);
+  unsigned char MuxMode = GetMuxMode();
 
   if (MuxMode == MUX_MODE_SERIAL) MuxMode = MUX_MODE_SPY_BI_WIRE;
   else if (MuxMode == MUX_MODE_SPY_BI_WIRE) MuxMode = MUX_MODE_GND;
   else MuxMode = MUX_MODE_SERIAL;
   
-  SetMuxMode(MuxMode, PowerGood);
-  ChangeMuxMode();
-
-  PrintString3("-TglMux: ", MuxMode == MUX_MODE_SERIAL ? "Serial" :
-    (MuxMode == MUX_MODE_SPY_BI_WIRE ? "SBW" : "GND"), ExtPower() ? " Pwr" : "");
+  SetMuxMode(MuxMode);
 }
 
 static void ServiceMenuHandler(void)
@@ -1018,7 +899,7 @@ static void DrawConnectionScreen()
   unsigned char const* pSwash;
 
   if (!RadioOn()) pSwash = pBootPageBluetoothOffSwash;
-  else if (ValidPairingInfo()) pSwash = pBootPagePairedSwash;
+  else if (ValidAuthInfo()) pSwash = pBootPagePairedSwash;
   else pSwash = pBootPageNoPairSwash;
   
   FillMyBuffer(WATCH_DRAW_SCREEN_ROW_NUM, PHONE_DRAW_SCREEN_ROW_NUM, 0x00);
@@ -1035,12 +916,11 @@ static void DrawConnectionScreen()
   DrawLocalAddress(1, 80);
   
   SendMyBufferToLcd(WATCH_DRAW_SCREEN_ROW_NUM, PHONE_DRAW_SCREEN_ROW_NUM);
-  
 }
 
 static void DrawLocalAddress(unsigned char Col, unsigned Row)
 {
-  char pAddr[BT_ADDR_LEN + BT_ADDR_LEN + 3];
+  char pAddr[6 * 2 + 3]; // BT_ADDR is 6 bytes long
   GetBDAddrStr(pAddr);
 
   gRow = Row;
@@ -1081,13 +961,13 @@ static void DrawMenu1(void)
                           LEFT_BUTTON_COLUMN,
                           BUTTON_ICON_SIZE_IN_COLUMNS);
 
-  CopyColumnsIntoMyBuffer(nvDisplaySeconds ? pSecondsOnMenuIcon : pSecondsOffMenuIcon,
+  CopyColumnsIntoMyBuffer(GetProperty(PROP_TIME_SECOND) ? pSecondsOnMenuIcon : pSecondsOffMenuIcon,
                           BUTTON_ICON_B_E_ROW,
                           BUTTON_ICON_SIZE_IN_ROWS,
                           RIGHT_BUTTON_COLUMN,
                           BUTTON_ICON_SIZE_IN_COLUMNS);
 
-  CopyColumnsIntoMyBuffer(LinkAlarmEnable() ? pLinkAlarmOnIcon : pLinkAlarmOffIcon,
+  CopyColumnsIntoMyBuffer(!GetProperty(PROP_DISABLE_LINK_ALARM) ? pLinkAlarmOnIcon : pLinkAlarmOffIcon,
                           BUTTON_ICON_C_D_ROW,
                           BUTTON_ICON_SIZE_IN_ROWS,
                           LEFT_BUTTON_COLUMN,
@@ -1096,14 +976,14 @@ static void DrawMenu1(void)
 
 static void DrawMenu2(void)
 {
-  CopyColumnsIntoMyBuffer(ResetPin() == RST_PIN_ENABLED ? pRstPinIcon : pNmiPinIcon,
+  CopyColumnsIntoMyBuffer(GetProperty(PROP_RSTNMI) ? pNmiPinIcon : pRstPinIcon,
                           BUTTON_ICON_A_F_ROW,
                           BUTTON_ICON_SIZE_IN_ROWS,
                           RIGHT_BUTTON_COLUMN,
                           BUTTON_ICON_SIZE_IN_COLUMNS);
 
   unsigned char const * pIcon;
-  unsigned char MuxMode = GetMuxMode(EXTERNAL_POWER_GOOD);
+  unsigned char MuxMode = GetMuxMode();
 
   if (MuxMode == MUX_MODE_SERIAL) pIcon = pSerialIcon;
   else if (MuxMode == MUX_MODE_GND) pIcon = pGroundIcon;
@@ -1147,20 +1027,6 @@ static void DrawMenu3(void)
                           BUTTON_ICON_SIZE_IN_ROWS,
                           RIGHT_BUTTON_COLUMN,
                           BUTTON_ICON_SIZE_IN_COLUMNS);
-
-//  unsigned char const * pIcon;
-//  unsigned char MuxMode = GetMuxMode(NO_EXTERNAL_POWER);
-//
-//  if (MuxMode == MUX_MODE_SERIAL) pIcon = pSerialOffClipIcon;
-//  else if (MuxMode == MUX_MODE_GND) pIcon = pGndOffClipIcon;
-//  else pIcon = pSbwOffClipIcon;
-//
-//  CopyColumnsIntoMyBuffer(pIcon,
-//                          BUTTON_ICON_B_E_ROW,
-//                          BUTTON_ICON_SIZE_IN_ROWS,
-//                          LEFT_BUTTON_COLUMN,
-//                          BUTTON_ICON_SIZE_IN_COLUMNS);
-  
 }
 
 static void DrawCommonMenuIcons(void)
@@ -1218,10 +1084,6 @@ static void WatchStatusScreenHandler(void)
   WriteFontString((char *)VERSION);
   WriteFontString(" (");
   WriteFontString((char *)BUILD);
-  WriteFontCharacter('.');
-
-  tVersion Version = GetWrapperVersion();
-  WriteFontString(Version.pSwVer);
   WriteFontCharacter(')');
   
   gColumn = 2; //4;
@@ -1229,9 +1091,9 @@ static void WatchStatusScreenHandler(void)
   gBitColumnMask = BIT2;
   WriteFontString("HW: REV ");
 //  char HwVer[6] = "F";
-//  if (QueryCalibrationValid()) sprintf(HwVer, "%d", HardwareVersion());
+//  if (ValidCalibration()) sprintf(HwVer, "%d", HardwareVersion());
 //  WriteFontString(HwVer);
-  WriteFontCharacter(Version.HwRev);
+  WriteFontCharacter(GetMsp430HardwareRevision());
   
   DrawLocalAddress(1, 80);
   
@@ -1293,36 +1155,6 @@ static void ListPairedDevicesHandler(void)
 //  CurrentPage[PageType] = ListPairedDevicesPage;
 }
 
-/* change the parameter but don't save it into flash */
-static void ConfigureDisplayHandler(tMessage* pMsg)
-{
-  switch (pMsg->Options)
-  {
-  case CONFIGURE_DISPLAY_OPTION_DONT_DISPLAY_SECONDS:
-  case CONFIGURE_DISPLAY_OPTION_DISPLAY_SECONDS:
-  
-    nvDisplaySeconds = !nvDisplaySeconds;
-    PrintStringAndDecimal("- ConfSec:", nvDisplaySeconds);
-    if (!nvDisplaySeconds) UpdateHomeWidget(MSG_OPT_NONE);
-    break;
-
-  case CONFIGURE_DISPLAY_OPTION_DONT_INVERT_DISPLAY:
-  case CONFIGURE_DISPLAY_OPTION_INVERT_DISPLAY:
-
-   nvIdleBufferInvert =!nvIdleBufferInvert;
-   
-   if (PageType == PAGE_TYPE_IDLE) IdleUpdateHandler();
-   else if (PageType == PAGE_TYPE_MENU) MenuModeHandler(0);
-   else if (CurrentPage[PageType] == StatusPage) WatchStatusScreenHandler();
-   break;
-  }
-}
-
-static void ConfigureIdleBufferSizeHandler(tMessage* pMsg)
-{
-  NvIdle = pMsg->pBuffer[0] & IDLE_BUFFER_CONFIG_MASK;
-}
-
 static void ModifyTimeHandler(tMessage* pMsg)
 {
   int time;
@@ -1348,16 +1180,6 @@ static void ModifyTimeHandler(tMessage* pMsg)
   }
 
   UpdateHomeWidget(MSG_OPT_NONE);
-}
-
-unsigned char ScreenControl(void)
-{
-  return NvIdle;
-}
-
-unsigned char InvertDisplay(void)
-{
-  return nvIdleBufferInvert;
 }
 
 static void InitMyBuffer(void)
@@ -1406,7 +1228,7 @@ static void SendMyBufferToLcd(unsigned char StartingRow, unsigned char NumberOfR
    * flip the bits before sending to LCD task because it will
    * dma this portion of the screen
   */
-  if (nvIdleBufferInvert == NORMAL_DISPLAY)
+  if (!GetProperty(PROP_INVERT_DISPLAY))
   {
     for(; row < LCD_ROW_NUM && row < StartingRow+NumberOfRows; row++)
     {
@@ -1477,7 +1299,7 @@ static void CopyColumnsIntoMyBuffer(unsigned char const* pImage,
 static void UpdateHomeWidget(unsigned char Option)
 {
   if (CurrentMode != IDLE_MODE || PageType != PAGE_TYPE_IDLE) return;
-  if (CurrentPage[PageType] == InitPage || NvIdle == WATCH_DRAW_TOP) {DrawDateTime(); return;}
+  if (CurrentPage[PageType] == InitPage || !GetProperty(PROP_PHONE_DRAW_TOP)) {DrawDateTime(); return;}
 
   unsigned char LayoutType = GetHomeWidgetLayout();
   if (!LayoutType) return; // no hw on current idle screen
@@ -1494,7 +1316,7 @@ static void UpdateHomeWidget(unsigned char Option)
   if (!LayoutType)
   {
     DoneUpd = 0;
-    CreateAndSendMessage(UpdateDisplay, IDLE_MODE | MSG_OPT_NEWUI | MSG_OPT_UPD_INTERNAL | MSG_OPT_UPD_HWGT);
+    CreateAndSendMessage(UpdateDisplayMsg, IDLE_MODE | MSG_OPT_NEWUI | MSG_OPT_UPD_INTERNAL | MSG_OPT_UPD_HWGT);
     RtcUpdateEnable = 1;
 //    PrintString("- UpdHwgt done\r\n");
     return;
@@ -1622,7 +1444,7 @@ static void DrawHour(DrawInfo_t *Info)
   unsigned char Hour[3];
   Hour[0] = RTCHOUR;
   
-  if (Get12H() == TWELVE_HOUR)
+  if (!GetProperty(PROP_24H_TIME_FORMAT))
   {
     Hour[0] %= 12;
     if (Hour[0] == 0) Hour[0] = 12;
@@ -1639,7 +1461,7 @@ static void DrawHour(DrawInfo_t *Info)
 
 static void DrawAmPm(DrawInfo_t *Info)
 {
-  if (Get12H() != TWELVE_HOUR) return;
+  if (GetProperty(PROP_24H_TIME_FORMAT)) return;
   DrawText(RTCHOUR > 11 ? "pm" : "am", 2, Info->X, Info->Y, Info->Id, pdFALSE);
 }
 
@@ -1653,7 +1475,7 @@ static void DrawMin(DrawInfo_t *Info)
 
 static void DrawSec(DrawInfo_t *Info)
 {
-  if (!nvDisplaySeconds || Overlapping(Info->Opt)) return;
+  if (!GetProperty(PROP_TIME_SECOND) || Overlapping(Info->Opt)) return;
 
   unsigned char Sec[3];
   Sec[0] = DRAW_OPT_SEPARATOR;
@@ -1667,21 +1489,21 @@ static void DrawDate(DrawInfo_t *Info)
   if (Overlapping(Info->Opt)) return;
   
   unsigned char pDate[5];
-  if (GetMonthFirst() == MONTH_FIRST)
-  {
-    pDate[0] = RTCMON / 10 + '0';
-    pDate[1] = RTCMON % 10 + '0';
-    pDate[2] = '/';
-    pDate[3] = RTCDAY / 10 + '0';
-    pDate[4] = RTCDAY % 10 + '0';
-  }
-  else
+  if (GetProperty(PROP_DDMM_DATE_FORMAT))
   {
     pDate[0] = RTCDAY / 10 + '0';
     pDate[1] = RTCDAY % 10 + '0';
     pDate[2] = '/';
     pDate[3] = RTCMON / 10 + '0';
     pDate[4] = RTCMON % 10 + '0';
+  }
+  else
+  {
+    pDate[0] = RTCMON / 10 + '0';
+    pDate[1] = RTCMON % 10 + '0';
+    pDate[2] = '/';
+    pDate[3] = RTCDAY / 10 + '0';
+    pDate[4] = RTCDAY % 10 + '0';
   }
   DrawText(pDate, 5, Info->X, Info->Y, Info->Id, pdFALSE);
 }
@@ -1690,7 +1512,7 @@ static void DrawDayofWeek(DrawInfo_t *Info)
 {
   if (Overlapping(Info->Opt)) return;
   
-  const char *pDow = DaysOfTheWeek[GetLanguage()][RTCDOW];
+  const char *pDow = DaysOfTheWeek[LANG_EN][RTCDOW];
   DrawText((unsigned char *)pDow, strlen(pDow), Info->X, Info->Y, Info->Id, pdFALSE);
 }
 
@@ -1699,9 +1521,9 @@ static unsigned char Overlapping(unsigned char Option)
   unsigned char BT = BluetoothState();
   
   return ((Option & DRAW_OPT_OVERLAP_BATTERY) &&
-          (Charging() || ReadBatterySenseAverage() <= BatteryCriticalLevel(CRITICAL_WARNING)) ||
+          (Charging() || BatteryLevel() <= BatteryCriticalLevel(CRITICAL_WARNING)) ||
           (Option & DRAW_OPT_OVERLAP_BT) && BT != Connect ||
-          (Option & DRAW_OPT_OVERLAP_SEC) && nvDisplaySeconds);
+          (Option & DRAW_OPT_OVERLAP_SEC) && GetProperty(PROP_TIME_SECOND));
 }
 
 static void DrawBluetoothState(DrawInfo_t *Info)
@@ -1726,7 +1548,7 @@ static void DrawBluetoothState(DrawInfo_t *Info)
 
 static const unsigned char *GetBatteryIcon(unsigned char Id)
 {
-  unsigned int Level = ReadBatterySenseAverage();
+  unsigned int Level = BatteryLevel();
   unsigned char Index = 0;
   
   if (Level < BATTERY_FULL_LEVEL)
@@ -1751,7 +1573,7 @@ static const unsigned char *GetBatteryIcon(unsigned char Id)
 
 static void DrawBatteryStatus(DrawInfo_t *Info)
 {
-  if (!Charging() && ReadBatterySenseAverage() > BatteryCriticalLevel(CRITICAL_WARNING)) return;
+  if (!Charging() && BatteryLevel() > BatteryCriticalLevel(CRITICAL_WARNING)) return;
 
   DrawBitmap(GetBatteryIcon(Info->Id), Info->X, Info->Y,
     IconInfo[Info->Id].Width * 8, IconInfo[Info->Id].Height, IconInfo[Info->Id].Width);
@@ -1802,7 +1624,7 @@ static void DrawDateTime()
   DrawHours();
   DrawMins();
   
-  if (nvDisplaySeconds)
+  if (GetProperty(PROP_TIME_SECOND))
   {
     WriteFontCharacter(TIME_CHARACTER_COLON_INDEX);
     DrawSecs();
@@ -1810,7 +1632,7 @@ static void DrawDateTime()
   else if (Charging()) DrawBatteryOnIdleScreen(3, 9, MetaWatch5);
   else
   {
-    if (Get12H() == TWELVE_HOUR)
+    if (!GetProperty(PROP_24H_TIME_FORMAT))
     {
       gRow = DEFAULT_AM_PM_ROW;
       gColumn = DEFAULT_AM_PM_COL;
@@ -1819,14 +1641,14 @@ static void DrawDateTime()
       WriteFontString((RTCHOUR >= 12) ? "PM" : "AM");
     }
 
-    gRow = Get12H() == TWENTY_FOUR_HOUR ? DEFAULT_DOW_24HR_ROW : DEFAULT_DOW_12HR_ROW;
+    gRow = GetProperty(PROP_24H_TIME_FORMAT) ? DEFAULT_DOW_24HR_ROW : DEFAULT_DOW_12HR_ROW;
     gColumn = DEFAULT_DOW_COL;
     gBitColumnMask = DEFAULT_DOW_COL_BIT;
     SetFont(DEFAULT_DOW_FONT);
-    WriteFontString((tString *)DaysOfTheWeek[GetLanguage()][RTCDOW]);
+    WriteFontString((tString *)DaysOfTheWeek[LANG_EN][RTCDOW]);
 
     //add year when time is in 24 hour mode
-    if (Get12H() == TWENTY_FOUR_HOUR)
+    if (GetProperty(PROP_24H_TIME_FORMAT))
     {
       gRow = DEFAULT_DATE_YEAR_ROW;
       gColumn = DEFAULT_DATE_YEAR_COL;
@@ -1845,7 +1667,7 @@ static void DrawDateTime()
 
     //Display month and day
     //Watch controls time - use default date position
-    unsigned char MMDD = (GetMonthFirst() == MONTH_FIRST);
+    unsigned char MMDD = (!GetProperty(PROP_DDMM_DATE_FORMAT));
 
     gRow = DEFAULT_DATE_FIRST_ROW;
     gColumn = DEFAULT_DATE_FIRST_COL;
@@ -1880,7 +1702,7 @@ static void DrawHours(void)
   int Hour = RTCHOUR;
 
   /* if required convert to twelve hour format */
-  if ( Get12H() == TWELVE_HOUR )
+  if (!GetProperty(PROP_24H_TIME_FORMAT))
   {
     Hour %= 12;
     if (Hour == 0) Hour = 12;
@@ -1896,7 +1718,7 @@ static void DrawHours(void)
   SetFont(DEFAULT_HOURS_FONT);
   
   /* if first digit is zero then leave location blank */
-  if ( msd == 0 && Get12H() == TWELVE_HOUR )
+  if (msd == 0 && !GetProperty(PROP_24H_TIME_FORMAT))
   {
     WriteFontCharacter(TIME_CHARACTER_SPACE_INDEX);
   }
@@ -1942,28 +1764,6 @@ static void DrawSecs(void)
       
   WriteFontCharacter(RTCSEC / 10);
   WriteFontCharacter(RTCSEC % 10);
-}
-
-static void InitializeIdleBufferConfig(void)
-{
-  NvIdle = WATCH_DRAW_TOP ;
-  OsalNvItemInit(NVID_IDLE_BUFFER_CONFIGURATION, sizeof(NvIdle), &NvIdle);
-}
-
-static void InitializeIdleBufferInvert(void)
-{
-  nvIdleBufferInvert = 0;
-  OsalNvItemInit(NVID_IDLE_BUFFER_INVERT,
-                 sizeof(nvIdleBufferInvert),
-                 &nvIdleBufferInvert);
-}
-
-static void InitializeDisplaySeconds(void)
-{
-  nvDisplaySeconds = 0;
-  OsalNvItemInit(NVID_DISPLAY_SECONDS,
-                 sizeof(nvDisplaySeconds),
-                 &nvDisplaySeconds);
 }
 
 /******************************************************************************/
@@ -2082,7 +1882,7 @@ void ShowNotification(tString *pString, unsigned char Type)
     CurrentPage[PageType] = CallPage;
 
     // set a 5s timer for switching back to idle screen
-    SetupOneSecondTimer(DisplayTimerId, 5, NO_REPEAT, DISPLAY_QINDEX, CallerNameMsg, SHOW_NOTIF_END);
+    SetupOneSecondTimer(DisplayTimerId, 10, NO_REPEAT, DISPLAY_QINDEX, CallerNameMsg, SHOW_NOTIF_END);
     StartOneSecondTimer(DisplayTimerId);
   }
   else if (Type == SHOW_NOTIF_END || Type == SHOW_NOTIF_REJECT_CALL)
@@ -2093,7 +1893,7 @@ void ShowNotification(tString *pString, unsigned char Type)
     StopOneSecondTimer(DisplayTimerId);
 
     PageType = PAGE_TYPE_IDLE;
-    SendMessage(&Msg, UpdateDisplay, CurrentMode | MSG_OPT_UPD_INTERNAL |
+    SendMessage(&Msg, UpdateDisplayMsg, CurrentMode | MSG_OPT_UPD_INTERNAL |
                 (CurrentMode == IDLE_MODE ? MSG_OPT_NEWUI : 0));
 
     if (Type == SHOW_NOTIF_REJECT_CALL) SendMessage(&Msg, HfpMsg, MSG_OPT_HFP_HANGUP);
@@ -2116,7 +1916,7 @@ static void HandleMusicPlayStateChange(unsigned char State)
   for (; i < Msg.Length; ++i) Msg.pBuffer[i] = pIconMusicState[1 - State][i - 1];
   RouteMsg(&Msg);
   
-  SendMessage(&Msg, UpdateDisplay, MUSIC_MODE);
+  SendMessage(&Msg, UpdateDisplayMsg, MUSIC_MODE);
 }
 
 void EraseTemplateHandler(tMessage *pMsg)
@@ -2164,7 +1964,7 @@ unsigned char LcdRtcUpdateHandlerIsr(void)
 {
   /* send a message every second or once a minute */
   if (RtcUpdateEnable && CurrentMode == IDLE_MODE && PageType == PAGE_TYPE_IDLE &&
-     (nvDisplaySeconds || lastMin != RTCMIN))
+     (GetProperty(PROP_TIME_SECOND) || lastMin != RTCMIN))
   {
     lastMin = RTCMIN;
     
@@ -2183,6 +1983,12 @@ unsigned char LcdRtcUpdateHandlerIsr(void)
  */
 static void LedChangeHandler(tMessage* pMsg)
 {
+  if (LedTimerId == UNASSIGNED_ID)
+  {
+    LedTimerId = AllocateOneSecondTimer();
+    SetupOneSecondTimer(LedTimerId, 5, NO_REPEAT, DISPLAY_QINDEX, LedChange, LED_OFF_OPTION);
+  }
+  
   switch (pMsg->Options)
   {
   case LED_ON_OPTION:
@@ -2192,7 +1998,7 @@ static void LedChangeHandler(tMessage* pMsg)
     break;
 
   case LED_TOGGLE_OPTION:
-    if ( LedOn )
+    if (LedOn)
     {
       StopOneSecondTimer(LedTimerId);
       DISABLE_LCD_LED();
@@ -2228,17 +2034,13 @@ unsigned char CurrentIdlePage(void)
 static void HandleVersionInfo(void)
 {
   tMessage Msg;
-  tVersion  Version;
-  
-  SetupMessageAndAllocateBuffer(&Msg, GetInfoStringResponse, MSG_OPT_NONE);
+  SetupMessageAndAllocateBuffer(&Msg, VerInfoRespMsg, MSG_OPT_NONE);
 
-  strcpy((char *)Msg.pBuffer, BUILD);
-  Msg.Length += strlen(BUILD);
-  
-  Version = GetWrapperVersion();
-  strcpy((char *)Msg.pBuffer + Msg.Length, Version.pSwVer);
-  Msg.Length += strlen(Version.pSwVer);
-  
+  /* exclude middle '.' */
+  strncpy((char *)Msg.pBuffer, BUILD, 3);
+  strncpy((char *)Msg.pBuffer + 3, BUILD + 4, 3);
+  Msg.Length += strlen(BUILD) - 1;
+    
   *(Msg.pBuffer + Msg.Length++) = (unsigned char)atoi(VERSION);
   
   unsigned char i = 0;
@@ -2246,9 +2048,6 @@ static void HandleVersionInfo(void)
   *(Msg.pBuffer + Msg.Length++) = atoi(VERSION + i);
   *(Msg.pBuffer + Msg.Length++) = NULL;
   
-//  while (VERSION[i++] != '.');
-//  *(Msg.pBuffer + Msg.Length++) = atoi(VERSION + i);
-//
   RouteMsg(&Msg);
   
   PrintString("-Ver:"); for (i = 6; i < Msg.Length; ++i) PrintHex(Msg.pBuffer[i]);
@@ -2266,14 +2065,13 @@ static void ReadBatteryVoltageHandler(void)
   SetupMessageAndAllocateBuffer(&Msg, ReadBatteryVoltageResponse, MSG_OPT_NONE);
 
   /* if the battery is not present then these values are meaningless */
-  Msg.pBuffer[0] = ExtPower();
+  Msg.pBuffer[0] = ClipOn();
   Msg.pBuffer[1] = Charging();
 
-  unsigned int bv = ReadBatterySense();
+  unsigned int bv = BatteryLevel();
   Msg.pBuffer[2] = bv & 0xFF;
   Msg.pBuffer[3] = (bv >> 8 ) & 0xFF;
 
-  bv = ReadBatterySenseAverage();
   Msg.pBuffer[4] = bv & 0xFF;
   Msg.pBuffer[5] = (bv >> 8 ) & 0xFF;
   Msg.Length = 6;
@@ -2282,256 +2080,82 @@ static void ReadBatteryVoltageHandler(void)
 
 }
 
-/*! Initiate a light sensor cycle.  Then send the instantaneous and average
- * light sense values to the host.
- *
- * \param tHostMsg* pMsg is unused
- *
- */
-static void ReadLightSensorHandler(void)
-{
-  /* start cycle and wait for it to finish */
-  LightSenseCycle();
-
-  /* send message to the host */
-  tMessage Msg;
-  SetupMessageAndAllocateBuffer(&Msg, ReadLightSensorResponse, MSG_OPT_NONE);
-
-  /* instantaneous value */
-  unsigned int lv = ReadLightSense();
-  Msg.pBuffer[0] = lv & 0xFF;
-  Msg.pBuffer[1] = (lv >> 8 ) & 0xFF;
-
-  /* average value */
-  lv = ReadLightSenseAverage();
-  Msg.pBuffer[2] = lv & 0xFF;
-  Msg.pBuffer[3] = (lv >> 8 ) & 0xFF;
-  Msg.Length = 4;
-  RouteMsg(&Msg);
-}
-
-/*! Setup the battery monitor interval - only happens at startup */
-static void InitializeBatteryMonitorInterval(void)
-{
-  nvBatteryMonitorIntervalInSeconds = INTERVAL_SEC_BATTERY_MONITOR;
-
-  OsalNvItemInit(NVID_BATTERY_SENSE_INTERVAL,
-                 sizeof(nvBatteryMonitorIntervalInSeconds),
-                 &nvBatteryMonitorIntervalInSeconds);
-
-}
-
-static void InitializeRstNmiConfiguration(void)
-{
-  unsigned char RstControl;
-  
-#ifdef HW_DEVBOARD_V2
-   RstControl = RST_PIN_ENABLED;
-#else
-   RstControl = RST_PIN_DISABLED;
-#endif
-
-  OsalNvItemInit(NVID_RSTNMI_CONFIGURATION, sizeof(RstControl), &RstControl);
-  ConfigResetPin(RstControl);
-}
-
 /* choose whether or not to do a master reset (reset non-volatile values) */
 static void SoftwareResetHandler(tMessage* pMsg)
 {
-  if (pMsg->Options == MASTER_RESET_OPTION) WriteMasterResetKey();
+  if (pMsg->Options == MASTER_RESET_OPTION) SetMasterReset();
   SoftwareReset();
+}
+
+static void HandleSecInvert(unsigned char Val)
+{
+  if (Val == MSG_OPT_HIDE_SECOND && GetProperty(PROP_TIME_SECOND) ||
+     (Val == MSG_OPT_SHOW_SECOND && !GetProperty(PROP_TIME_SECOND)))
+  {
+    ToggleProperty(PROP_TIME_SECOND);
+    CreateAndSendMessage(UpdateHomeWidgetMsg, MSG_OPT_NONE);
+  }
+
+  else if (Val == MSG_OPT_NORMAL_DISPLAY && GetProperty(PROP_INVERT_DISPLAY) ||
+          (Val == MSG_OPT_INVERT_DISPLAY && !GetProperty(PROP_INVERT_DISPLAY)))
+  {
+    ToggleProperty(PROP_INVERT_DISPLAY);
+
+    if (PageType == PAGE_TYPE_IDLE) IdleUpdateHandler();
+    else if (PageType == PAGE_TYPE_MENU) MenuModeHandler(0);
+    else if (CurrentPage[PageType] == StatusPage) WatchStatusScreenHandler();
+  }
+}
+
+static void HandleProperty(unsigned char Options)
+{
+  if (Options & PROPERTY_READ) CreateAndSendMessage(PropRespMsg, GetProperty(PROP_ALL));
+  else
+  {
+    SetProperty(PROP_VALID, Options & PROP_VALID);
+    CreateAndSendMessage(PropRespMsg, MSG_OPT_NONE);
+    CreateAndSendMessage(UpdateDisplayMsg, IDLE_MODE | MSG_OPT_NEWUI);
+  }
 }
 
 static void NvalOperationHandler(tMessage* pMsg)
 {
-
-  /* overlay */
-  tNvalOperationPayload* pNvPayload = (tNvalOperationPayload*)pMsg->pBuffer;
-
-  /* create the outgoing message */
-  tMessage Msg;
-  SetupMessageAndAllocateBuffer(&Msg, NvalOperationResponseMsg, NV_FAILURE);
-
-  /* add identifier to outgoing message */
-  tWordByteUnion Identifier;
-  Identifier.word = pNvPayload->NvalIdentifier;
-  Msg.pBuffer[0] = Identifier.Bytes.byte0;
-  Msg.pBuffer[1] = Identifier.Bytes.byte1;
-  Msg.Length = 2;
-
-  PrintStringAndTwoHexBytes("- Nval Id:Val 0x", Identifier.word, pNvPayload->DataStartByte);
-  /* option byte in return message is status */
-  switch (pMsg->Options)
+  if (pMsg->pBuffer == NULL) // Property
   {
-
-  case NVAL_INIT_OPERATION:
-    /* may allow access to a specific range of nval ids that
-     * the phone can initialize and use
-     */
-    break;
-
-  case NVAL_READ_OPERATION:
-
-    /* read the value and update the length */
-    Msg.Options = OsalNvRead(pNvPayload->NvalIdentifier,
-                                     NV_ZERO_OFFSET,
-                                     pNvPayload->Size,
-                                     &Msg.pBuffer[2]);
-
-    Msg.Length += pNvPayload->Size;
-
-    break;
-
-  case NVAL_WRITE_OPERATION:
-
-    /* check that the size matches (otherwise NV_FAILURE is sent) */
-    if (OsalNvItemLength(pNvPayload->NvalIdentifier) == pNvPayload->Size)
-    {
-      /* update the copy in ram */
-      NvUpdater(pNvPayload);
-      
-      Msg.Options = OsalNvWrite(pNvPayload->NvalIdentifier,
-                                NV_ZERO_OFFSET,
-                                pNvPayload->Size,
-                                (void*)(&pNvPayload->DataStartByte));
-    }
-
-    break;
-
-  default:
-    break;
+    HandleProperty(pMsg->Options);
   }
-
-  RouteMsg(&Msg);
-}
-
-/******************************************************************************/
-
-/* The value in RAM must be updated if the phone writes the value in
- * flash (until the code is changed to read the value from flash)
- */
-static void NvUpdater(tNvalOperationPayload *pNval)
-{
-  tMessage Msg;
-  
-  switch (pNval->NvalIdentifier)
+  else
   {
-    case NVID_TIME_FORMAT:
-      Set12H(pNval->DataStartByte);
-      SendMessage(&Msg, UpdateHomeWidgetMsg, MSG_OPT_NONE);
-      break;
+    tNvalOperationPayload* pNvPayload = (tNvalOperationPayload*)pMsg->pBuffer;
 
-    case NVID_DATE_FORMAT:
-      SetMonthFirst(pNval->DataStartByte);
-      SendMessage(&Msg, UpdateHomeWidgetMsg, MSG_OPT_NONE);
-      break;
-
-    case NVID_DISPLAY_SECONDS:
-      nvDisplaySeconds = pNval->DataStartByte;
-      SendMessage(&Msg, UpdateHomeWidgetMsg, MSG_OPT_NONE);
-      break;
-
-    case NVID_IDLE_BUFFER_INVERT:
-      nvIdleBufferInvert = pNval->DataStartByte;
-      SendMessage(&Msg, UpdateHomeWidgetMsg, MSG_OPT_NONE);
-      break;
-
-    case NVID_IDLE_BUFFER_CONFIGURATION:
-      NvIdle = pNval->DataStartByte; //watch_control_top
-      break;
-      
-    case NVID_IDLE_MODE_TIMEOUT:
-    case NVID_APP_MODE_TIMEOUT:
-    case NVID_NOTIF_MODE_TIMEOUT:
-    case NVID_MUSIC_MODE_TIMEOUT:
-      InitModeTimeout();
-      break;
-
-    case NVID_SNIFF_DEBUG:
-    case NVID_BATTERY_DEBUG:
-    case NVID_CONNECTION_DEBUG:
-      InitializeDebugFlags();
-      break;
-
-    case NVID_RSTNMI_CONFIGURATION:
-      InitializeRstNmiConfiguration();
-      break;
-
-    case NVID_MASTER_RESET:
-      /* this gets handled on reset */
-      break;
-
-    case NVID_LOW_BATTERY_WARNING_LEVEL:
-    case NVID_LOW_BATTERY_BTOFF_LEVEL:
-      InitializeLowBatteryLevels();
-      break;
-
-    case NVID_BATTERY_SENSE_INTERVAL:
-      InitializeBatteryMonitorInterval();
-      break;
-
-    case NVID_LIGHT_SENSE_INTERVAL:
-      break;
-
-    case NVID_SECURE_SIMPLE_PAIRING_ENABLE:
-      /* not for phone control - reset watch */
-      break;
-
-    case NVID_LINK_ALARM_ENABLE:
-      InitLinkAlarmEnable();
-      break;
-
-    case NVID_LINK_ALARM_DURATION:
-      break;
-
-    case NVID_PAIRING_MODE_DURATION:
-      /* not for phone control - reset watch */
-      break;
-
-#ifdef ANALOG
-    case NVID_IDLE_DISPLAY_TIMEOUT:
-    case NVID_APPLICATION_DISPLAY_TIMEOUT:
-    case NVID_NOTIFICATION_DISPLAY_TIMEOUT:
-    case NVID_RESERVED_DISPLAY_TIMEOUT:
-      InitializeDisplayTimeouts();
-      break;
-
-    case NVID_TOP_OLED_CONTRAST_DAY:
-    case NVID_BOTTOM_OLED_CONTRAST_DAY:
-    case NVID_TOP_OLED_CONTRAST_NIGHT:
-    case NVID_BOTTOM_OLED_CONTRAST_NIGHT:
-      InitializeContrastValues();
-      break;
-#endif
-
-    default:
-      PrintStringAndDecimal("# Unkwn nval:", pNval->NvalIdentifier);
-      break;
-  }
-}
-
-#ifdef RATE_TEST
-static unsigned char RateTestCallback(void)
-{
-  unsigned char ExitLpm = 0;
-
-  StartCrystalTimer(CRYSTAL_TIMER_ID3,
-                    RateTestCallback,
-                    RATE_TEST_INTERVAL_MS);
-
-  /* send messages once we are connected and sniff mode */
-  if (   BluetoothState() == Connect
-      && QuerySniffState() == Sniff )
-  {
+    /* create the outgoing message */
     tMessage Msg;
-    SetupMessage(&Msg, RateTestMsg, MSG_OPT_NONE);
-    SendMessageToQueueFromIsr(DISPLAY_QINDEX, &Msg);
-    ExitLpm = 1;
-  }
+    SetupMessageAndAllocateBuffer(&Msg, PropRespMsg, MSG_OPT_NONE);
 
-  return ExitLpm;
+    /* add identifier to outgoing message */
+    tWordByteUnion Identifier;
+    Identifier.word = pNvPayload->NvalIdentifier;
+    Msg.pBuffer[0] = Identifier.Bytes.byte0;
+    Msg.pBuffer[1] = Identifier.Bytes.byte1;
+    Msg.Length = 2;
+
+    PrintStringAndTwoHexBytes("- Nval Id:Val 0x", Identifier.word, pNvPayload->DataStartByte);
+    
+    unsigned char Property = PropertyBit(pNvPayload->NvalIdentifier);
+
+    if (pMsg->Options == NVAL_READ_OPERATION)
+    {
+      if (Property) Msg.pBuffer[2] = GetProperty(Property);
+      Msg.Length += pNvPayload->Size;
+    }
+    else if (Property) // write operation
+    {
+      SetProperty(Property, pNvPayload->DataStartByte ? Property : 0);
+      CreateAndSendMessage(UpdateHomeWidgetMsg, MSG_OPT_NONE);
+    }
+    RouteMsg(&Msg);
+  }
 }
-#endif
 
 /******************************************************************************/
 /*
@@ -2539,7 +2163,7 @@ static unsigned char RateTestCallback(void)
  * and generates a reset.  The signature tells the bootloader
  * to stay in bootload mode to accept bootload messaging.
  */
-static void EnterBootloader(void)
+void EnterBootloader(void)
 {
   PrintString("- Entering Bootloader Mode\r\n");
 
@@ -2566,55 +2190,63 @@ static void EnterBootloader(void)
   SoftwareReset();
 }
 
+/* this function probably belongs somewhere else */
+void WhoAmI(void)
+{
+  PrintString3("Version: ", VERSION, CR);
+  PrintString3("Build: ", BUILD, CR);
+
+  PrintString2(BR_DEVICE_NAME, CR);
+  PrintString("Msp430 Version ");
+  PrintCharacter(GetMsp430HardwareRevision());
+  PrintString(CR);
+  
+  PrintStringAndDecimal("HwVersion: ", HardwareVersion());
+  PrintStringAndDecimal("BoardConfig: ", GetBoardConfiguration());
+  PrintStringAndDecimal("Calibration: ", ValidCalibration());
+  PrintStringAndDecimal("ErrataGroup1: ", QueryErrataGroup1());
+}
+
 /******************************************************************************/
 /* This originally was for battery charge control, but now it handles
  * other things that must be periodically checked such as 
  * mux control and task check in (watchdog)
- *
  */
-static void BatteryChargeControlHandler(void)
+static void MonitorBattery(void)
 {
-  tMessage Msg;
+  static unsigned char LastPercent = 101;
 
-  /* change the mux settings accordingly */
-  ChangeMuxMode();
+#if CHECK_CSTACK
+  if (LastPercent == 101) CheckCStack();
+#endif
 
-  /* enable/disable serial commands */
-  TestModeControl();
-
-  /* enable the charge circuit if power is good
-   *
-   * update the screen if there has been a change in charging status 
-   */
-  /* periodically check if the charging clip is present */
-  unsigned char Power = ExtPower();
-
-//  PrintString3("- ChrgCtrl: Pwr ", Power ? "Good" : "Bad", CR);
-
-  if (BatteryChargingControl(Power))
+  unsigned char ClipChanged = CheckClip();
+  CheckBattery();
+  
+  if (ClipChanged || Charging() || CurrentPage[PageType] == StatusPage)
   {
-    PrintString2("= BattChgd", CR);
-    if (CurrentPage[PageType] == StatusPage) WatchStatusScreenHandler();
-    UpdateHomeWidget(MSG_OPT_NONE); // must be last to avoid screen mess-up
+    unsigned char CurrPercent = BatteryPercentage();
+
+    if (CurrPercent != LastPercent || ClipChanged)
+    {
+      if (CurrentPage[PageType] == StatusPage) WatchStatusScreenHandler();
+      else UpdateHomeWidget(MSG_OPT_NONE); // must be the last to avoid screen mess-up
+      
+      LastPercent = CurrPercent;
+    }
   }
-
-  BatterySenseCycle();
-  LowBatteryMonitor(Power);
-
   /* Watchdog requires each task to check in.
    * If the background task reaches here then it can check in.
    * Send a message to the other tasks so that they must check in.
    */
   TaskCheckIn(eDisplayTaskCheckInId);
-
-  SendMessage(&Msg, WrapperTaskCheckInMsg,  MSG_OPT_NONE);
-  SendMessage(&Msg, QueryMemoryMsg, MSG_OPT_NONE);
+  CreateAndSendMessage(WrapperTaskCheckInMsg, MSG_OPT_NONE);
 
 #if TASK_DEBUG
   UTL_FreeRtosTaskStackCheck();
 #endif
 
-#if 0
+#if ENABLE_LIGHT_SENSOR
   LightSenseCycle();
 #endif
 }

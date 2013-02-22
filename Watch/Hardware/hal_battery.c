@@ -1,5 +1,5 @@
 //==============================================================================
-//  Copyright 2011 Meta Watch Ltd. - http://www.MetaWatch.org/
+//  Copyright 2013 Meta Watch Ltd. - http://www.MetaWatch.org/
 // 
 //  Licensed under the Meta Watch License, Version 1.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -14,34 +14,50 @@
 //  limitations under the License.
 //==============================================================================
 
-/******************************************************************************/
-/*! \file hal_battery.c
-*
-*/
-/******************************************************************************/
-
 #include "FreeRTOS.h"
 #include "task.h"
 
 #include "hal_board_type.h"
 #include "hal_battery.h"
+#include "hal_software_fll.h"
 
 #include "DebugUart.h"
-#include "Display.h"
 #include "Adc.h"
+#include "MuxMode.h"
+#include "TermMode.h"
+#include "Wrapper.h"
+
+/*! The state of the battery charging circuit is dedcoded from the bits on 
+ *  port 6 
+ *
+ *   Stat2    Stat1      Status                  Hex value
+ *    0          0       Precharge                   0x00
+ *    1          0       Fast charge                 0x10
+ *    0          1       Charge Done                 0x08
+ *    1          1       Timer Fault or Sleep        0x18
+ */
+
+#define CHARGE_STATUS_PRECHARGE               (0x00)
+#define CHARGE_STATUS_FAST_CHARGE             (0x10)
+#define CHARGE_STATUS_DONE                    (0x08)
+#define CHARGE_STATUS_OFF                     (0x18)
 
 // used to monitor battery status
-static unsigned char CurrentBatteryState;
-static unsigned char LastBatteryState;
-static unsigned char BatteryChargeEnabled;
+static unsigned char ChargeStatus;
+static unsigned char ChargeEnable;
 
 #define BAT_CHARGE_OPEN_DRAIN_BITS \
-  ( BAT_CHARGE_STAT1 + BAT_CHARGE_STAT2 + BAT_CHARGE_PWR_GOOD )
+  ( BAT_CHARGE_STAT1 + BAT_CHARGE_STAT2 + BAT_CHARGE_PWR_BIT )
 
 #define BAT_CHARGE_STATUS_OPEN_DRAIN_BITS \
   ( BAT_CHARGE_STAT1 + BAT_CHARGE_STAT2 )
 
-void ConfigureBatteryPins(void)
+static void ChargingControl(void);
+
+/*! Configure the pins used for reading the battery state and 
+ * charging the battery.
+ */
+void InitBattery(void)
 {
   // enable the resistor on the interface pins to the battery charger
   BAT_CHARGE_REN |= BAT_CHARGE_OPEN_DRAIN_BITS;
@@ -60,141 +76,109 @@ void ConfigureBatteryPins(void)
    * of the pull down resistor. Otherwise, the charge chip will let
    * the pin go high
    */
-  BAT_CHARGE_OUT |= BAT_CHARGE_PWR_GOOD;
-  
+  BAT_CHARGE_OUT |= BAT_CHARGE_PWR_BIT;
   BATTERY_CHARGE_DISABLE();
-  BatteryChargeEnabled = 1;
-  CurrentBatteryState = BATTERY_CHARGE_OFF_FAULT_SLEEP;
   
-  CurrentBatteryState = 0x00;
-  LastBatteryState = 0xff;
-  
+  InitAdc();
+
+  ChargeEnable = pdTRUE;
+  ChargeStatus = CHARGE_STATUS_OFF;
 }
 
-/******************************************************************************/
-
-unsigned char BatteryChargingControl(unsigned char PowerGood)
+unsigned char CheckClip(void)
 {
-  unsigned char BatteryChargeChange = 0;
-  unsigned char BatteryChargeBits;
+  static unsigned char Last = CLIP_INIT;
+  unsigned char Changed = pdFALSE;
+
+  unsigned char Clip = ClipOn();
+
+  if (Clip != Last)
+  {
+    /* change the mux settings accordingly */
+    ChangeMuxMode(Clip);
+    EnableDebugUart(Clip);
+
+    if (Clip == CLIP_ON) PrintString2("- Atch", CR);
+    
+    Changed = pdTRUE;
+    Last = Clip;
+  }
+  return Changed;
+}
+
+void CheckBattery(void)
+{
+  BatterySenseCycle();
+
+  if (!ClipOn())
+  {
+    ChargeStatus = CHARGE_STATUS_OFF;
+    CheckBatteryLow();
+  }
+  else if (ChargeEnable) ChargingControl();
   
-  /* 
-   * first find out if the charger is connected
+  PrintDecimal(BatteryLevel()); PrintString(CR);
+}
+
+unsigned char ClipOn(void)
+{
+  /* Read the bit, 0 is external power on. */
+  return !(BAT_CHARGE_IN & BAT_CHARGE_PWR_BIT);
+}
+
+/*! Read battery state and update charge output 
+ * \note Status can be used to update the LCD screen of a possible change
+ * in battery charging state
+ */
+static void ChargingControl(void)
+{
+  /* prepare to read status bits */
+  BAT_CHARGE_OUT |= BAT_CHARGE_STATUS_OPEN_DRAIN_BITS;
+
+  /* always enable the charger (it may already be enabled)
+   * status bits are not valid unless charger is enabled 
    */
-  if (!PowerGood)
+  BATTERY_CHARGE_ENABLE();
+
+  /* wait until signals are valid - measured 400 us 
+   * during this delay we will also run the software FLL
+   */
+  TaskDelayLpmDisable();
+  
+  /* disable BT flow during FLL loop */
+  portENTER_CRITICAL();
+  unsigned char FlowDisabled = QueryFlowDisabled();
+  if (!FlowDisabled) DisableFlow();
+  portEXIT_CRITICAL();
+
+  EnableSoftwareFll();
+  vTaskDelay(1);
+  DisableSoftwareFll();
+  
+  portENTER_CRITICAL();
+  if (!FlowDisabled) EnableFlow();
+  portEXIT_CRITICAL();
+
+  TaskDelayLpmEnable();
+  
+  /* Decode the battery state */
+  /* mask and shift to get the current battery charge status */
+  ChargeStatus = BAT_CHARGE_IN & (BAT_CHARGE_STAT1 | BAT_CHARGE_STAT2);
+
+  switch (ChargeStatus)
   {
-    /* the charger automatically shuts down when power is not good
-     * need to make sure pullups aren't enabled.
-     */
-    if (BatteryChargeEnabled)
-    {
-      BatteryChargeChange = 1;
-    }
-    
-    BATTERY_CHARGE_DISABLE();
-    CurrentBatteryState = BATTERY_CHARGE_OFF_FAULT_SLEEP; 
-    BAT_CHARGE_OUT &= ~BAT_CHARGE_STATUS_OPEN_DRAIN_BITS;
-    
+  case CHARGE_STATUS_PRECHARGE:   PrintString(".");  break;
+  case CHARGE_STATUS_FAST_CHARGE: PrintString(":"); break;
+  case CHARGE_STATUS_DONE:        PrintString("|"); break;
+  case CHARGE_STATUS_OFF:         PrintString("ChargeOff");  break;
+  default:                        PrintString("Charge???");  break;
   }
-  else if (BatteryChargeEnabled)
-  {
-    /* prepare to read status bits */
-    BAT_CHARGE_OUT |= BAT_CHARGE_STATUS_OPEN_DRAIN_BITS;
-  
-    /* always enable the charger (it may already be enabled)
-     * status bits are not valid unless charger is enabled 
-     */
-    BATTERY_CHARGE_ENABLE();
-  
-    /* wait until signals are valid - measured 400 us */
-    TaskDelayLpmDisable();
-    vTaskDelay(1);
-    TaskDelayLpmEnable();
-    
-    /* take reading */
-    BatteryChargeBits = BAT_CHARGE_IN;
-    
-    /*
-     * Decode the battery state
-     */
-    
-    /* mask and shift to get the current battery charge status */
-    BatteryChargeBits &= (BAT_CHARGE_STAT1 | BAT_CHARGE_STAT2);
-    CurrentBatteryState = BatteryChargeBits >> 3;
-    
-    if ( LastBatteryState != CurrentBatteryState )
-    {
-      BatteryChargeChange = 1;
-    }
-    LastBatteryState = CurrentBatteryState;
-   
-    if ( QueryBatteryDebug() )
-    {
-      if ( BatteryChargeChange )
-      {
-        switch (CurrentBatteryState)
-        {
-        case BATTERY_PRECHARGE:              PrintString("[Pre] ");   break;
-        case BATTERY_FAST_CHARGE:            PrintString("[Fast] ");  break;
-        case BATTERY_CHARGE_DONE:            PrintString("[Done] ");  break; 
-        case BATTERY_CHARGE_OFF_FAULT_SLEEP: PrintString("[Sleep] "); break;
-        default:                             PrintString("[Bat?]");   break;
-        }
-        
-      }
-    }
-    
-    /* if the part is in sleep mode or there was a fault then
-     * disable the charge control and disable the pullups 
-     *
-     * any faults will be cleared by the high-to-low transition on the enable pin
-     */
-    switch (CurrentBatteryState)
-    {
-    case BATTERY_PRECHARGE:
-    case BATTERY_FAST_CHARGE:
-    case BATTERY_CHARGE_DONE: 
-      /* do nothing */ 
-      break; 
-    
-    case BATTERY_CHARGE_OFF_FAULT_SLEEP: 
-      BATTERY_CHARGE_DISABLE();
-      BAT_CHARGE_OUT &= ~BAT_CHARGE_STATUS_OPEN_DRAIN_BITS;
-      break;
-    
-    default:   
-      break;
-    }
-  }
-  
-  return BatteryChargeChange;
 }
 
 unsigned char Charging(void)
 {
-  return (CurrentBatteryState == BATTERY_PRECHARGE ||
-          CurrentBatteryState == BATTERY_FAST_CHARGE);
-}
-
-/* is 5V connected? 
- *
- * This pin should be changed to a pin that has interrupt capability
- */
-unsigned char ExtPower(void)
-{  
-  /* take reading */
-  unsigned char BatteryChargeBits = BAT_CHARGE_IN;
-  unsigned char PowerGoodN = BatteryChargeBits & BAT_CHARGE_PWR_GOOD;
- 
-  /* Bit 5 is low, which means we have input power == good */
-  unsigned char PowerGood = (PowerGoodN == 0) ? EXTERNAL_POWER_GOOD : NO_EXTERNAL_POWER;
-
-#if DEBUG_POWER_GOOD
-  PrintStringAndDecimal("PowerGood ",PowerGood);
-#endif
-  
-  return PowerGood;
-  
+  return (ChargeStatus == CHARGE_STATUS_PRECHARGE ||
+          ChargeStatus == CHARGE_STATUS_FAST_CHARGE);
 }
 
 /* the charge enable bit is used to get status information so
@@ -203,10 +187,18 @@ unsigned char ExtPower(void)
  */
 unsigned char ChargeEnabled(void)
 {
-  return BatteryChargeEnabled;  
+  return ChargeEnable;
 }
 
-void EnableCharge(unsigned char Enable)
+void ToggleCharging(void)
 {
-  BatteryChargeEnabled = Enable;
+  ChargeEnable = !ChargeEnable;
+  PrintString2("- Charge ", ChargeEnable ? "Enabled" : "Disabled");
+  
+  if (!ChargeEnable)
+  {
+    BATTERY_CHARGE_DISABLE();
+    BAT_CHARGE_OUT &= ~BAT_CHARGE_STATUS_OPEN_DRAIN_BITS;
+    ChargeStatus = CHARGE_STATUS_OFF;
+  }
 }

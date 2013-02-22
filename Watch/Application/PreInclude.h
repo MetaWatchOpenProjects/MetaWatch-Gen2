@@ -29,7 +29,7 @@
 //#define INCLUDE_1315_PATCH ( 0 )
 
 #if !INCLUDE_1316_PATCH && !INCLUDE_1315_PATCH
-#error "At least one patch must be included"
+  #error "At least one patch must be included"
 #endif
 
 /*! set this to one to enable watchdog */
@@ -57,6 +57,8 @@
 /*! enable entry into low power mode 3 */
 #define LPM_ENABLED ( 1 ) 
 
+#define SHIPPING_MODE (0)
+
 /*! print task information */
 #define TASK_DEBUG ( 0 )
 
@@ -83,5 +85,8 @@
    
 /*! use mutex to attempt to make string printing look prettier */
 #define PRETTY_PRINT ( 1 )
-   
+
+/*! use debug signals to time the software FLL circuit */
+#define DEBUG_SOFTWARE_FLL ( 1 )
+
 #endif /* PRE_INCLUDE_H */

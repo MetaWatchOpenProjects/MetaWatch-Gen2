@@ -28,8 +28,10 @@
 #define CONN_TYPE_SPP   (0x02)
 #define CONN_TYPE_HFP   (0x04)
 #define CONN_TYPE_MAP   (0x08)
+
 #define CONN_TYPE_ANY   (0x0F)
 #define CONN_TYPE_MAIN  (CONN_TYPE_BLE | CONN_TYPE_SPP)
+#define CONN_TYPE_BR    (CONN_TYPE_SPP | CONN_TYPE_HFP | CONN_TYPE_MAP)
 
 #define DEVICE_TYPE_BLE     (0x01)
 #define DEVICE_TYPE_SPP     (0x02)
@@ -46,7 +48,7 @@
 * This task opens the stack which in turn creates 3 more tasks that create and 
 * handle the bluetooth serial port connection.
 */
-void InitializeWrapperTask(void);
+void CreateWrapperTask(void);
 
 /*! Query the serial port profile task if it is okay to put the part into LPM3
 *
@@ -56,17 +58,6 @@ void InitializeWrapperTask(void);
 * \return 0 if micro cannot go into LPM3; 1 if micro can go into LPM3
 */
 unsigned char SerialPortReadyToSleep(void);
-
-typedef struct
-{
-  char *pSwVer;
-  char HwRev;
-  char *pBtVer;
-  char *pChip;
-} tVersion;
-
-/*! Return a pointer to the wrapper version string */
-tVersion GetWrapperVersion(void);
 
 unsigned char PairedDeviceType(void);
 
@@ -86,7 +77,7 @@ typedef enum
   Connect,
   Off,
   RadioOffLowBattery,
-  ShippingMode  
+  Shipping  
 } eBluetoothState;
 
 /*! BLE connection parameter set */
@@ -137,20 +128,12 @@ unsigned char QueryDiscoverable(void);
  */
 unsigned char QueryConnectable(void);
 
-/*! Query Bluetooth Secure Simple Pairing Setting
- *
- * \return 0 when SSP is disabled, 1 when SSP is enabled
- */
-unsigned char QuerySecureSimplePairingEnabled(void);
-
-void SaveSecureSimplePairingState(void);
-
 /*! Query Bluetooth pairing information
  *
  * \return 0 when valid pairing does not exist, 1 when valid pairing information
  * exists
  */
-unsigned char ValidPairingInfo(void);
+unsigned char ValidAuthInfo(void);
 
 void GetBDAddrStr(char *pAddr);
 
@@ -177,11 +160,6 @@ typedef struct
 
 /******************************************************************************/
 
-/*! Query the state of the AutoSniffEnabled register 
- * \return 1 if Sniff is Enabled, 0 otherwise 
- */
-unsigned char QueryAutoSniffEnabled(void);
-
 /*! 
  * \param DelayMs is the delay for entering sniff mode 
  */
@@ -191,14 +169,12 @@ void SetSniffModeEntryDelay(unsigned int DelayMs);
 /* these are actually the HCI Current Mode Types + some housekeeping */
 typedef enum
 {
-  Active = 0,             
-  Hold = 1,
-  Sniff = 2,                  
-  Park = 3,
-  PhoneNotConnected = 4,
-  SniffToActive = 5,
-  ActiveToSniff = 6
-  
+  Active,
+  Hold,
+  Sniff,
+  Park,
+  SniffToActive,
+  ActiveToSniff
 } etSniffState;
 
 etSniffState QuerySniffState(void);

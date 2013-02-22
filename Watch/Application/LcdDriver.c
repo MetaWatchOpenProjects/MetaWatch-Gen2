@@ -14,23 +14,15 @@
 //  limitations under the License.
 //==============================================================================
 
-/******************************************************************************/
-/*! \file LcdDriver.c
- *
- * The vertical interval is 16.6 ms.
- */
-/******************************************************************************/
 #include "FreeRTOS.h"
-
 #include "hal_board_type.h"
 #include "hal_clock_control.h"
 #include "hal_lcd.h"
-
 #include "Messages.h"
-
 #include "DebugUart.h"
 #include "LcdDriver.h"
 #include "LcdDisplay.h"
+#include "Property.h"
 
 /******************************************************************************/
 
@@ -54,9 +46,7 @@ static void WriteLineToLcd(unsigned char* pData,unsigned char Size);
 
 void LcdPeripheralInit(void)
 {
-  /* LCD 5.0 V SUPPLY */
-  LCD_5V_PDIR |= LCD_5V_BIT;
-  LCD_5V_POUT |= LCD_5V_BIT;
+  ENABLE_LCD_POWER();
 
   CONFIG_LCD_PINS();
   
@@ -93,7 +83,7 @@ void WriteLcdHandler(tLcdData *pLcdData)
   unsigned char* pData = &pLcdData->LcdCommand;
 
   /* flip bits */
-  if ( InvertDisplay() == NORMAL_DISPLAY )
+  if (!GetProperty(PROP_INVERT_DISPLAY))
   {
   	unsigned char i;
     for (i = 0; i < 12; i++ )
