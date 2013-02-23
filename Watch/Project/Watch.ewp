@@ -327,7 +327,6 @@
           <state>$PROJ_DIR$\..\Hardware\F5xx_F6xx_Core_Lib\</state>
           <state>$PROJ_DIR$\..\Application</state>
           <state>$PROJ_DIR$\..\..\Stack\Api</state>
-          <state>$PROJ_DIR$\..\..\Bootloader</state>
         </option>
         <option>
           <name>CCStdIncCheck</name>
@@ -1098,7 +1097,7 @@
         </option>
         <option>
           <name>GStackHeapOverride</name>
-          <state>0</state>
+          <state>1</state>
         </option>
         <option>
           <name>GStackSize2</name>
@@ -1123,7 +1122,7 @@
         </option>
         <option>
           <name>RadioHeapSizeType</name>
-          <state>0</state>
+          <state>1</state>
         </option>
         <option>
           <name>RadioHardwareMultiplierType</name>
@@ -1886,8 +1885,8 @@
         </option>
         <option>
           <name>XExtraOptions</name>
-          <state>-C $PROJ_DIR$\..\..\Stack\Api\IAR\Stack1.r43</state>
-          <state>-C $PROJ_DIR$\..\..\Stack\Api\IAR\libBluetopia.a</state>
+          <state>-C $PROJ_DIR$\..\..\Stack\Api\IAR\wrapper-spp.r43</state>
+          <state>-C $PROJ_DIR$\..\..\Stack\Api\IAR\stack.a</state>
         </option>
         <option>
           <name>OverlaySystemMap</name>
@@ -2092,7 +2091,7 @@
         </option>
         <option>
           <name>GStackHeapOverride</name>
-          <state>0</state>
+          <state>1</state>
         </option>
         <option>
           <name>GStackSize2</name>
@@ -2117,7 +2116,7 @@
         </option>
         <option>
           <name>RadioHeapSizeType</name>
-          <state>0</state>
+          <state>1</state>
         </option>
         <option>
           <name>RadioHardwareMultiplierType</name>
@@ -2882,11 +2881,11 @@
         </option>
         <option>
           <name>XExtraOptions</name>
-          <state>-C $PROJ_DIR$\..\..\Stack\Api\IAR\Stack.r43</state>
+          <state>-C $PROJ_DIR$\..\..\Stack\Api\IAR\wrapper.r43</state>
           <state>-C $PROJ_DIR$\..\..\Bootloader\Api\IAR\Bootloader.r43</state>
-          <state>-C $PROJ_DIR$\..\..\Stack\Api\IAR\libBluetopia.a</state>
-          <state>-C $PROJ_DIR$\..\..\Stack\Api\IAR\libSS1BTGAT.a</state>
-          <state>-C $PROJ_DIR$\..\..\Stack\Api\IAR\libSS1BTMAP.a</state>
+          <state>-C $PROJ_DIR$\..\..\Stack\Api\IAR\stack.a</state>
+          <state>-C $PROJ_DIR$\..\..\Stack\Api\IAR\libgat.a</state>
+          <state>-C $PROJ_DIR$\..\..\Stack\Api\IAR\libmap.a</state>
         </option>
         <option>
           <name>OverlaySystemMap</name>
@@ -3056,6 +3055,18 @@
     </file>
     <file>
       <name>$PROJ_DIR$\..\Application\Vibration.c</name>
+    </file>
+  </group>
+  <group>
+    <name>Bootloader</name>
+    <excluded>
+      <configuration>Gen1</configuration>
+    </excluded>
+    <file>
+      <name>$PROJ_DIR$\..\Bootloader\AltVect.s43</name>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\..\Bootloader\cstartup.s43</name>
     </file>
   </group>
   <group>
@@ -3244,6 +3255,9 @@
       <name>$PROJ_DIR$\..\..\Patch\PatchSelection.c</name>
     </file>
   </group>
+  <file>
+    <name>$PROJ_DIR$\LinkerConfigurationBootloader.xcl</name>
+  </file>
 </project>
 
 
