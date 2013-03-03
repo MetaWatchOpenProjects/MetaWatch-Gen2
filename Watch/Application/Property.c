@@ -27,7 +27,11 @@
 #define NVID_IDLE_BUFFER_INVERT           ( 0x0003 )
 #define NVID_LINK_ALARM_ENABLE            ( 0x2006 )
 
-__no_init __root static unsigned int niProperty @ PROPERTY_ADDR;
+#if __IAR_SYSTEMS_ICC__
+__no_init __root unsigned int niProperty @ PROPERTY_ADDR;
+#else
+extern unsigned int niProperty;
+#endif
 
 void InitProperty(void)
 {

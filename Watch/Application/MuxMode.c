@@ -22,7 +22,12 @@
 #include "MuxMode.h"
 #include "hal_board_type.h"
 
-__no_init __root static unsigned char niMuxMode @ MUX_MODE_ADDR;
+#if __IAR_SYSTEMS_ICC__
+__no_init __root unsigned char niMuxMode @ MUX_MODE_ADDR;
+#else
+extern unsigned char niMuxMode;
+#endif
+
 extern unsigned int niReset;
 
 /* Assume clip is on */

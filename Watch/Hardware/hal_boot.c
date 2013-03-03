@@ -18,7 +18,11 @@
 #include "msp430.h"
 #include "hal_boot.h"
 
-__no_init __root static unsigned long long Signature @SIGNATURE_ADDR;
+#if __IAR_SYSTEMS_ICC__
+__no_init __root unsigned long long Signature @SIGNATURE_ADDR;
+#else
+extern unsigned long long Signature;
+#endif
 
 void SetBootloaderSignature(void)
 {
@@ -37,7 +41,11 @@ unsigned long long GetBootloaderSignature(void)
 
 /******************************************************************************/
 
-__no_init __root static unsigned int ResetSource @RESET_REASON_ADDR;
+#if __IAR_SYSTEMS_ICC__
+__no_init __root unsigned int ResetSource @RESET_REASON_ADDR;
+#else
+extern unsigned int ResetSource;
+#endif
 
 void SaveResetSource(void)
 {
@@ -55,8 +63,13 @@ unsigned int GetResetSource(void)
 #define BUILD_SIZE    (3)
 extern const char BUILD[];
 
+#if __IAR_SYSTEMS_ICC__
 __no_init __root unsigned int niReset @ RESET_TYPE_ADDR;
 __no_init __root char niBuild[BUILD_SIZE + 1] @ BUILD_NUMBER_ADDR;
+#else
+extern unsigned int niReset;
+extern char niBuild[BUILD_SIZE + 1];
+#endif
 
 void CheckResetCode(void)
 {

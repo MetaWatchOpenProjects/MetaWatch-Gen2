@@ -38,38 +38,12 @@
 #ifndef MSP430FLASHUTIL_H
 #define MSP430FLASHUTIL_H
 
-/*********************************************************************
- * INCLUDES
- */
-
-/*********************************************************************
- * CONSTANTS
- */
-
-/*********************************************************************
- * MACROS
- */
-
-/*********************************************************************
- * TYPEDEFS
- */
-
-/*********************************************************************
- * GLOBAL VARIABLES
- */
-
-/*********************************************************************
- * FUNCTIONS
- */
-
 void flashErasePage( unsigned char *addr );
-void flashErasePageData20(unsigned char __data20 * addr);
 void flashWrite(unsigned char *addr, unsigned int len, unsigned char *buf);
-void flashWriteData20(unsigned char __data20 * addr, 
-                      unsigned int len, 
-                      unsigned char *buf);
 
+#if __IAR_SYSTEMS_ICC__
+void flashWriteData20(unsigned char __data20 * addr, unsigned int len, unsigned char *buf);
+void flashErasePageData20(unsigned char __data20 * addr);
 #endif
 
-/*********************************************************************
-*********************************************************************/
+#endif

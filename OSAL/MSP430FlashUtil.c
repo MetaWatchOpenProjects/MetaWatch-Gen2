@@ -74,19 +74,6 @@ void flashErasePage(unsigned char *addr)
   END_FLASH_CYCLE();
 }
 
-void flashErasePageData20(unsigned char __data20 * addr)
-{
-  START_FLASH_CYCLE();
-  
-  FCTL1 = FWKEY + ERASE;               // Set Erase bit
-  FCTL3 = FWKEY;                       // Clear Lock bit
-  *addr = 0;                           // Dummy write to erase Flash segment
-  FCTL1 = FWKEY;                       // Clear ERASE bit
-  FCTL3 = FWKEY + LOCK;                // Set LOCK bit
-
-  END_FLASH_CYCLE();
-}
-
 void flashWrite(unsigned char *addr, unsigned int len, unsigned char *buf)
 {
   START_FLASH_CYCLE();
@@ -105,9 +92,8 @@ void flashWrite(unsigned char *addr, unsigned int len, unsigned char *buf)
   END_FLASH_CYCLE();
 }
 
-void flashWriteData20(unsigned char __data20 * addr, 
-                      unsigned int len, 
-                      unsigned char *buf)
+#if __IAR_SYSTEMS_ICC__
+void flashWriteData20(unsigned char __data20 * addr, unsigned int len, unsigned char *buf)
 {
   START_FLASH_CYCLE();
 
@@ -124,5 +110,17 @@ void flashWriteData20(unsigned char __data20 * addr,
 
   END_FLASH_CYCLE();
 }
-/*********************************************************************
-*********************************************************************/
+
+void flashErasePageData20(unsigned char __data20 * addr)
+{
+  START_FLASH_CYCLE();
+  
+  FCTL1 = FWKEY + ERASE;               // Set Erase bit
+  FCTL3 = FWKEY;                       // Clear Lock bit
+  *addr = 0;                           // Dummy write to erase Flash segment
+  FCTL1 = FWKEY;                       // Clear ERASE bit
+  FCTL3 = FWKEY + LOCK;                // Set LOCK bit
+
+  END_FLASH_CYCLE();
+}
+#endif

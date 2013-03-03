@@ -33,8 +33,14 @@
 #include "Utilities.h"
 #include "IdleTask.h"
 
-__no_init __root static tWatchdogInfo WatchdogInfo @ WATCHDOG_INFO_ADDR;
-__no_init __root static unsigned int niWdtCounter @ WATCHDOG_COUNTER_ADDR;
+#if __IAR_SYSTEMS_ICC__
+__no_init __root tWatchdogInfo WatchdogInfo @ WATCHDOG_INFO_ADDR;
+__no_init __root unsigned int niWdtCounter @ WATCHDOG_COUNTER_ADDR;
+#else
+extern tWatchdogInfo WatchdogInfo;
+extern unsigned int niWdtCounter;
+#endif
+
 extern unsigned int niReset;
 
 static void PrintResetSource(unsigned int Source);

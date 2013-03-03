@@ -17,13 +17,38 @@
 /****************************************************************************/
 /* SPECIFY THE SYSTEM MEMORY MAP                                            */
 /****************************************************************************/
+#define SIGNATURE_ADDR 		0x5B80;
+#define RESET_REASON_ADDR 	0x1C00;
+#define WATCHDOG_INFO_ADDR 	0x1C02; // 6
+#define WATCHDOG_COUNTER_ADDR 	0x1C08;
+#define MUX_MODE_ADDR 		0x1C0A;
+#define RESET_TYPE_ADDR 	0x1C0C;
+#define BUILD_NUMBER_ADDR 	0x1C0E; // 4
+#define BLE_DISCONN_ADDR 	0x1C12;
+#define AUTH_INFO_ADDR 		0x1C14; // 23
+#define PROPERTY_ADDR 		0x1C2C;
+
+/****************************************************************************/
+
+Signature = 0x5B80;
+ResetSource = 0x1C00;
+WatchdogInfo = 0x1C02;
+niWdtCounter = 0x1C08;
+niMuxMode = 0x1C0A;
+niReset = 0x1C0C;
+niBuild = 0x1C0E;
+niDisconnects = 0x1C12;
+niAuth = 0x1C14;
+niProperty = 0x1C2C;
+
 
 MEMORY
 {
     SFR                     : origin = 0x0000, length = 0x0010
     PERIPHERALS_8BIT        : origin = 0x0010, length = 0x00F0
     PERIPHERALS_16BIT       : origin = 0x0100, length = 0x0100
-    RAM                     : origin = 0x1C00, length = 0x4000
+    NO_INIT_RAM             : origin = 0x1C00, length = 0x0030
+    RAM                     : origin = 0x1C30, length = 0x3FD0
     INFOA                   : origin = 0x1980, length = 0x0080
     INFOB                   : origin = 0x1900, length = 0x0080
     INFOC                   : origin = 0x1880, length = 0x0080
@@ -103,10 +128,10 @@ MEMORY
 
 SECTIONS
 {
-    .bss       : {} fill = 0, > RAM      /* GLOBAL & STATIC VARS              */
+    .bss       : {} > RAM                /* GLOBAL AND STATIC VARS            */
 //  .sysmem    : {} > RAM                /* DYNAMIC MEMORY ALLOCATION AREA    */
     .stack     : {} > RAM (HIGH)         /* SOFTWARE SYSTEM STACK             */
-
+    .usect     : run = NO_INIT_RAM, type = NOLOAD /* _no_init VARS            */
     .text      : {}>> FLASH | FLASH2     /* CODE                              */
     .text:_isr : {} > FLASH              /* ISR CODE SPACE                    */
     .cinit     : {} > FLASH              /* INITIALIZATION TABLES             */
@@ -125,7 +150,7 @@ SECTIONS
     .infoC     : {} > INFOC
     .infoD     : {} > INFOD
      
-     .NV_ADDRESS_SPACE : load = 0xF200   /* place in the same location as IAR */
+//     .NV_ADDRESS_SPACE : load = 0xF200   /* place in the same location as IAR */
 
     .int00   : {} > INT00                /* MSP430 INTERRUPT VECTORS          */
     .int01   : {} > INT01

@@ -36,9 +36,10 @@ typedef enum
   MetaWatch5,
   MetaWatch7,
   MetaWatch16,
-  MetaWatchTime,
-  MetaWatchTimeBlock,
-  TimeG
+  Time,
+  TimeBlock,
+  TimeG,
+  TimeK
 } etFontType;
 
 /*! Font Structure
@@ -54,14 +55,14 @@ typedef struct
   const unsigned char Spacing;
   const unsigned char MaxWidth;
   const unsigned char WidthInBytes;
-  const unsigned char Type; // ,:0-9 for time font
+  const unsigned char Type; //  FONT_TYPE_TIME for time font (0-9:)
   const unsigned char *pWidth;
 } tFont;
 
 /*! Use to size the bitmap used in the Display Task for printing characters FOR
  * THE LCD VERSION
  */
-#define MAX_FONT_ROWS ( 28 )
+#define MAX_FONT_ROWS ( 56 ) //TimeK
 
 /*! The maximum number of columns any font (or icon) requires.  This is
  * used to define the size of the bitmap passed into font functions FOR THE
@@ -70,28 +71,31 @@ typedef struct
 #define MAX_FONT_COLUMNS ( 30 )
 
 #define TOTAL_TIME_CHARACTERS       (12)
-#define TOTAL_TIME_BLOCK_CHARACTERS (11)
 #define TIME_CHARACTER_COLON_INDEX  (10)
 #define TIME_CHARACTER_SPACE_INDEX  (11)
-#define TIMEG_CHARACTER_NUM         (11)
 
 #define SPACE_CHAR_TO_ALPHANUM_OFFSET (0x15)
 #define NUM_TO_ALPHANUM_OFFSET (0x30)
 #define PRINTABLE_CHARACTERS (94)
 
-extern const unsigned char MetaWatch5table[PRINTABLE_CHARACTERS][5];
-extern const unsigned char MetaWatch7table[PRINTABLE_CHARACTERS][7];
-extern const unsigned int MetaWatch16table[PRINTABLE_CHARACTERS][16];
-extern const unsigned int MetaWatchTimeTable[TOTAL_TIME_CHARACTERS][19];
-extern const unsigned char MetaWatchTimeBlockTable[TOTAL_TIME_BLOCK_CHARACTERS][60];
-extern const unsigned char TimeGTable[TIMEG_CHARACTER_NUM][3*28];
+/*! The number of printable characters in the font tables
+    [CharNum][WidthInBytes * Height] */
 
-extern const unsigned char MetaWatch5width[PRINTABLE_CHARACTERS];
-extern const unsigned char MetaWatch7width[PRINTABLE_CHARACTERS];
-extern const unsigned char MetaWatch16width[PRINTABLE_CHARACTERS];
-extern const unsigned char MetaWatchTimeWidth[TOTAL_TIME_CHARACTERS];
-extern const unsigned char MetaWatchTimeBlockWidth[TOTAL_TIME_BLOCK_CHARACTERS];
-extern const unsigned char TimeGTableWidth[TIMEG_CHARACTER_NUM];
+extern const unsigned char MetaWatch5table[][5];
+extern const unsigned char MetaWatch7table[][7];
+extern const unsigned int MetaWatch16table[][16];
+extern const unsigned int TimeTable[][19];
+extern const unsigned char TimeBlockTable[][60];
+extern const unsigned char TimeGTable[][3*28];
+extern const unsigned char TimeKTable[][3*56];
+
+extern const unsigned char MetaWatch5width[];
+extern const unsigned char MetaWatch7width[];
+extern const unsigned char MetaWatch16width[];
+extern const unsigned char TimeWidth[];
+extern const unsigned char TimeBlockWidth[];
+extern const unsigned char TimeGWidth[];
+extern const unsigned char TimeKWidth[];
 
 
 /*! Convert a character into an index into the font table

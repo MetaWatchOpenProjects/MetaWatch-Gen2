@@ -31,6 +31,7 @@
 #define TMPL_NOTIF_MODE           (0)
 #define TMPL_MUSIC_MODE           (1)
 #define TMPL_WGT_FISH             (2)
+#define TMPL_WGT_LOGO             (3)
 
 #define TMPL_WGT_EMPTY            (0)
 #define TMPL_WGT_LOADING          (1)
@@ -51,7 +52,9 @@ extern const unsigned char pTemplate[][BYTES_PER_SCREEN];
 extern const unsigned char pWidgetTemplate[][6 * 48];
 #define WIDGET_TEMPLATE_NUM (sizeof(pWidgetTemplate) / (6 * 48))
 
+#if __IAR_SYSTEMS_ICC__
 extern __data20 const unsigned char pWatchFace[][1]; //TEMPLATE_FLASH_SIZE];
 #define TEMPLATE20_NUM      (sizeof(pWatchFace) / TEMPLATE_FLASH_SIZE)
+#endif
 
 #endif /* BITMAPDATA_H */

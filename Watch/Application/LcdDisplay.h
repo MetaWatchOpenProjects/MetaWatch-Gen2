@@ -88,10 +88,10 @@
 #define DEFAULT_DATE_SEPARATOR_COL_BIT BIT4
 
 //Set Default Fonts
-#define DEFAULT_HOURS_FONT MetaWatchTime
-#define DEFAULT_TIME_SEPARATOR_FONT MetaWatchTime
-#define DEFAULT_MINS_FONT MetaWatchTime
-#define DEFAULT_SECS_FONT MetaWatchTime
+#define DEFAULT_HOURS_FONT Time
+#define DEFAULT_TIME_SEPARATOR_FONT Time
+#define DEFAULT_MINS_FONT Time
+#define DEFAULT_SECS_FONT Time
 
 #define DEFAULT_AM_PM_FONT MetaWatch7
 

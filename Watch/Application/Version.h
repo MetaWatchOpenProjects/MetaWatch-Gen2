@@ -155,6 +155,10 @@
 /* 470    02/20/13  Mu Yang  Fix no-UpdateDisplay-on-set-grid.                */
 /* 471    02/21/13  Mu Yang  BattAlgo starts from 2nd sample.                 */
 /*                           Re-enable battery low alarm only when charging.  */
+/* 472    02/26/13  Mu Yang  4Q clock widget using TimeK font.                */
+/* 473    02/26/13  Mu Yang  Fix 2Q Hori/Vert mess-up.                        */
+/* 474    02/28/13  Mu Yang  Fix 1Q date/grid overlapping; BattPercent(0x57). */
+/* 475    03/03/13  Mu Yang  Support CCS5.                                    */
 /******************************************************************************/
 
 /** WRAPPER VERSION HISTORY ***************************************************/
@@ -269,6 +273,6 @@
 /******************************************************************************/
 
 #define APP_VER     "1.35"
-#define BUILD_VER   "471.411"
+#define BUILD_VER   "475.411"
 
 #endif /* VERSION_H */

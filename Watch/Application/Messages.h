@@ -275,8 +275,7 @@ typedef enum
   
   EnableAdvMsg = 0xf1,
   SetAdvDataMsg = 0xf2,
-  SetScanRespMsg = 0xf3,
-
+  SetScanRespMsg = 0xf3
 } eMessageType;
 
 #define MAXIMUM_MESSAGE_TYPES ( 256 )

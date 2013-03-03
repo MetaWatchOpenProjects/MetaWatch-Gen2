@@ -39,8 +39,8 @@
 #define LAYOUT_SHFT             (2)
 
 #define LAYOUT_QUAD_SCREEN      (0)
-#define LAYOUT_UD_HALF_SCREEN   (1)
-#define LAYOUT_LR_HALF_SCREEN   (2)
+#define LAYOUT_HORI_SCREEN      (1)
+#define LAYOUT_VERT_SCREEN      (2)
 #define LAYOUT_FULL_SCREEN      (3)
 
 #define LAYOUT_MODE_SCREEN      (4)

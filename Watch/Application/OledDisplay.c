@@ -1677,7 +1677,7 @@ static void DisplayBluetoothStatusBottomOled(void)
 
 static void DisplayBatteryStatusFace(void)
 {
-  unsigned int BatteryVoltage = ReadBatterySenseAverage();
+  unsigned int BatteryVoltage = BatteryLevel();
  
   StartBuildingOledScreen(TopOled);
   
@@ -1808,7 +1808,7 @@ static void DisplayLowBatteryIconAndVoltageOnTopOled(void)
   
   /* display the voltage in volts and drop the last digit */
   BuildColumn = 40;
-  DisplayBatteryVoltage(ReadBatterySenseAverage());
+  DisplayBatteryVoltage(BatteryLevel());
   BuildOledScreenSendToDisplay();  
 }
 

@@ -139,7 +139,6 @@ static const unsigned char ModePriority[] = {NOTIF_MODE, APP_MODE, IDLE_MODE, MU
 
 static void SetupCycle(unsigned int Address,unsigned char CycleType);
 static void WriteBlockToSram(const unsigned char* pData,unsigned int Size);
-static void WriteData20BlockToSram(unsigned char __data20* pData,unsigned int Size);
 static void ReadBlock(unsigned char* pWriteData,unsigned char* pReadData);
 static void WaitForDmaEnd(void);
 
@@ -151,6 +150,10 @@ static void WriteHomeWidget(unsigned char *pBuffer);
 static void LoadBuffer(unsigned char i, const unsigned char *pTemp);
 static unsigned char HomeWidgetOnCurrentScreen(void);
 static signed char ComparePriority(unsigned char Mode);
+
+#if __IAR_SYSTEMS_ICC__
+static void WriteData20BlockToSram(unsigned char __data20* pData,unsigned int Size);
+#endif
 
 void SetWidgetList(tMessage *pMsg)
 {
@@ -740,6 +743,8 @@ static void WriteBlockToSram(const unsigned char* pData, unsigned int Size)
 
   WaitForDmaEnd();
 }
+
+#if __IAR_SYSTEMS_ICC__
 static void WriteData20BlockToSram(unsigned char __data20* pData,unsigned int Size)
 {
   DmaBusy = 1;
@@ -765,6 +770,7 @@ static void WriteData20BlockToSram(unsigned char __data20* pData,unsigned int Si
 
   WaitForDmaEnd();
 }
+#endif
 
 static void SetupCycle(unsigned int Address,unsigned char CycleType)
 {
@@ -890,11 +896,13 @@ void LoadTemplateHandler(tMessage* pMsg)
   /* template zero is reserved for simple patterns */
   else if (*pMsg->pBuffer > 1)
   {
+#if __IAR_SYSTEMS_ICC__
     WriteData20BlockToSram(
       (unsigned char __data20*)&pWatchFace[*pMsg->pBuffer - TEMPLATE_1][0],
       BYTES_PER_SCREEN);
     
     PrintStringAndDecimal("-Template: ", *pMsg->pBuffer);
+#endif
   }
   else
   {

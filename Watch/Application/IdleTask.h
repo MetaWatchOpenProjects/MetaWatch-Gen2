@@ -49,7 +49,7 @@ void WatchdogReset(void);
 typedef enum
 {
   eWrapperTaskCheckInId = 0,
-  eDisplayTaskCheckInId = 1,
+  eDisplayTaskCheckInId = 1
   /* add user tasks here */
   
 } etTaskCheckInId;
