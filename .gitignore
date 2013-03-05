@@ -5,14 +5,7 @@ settings
 path.txt
 .DS_Store
 Stack/Application/.DS_Store
-Stack/Project/Debug/
-Stack/Project/Release/
-Stack/Project/SPP/
-Stack/ProjectCCS/.cdtbuild_initial
-Stack/ProjectCCS/.cproject
-Stack/ProjectCCS/.project_initial
-Stack/ProjectCCS/.settings/
-Stack/ProjectCCS/Release/
+Stack/ProjectCCS/*
 Watch/.DS_Store
 Watch/Project/.DS_Store
 Watch/Project/Devboard/
@@ -22,7 +15,6 @@ Watch/ProjectCCS/.project_initial
 Watch/ProjectCCS/.settings/
 Watch/ProjectCCS/Devboard/
 Watch/ProjectCCS/Digital/
-Stack/Project/Stack.dep
 Watch/Project/Devboard/
 Watch/Project/Digital/
 Watch/Project/myble.eww
@@ -40,20 +32,13 @@ Back*.*
 *copy.*
 Watch/Project/*/Obj/
 Watch/Project/*/List/
-Stack/Project/DUO
 Watch/Project/DB-BL
 Bootloader/Debug
 *new.*
 *Reduced.*
-Stack/Api/CCS/*
-Stack/ProjectCCS/*
 Watch/ProjectCCS/*
-Stack/Application/MAP.*
-Stack/Application/Test.*
-Stack/Bluetopia/profiles/hfp/include/HFRE.h
 Watch/Application/*-?.*
 Watch/Hardware/*-?.*
 Watch/Project/Analog
 Watch/Project/Gen1
-Strata/
 
