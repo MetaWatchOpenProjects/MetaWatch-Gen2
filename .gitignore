@@ -7,13 +7,17 @@ path.txt
 Stack/Application/.DS_Store
 Stack/ProjectCCS/*
 Watch/.DS_Store
+Watch/Application/*-?.*
+Watch/Hardware/*-?.*
 Watch/Project/.DS_Store
 Watch/Project/Devboard/
 Watch/Project/Digital/
+Watch/Project/Gen1
+Watch/Project/*/Obj/
+Watch/Project/*/List/
 Watch/ProjectCCS/.cdtbuild_initial
 Watch/ProjectCCS/.project_initial
 Watch/ProjectCCS/.settings/
-*1.*
 *-bk.*
 *-p.*
 *-w.*
@@ -23,12 +27,6 @@ Watch/ProjectCCS/.settings/
 Back*.*
 *.sfr
 *copy.*
-Watch/Project/*/Obj/
-Watch/Project/*/List/
 *new.*
 *Reduced.*
-Watch/ProjectCCS/*
-Watch/Application/*-?.*
-Watch/Hardware/*-?.*
-Watch/Project/Gen1
 
