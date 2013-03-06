@@ -16,3 +16,7 @@ The Code Composer Studio 5 is supported for building flash file for STRATA/FRAME
 The developer clip for flashing STRATA is here: http://shop.metawatch.com/collections/accessories/products/accessory-developer-black-strata.
 
 The developer clip for flashing FRAME and WDS112 is here: http://shop.metawatch.com/collections/accessories/products/accessory-developer-black-frame.
+
+The supported version of IAR is 5.51. You can check screen shots of the IAR project configuration in the Docs folder if you can't open the project file in older version of IAR.
+
+
