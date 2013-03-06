@@ -1,6 +1,6 @@
 This project contains the BT Stack and Wrapper (and the application).
 
-Instructions for building .a43 flash file (use the blue clip for flashing)
+Instructions for building .a43 flash file (use the blue clip for flashing):
 1. Start IAR
 2. Select “Bootloader” as the configuration;
 3. Build the configuration;
@@ -10,3 +10,9 @@ Instructions for building .a43 flash file (use the blue clip for flashing)
 7. Open “LinkerConfigurationBootloader.xcl” file at “Project” folder;
 8. Replace the last 5 digits in the last line “0x42B9E” with the copied 5 digits, e.g. 5A5A5;
 9. Rebuild.
+
+The Code Composer Studio 5 is supported for building flash file for STRATA/FRAME (using Gen2 CCS project configuration) and WDS112 (using Gen1 CCS project configuration). 
+
+The developer clip for flashing STRATA is here: http://shop.metawatch.com/collections/accessories/products/accessory-developer-black-strata.
+
+The developer clip for flashing FRAME and WDS112 is here: http://shop.metawatch.com/collections/accessories/products/accessory-developer-black-frame.
