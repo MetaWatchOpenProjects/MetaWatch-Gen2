@@ -13,13 +13,6 @@ Watch/Project/Digital/
 Watch/ProjectCCS/.cdtbuild_initial
 Watch/ProjectCCS/.project_initial
 Watch/ProjectCCS/.settings/
-Watch/ProjectCCS/Devboard/
-Watch/ProjectCCS/Digital/
-Watch/Project/Devboard/
-Watch/Project/Digital/
-Watch/Project/myble.eww
-Watch/Project/Watch.dep
-ble2.eww
 *1.*
 *-bk.*
 *-p.*
@@ -32,13 +25,10 @@ Back*.*
 *copy.*
 Watch/Project/*/Obj/
 Watch/Project/*/List/
-Watch/Project/DB-BL
-Bootloader/Debug
 *new.*
 *Reduced.*
 Watch/ProjectCCS/*
 Watch/Application/*-?.*
 Watch/Hardware/*-?.*
-Watch/Project/Analog
 Watch/Project/Gen1
 

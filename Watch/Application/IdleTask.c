@@ -94,18 +94,6 @@ void vApplicationIdleHook(void)
 #endif
 }
 
-void CheckQueueUsage(xQueueHandle Qhandle)
-{
-#if CHECK_QUEUE_USAGE
-  portBASE_TYPE waiting = Qhandle->uxMessagesWaiting + 1;
-  
-  if (waiting > Qhandle->MaxWaiting)
-  {
-    Qhandle->MaxWaiting = waiting;    
-  }
-#endif
-}
-     
 /******************************************************************************/
 
 /* 8 us */

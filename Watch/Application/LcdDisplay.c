@@ -55,6 +55,7 @@
 #include "BufferPool.h"
 #include "MuxMode.h"
 #include "Property.h"
+#include "ClockWidget.h"
 
 #define IDLE_FULL_UPDATE   (0)
 #define DATE_TIME_ONLY     (1)
@@ -67,46 +68,25 @@
 #define STARTING_ROW                  ( 0 )
 #define PHONE_DRAW_SCREEN_ROW_NUM     ( 66 )
 
-#define MAX_DRAW_ITEM_NUM          (12)
-#define TEMPLATE_ID_MASK              (0x7F)
-#define FLASH_TEMPLATE_BIT            (BIT7)
-
-#define DRAW_OPT_NONE                 (0)
-#define DRAW_OPT_SEPARATOR            (':')
-#define DRAW_OPT_PROP_WIDTH           (0)
-#define DRAW_OPT_EQU_WIDTH            (1)
-#define DRAW_OPT_OVERLAP_NONE         (0)
-#define DRAW_OPT_OVERLAP_BT           (1)
-#define DRAW_OPT_OVERLAP_BATTERY      (2)
-#define DRAW_OPT_OVERLAP_SEC          (4)
-
-#define DRAW_OPT_BITWISE_OR           (0)
-#define DRAW_OPT_BITWISE_NOT          (1)
-#define DRAW_OPT_BITWISE_SET          (2)
-
 #define MUSIC_STATE_START_ROW         (43)
 #define BATTERY_MONITOR_INTERVAL      (10) //second
-
-/*! Languages */ 
-#define LANG_EN (0)
-#define LANG_FI (1)
-#define LANG_DE (2)
 
 extern const char BUILD[];
 extern const char VERSION[];
 extern unsigned int niReset;
 extern char niBuild[];
+
 /*
  * days of week are 0-6 and months are 1-12
  */
-static const tString DaysOfTheWeek[3][7][4] =
+const char DaysOfTheWeek[][7][4] =
 {
   {"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"},
   {"su", "ma", "ti", "ke", "to", "pe", "la"},
   {"So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"}
 };
 
-const tString MonthsOfYear[3][13][7] =
+const char MonthsOfYear[][13][7] =
 {
   {"???","Jan","Feb","Mar","Apr","May","June",
   "July","Aug","Sep","Oct","Nov","Dec"},
@@ -116,7 +96,6 @@ const tString MonthsOfYear[3][13][7] =
    "Jul","Aug","Sep","Okt","Nov","Dez"}
 };
 
-/* background.c */
 static unsigned char LedOn;
 static tTimerId BatteryTimerId;
 static tTimerId LedTimerId = UNASSIGNED_ID;
@@ -124,10 +103,10 @@ static tTimerId DisplayTimerId = UNASSIGNED_ID;
 
 xTaskHandle DisplayHandle;
 
-static unsigned char RtcUpdateEnable = 0;
+static unsigned char RtcUpdateEnabled = pdFALSE;
 static unsigned char lastMin = 61;
 
-static tLcdLine pMyBuffer[LCD_ROW_NUM];
+tLcdLine pMyBuffer[LCD_ROW_NUM];
 
 unsigned char CurrentMode = IDLE_MODE;
 unsigned char PageType = PAGE_TYPE_IDLE;
@@ -141,112 +120,6 @@ static unsigned char gBitColumnMask;
 static unsigned char gColumn;
 static unsigned char gRow;
 
-typedef struct
-{
-  unsigned char X; // in pixels
-  unsigned char Y;
-  unsigned char Id; //DrawData_t Data;
-  unsigned char Opt; //Option, e.g. divider
-  unsigned char Op; // bitwise operation
-} DrawInfo_t;
-
-typedef struct
-{
-  void (*Draw)(DrawInfo_t *Info);
-  DrawInfo_t Info;
-} Draw_t;
-
-static void DrawHour(DrawInfo_t *Info);
-static void DrawAmPm(DrawInfo_t *Info);
-static void DrawMin(DrawInfo_t *Info);
-static void DrawSec(DrawInfo_t *Info);
-static void DrawDate(DrawInfo_t *Info);
-static void DrawDayofWeek(DrawInfo_t *Info);
-static void DrawBluetoothState(DrawInfo_t *Info);
-static void DrawBatteryStatus(DrawInfo_t *Info);
-//static void DrawIcon(DrawInfo_t *Info);
-static void DrawTemplate(DrawInfo_t *Info);
-static void DrawBlock(DrawInfo_t *Info);
-static unsigned char Overlapping(unsigned char Option);
-
-// widget is a list of Draw_t, DrawList can be multiple for each type of layout
-// the order is the WatchFaceId
-static const Draw_t DrawList[][MAX_DRAW_ITEM_NUM] =
-{
-  { //1Q
-    {DrawHour, {1, 2, Time, DRAW_OPT_SEPARATOR, DRAW_OPT_BITWISE_OR}},
-    {DrawMin, {1, 23, Time, DRAW_OPT_NONE, DRAW_OPT_BITWISE_OR}},
-    {DrawBluetoothState, {30, 27, ICON_SET_BLUETOOTH_SMALL, DRAW_OPT_BITWISE_OR}},
-    {DrawBatteryStatus, {35, 2, ICON_SET_BATTERY_V, DRAW_OPT_BITWISE_OR}},
-    {DrawDate, {25, 25, MetaWatch7, DRAW_OPT_OVERLAP_BT, DRAW_OPT_BITWISE_OR}},
-    {DrawSec, {29, 31, MetaWatch16, DRAW_OPT_OVERLAP_BT, DRAW_OPT_BITWISE_OR}},
-    {DrawDayofWeek, {25, 35, MetaWatch7, DRAW_OPT_OVERLAP_BT | DRAW_OPT_OVERLAP_SEC, DRAW_OPT_BITWISE_OR}}
-  },
-  { //2Q-TimeG
-    {DrawHour, {7, 2, TimeG, DRAW_OPT_SEPARATOR, DRAW_OPT_BITWISE_OR}},
-    {DrawMin, {53, 2, TimeG, DRAW_OPT_NONE, DRAW_OPT_BITWISE_OR}},
-    {DrawBluetoothState, {76, 30, ICON_SET_BLUETOOTH_SMALL, DRAW_OPT_BITWISE_OR}},
-    {DrawBatteryStatus, {38, 35, ICON_SET_BATTERY_H, DRAW_OPT_BITWISE_OR}},
-    {DrawDate, {7, 35, MetaWatch7, DRAW_OPT_NONE, DRAW_OPT_BITWISE_OR}},
-    {DrawSec, {38, 29, MetaWatch16, DRAW_OPT_OVERLAP_BATTERY, DRAW_OPT_BITWISE_OR}},
-    {DrawDayofWeek, {72, 35, MetaWatch7, DRAW_OPT_OVERLAP_BT, DRAW_OPT_BITWISE_OR}}
-  },
-//  { // 4Q Logo TimeBlock
-//    {DrawTemplate, {0, 0, TMPL_WGT_LOGO, DRAW_OPT_NONE, DRAW_OPT_BITWISE_OR}},
-//    {DrawHour, {1, 28, TimeBlock, DRAW_OPT_SEPARATOR, DRAW_OPT_BITWISE_OR}},
-//    {DrawMin, {51, 28, TimeBlock, DRAW_OPT_NONE, DRAW_OPT_BITWISE_OR}},
-//    {DrawAmPm, {80, 50, MetaWatch5, DRAW_OPT_NONE, DRAW_OPT_BITWISE_SET}},
-//    {DrawBluetoothState, {80, 79, ICON_SET_BLUETOOTH_SMALL, DRAW_OPT_NONE, DRAW_OPT_BITWISE_SET}},
-//    {DrawBatteryStatus, {41, 15, ICON_SET_BATTERY_H, DRAW_OPT_BITWISE_OR}},
-//    {DrawDate, {2, 12, MetaWatch16, DRAW_OPT_NONE, DRAW_OPT_BITWISE_OR}},
-//    {DrawSec, {75, 12, MetaWatch16, DRAW_OPT_NONE, DRAW_OPT_BITWISE_OR}},
-//    {DrawDayofWeek, {68, 12, MetaWatch16, DRAW_OPT_OVERLAP_SEC, DRAW_OPT_BITWISE_OR}}
-//  },
-  { //4Q Big TimeK
-    {DrawBlock, {0, 0, 12, 17}}, // x, w in bytes
-    {DrawBlock, {0, 79, 12, 17}},
-    {DrawHour, {0, 20, TimeK, DRAW_OPT_SEPARATOR, DRAW_OPT_BITWISE_OR}},
-    {DrawMin, {51, 20, TimeK, DRAW_OPT_NONE, DRAW_OPT_BITWISE_OR}},
-    {DrawAmPm, {33, 80, MetaWatch16, DRAW_OPT_NONE, DRAW_OPT_BITWISE_NOT}},
-    {DrawBluetoothState, {76, 1, ICON_SET_BLUETOOTH_SMALL, DRAW_OPT_NONE, DRAW_OPT_BITWISE_NOT}},
-    {DrawBatteryStatus, {3, 4, ICON_SET_BATTERY_H, DRAW_OPT_NONE, DRAW_OPT_BITWISE_NOT}},
-    {DrawDate, {61, 80, MetaWatch16, DRAW_OPT_NONE, DRAW_OPT_BITWISE_NOT}},
-    {DrawSec, {39, 1, MetaWatch16, DRAW_OPT_NONE, DRAW_OPT_BITWISE_NOT}},
-    {DrawDayofWeek, {3, 80, MetaWatch16, DRAW_OPT_OVERLAP_NONE, DRAW_OPT_BITWISE_NOT}}
-  },
-//  { //4Q-fish
-//    {DrawTemplate, {0, 0, TMPL_WGT_FISH, 0}},
-//    {DrawHour, {29, 33, Time, DRAW_OPT_SEPARATOR}},
-//    {DrawMin, {58, 33, Time, 0}},
-//    {DrawAmPm, {83, 33, MetaWatch5, 0}},
-//    {DrawBluetoothState, {82, 2, ICON_SET_BLUETOOTH_SMALL, 0}},
-//    {DrawBatteryStatus, {50, 4, ICON_SET_BATTERY_H, 0}},
-//    {DrawDate, {55, 22, MetaWatch7, 0}},
-//    {DrawSec, {58, 51, MetaWatch16, 0}},
-//    {DrawDayofWeek, {58, 55, MetaWatch7, DRAW_OPT_OVERLAP_SEC}}
-//  },
-};
-
-//#define DRAW_LIST_ITEM_NUM(_x)    (sizeof(*DrawList[_x]) / sizeof(Draw_t))
-
-typedef struct
-{
-  unsigned char LayoutType;
-  unsigned char ItemNum;
-  const Draw_t *pDrawList;
-} Widget_t;
-
-//
-static const Widget_t HomeWidget[] =
-{
-  {LAYOUT_QUAD_SCREEN, 7, DrawList[0]},
-  {LAYOUT_HORI_SCREEN, 7, DrawList[1]},
-  {LAYOUT_FULL_SCREEN, 10, DrawList[2]}
-};
-
-#define HOME_WIDGET_NUM (sizeof(HomeWidget) / sizeof(Widget_t))
-
-static unsigned char *pDrawBuffer;
 static const tSetVibrateModePayload RingTone = {1, 0x00, 0x01, 0x00, 0x01, 2};
 
 /******************************************************************************/
@@ -294,7 +167,6 @@ static void CopyColumnsIntoMyBuffer(unsigned char const* pImage,
                                     unsigned char StartingColumn,
                                     unsigned char NumberOfColumns);
 
-static void DrawDateTime(void);
 static void DrawSecs(void);
 static void DrawMins(void);
 static void DrawHours(void);
@@ -302,12 +174,6 @@ static void WriteFontCharacter(unsigned char Character);
 static void WriteFontString(tString* pString);
 static void DrawLocalAddress(unsigned char Col, unsigned Row);
 static void HandleMusicPlayStateChange(unsigned char State);
-static void DrawHomeWidget(Widget_t *pData);
-static void UpdateHomeWidget(unsigned char Option);
-static void DrawText(unsigned char *pText, unsigned char Len, unsigned char X, unsigned char Y, unsigned char Font, unsigned char EqualWidth, unsigned char Op);
-static void DrawBitmap(const unsigned char *pBitmap, unsigned char X, unsigned char Y, unsigned char W, unsigned char H, unsigned char BmpWidthInBytes, unsigned char Op);
-static void BitOp(unsigned char *pByte, unsigned char Bit, unsigned char Set, unsigned char Op);
-static const unsigned char *GetBatteryIcon(unsigned char Id);
 
 static void ShowNotification(tString *pString, unsigned char Type);
 
@@ -769,7 +635,7 @@ static void BluetoothStateChangeHandler(tMessage *pMsg)
     if (pMsg->Options == On)
     {
       Splashing = pdFALSE;
-      RtcUpdateEnable = 1;
+      RtcUpdateEnabled = pdTRUE;
       DetermineIdlePage();
       IdleUpdateHandler();
       
@@ -1158,6 +1024,32 @@ static void DrawBatteryOnIdleScreen(unsigned char Row, unsigned char Col, etFont
   WriteFontCharacter('%');
 }
 
+const unsigned char *GetBatteryIcon(unsigned char Id)
+{
+  unsigned int Level = BatteryLevel();
+  unsigned char Index = 0;
+  
+  if (Level < BATTERY_FULL_LEVEL)
+  {
+    if (Level <= BatteryCriticalLevel(CRITICAL_WARNING) && !Charging()) Index = 1; // warning icon index
+    else
+    {
+      unsigned int Empty = BatteryCriticalLevel(CRITICAL_BT_OFF);
+      unsigned int Step = (BATTERY_FULL_LEVEL - Empty) / BATTERY_LEVEL_NUMBER;
+      
+      while (Level > (Empty + Step * Index)) Index ++;
+    }
+  }
+  else Index = BATTERY_LEVEL_NUMBER;
+  
+  const unsigned char *pIcon = IconInfo[Id].pIconSet + (Index * IconInfo[Id].Width * IconInfo[Id].Height);
+  if (!Charging()) pIcon += BATTERY_ICON_NUM * IconInfo[Id].Width * IconInfo[Id].Height;
+
+//  PrintStringAndThreeDecimals("- Batt L:", Level, " I:", Index, "P:", ExtPower());
+  return pIcon;
+}
+
+
 static void ListPairedDevicesHandler(void)
 {
 //  /* clearn screen */
@@ -1188,28 +1080,22 @@ static void ListPairedDevicesHandler(void)
 
 static void ModifyTimeHandler(tMessage* pMsg)
 {
-  int time;
   switch (pMsg->Options)
   {
   case MODIFY_TIME_INCREMENT_HOUR:
-    /*! todo - make these functions */
-    time = RTCHOUR;
-    time++; if ( time == 24 ) time = 0;
-    RTCHOUR = time;
+    RTCHOUR = (RTCHOUR == 23) ? 0 : RTCHOUR + 1;
     break;
+    
   case MODIFY_TIME_INCREMENT_MINUTE:
-    time = RTCMIN;
-    time++; if ( time == 60 ) time = 0;
-    RTCMIN = time;
+    RTCMIN = (RTCMIN == 59) ? 0 : RTCMIN + 1;
     break;
+    
   case MODIFY_TIME_INCREMENT_DOW:
-    /* modify the day of the week (not the day of the month) */
-    time = RTCDOW;
-    time++; if ( time == 7 ) time = 0;
-    RTCDOW = time;
+    RTCDOW = (RTCDOW == 6) ? 0 : RTCDOW + 1;
     break;
   }
-
+  
+  ResetWatchdog();
   UpdateHomeWidget(MSG_OPT_NONE);
 }
 
@@ -1327,369 +1213,7 @@ static void CopyColumnsIntoMyBuffer(unsigned char const* pImage,
   }
 }
 
-static void UpdateHomeWidget(unsigned char Option)
-{
-  if (CurrentMode != IDLE_MODE || PageType != PAGE_TYPE_IDLE) return;
-  if (CurrentPage[PageType] == InitPage || !GetProperty(PROP_PHONE_DRAW_TOP)) {DrawDateTime(); return;}
-
-  unsigned char LayoutType = GetHomeWidgetLayout();
-  if (!LayoutType) return; // no hw on current idle screen
-  
-  RtcUpdateEnable = 0; // block RTC  
-  
-  static unsigned char DoneUpd = 0;
-  DoneUpd = Option ? DoneUpd | Option : 0;
-
-//  PrintStringAndTwoHexBytes("DoneUpd: Layout:", DoneUpd, LayoutType);
-  LayoutType &= ~DoneUpd; // remove drawn layout in Option from LayoutType
-//  PrintStringAndHexByte("AF Layout:", LayoutType);
-  
-  if (!LayoutType)
-  {
-    DoneUpd = 0;
-    CreateAndSendMessage(UpdateDisplayMsg, IDLE_MODE | MSG_OPT_NEWUI | MSG_OPT_UPD_INTERNAL | MSG_OPT_UPD_HWGT);
-    RtcUpdateEnable = 1;
-//    PrintString("- UpdHwgt done\r\n");
-    return;
-  }
-    
-  unsigned char i = 0;
-  
-  while (i < LAYOUT_NUM)
-  {
-    if (LayoutType & 1)
-    {
-      // for each layout: draw datetime, send buf ptr in msg to writebuf
-      unsigned char k;
-      for (k = 0; k < HOME_WIDGET_NUM; ++k)
-      {
-        if (HomeWidget[k].LayoutType == i)
-        { // assume only one style widget for each layout
-          DrawHomeWidget((Widget_t *)&HomeWidget[k]);
-          
-          tMessage Msg;
-          SetupMessage(&Msg, WriteBufferMsg, IDLE_MODE | MSG_OPT_NEWUI | MSG_OPT_HOME_WGT);
-          Msg.pBuffer = pDrawBuffer;
-          RouteMsg(&Msg);
-        }
-      }
-      break;
-    }
-    
-    LayoutType >>= 1;
-    i ++;
-  }
-}
-
-static void DrawHomeWidget(Widget_t *pData)
-{
-  pDrawBuffer = (unsigned char *)pMyBuffer;
-  
-  unsigned int BufSize = Layout[pData->LayoutType].QuadNum * BYTES_PER_QUAD + SRAM_HEADER_LEN;
-  unsigned int i;
-  
-  // Clear the buffer
-  for (i = 0; i < BufSize; ++i) pDrawBuffer[i] = 0;
-  
-  // DrawBitmap needs the layout type when crossing half screen line
-  *pDrawBuffer = pData->LayoutType;
-
-  for (i = 0; i < pData->ItemNum; ++i)
-  {
-    pData->pDrawList[i].Draw((DrawInfo_t *)&pData->pDrawList[i].Info);
-  }
-}
-
-static void DrawBitmap(const unsigned char *pBitmap, unsigned char X, unsigned char Y,
-                       unsigned char W, unsigned char H, unsigned char BmpWidthInBytes,
-                       unsigned char Op)
-{
-// W is bitmap width in pixel
-  unsigned char *pByte = Y / HALF_SCREEN_ROWS * BYTES_PER_QUAD * 2 + Y % HALF_SCREEN_ROWS * BYTES_PER_QUAD_LINE +
-                         X / HALF_SCREEN_COLS * BYTES_PER_QUAD + (X % HALF_SCREEN_COLS >> 3) +
-                         pDrawBuffer + SRAM_HEADER_LEN;
-
-  if (!BmpWidthInBytes) BmpWidthInBytes = W % 8 ? (W >> 3) + 1: W >> 3;
-
-//  PrintStringAndThreeDecimals("DrwBmp W:", W, " H:", H, "WB:", BmpWidthInBytes);
-
-  unsigned char ColBit = 1 << X % 8; // dst
-  unsigned char MaskBit = BIT0; // src
-  unsigned int Delta;
-  unsigned char Set; // src bit is set or clear
-  unsigned char x, y;
-
-  for (x = 0; x < W; ++x)
-  {
-    for(y = 0; y < H; ++y)
-    {
-      Set = *(pBitmap + y * BmpWidthInBytes) & MaskBit;
-//      if (Set)
-      Delta = (*pDrawBuffer == LAYOUT_FULL_SCREEN) &&
-                (Y < HALF_SCREEN_ROWS  && (Y + y) >= HALF_SCREEN_ROWS) ?
-                BYTES_PER_QUAD : 0;
-//        *(pByte + y * BYTES_PER_QUAD_LINE + Delta) |= ColBit;
-      
-      BitOp(pByte + y * BYTES_PER_QUAD_LINE + Delta, ColBit, Set, Op);
-    }
-
-    MaskBit <<= 1;
-    if (MaskBit == 0)
-    {
-      MaskBit = BIT0;
-      pBitmap ++;
-    }
-    
-    ColBit <<= 1;
-    if (ColBit == 0)
-    {
-      ColBit = BIT0;
-      pByte ++;
-      // check next pixel x
-      if ((X + x + 1) == HALF_SCREEN_COLS) pByte += BYTES_PER_QUAD - BYTES_PER_QUAD_LINE;
-    }
-  }
-}
-
-// Bit: 00010000; Set/Clear: 1/0; Op: OR, SET, NOT
-static void BitOp(unsigned char *pByte, unsigned char Bit, unsigned char Set, unsigned char Op)
-{
-  switch (Op)
-  {
-  case DRAW_OPT_BITWISE_OR:
-    if (Set) *pByte |= Bit;
-    break;
-
-  case DRAW_OPT_BITWISE_SET: //Set
-    if (Set) *pByte |= Bit;
-    else *pByte &= ~Bit;
-    break;
-    
-  case DRAW_OPT_BITWISE_NOT: //~src set dst
-    if (Set) *pByte &= ~Bit;
-    else *pByte |= Bit;
-    break;
-    
-  default: break;
-  }
-}
-
-static void DrawText(unsigned char *pText, unsigned char Len, unsigned char X, unsigned char Y,
-                     unsigned char Font, unsigned char EqualWidth, unsigned char Op)
-{
-//  int d; for (d = 0; d < Len; d++) PrintHex(pText[d]); PrintString(CR);
-
-  SetFont((etFontType)Font);
-  const tFont *pFont = GetCurrentFont();
-  unsigned char i;
-  
-  for (i = 0; i < Len && pText[i] != '\0'; ++i)
-  {
-    if (pFont->Type == FONT_TYPE_TIME) pText[i] -= '0';
-    
-    unsigned char *pBitmap = GetCharacterBitmapPointer(pText[i]);
-    unsigned char CharWidth = GetCharacterWidth(pText[i]);
-    
-    DrawBitmap(pBitmap, X, Y, CharWidth, pFont->Height, pFont->WidthInBytes, Op);
-    X += EqualWidth ? pFont->MaxWidth + 1 : CharWidth + 1;
-  }
-}
-
-static void DrawHour(DrawInfo_t *Info)
-{
-  unsigned char Hour[3];
-  Hour[0] = RTCHOUR;
-  
-  if (!GetProperty(PROP_24H_TIME_FORMAT))
-  {
-    Hour[0] %= 12;
-    if (Hour[0] == 0) Hour[0] = 12;
-  }
-  
-  Hour[1] = Hour[0] % 10 + '0';
-  Hour[0] /= 10;
-  if(Hour[0] == 0) Hour[0] = TIME_CHARACTER_SPACE_INDEX;
-  Hour[0] += '0';
-  Hour[2] = Info->Opt; // separator
-  
-  DrawText(Hour, Info->Opt ? 3 : 2, Info->X, Info->Y, Info->Id, DRAW_OPT_EQU_WIDTH, Info->Op);
-}
-
-static void DrawAmPm(DrawInfo_t *Info)
-{
-  if (GetProperty(PROP_24H_TIME_FORMAT)) return;
-  DrawText(RTCHOUR > 11 ? "pm" : "am", 2, Info->X, Info->Y, Info->Id, DRAW_OPT_PROP_WIDTH, Info->Op);
-}
-
-static void DrawMin(DrawInfo_t *Info)
-{
-  unsigned char Min[2];
-  Min[0] = RTCMIN / 10 + '0';
-  Min[1] = RTCMIN % 10 + '0';
-  DrawText(Min, 2, Info->X, Info->Y, Info->Id, DRAW_OPT_EQU_WIDTH, Info->Op);
-}
-
-static void DrawSec(DrawInfo_t *Info)
-{
-  if (!GetProperty(PROP_TIME_SECOND) || Overlapping(Info->Opt)) return;
-
-  unsigned char Sec[3];
-  Sec[0] = DRAW_OPT_SEPARATOR;
-  Sec[1] = RTCSEC / 10 + '0';
-  Sec[2] = RTCSEC % 10 + '0';
-  DrawText(Sec, 3, Info->X, Info->Y, Info->Id, DRAW_OPT_PROP_WIDTH, Info->Op);
-}
-
-static void DrawDate(DrawInfo_t *Info)
-{
-  if (Overlapping(Info->Opt)) return;
-  
-  unsigned char Date[5];
-  unsigned char *pDate = Date;
-  unsigned char DayFirst = GetProperty(PROP_DDMM_DATE_FORMAT);
-
-  memset(pDate, 0, 5); // clear Date[]
-  
-  *pDate = (DayFirst ? RTCDAY : RTCMON) / 10;
-  if (*pDate) *pDate++ += '0';
-
-  *pDate++ = (DayFirst ? RTCDAY : RTCMON) % 10 + '0';
-  *pDate++ = '/';
-  *pDate = (DayFirst ? RTCMON : RTCDAY) / 10;
-  if (*pDate) *pDate++ += '0';
-
-  *pDate = (DayFirst ? RTCMON : RTCDAY) % 10 + '0';
-
-  DrawText(Date, 5, Info->X, Info->Y, Info->Id, DRAW_OPT_PROP_WIDTH, Info->Op);
-}
-
-static void DrawDayofWeek(DrawInfo_t *Info)
-{
-  if (Overlapping(Info->Opt)) return;
-  
-  const char *pDow = DaysOfTheWeek[LANG_EN][RTCDOW];
-  DrawText((unsigned char *)pDow, strlen(pDow), Info->X, Info->Y, Info->Id, DRAW_OPT_PROP_WIDTH, Info->Op);
-}
-
-static unsigned char Overlapping(unsigned char Option)
-{
-  unsigned char BT = BluetoothState();
-  
-  return ((Option & DRAW_OPT_OVERLAP_BATTERY) &&
-          (Charging() || BatteryLevel() <= BatteryCriticalLevel(CRITICAL_WARNING)) ||
-          (Option & DRAW_OPT_OVERLAP_BT) && BT != Connect ||
-          (Option & DRAW_OPT_OVERLAP_SEC) && GetProperty(PROP_TIME_SECOND));
-}
-
-static void DrawBluetoothState(DrawInfo_t *Info)
-{
-  unsigned char Index = 0;
-  
-  if (!RadioOn()) Index = ICON_BLUETOOTH_OFF;
-  else if (Connected(CONN_TYPE_MAIN)) Index = ICON_BLUETOOTH_CONN;
-  else if (OnceConnected()) Index = ICON_BLUETOOTH_DISC;
-  else Index = ICON_BLUETOOTH_ON;
-  
-  if (Index != ICON_BLUETOOTH_OFF && Index != ICON_BLUETOOTH_DISC) return;
-  
-//  PrintStringAndDecimal("- DrwBT:", Index);
-//  char d; for (d = 0; d < 20; d++) PrintHex(IconInfo[Info->Id].pIconSet[Index * IconInfo[Info->Id].Width * IconInfo[Info->Id].Height + d]); PrintString(CR);
-  
-  DrawBitmap(IconInfo[Info->Id].pIconSet + Index * IconInfo[Info->Id].Width * IconInfo[Info->Id].Height,
-             Info->X, Info->Y, IconInfo[Info->Id].Width * 8, IconInfo[Info->Id].Height,
-             IconInfo[Info->Id].Width, Info->Op);
-  
-//  Index ++; if (Index == 6) Index = 0;
-}
-
-static const unsigned char *GetBatteryIcon(unsigned char Id)
-{
-  unsigned int Level = BatteryLevel();
-  unsigned char Index = 0;
-  
-  if (Level < BATTERY_FULL_LEVEL)
-  {
-    if (Level <= BatteryCriticalLevel(CRITICAL_WARNING) && !Charging()) Index = 1; // warning icon index
-    else
-    {
-      unsigned int Empty = BatteryCriticalLevel(CRITICAL_BT_OFF);
-      unsigned int Step = (BATTERY_FULL_LEVEL - Empty) / BATTERY_LEVEL_NUMBER;
-      
-      while (Level > (Empty + Step * Index)) Index ++;
-    }
-  }
-  else Index = BATTERY_LEVEL_NUMBER;
-  
-  const unsigned char *pIcon = IconInfo[Id].pIconSet + (Index * IconInfo[Id].Width * IconInfo[Id].Height);
-  if (!Charging()) pIcon += BATTERY_ICON_NUM * IconInfo[Id].Width * IconInfo[Id].Height;
-
-//  PrintStringAndThreeDecimals("- Batt L:", Level, " I:", Index, "P:", ExtPower());
-  return pIcon;
-}
-
-static void DrawBatteryStatus(DrawInfo_t *Info)
-{
-  if (!Charging() && BatteryLevel() > BatteryCriticalLevel(CRITICAL_WARNING)) return;
-
-  DrawBitmap(GetBatteryIcon(Info->Id), Info->X, Info->Y,
-    IconInfo[Info->Id].Width * 8, IconInfo[Info->Id].Height, IconInfo[Info->Id].Width, Info->Op);
-}
-
-static void DrawTemplate(DrawInfo_t *Info)
-{
-// draw template to 4 quads
-  unsigned char *pByte = pDrawBuffer + SRAM_HEADER_LEN;
-  unsigned char TempId = Info->Id & TEMPLATE_ID_MASK;
-  unsigned char i;
-  
-  if (Info->Id & FLASH_TEMPLATE_BIT)
-  {
-//    const unsigned char __data20 *pTemp20 = pWatchFace[TempId];
-    
-    for (i = 0; i < LCD_ROW_NUM; ++i)
-    {
-      if (i == HALF_SCREEN_ROWS) pByte += BYTES_PER_QUAD;
-
-//      memcpy(pByte, pTemp20, BYTES_PER_QUAD_LINE);
-//      memcpy(pByte + BYTES_PER_QUAD, pTemp20 + BYTES_PER_QUAD_LINE, BYTES_PER_QUAD_LINE);
-//      pByte += BYTES_PER_QUAD_LINE;
-//      pTemp20 += BYTES_PER_LINE;
-    }
-  }
-  else
-  {
-    const unsigned char *pTemp =  pTemplate[TempId];
-
-    for (i = 0; i < LCD_ROW_NUM; ++i)
-    {
-      if (i == HALF_SCREEN_ROWS) pByte += BYTES_PER_QUAD;
-
-      memcpy(pByte, pTemp, BYTES_PER_QUAD_LINE);
-      memcpy(pByte + BYTES_PER_QUAD, pTemp + BYTES_PER_QUAD_LINE, BYTES_PER_QUAD_LINE);
-      pByte += BYTES_PER_QUAD_LINE;
-      pTemp += BYTES_PER_LINE;
-    }
-  }
-}
-
-static void DrawBlock(DrawInfo_t *Info)
-{
-  unsigned char *pByte = pDrawBuffer + SRAM_HEADER_LEN + Info->X + Info->Y * BYTES_PER_QUAD_LINE;
-  if (Info->Y > HALF_SCREEN_ROWS) pByte += BYTES_PER_QUAD;
-
-  unsigned char i;
-
-  for (i = 0; i < Info->Opt; ++i)
-  {
-    if (Info->Y + i == HALF_SCREEN_ROWS) pByte += BYTES_PER_QUAD;
-
-    memset(pByte, 0xFF, BYTES_PER_QUAD_LINE);
-    memset(pByte + BYTES_PER_QUAD, 0xFF, BYTES_PER_QUAD_LINE);
-    pByte += BYTES_PER_QUAD_LINE;
-  }
-}
-
-static void DrawDateTime()
+void DrawDateTime()
 {
   // clean date&time area
   FillMyBuffer(STARTING_ROW, WATCH_DRAW_SCREEN_ROW_NUM, 0x00);
@@ -1763,6 +1287,7 @@ static void DrawDateTime()
     WriteFontCharacter((MMDD ? RTCDAY : RTCMON) / 10+'0');
     WriteFontCharacter((MMDD ? RTCDAY : RTCMON) % 10+'0');
   }
+  
   SendMyBufferToLcd(STARTING_ROW, WATCH_DRAW_SCREEN_ROW_NUM);
 }
 
@@ -1866,12 +1391,11 @@ static void WriteFontCharacter(unsigned char Character)
 
   for (i = 0 ; i < CharacterWidth && gColumn < BYTES_PER_LINE; i++)
   {
-  	for(row = 0; row < CharacterRows; row++)
+  	for (row = 0; row < CharacterRows; row++)
     {
-      if ( (CharacterMask & bitmap[row]) != 0 )
-      {
+      if ((CharacterMask & bitmap[row]))
         pMyBuffer[gRow+row].Data[gColumn] |= gBitColumnMask;
-      }
+//      else pMyBuffer[gRow+row].Data[gColumn] &= ~gBitColumnMask;
     }
 
     /* the shift direction seems backwards... */
@@ -2038,10 +1562,15 @@ static void WriteToTemplateHandler(tMessage *pMsg)
 }
 #endif
 
+void EnableRtcUpdate(unsigned char Enable)
+{
+  RtcUpdateEnabled = Enable;
+}
+
 unsigned char LcdRtcUpdateHandlerIsr(void)
 {
   /* send a message every second or once a minute */
-  if (RtcUpdateEnable && CurrentMode == IDLE_MODE && PageType == PAGE_TYPE_IDLE &&
+  if (RtcUpdateEnabled && CurrentMode == IDLE_MODE && PageType == PAGE_TYPE_IDLE &&
      (GetProperty(PROP_TIME_SECOND) || lastMin != RTCMIN))
   {
     lastMin = RTCMIN;
@@ -2107,6 +1636,11 @@ unsigned char BackLightOn(void)
 unsigned char CurrentIdlePage(void)
 {
   return CurrentPage[PageType];
+}
+
+void *GetDrawBuffer(void)
+{
+  return (void *)pMyBuffer;
 }
 
 static void HandleVersionInfo(void)

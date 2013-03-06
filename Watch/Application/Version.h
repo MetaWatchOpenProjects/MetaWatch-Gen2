@@ -159,6 +159,8 @@
 /* 473    02/26/13  Mu Yang  Fix 2Q Hori/Vert mess-up.                        */
 /* 474    02/28/13  Mu Yang  Fix 1Q date/grid overlapping; BattPercent(0x57). */
 /* 475    03/03/13  Mu Yang  Support CCS5.                                    */
+/* 476    03/04/13  Mu Yang  Seperate clock drawing from LcdDisplay.          */
+/* 477    03/06/13  Mu Yang  Fix modify-time-cause-WDT-reset.                 */
 /******************************************************************************/
 
 /** WRAPPER VERSION HISTORY ***************************************************/
@@ -270,9 +272,10 @@
 /*   410      02/11/13  Mu Yang   Fix Conn_Handle missing for HFP/MAP;        */
 /*                                StartSniffTimer when ACL connected.         */
 /*   411      02/15/13  Mu Yang   Add exit_sniff on data-rcv for Android 4.2  */
+/*   412      03/05/13  Mu Yang   Chg SPP rcv buf & max frame to 32B; pBuf+=i */
 /******************************************************************************/
 
 #define APP_VER     "1.35"
-#define BUILD_VER   "475.411"
+#define BUILD_VER   "477.412"
 
 #endif /* VERSION_H */

@@ -109,6 +109,13 @@
 #define PAGE_TYPE_INFO     (1)
 #define PAGE_TYPE_MENU     (2)
 
+/*! Languages */ 
+#define LANG_EN (0)
+#define LANG_FI (1)
+#define LANG_DE (2)
+
+extern const char DaysOfTheWeek[][7][4];
+extern const char MonthsOfYear[][13][7];
 extern unsigned char CurrentMode;
 extern unsigned char PageType;
 
@@ -128,6 +135,11 @@ typedef enum
 void CreateDisplayTask(void);
 
 void Init(void);
+
+void DrawDateTime(void);
+const unsigned char *GetBatteryIcon(unsigned char Id);
+void EnableRtcUpdate(unsigned char Enable);
+void *GetDrawBuffer(void);
 
 void ResetModeTimer(void);
 

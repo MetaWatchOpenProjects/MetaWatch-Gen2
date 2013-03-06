@@ -116,3 +116,15 @@ void vApplicationStackOverflowHook(xTaskHandle *pxTask, char *pcTaskName)
   PrintString2("# Stack overflow:",(tString*)pcTaskName);
   SoftwareReset();
 }
+
+void CheckQueueUsage(xQueueHandle Qhandle)
+{
+#if CHECK_QUEUE_USAGE
+  portBASE_TYPE waiting = Qhandle->uxMessagesWaiting + 1;
+  
+  if (waiting > Qhandle->MaxWaiting)
+  {
+    Qhandle->MaxWaiting = waiting;    
+  }
+#endif
+}

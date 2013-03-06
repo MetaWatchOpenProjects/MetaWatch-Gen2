@@ -524,9 +524,6 @@ void UpdateDisplayHandler(tMessage* pMsg)
       if (CurrentPage == IDLE_PAGE_NUM) CurrentPage = 0;
     }
     
-    //Add grid if the bit is not set (default)
-//    if (!(pMsg->Options & MSG_OPT_UPD_INTERNAL)) ShowGrid = !(pMsg->Options & MSG_OPT_UPD_GRID_BIT);
-
     // not in idle mode idle page
     if (CurrentMode != IDLE_MODE || PageType != PAGE_TYPE_IDLE) return;
 
