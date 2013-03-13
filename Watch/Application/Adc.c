@@ -92,7 +92,7 @@ extern unsigned char BoardType;
 static xSemaphoreHandle AdcMutex = 0;
 
 #define MAX_SAMPLES (8)
-#define SAMPLE_GAP  (20)
+#define SAMPLE_GAP  (10)
 static unsigned int Sample[MAX_SAMPLES];
 
 #define DEFAULT_WARNING_LEVEL         ( 3468 ) //20% * (4140 - 3300) + 3300

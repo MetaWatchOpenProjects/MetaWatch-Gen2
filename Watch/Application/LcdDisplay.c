@@ -335,7 +335,7 @@ static void DisplayQueueMessageHandler(tMessage* pMsg)
   case UpdateHomeWidgetMsg:
     UpdateHomeWidget(pMsg->Options);
     break;
-    
+
   case MonitorBatteryMsg:
     MonitorBattery();
     break;
@@ -974,7 +974,7 @@ static void WatchStatusScreenHandler(void)
   CopyColumnsIntoMyBuffer(pIconWatch, 54, 21, 0, 2); //54, 21, 2, 2);
 
   /* add the firmware version */
-  gColumn = 2; //4;
+  gColumn = 2;
   gRow = 56;
   gBitColumnMask = BIT2;
   WriteFontString("SW: ");
@@ -983,15 +983,18 @@ static void WatchStatusScreenHandler(void)
   WriteFontString((char *)BUILD);
   WriteFontCharacter(')');
   
-  gColumn = 2; //4;
+  gColumn = 2;
   gRow = 65;
   gBitColumnMask = BIT2;
-  WriteFontString("HW: REV ");
-//  char HwVer[6] = "F";
-//  if (ValidCalibration()) sprintf(HwVer, "%d", HardwareVersion());
-//  WriteFontString(HwVer);
-  WriteFontCharacter(GetMsp430HardwareRevision());
-  
+//  WriteFontString("HW: REV ");
+//  WriteFontCharacter(GetMsp430HardwareRevision());
+  WriteFontString("HW: ");
+  unsigned int HwVer = HardwareVersion();
+  WriteFontCharacter(HwVer / 1000 + '0');
+  WriteFontCharacter((HwVer % 1000) / 100 + '0');
+  WriteFontCharacter((HwVer % 100) / 10 + '0');
+  WriteFontCharacter(HwVer % 10 + '0');
+
   DrawLocalAddress(1, 80);
   
   /* display entire buffer */
