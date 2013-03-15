@@ -390,7 +390,7 @@ Reserved | Total messages | Index of the message (0~2)
 **Payload:**
 
 Byte0 | Byte1 | Byte2 | Byte3 | … | Byte n | Byte n+1
-:---: | :---: | :---: | :---: | :---: | :---:
+:---: | :---: | :---: | :---: | :---: | :---: | :---
 Widget0 ID | Widget0 setting | Widget1 ID | Widget1 setting | … | Widget n/2 ID | Widget n/2 setting  
 
 **Widget setting:**
