@@ -183,7 +183,7 @@ This message can be used by the phone or the watch to request the time from the 
 5.8 Get Real Time Clock Response (0x28)
 ----------------------------------------
 
-The message format is the same as "**Set Real Time Clock (0x26)**".
+The message format is the same as **Set Real Time Clock (0x26)**.
 
 **Options:** not used.
 
@@ -312,7 +312,7 @@ Bit7 | Bit6 ~ Bit5 | Bit4 | Bit3 ~ Bit2 | Bit1 ~ Bit0
 :---: | :---: | :---: | :---: | :---:
 UI Style | Reserved | One Row | Reserved | Mode
 
-** UI Style:**
+**UI Style:**
 
 * 0 - Gen1's three-row UI
 * 1 - Gen2's four-quad UI
@@ -347,9 +347,9 @@ Widget ID | Row | Data
 * Clock Widget - drawn by the watch itself. The lower 4 bits of the ID is the Widget ID (0 ~ 15); the higher 4 bits is the clock Face ID (0 ~ 15).
 * Normal Widget - drawn by the phone. The Widget ID range is 16 ~ 254.
 
-** Row:** the row number (0 ~ 191) of the widget area. Please note: one widget row is half the size of the display row (96 bits / 8 bits per byte = 12 bytes). The row number counts continuously quad by quad from left to right and up to bottom of the display.
+**Row:** the row number (0 ~ 191) of the widget area. Please note: one widget row is half the size of the display row (96 bits / 8 bits per byte = 12 bytes). The row number counts continuously quad by quad from left to right and up to bottom of the display.
 
-** Data:** two adjacent rows of data (12 bytes).
+**Data:** two adjacent rows of data (12 bytes).
 
 
 5.16 Update LCD Display (0x43)
