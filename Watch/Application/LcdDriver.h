@@ -24,6 +24,28 @@
 #ifndef LCD_TASK_H
 #define LCD_TASK_H
 
+/*! The LCD message is formatted so that it can be written directly to the LCD
+ * \param Reserved bytes are required by LcdDriver.c
+ * \param LcdCommand is the lcd write command for the LCD
+ * \param RowNumber is the row on the LCD
+ * \param pLine[BYTES_PER_LINE] is a line of LCD data
+ * \param Dummy1
+ * \param Dummy2
+ *
+ */
+typedef struct
+{
+  unsigned char Reserved0;
+  unsigned char Reserved1;
+  unsigned char LcdCommand;
+  unsigned char RowNumber;
+  unsigned char pLine[BYTES_PER_LINE];
+  unsigned char Dummy1;
+  unsigned char Dummy2;
+} tLcdData;
+
+#define LCD_DATA_SIZE   (sizeof(tLcdData))
+
 /*! Initialize spi peripheral and LCD pins */
 void LcdPeripheralInit(void);
 

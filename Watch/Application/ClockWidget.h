@@ -17,7 +17,7 @@
 #ifndef CLOCK_WIDGET_H
 #define CLOCK_WIDGET_H
 
-void UpdateHomeWidget(unsigned char Option);
+void DrawClockWidget(unsigned char Id);
 
 #endif // CLOCK_WIDGET_H
 

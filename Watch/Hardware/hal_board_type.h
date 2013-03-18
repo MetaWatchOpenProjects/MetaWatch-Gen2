@@ -77,11 +77,11 @@
 
 #define RESERVED_BOARD_TYPE       ( 0 )
 #define ANALOG_WATCH_TYPE         ( 1 )
-#define DIGITAL_WATCH_TYPE        ( 2 )
-#define DIGITAL_DEV_BOARD_TYPE    ( 3 )
+#define DIGITAL_WATCH_TYPE_G1     ( 2 )
+#define DIGITAL_DEVBOARD_TYPE_G1  ( 3 )
 #define ANALOG_DEV_BOARD_TYPE     ( 4 )
-#define DIGITAL_WATCH_G2_TYPE     ( 5 )
-#define DIGITAL_DEV_BOARD_G2_TYPE ( 6 )
+#define DIGITAL_WATCH_TYPE_G2     ( 5 )
+#define DIGITAL_DEVBOARD_TYPE_G2  ( 6 )
 
 /******************************************************************************/
 
@@ -91,14 +91,14 @@
     #define BOARD_TYPE ( ANALOG_DEV_BOARD_TYPE )
     
   #else
-    #define BOARD_TYPE ( DIGITAL_DEV_BOARD_G2_TYPE )
+    #define BOARD_TYPE ( DIGITAL_DEVBOARD_TYPE_G2 )
     
   #endif
 
 #elif defined(WATCH)
 
   #ifdef DIGITAL
-    #define BOARD_TYPE ( DIGITAL_WATCH_G2_TYPE )
+    #define BOARD_TYPE ( DIGITAL_WATCH_TYPE_G2 )
 
   #else
     #define BOARD_TYPE ( ANALOG_WATCH_TYPE )

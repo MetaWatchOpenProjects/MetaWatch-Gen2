@@ -14,12 +14,7 @@
 //  limitations under the License.
 //==============================================================================
 
-/******************************************************************************/
-/*! \file Adc.c
-*
-*/
-/******************************************************************************/
-
+#include <string.h>
 #include "hal_board_type.h"
 #include "FreeRTOS.h"
 #include "task.h"
@@ -93,10 +88,11 @@ static xSemaphoreHandle AdcMutex = 0;
 
 #define MAX_SAMPLES (8)
 #define SAMPLE_GAP  (10)
-static unsigned int Sample[MAX_SAMPLES];
 
-#define DEFAULT_WARNING_LEVEL         ( 3468 ) //20% * (4140 - 3300) + 3300
-#define DEFAULT_RADIO_OFF_LEVEL       ( 3300 )
+static unsigned int Sample[2][MAX_SAMPLES];
+
+#define DEFAULT_WARNING_LEVEL         (3468) //20% * (4140 - 3300) + 3300
+#define DEFAULT_RADIO_OFF_LEVEL       (BATTERY_CRITICAL_LEVEL)
 
 static unsigned int WarningLevel;
 static unsigned int RadioOffLevel;
@@ -105,15 +101,7 @@ static void AdcCheck(void);
 static void WaitForAdcBusy(void);
 static void EndAdcCycle(void);
 
-#if ENABLE_LIGHT_SENSOR
 static unsigned int LightSense = 0;
-static unsigned int LightSenseSamples[MAX_SAMPLES];
-static unsigned char LightSenseIndex;
-static unsigned char LightSenseAverageReady = 0;
-
-static void StartLightSenseConversion(void);
-static void FinishLightSenseCycle(void);
-#endif
 
 /*! the voltage from the battery is divided
  * before it goes to ADC (so that it is less than
@@ -162,14 +150,9 @@ void InitAdc(void)
   ADC12MCTL1 = BATTERY_SENSE_INPUT_CHANNEL + ADC12EOS;
   ADC12MCTL2 = LIGHT_SENSE_INPUT_CHANNEL + ADC12EOS;
 
-  unsigned char i = 0; for (; i < MAX_SAMPLES; ++i) Sample[i] = 0;
-
-#if ENABLE_LIGHT_SENSOR
-  LightSenseIndex = 0;
-  LightSense = 0;
-  LightSenseAverageReady = 0;
-#endif
-
+  /* init to 0 */
+  memset(Sample, 0, MAX_SAMPLES << 2);
+  
   /* control access to adc peripheral */
   AdcMutex = xSemaphoreCreateMutex();
   xSemaphoreGive(AdcMutex);
@@ -245,47 +228,43 @@ void BatterySenseCycle(void)
 
   /* smoothing algorithm: cut extreme values (gap > 20) */
   unsigned char Prev = (Index == 0) ? MAX_SAMPLES - 1: Index - 1;
-  if (Sample[Prev])
+  if (Sample[BATTERY][Prev])
   {
-    int Gap = Value - Sample[Prev];
+    int Gap = Value - Sample[BATTERY][Prev];
     
     if (Gap > SAMPLE_GAP) Gap = SAMPLE_GAP;
     else if (Gap < -1 * SAMPLE_GAP) Gap = -1 * SAMPLE_GAP;
-    Sample[Index] = Sample[Prev] + Gap;
+    Sample[BATTERY][Index] = Sample[BATTERY][Prev] + Gap;
   }
-  else Sample[Index] = Value;
+  else Sample[BATTERY][Index] = Value;
 
   if (++Index >= MAX_SAMPLES) Index = 0;
-
+  
   BATTERY_SENSE_DISABLE();
   EndAdcCycle(); //xSemaphoreGive()
 }
 
-/* this used to return 0 if the measurement is not valid (yet) 
- * but then the display doesn't have a valid value for 80 seconds.
- */
-unsigned int BatteryLevel(void)
+unsigned int Read(unsigned char Sensor)
 {
   unsigned long Total = 0;
   unsigned char i = 0;
-//  unsigned int Max = 0, Min = 9999;
 
-  /* 5 points moving average */
-  while (i < MAX_SAMPLES && Sample[i])
+//  PrintString(Sensor == BATTERY ? "[B][" : "[L][");
+
+  /* moving average */
+  while (i < MAX_SAMPLES && Sample[Sensor][i])
   {
-//    if (Sample[i] > Max) Max = Sample[i];
-//    if (Sample[i] < Min) Min = Sample[i];
-    Total += Sample[i++];
+//    PrintDecimal(Sample[Sensor][i]); PrintCharacter(' ');
+    Total += Sample[Sensor][i++];
   }
-  
-//  if (i == MAX_SAMPLES) Total -= Charging() ? Min : Max;
+//  PrintString("] ");
 
   return (Total / i);
 }
 
 unsigned char BatteryPercentage(void)
 {
-  int BattVal = BatteryLevel();
+  int BattVal = Read(BATTERY);
   
   if (BattVal > BATTERY_FULL_LEVEL) BattVal = BATTERY_FULL_LEVEL;
   BattVal -= BATTERY_CRITICAL_LEVEL;
@@ -299,7 +278,7 @@ void CheckBatteryLow(void)
 {
   static unsigned char Severity = WARN_LEVEL_NONE;
 
-  unsigned int Average = BatteryLevel();
+  unsigned int Average = Read(BATTERY);
 
   /* it was not possible to get a reading below 2.8V
    * the radio does not initialize when the battery voltage (from a supply)
@@ -341,10 +320,10 @@ void CheckBatteryLow(void)
 }
 
 /* Set new low battery levels and save them to flash */
-void SetBatteryLevels(unsigned char * pData)
+void SetBatteryLevels(unsigned char *pData)
 {
-  WarningLevel = pData[0] * (unsigned int)100;
-  RadioOffLevel = pData[1] * (unsigned int)100;  
+  WarningLevel = (unsigned int)pData[0] * BATTERY_LEVEL_RANGE / 100 + BATTERY_CRITICAL_LEVEL;
+  RadioOffLevel = (unsigned int)pData[1] * BATTERY_LEVEL_RANGE / 100 + BATTERY_CRITICAL_LEVEL;
 }
 
 unsigned int BatteryCriticalLevel(unsigned char Type)
@@ -376,10 +355,11 @@ static void EndAdcCycle(void)
   xSemaphoreGive(AdcMutex);
 }
 
-#if ENABLE_LIGHT_SENSOR
 void LightSenseCycle(void)
 {
-  xSemaphoreTake(AdcMutex,portMAX_DELAY);
+  static unsigned char Index = 0;
+
+  xSemaphoreTake(AdcMutex, portMAX_DELAY);
 
   LIGHT_SENSOR_L_GAIN();
   ENABLE_REFERENCE();
@@ -389,80 +369,28 @@ void LightSenseCycle(void)
   vTaskDelay(10);
   TaskDelayLpmEnable();
   
-  StartLightSenseConversion();
-  WaitForAdcBusy();
-  FinishLightSenseCycle();
-}
-
-void StartLightSenseConversion(void)
-{
   AdcCheck();
   
   CLEAR_START_ADDR();
   ADC12CTL1 |= ADC12CSTARTADD_2;
 
   ENABLE_ADC();
-}
 
-/* obtained reading of 91 (or 85) in office 
- * obtained readings from 2000-12000 with droid light in different positions
- */
-void FinishLightSenseCycle(void)
-{
-  LightSense = AdcCountsToVoltage(ADC12MEM2);
+  WaitForAdcBusy();
 
-  LightSenseSamples[LightSenseIndex++] = LightSense;
-  
-  if ( LightSenseIndex >= MAX_SAMPLES )
-  {
-    LightSenseIndex = 0;
-    LightSenseAverageReady = 1;
-  }
-  
+  /* obtained reading of 30 in office
+   * obtained readings from 2000-23000 with Android light in different positions
+   */
+  LightSense = (unsigned int)(CONVERSION_FACTOR * (double)ADC12MEM2);
+  PrintString("L:"); PrintDecimal(LightSense); PrintString(CR);
+
+  Sample[LIGHT_SENSOR][Index++] = LightSense;
+  if (Index >= MAX_SAMPLES) Index = 0;
+
   LIGHT_SENSOR_SHUTDOWN();
- 
   EndAdcCycle();
-
-#if 0
-  PrintStringAndDecimal("LightSenseInstant: ",LightSense);
-#endif
-  
 }
 
-unsigned int ReadLightSense(void)
-{
-  return LightSense;  
-}
-
-unsigned int ReadLightSenseAverage(void)
-{
-  unsigned int SampleTotal = 0;
-  unsigned int Result = 0;
-  
-  if ( LightSenseAverageReady )
-  {
-    unsigned char i;
-    for (i = 0; i < MAX_SAMPLES; i++)
-    {
-      SampleTotal += LightSenseSamples[i];
-    }
-    
-    Result = SampleTotal/MAX_SAMPLES;
-  }
-  else
-  {
-    Result = LightSense;  
-  }
-  
-  return Result;
-}
-
-/*! Initiate a light sensor cycle.  Then send the instantaneous and average
- * light sense values to the host.
- *
- * \param tHostMsg* pMsg is unused
- *
- */
 void ReadLightSensorHandler(void)
 {
   /* start cycle and wait for it to finish */
@@ -470,18 +398,18 @@ void ReadLightSensorHandler(void)
 
   /* send message to the host */
   tMessage Msg;
-  SetupMessageAndAllocateBuffer(&Msg, ReadLightSensorResponse, MSG_OPT_NONE);
+  SetupMessageAndAllocateBuffer(&Msg, LightSensorRespMsg, MSG_OPT_NONE);
 
   /* instantaneous value */
-  unsigned int lv = ReadLightSense();
+  unsigned int lv = LightSense;
   Msg.pBuffer[0] = lv & 0xFF;
   Msg.pBuffer[1] = (lv >> 8 ) & 0xFF;
+  Msg.Length = 2;
 
-  /* average value */
-  lv = ReadLightSenseAverage();
-  Msg.pBuffer[2] = lv & 0xFF;
-  Msg.pBuffer[3] = (lv >> 8 ) & 0xFF;
-  Msg.Length = 4;
+//  /* average value */
+//  lv = Read(LIGHT_SENSOR);
+//  Msg.pBuffer[2] = lv & 0xFF;
+//  Msg.pBuffer[3] = (lv >> 8 ) & 0xFF;
+//  Msg.Length = 4;
   RouteMsg(&Msg);
 }
-#endif

@@ -35,9 +35,9 @@ static const tMsgInfo MsgInfo[MAXIMUM_MESSAGE_TYPES] =
 {
   {InvalidMsg,                    FREE_QINDEX,       1 }, /* 0x00 */
   {"GetDevTypeMsg",               DISPLAY_QINDEX,    1 }, /* 0x01 */
-  {"GetDevTypeResp",              SPP_TASK_QINDEX,   0 }, /* 0x02 */
+  {"GetDevTypeResp",              SPP_TASK_QINDEX,   1 }, /* 0x02 */
   {"GetInfoMsg",                  DISPLAY_QINDEX,    1 }, /* 0x03 */
-  {"GetInfoResp",                 SPP_TASK_QINDEX,   0 }, /* 0x04 */
+  {"GetInfoResp",                 SPP_TASK_QINDEX,   1 }, /* 0x04 */
   {"DiagLoopback",                SPP_TASK_QINDEX,   1 }, /* 0x05 */
   {"ShippingModMsg",              SPP_TASK_QINDEX,   1 }, /* 0x06 */
   {"SoftResetMsg",                DISPLAY_QINDEX,    1 }, /* 0x07 */
@@ -46,7 +46,7 @@ static const tMsgInfo MsgInfo[MAXIMUM_MESSAGE_TYPES] =
   {"TurnRadioOffMsg",             SPP_TASK_QINDEX,   0 }, /* 0x0a */
   {"ReadRssiMsg",                 SPP_TASK_QINDEX,   1 }, /* 0x0b */
   {"PairCtrlMsg",                 SPP_TASK_QINDEX,   0 }, /* 0x0c */
-  {"ReadRssiResp",                SPP_TASK_QINDEX,   0 }, /* 0x0d */
+  {"ReadRssiResp",                SPP_TASK_QINDEX,   1 }, /* 0x0d */
   {"SniffCtrlMsg",                SPP_TASK_QINDEX,   1 }, /* 0x0e */
   {"LnkAlmMsg",                   DISPLAY_QINDEX,    1 }, /* 0x0f */
   {"OledWrtBufMsg",               DISPLAY_QINDEX,    0 }, /* 0x10 */
@@ -73,7 +73,7 @@ static const tMsgInfo MsgInfo[MAXIMUM_MESSAGE_TYPES] =
   {InvalidMsg,                    FREE_QINDEX,       0 }, /* 0x25 */
   {"SetRtcMsg",                   DISPLAY_QINDEX,    0 }, /* 0x26 */
   {"GetRtcMsg",                   DISPLAY_QINDEX,    0 }, /* 0x27 */
-  {"GetRtcResp",                  SPP_TASK_QINDEX,   0 }, /* 0x28 */
+  {"GetRtcResp",                  SPP_TASK_QINDEX,   1 }, /* 0x28 */
   {InvalidMsg,                    FREE_QINDEX,       0 }, /* 0x29 */
   {InvalidMsg,                    FREE_QINDEX,       0 }, /* 0x2a */
   {InvalidMsg,                    FREE_QINDEX,       0 }, /* 0x2b */
@@ -82,7 +82,7 @@ static const tMsgInfo MsgInfo[MAXIMUM_MESSAGE_TYPES] =
   {InvalidMsg,                    FREE_QINDEX,       0 }, /* 0x2e */
   {InvalidMsg,                    FREE_QINDEX,       0 }, /* 0x2f */
   {"NvalMsg",                     DISPLAY_QINDEX,    0 }, /* 0x30 */
-  {"NvalResp",                    SPP_TASK_QINDEX,   0 }, /* 0x31 */
+  {"NvalResp",                    SPP_TASK_QINDEX,   1 }, /* 0x31 */
   {InvalidMsg,                    FREE_QINDEX,       0 }, /* 0x32 */
   {"ModChgIndMsg",                SPP_TASK_QINDEX,   0 }, /* 0x33 */
   {"BtnEventMsg",                 SPP_TASK_QINDEX,   0 }, /* 0x34 */
@@ -106,23 +106,23 @@ static const tMsgInfo MsgInfo[MAXIMUM_MESSAGE_TYPES] =
   {"EnBtnMsg",                    DISPLAY_QINDEX,    0 }, /* 0x46 */
   {"DisBtnMsg",                   DISPLAY_QINDEX,    1 }, /* 0x47 */
   {"RdBtnConfMsg",                DISPLAY_QINDEX,    1 }, /* 0x48 */
-  {"RdBtnConfResp",               SPP_TASK_QINDEX,   0 }, /* 0x49 */
+  {"RdBtnConfResp",               SPP_TASK_QINDEX,   1 }, /* 0x49 */
   {"ExtAppIndMsg",                SPP_TASK_QINDEX,   1 }, /* 0x4a */
   {"EraseTmplMsg",                DISPLAY_QINDEX,    1 }, /* 0x4b */
   {"WrtTmplMsg",                  DISPLAY_QINDEX,    1 }, /* 0x4c */
-  {"SetHmWgtMsg",                 DISPLAY_QINDEX,    1 }, /* 0x4d */
-  {"UpdHmWgtMsg",                 DISPLAY_QINDEX,    0 }, /* 0x4e */
-  {"WrtHmWgtDoneMsg",             DISPLAY_QINDEX,    1 }, /* 0x4f */
+  {"SetClkWgtMsg",                DISPLAY_QINDEX,    1 }, /* 0x4d */
+  {"UpdClkWgtMsg",                DISPLAY_QINDEX,    0 }, /* 0x4e */
+  {"WrtClkWgtDoneMsg",            DISPLAY_QINDEX,    1 }, /* 0x4f */
   {"SetExtWgtMsg",                SPP_TASK_QINDEX,   1 }, /* 0x50 */
-  {InvalidMsg,                    FREE_QINDEX,       0 }, /* 0x51 */
+  {"UpdClkWgt",                   DISPLAY_QINDEX,    0 }, /* 0x51 */
   {"BattChrgCtrlMsg",             DISPLAY_QINDEX,    0 }, /* 0x52 */
   {"BattConfMsg",                 DISPLAY_QINDEX,    0 }, /* 0x53 */
   {"LowBattIndMsg",               SPP_TASK_QINDEX,   0 }, /* 0x54 */
   {"LowBattBtOffIndMsg",          SPP_TASK_QINDEX,   0 }, /* 0x55 */
   {"RdBattVoltMsg",               DISPLAY_QINDEX,    0 }, /* 0x56 */
-  {"RdBattVoltResp",              SPP_TASK_QINDEX,   0 }, /* 0x57 */
+  {"RdBattVoltResp",              SPP_TASK_QINDEX,   1 }, /* 0x57 */
   {"RdLightSensorMsg",            DISPLAY_QINDEX,    0 }, /* 0x58 */
-  {"RdLightSensorResp",           SPP_TASK_QINDEX,   0 }, /* 0x59 */
+  {"RdLightSensorResp",           SPP_TASK_QINDEX,   1 }, /* 0x59 */
   {"LowBattMsg",                  DISPLAY_QINDEX,    0 }, /* 0x5a */
   {"LowBattBtOffMsg",             DISPLAY_QINDEX,    0 }, /* 0x5b */
   {InvalidMsg,                    FREE_QINDEX,       0 }, /* 0x5c */

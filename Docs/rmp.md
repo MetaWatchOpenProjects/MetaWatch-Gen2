@@ -28,6 +28,8 @@ Revision | Details | Author | Date
 1.2.1 | Update 5.30 (0x57) Read Battery Voltage | Mu Yang | February 28, 2013
 1.2.2 | Update 5.33 SetMsgList to include clock widget settings | Mu Yang | March 12, 2013
 2.0.0 | Rewritten in markdown format for easy maintenance. | Mu Yang | March 15, 2013
+2.0.1 | Add light sensor messages. | Mu Yang | March 18, 2013
+
 
 3 Abbreviation
 ===============
@@ -37,6 +39,8 @@ BLE | Bluetooth Low Energy
 BR | Bluetooth Basic Rate
 CRC | Cyclic Redundancy Check
 GATT | Generic Attribute Profile
+LSB | Less Significant Bit/Byte
+MSB | Most Significant Bit/Byte
 RTC | Real-time Clock
 SPP | Serial Port Profile
 
@@ -87,6 +91,8 @@ Low Battery Warning Message | 0x54 | Watch
 Low Battery Bluetooth off Message | 0x55 | Watch
 Get Battery Status Message | 0x56 | Phone
 Get Battery Status Response | 0x57 | Watch
+Get Light Sensor Value Message | 0x58 | Phone
+Get Light Sensor Value Response | 0x59 | Watch
 Music Playing State Message | 0x18 | Phone
 Write OLED Buffer | 0x10 | Phone
 Change OLED Mode | 0x12 | Phone
@@ -192,7 +198,7 @@ The message format is the same as **Set Real Time Clock (0x26)**.
 5.9 Watch Property Operation (0x30)
 --------------------------
 
-The message is used to get and set watch properties. These values will retain their values till the battery is depleted. 
+The message is used to get and set watch properties. The properties values retain till the battery is depleted. 
 
 **Options:**
 
@@ -204,7 +210,7 @@ Bit | Description
 3 | Show separation line between widgets in idle mode. Default is set.
 4 | Invert display color.
 5 | Disable alarm for disconnection.
-6 | Phone draw full screen.
+6 | Phone draw full screen. This shall be set for Gen2 UI. See **Write LCD Buffer (0x40)**.
 7 | Read operation. Default is Write.
 
 **Payload:** not used.
@@ -319,8 +325,8 @@ UI Style | Reserved | One Row | Reserved | Mode
 
 **One Row:**
 
-* 0 - the Payload contains two rows of data. Only works for SPP.
-* 1 - the Payload contains only one row of data.
+* 0 - the Payload contains two display rows of data. Only works for SPP.
+* 1 - the Payload contains only one display row of data (12 bytes).
 
 **Payloads:** the payload definition is different from Gen1 UI and Gen2 UI.
 
@@ -349,7 +355,7 @@ Widget ID | Row | Data
 
 **Row:** the row number (0 ~ 191) of the widget area. Please note: one widget row is half the size of the display row (96 bits / 8 bits per byte = 12 bytes). The row number counts continuously quad by quad from left to right and up to bottom of the display.
 
-**Data:** two adjacent rows of data (12 bytes).
+**Data:** two adjacent widget rows of data (12 bytes).
 
 
 5.16 Update LCD Display (0x43)
@@ -480,7 +486,7 @@ The message is sent to the phone when the battery is at Bluetooth radio off leve
 5.22 Get Battery Status Message (0x56)
 ----------------------------------------
 
-The message is used to get the battery status including clip attach, charging, current charge and battery voltage (see **Read Battery Status Response (0x57)**).
+The message is used to get the battery status including clip attach, charging, current charge and battery voltage (see **Get Battery Status Response (0x57)**).
 
 **Options:** not used.
 
@@ -499,7 +505,29 @@ Byte0 | Byte1 | Byte2 | Byte3 | Byte4 | Byte5
 :---: | :---: | :---: | :---: | :---: | :---:
 Clip attached | Charging | Charge (%) | Reserved | Voltage (LSB) | Voltage (MSB)
 
-5.24 Music Playing State Message (0x18)
+5.24 Get Light Sensor Value Message (0x58)
+----------------------------------------
+
+The message is used to read the light sensor value (see **Get Light Sensor Value Response (0x59)**).
+
+**Options:** not used.
+
+**Payload:** not used.
+
+5.25 Get Light Sensor Value Response (0x59)
+-----------------------------------------
+
+The message contains the instant value of the light sensor.
+
+**Options:** not used.
+
+**Payload:**
+
+Byte0 | Byte1
+:---: | :---:
+Value (LSB) | Value (MSB)
+
+5.26 Music Playing State Message (0x18)
 ---------------------------------------
 
 This message is used to tell the watch about current music playing state: either “play” or “stop”.
@@ -512,7 +540,7 @@ Reserved | Music playing state (0: stopped; 1: playing)
 
 **Payload:** not used.
 
-5.25 Write OLED Buffer (0x10)
+5.27 Write OLED Buffer (0x10)
 ----------------------------
 The message is used to send data to the analog watch's OLED display buffer.
 
@@ -562,7 +590,7 @@ If a page is activated and the current mode is not active then the current mode 
 
 Each display consists of two rows of 80 characters.
 
-5.26 Change OLED Mode (0x12)
+5.28 Change OLED Mode (0x12)
 ----------------------------------
 
 Change the mode of the watch. This command does not cause an update of the top or bottom OLED. It does change how the buttons are handled. When a mode other than IDLE is selected its mode timer is started.
@@ -575,7 +603,7 @@ Reserved | Mode
 
 **Payload:** not used.
 
-5.27 Write OLED Scroll Buffer (0x13)
+5.29 Write OLED Scroll Buffer (0x13)
 -----------------------------------
 
 **Options:**
@@ -608,7 +636,7 @@ The scroll state machine will send a scroll request status message each time it 
 
 When a scroll is started if the top OLED is on then it will remain on for the duration of the scroll.
 
-5.28 Advance Watch Hands (0x20)
+5.30 Advance Watch Hands (0x20)
 ------------------------------
 
 This command will advance the watch hands by the specified amount.

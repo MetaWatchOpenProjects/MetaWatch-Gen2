@@ -36,6 +36,7 @@
 #include "BitmapData.h"
 #include "Property.h"
 #include "ClockWidget.h"
+#include "LcdBuffer.h"
 
 #define MAX_DRAW_ITEM_NUM             (12)
 #define TEMPLATE_ID_MASK              (0x7F)
@@ -82,8 +83,7 @@ static void DrawTemplate(DrawInfo_t *Info);
 static void DrawBlock(DrawInfo_t *Info);
 static unsigned char Overlapping(unsigned char Option);
 
-// widget is a list of Draw_t, DrawList can be multiple for each type of layout
-// the order is the WatchFaceId
+/* widget is a list of Draw_t, the order is the WatchFaceId (0 - 14) */
 static const Draw_t DrawList[][MAX_DRAW_ITEM_NUM] =
 {
   { //1Q
@@ -104,17 +104,17 @@ static const Draw_t DrawList[][MAX_DRAW_ITEM_NUM] =
     {DrawSec, {38, 29, MetaWatch16, DRAW_OPT_OVERLAP_BATTERY, DRAW_OPT_BITWISE_OR}},
     {DrawDayofWeek, {72, 35, MetaWatch7, DRAW_OPT_OVERLAP_BT, DRAW_OPT_BITWISE_OR}}
   },
-//  { // 4Q Logo TimeBlock
-//    {DrawTemplate, {0, 0, TMPL_WGT_LOGO, DRAW_OPT_NONE, DRAW_OPT_BITWISE_OR}},
-//    {DrawHour, {1, 28, TimeBlock, DRAW_OPT_SEPARATOR, DRAW_OPT_BITWISE_OR}},
-//    {DrawMin, {51, 28, TimeBlock, DRAW_OPT_NONE, DRAW_OPT_BITWISE_OR}},
-//    {DrawAmPm, {80, 50, MetaWatch5, DRAW_OPT_NONE, DRAW_OPT_BITWISE_SET}},
-//    {DrawBluetoothState, {80, 79, ICON_SET_BLUETOOTH_SMALL, DRAW_OPT_NONE, DRAW_OPT_BITWISE_SET}},
-//    {DrawBatteryStatus, {41, 15, ICON_SET_BATTERY_H, DRAW_OPT_BITWISE_OR}},
-//    {DrawDate, {2, 12, MetaWatch16, DRAW_OPT_NONE, DRAW_OPT_BITWISE_OR}},
-//    {DrawSec, {75, 12, MetaWatch16, DRAW_OPT_NONE, DRAW_OPT_BITWISE_OR}},
-//    {DrawDayofWeek, {68, 12, MetaWatch16, DRAW_OPT_OVERLAP_SEC, DRAW_OPT_BITWISE_OR}}
-//  },
+  { // 4Q Logo TimeBlock
+    {DrawTemplate, {0, 0, TMPL_WGT_LOGO, DRAW_OPT_NONE, DRAW_OPT_BITWISE_OR}},
+    {DrawHour, {1, 28, TimeBlock, DRAW_OPT_SEPARATOR, DRAW_OPT_BITWISE_OR}},
+    {DrawMin, {51, 28, TimeBlock, DRAW_OPT_NONE, DRAW_OPT_BITWISE_OR}},
+    {DrawAmPm, {80, 50, MetaWatch5, DRAW_OPT_NONE, DRAW_OPT_BITWISE_SET}},
+    {DrawBluetoothState, {80, 79, ICON_SET_BLUETOOTH_SMALL, DRAW_OPT_NONE, DRAW_OPT_BITWISE_SET}},
+    {DrawBatteryStatus, {41, 15, ICON_SET_BATTERY_H, DRAW_OPT_BITWISE_OR}},
+    {DrawDate, {2, 12, MetaWatch16, DRAW_OPT_NONE, DRAW_OPT_BITWISE_OR}},
+    {DrawSec, {75, 12, MetaWatch16, DRAW_OPT_NONE, DRAW_OPT_BITWISE_OR}},
+    {DrawDayofWeek, {68, 12, MetaWatch16, DRAW_OPT_OVERLAP_SEC, DRAW_OPT_BITWISE_OR}}
+  },
   { //4Q Big TimeK
     {DrawBlock, {0, 0, 12, 17}}, // x, w in bytes
     {DrawBlock, {0, 79, 12, 17}},
@@ -127,17 +127,17 @@ static const Draw_t DrawList[][MAX_DRAW_ITEM_NUM] =
     {DrawSec, {39, 1, MetaWatch16, DRAW_OPT_NONE, DRAW_OPT_BITWISE_NOT}},
     {DrawDayofWeek, {3, 80, MetaWatch16, DRAW_OPT_OVERLAP_NONE, DRAW_OPT_BITWISE_NOT}}
   },
-//  { //4Q-fish
-//    {DrawTemplate, {0, 0, TMPL_WGT_FISH, 0}},
-//    {DrawHour, {29, 33, Time, DRAW_OPT_SEPARATOR}},
-//    {DrawMin, {58, 33, Time, 0}},
-//    {DrawAmPm, {83, 33, MetaWatch5, 0}},
-//    {DrawBluetoothState, {82, 2, ICON_SET_BLUETOOTH_SMALL, 0}},
-//    {DrawBatteryStatus, {50, 4, ICON_SET_BATTERY_H, 0}},
-//    {DrawDate, {55, 22, MetaWatch7, 0}},
-//    {DrawSec, {58, 51, MetaWatch16, 0}},
-//    {DrawDayofWeek, {58, 55, MetaWatch7, DRAW_OPT_OVERLAP_SEC}}
-//  },
+  { //4Q-fish
+    {DrawTemplate, {0, 0, TMPL_WGT_FISH, 0}},
+    {DrawHour, {29, 33, Time, DRAW_OPT_SEPARATOR}},
+    {DrawMin, {58, 33, Time, 0}},
+    {DrawAmPm, {83, 33, MetaWatch5, 0}},
+    {DrawBluetoothState, {82, 2, ICON_SET_BLUETOOTH_SMALL, 0}},
+    {DrawBatteryStatus, {50, 4, ICON_SET_BATTERY_H, 0}},
+    {DrawDate, {55, 22, MetaWatch7, 0}},
+    {DrawSec, {58, 51, MetaWatch16, 0}},
+    {DrawDayofWeek, {58, 55, MetaWatch7, DRAW_OPT_OVERLAP_SEC}}
+  },
 };
 
 //#define DRAW_LIST_ITEM_NUM(_x)    (sizeof(*DrawList[_x]) / sizeof(Draw_t))
@@ -150,95 +150,45 @@ typedef struct
 } Widget_t;
 
 //
-static const Widget_t HomeWidget[] =
+static const Widget_t ClockWidget[] =
 {
   {LAYOUT_QUAD_SCREEN, 7, DrawList[0]},
   {LAYOUT_HORI_SCREEN, 7, DrawList[1]},
-  {LAYOUT_FULL_SCREEN, 10, DrawList[2]}
+  {LAYOUT_FULL_SCREEN, 9, DrawList[2]},
+  {LAYOUT_FULL_SCREEN, 9, DrawList[3]},
+  {LAYOUT_FULL_SCREEN, 10, DrawList[4]}
 };
 
-#define HOME_WIDGET_NUM (sizeof(HomeWidget) / sizeof(Widget_t))
+#define HOME_WIDGET_NUM (sizeof(ClockWidget) / sizeof(Widget_t))
 
 static unsigned char *pDrawBuffer;
 
-static void DrawHomeWidget(Widget_t *pData);
 static void DrawText(unsigned char *pText, unsigned char Len, unsigned char X, unsigned char Y, unsigned char Font, unsigned char EqualWidth, unsigned char Op);
 static void DrawBitmap(const unsigned char *pBitmap, unsigned char X, unsigned char Y, unsigned char W, unsigned char H, unsigned char BmpWidthInBytes, unsigned char Op);
 static void BitOp(unsigned char *pByte, unsigned char Bit, unsigned char Set, unsigned char Op);
 
 /******************************************************************************/
 
-void UpdateHomeWidget(unsigned char Option)
-{
-  if (CurrentMode != IDLE_MODE || PageType != PAGE_TYPE_IDLE) return;
-  if (CurrentIdlePage() == InitPage || !GetProperty(PROP_PHONE_DRAW_TOP)) {DrawDateTime(); return;}
-
-  unsigned char LayoutType = GetHomeWidgetLayout();
-  if (!LayoutType) return; // no hw on current idle screen
-  
-  EnableRtcUpdate(pdFALSE);// block RTC
-
-  static unsigned char DoneUpd = 0;
-  DoneUpd = Option ? DoneUpd | Option : 0;
-
-//  PrintStringAndTwoHexBytes("DoneUpd: Layout:", DoneUpd, LayoutType);
-  LayoutType &= ~DoneUpd; // remove drawn layout in Option from LayoutType
-//  PrintStringAndHexByte("AF Layout:", LayoutType);
-  
-  if (!LayoutType)
-  {
-    DoneUpd = 0;
-    CreateAndSendMessage(UpdateDisplayMsg, IDLE_MODE | MSG_OPT_NEWUI | MSG_OPT_UPD_INTERNAL | MSG_OPT_UPD_HWGT);
-    EnableRtcUpdate(pdTRUE);
-//    PrintString("- UpdHwgt done\r\n");
-    return;
-  }
-    
-  unsigned char i = 0;
-  
-  while (i < LAYOUT_NUM)
-  {
-    if (LayoutType & 1)
-    {
-      // for each layout: draw datetime, send buf ptr in msg to writebuf
-      unsigned char k;
-      for (k = 0; k < HOME_WIDGET_NUM; ++k)
-      {
-        if (HomeWidget[k].LayoutType == i)
-        { // assume only one style widget for each layout
-          DrawHomeWidget((Widget_t *)&HomeWidget[k]);
-          
-          tMessage Msg;
-          SetupMessage(&Msg, WriteBufferMsg, IDLE_MODE | MSG_OPT_NEWUI | MSG_OPT_HOME_WGT);
-          Msg.pBuffer = pDrawBuffer;
-          RouteMsg(&Msg);
-        }
-      }
-      break;
-    }
-    
-    LayoutType >>= 1;
-    i ++;
-  }
-}
-
-static void DrawHomeWidget(Widget_t *pData)
+void DrawClockWidget(unsigned char Id)
 {
   pDrawBuffer = (unsigned char *)GetDrawBuffer();
-  
-  unsigned int BufSize = Layout[pData->LayoutType].QuadNum * BYTES_PER_QUAD + SRAM_HEADER_LEN;
-  unsigned int i;
-  
-  // Clear the buffer
-  for (i = 0; i < BufSize; ++i) pDrawBuffer[i] = 0;
-  
-  // DrawBitmap needs the layout type when crossing half screen line
-  *pDrawBuffer = pData->LayoutType;
+  *pDrawBuffer = Id; // save the ClockId for later usage in WrtClkWgt()
 
-  for (i = 0; i < pData->ItemNum; ++i)
+  Id = FACE_ID(Id);
+  unsigned int BufSize = Layout[ClockWidget[Id].LayoutType].QuadNum * BYTES_PER_QUAD + SRAM_HEADER_LEN;
+  
+  unsigned int i;
+  for (i = 1; i < BufSize; ++i) pDrawBuffer[i] = 0; // Clear the buffer starting from [1]
+
+  for (i = 0; i < ClockWidget[Id].ItemNum; ++i)
   {
-    pData->pDrawList[i].Draw((DrawInfo_t *)&pData->pDrawList[i].Info);
+    ClockWidget[Id].pDrawList[i].Draw((DrawInfo_t *)&ClockWidget[Id].pDrawList[i].Info);
   }
+  
+  tMessage Msg;
+  SetupMessage(&Msg, WriteBufferMsg, IDLE_MODE | MSG_OPT_NEWUI | MSG_OPT_HOME_WGT);
+  Msg.pBuffer = pDrawBuffer;
+  RouteMsg(&Msg);
 }
 
 static void DrawBitmap(const unsigned char *pBitmap, unsigned char X, unsigned char Y,
@@ -266,9 +216,9 @@ static void DrawBitmap(const unsigned char *pBitmap, unsigned char X, unsigned c
     {
       Set = *(pBitmap + y * BmpWidthInBytes) & MaskBit;
 //      if (Set)
-      Delta = (*pDrawBuffer == LAYOUT_FULL_SCREEN) &&
-                (Y < HALF_SCREEN_ROWS  && (Y + y) >= HALF_SCREEN_ROWS) ?
-                BYTES_PER_QUAD : 0;
+      Delta = (ClockWidget[FACE_ID(*pDrawBuffer)].LayoutType == LAYOUT_FULL_SCREEN) &&
+              (Y < HALF_SCREEN_ROWS && (Y + y) >= HALF_SCREEN_ROWS) ?
+              BYTES_PER_QUAD : 0;
 //        *(pByte + y * BYTES_PER_QUAD_LINE + Delta) |= ColBit;
       
       BitOp(pByte + y * BYTES_PER_QUAD_LINE + Delta, ColBit, Set, Op);
@@ -417,7 +367,7 @@ static unsigned char Overlapping(unsigned char Option)
   unsigned char BT = BluetoothState();
   
   return ((Option & DRAW_OPT_OVERLAP_BATTERY) &&
-          (Charging() || BatteryLevel() <= BatteryCriticalLevel(CRITICAL_WARNING)) ||
+          (Charging() || Read(BATTERY) <= BatteryCriticalLevel(CRITICAL_WARNING)) ||
           (Option & DRAW_OPT_OVERLAP_BT) && BT != Connect ||
           (Option & DRAW_OPT_OVERLAP_SEC) && GetProperty(PROP_TIME_SECOND));
 }
@@ -445,7 +395,7 @@ static void DrawBluetoothState(DrawInfo_t *Info)
 
 static void DrawBatteryStatus(DrawInfo_t *Info)
 {
-  if (!Charging() && BatteryLevel() > BatteryCriticalLevel(CRITICAL_WARNING)) return;
+  if (!Charging() && Read(BATTERY) > BatteryCriticalLevel(CRITICAL_WARNING)) return;
 
   DrawBitmap(GetBatteryIcon(Info->Id), Info->X, Info->Y,
     IconInfo[Info->Id].Width * 8, IconInfo[Info->Id].Height, IconInfo[Info->Id].Width, Info->Op);

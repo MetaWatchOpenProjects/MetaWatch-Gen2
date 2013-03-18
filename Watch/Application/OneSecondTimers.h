@@ -35,7 +35,7 @@
 */
 #define TOTAL_ONE_SECOND_TIMERS (5)
 #define ONE_SECOND              (1)
-#define UNASSIGNED_ID           (-1)
+#define UNASSIGNED              (-1)
 
 /*! setting the repeat count to 0xFF causes a timer to repeat forever */
 #define NO_REPEAT      ( 0 )

@@ -28,6 +28,9 @@
 #ifndef ADC_H
 #define ADC_H
 
+#define BATTERY         (0)
+#define LIGHT_SENSOR    (1)
+
 #define CRITICAL_BT_OFF  (0)
 #define CRITICAL_WARNING (1)
 
@@ -39,17 +42,16 @@
 
 void InitAdc(void);
 
+/*! Returns the average of the last 8 sensor Sense ADC cycles
+ *\return sensor voltage in millivolts
+ */
+unsigned int Read(unsigned char Sensor);
+
 /*! Start an ADC cycle to read battery voltage.  This function must
  * be called from a task.  It will return when finished.  The result can be 
  * read using the command ReadBatterySense.
  */
 void BatterySenseCycle(void);
-
-/*! Returns the average of the last 10 Battery Sense ADC cycles
- *
- *\return Battery Voltage in millivolts
- */
-unsigned int BatteryLevel(void);
 
 /*! Set the values of the low battery warning message and the value at which
  * the bluetooth radio should be turned off
@@ -57,16 +59,13 @@ unsigned int BatteryLevel(void);
  * \param pData first character is LowBatteryWarningLevel in 10ths of a volt
  * and second byte is LowBatteryBtOffLevel in 10ths of a volt (37 = 3.7 volts)
  */
-void SetBatteryLevels(unsigned char * pData);
+void SetBatteryLevels(unsigned char *pData);
 
 unsigned int BatteryCriticalLevel(unsigned char Type);
 
 unsigned char BatteryPercentage(void);
 
 /*! Reads battery sense value and takes the appropriate action.
- *
- *\param PowerGood 1 if power is good (5V), 0 otherwise
- * 
  *\note This function is meant to be called from a task.  When the low battery
  * warning level is reached a message is sent to the host.  When the low battery
  * bluetooth off message is reached then watch will vibrate, a message will be
@@ -82,19 +81,6 @@ void CheckBatteryLow(void);
  */
 void LightSenseCycle(void);
 
-/*! Returns the last Light Sense value
- *
- *\return Light Sense in millivolts
- */
-unsigned int ReadLightSense(void);
-
 void ReadLightSensorHandler(void);
-
-/*! Returns the average of the last 10 Light Sensor analog to digital 
- * conversions
- *
- *\return Light Sense in millivolts
- */
-unsigned int ReadLightSenseAverage(void);
 
 #endif // ADC_H

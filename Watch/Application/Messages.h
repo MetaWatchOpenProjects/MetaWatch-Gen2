@@ -184,7 +184,7 @@ typedef enum
   SecInvertMsg = 0x41,
   ConfigureIdleBufferSize = 0x42,
   UpdateDisplayMsg = 0x43,
-  LoadTemplate = 0x44,
+  LoadTemplateMsg = 0x44,
 
   ExtAppMsg = 0x45,
   ExtAppIndMsg = 0x4a,
@@ -195,19 +195,20 @@ typedef enum
   ReadButtonConfigResponse = 0x49,
   EraseTemplateMsg = 0x4b,
   WriteToTemplateMsg = 0x4c,
-  SetHomeWidgetSettingsMsg = 0x4d,
-  UpdateHomeWidgetMsg = 0x4e,
-  WriteHomeWidgetDoneMsg = 0x4f,
+  SetClockWidgetSettingsMsg = 0x4d,
+  DrawClockWidgetMsg = 0x4e,
+  WriteClockWidgetDoneMsg = 0x4f,
   SetExtWidgetMsg = 0x50,
-  /* */
+  UpdateClockMsg = 0x51,
+
   MonitorBatteryMsg = 0x52,
   BatteryConfigMsg = 0x53,
   LowBatteryWarningMsgHost = 0x54,
   LowBatteryBtOffMsgHost = 0x55,
   ReadBatteryVoltageMsg = 0x56,
-  ReadBatteryVoltageResponse = 0x57,
+  VBatRespMsg = 0x57,
   ReadLightSensorMsg = 0x58,
-  ReadLightSensorResponse = 0x59,
+  LightSensorRespMsg = 0x59,
   LowBatteryWarningMsg = 0x5a,
   LowBatteryBtOffMsg = 0x5b,
 
@@ -280,9 +281,9 @@ typedef enum
 
 #define MAXIMUM_MESSAGE_TYPES ( 256 )
 
-#define MSG_OPT_NONE        ( 0 )
-#define NONZERO_MSG_OPTIONS ( 0xff )
-#define MSG_TYPE_INDEX ( 2 )
+#define MSG_OPT_NONE               (0)
+#define NONZERO_MSG_OPTIONS        (0xFF)
+#define MSG_TYPE_INDEX             (2)
 
 #define MSG_OPT_NEWUI              (0x80)
 #define MSG_OPT_HOME_WGT           (0x40)
@@ -421,28 +422,6 @@ typedef struct
   unsigned char pLineB[BYTES_PER_LINE];
 
 } tSerialRamPayload;
-
-/*! The LCD message is formatted so that it can be written directly to the LCD
- * \param Reserved bytes are required by LcdDriver.c
- * \param LcdCommand is the lcd write command for the LCD
- * \param RowNumber is the row on the LCD
- * \param pLine[BYTES_PER_LINE] is a line of LCD data
- * \param Dummy1
- * \param Dummy2
- *
- */
-typedef struct
-{
-  unsigned char Reserved0;
-  unsigned char Reserved1;
-  unsigned char LcdCommand;
-  unsigned char RowNumber;
-  unsigned char pLine[BYTES_PER_LINE];
-  unsigned char Dummy1;
-  unsigned char Dummy2;
-} tLcdData;
-
-#define LCD_DATA_SIZE   (sizeof(tLcdData))
 
 #define LCD_MESSAGE_CMD_INDEX        ( 2 )
 #define LCD_MESSAGE_ROW_NUMBER_INDEX ( 3 )

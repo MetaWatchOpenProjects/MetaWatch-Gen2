@@ -56,18 +56,9 @@
 #include "MuxMode.h"
 #include "Property.h"
 #include "ClockWidget.h"
+#include "LcdBuffer.h"
 
-#define IDLE_FULL_UPDATE   (0)
-#define DATE_TIME_ONLY     (1)
-
-#define SPLASH_START_ROW   (41)
-
-#define PAGE_TYPE_NUM      (3)
-
-/* the internal buffer */
-#define STARTING_ROW                  ( 0 )
-#define PHONE_DRAW_SCREEN_ROW_NUM     ( 66 )
-
+#define PAGE_TYPE_NUM                 (3)
 #define MUSIC_STATE_START_ROW         (43)
 #define BATTERY_MONITOR_INTERVAL      (10) //second
 
@@ -76,37 +67,15 @@ extern const char VERSION[];
 extern unsigned int niReset;
 extern char niBuild[];
 
-/*
- * days of week are 0-6 and months are 1-12
- */
-const char DaysOfTheWeek[][7][4] =
-{
-  {"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"},
-  {"su", "ma", "ti", "ke", "to", "pe", "la"},
-  {"So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"}
-};
-
-const char MonthsOfYear[][13][7] =
-{
-  {"???","Jan","Feb","Mar","Apr","May","June",
-  "July","Aug","Sep","Oct","Nov","Dec"},
-  {"???","tami", "helmi", "maalis", "huhti", "touko", "kesä",
-   "heinä", "elo", "syys", "loka", "marras", "joulu"},
-  {"???","Jan","Feb","Mar","Apr","Mai","Jun",
-   "Jul","Aug","Sep","Okt","Nov","Dez"}
-};
-
 static unsigned char LedOn;
 static tTimerId BatteryTimerId;
-static tTimerId LedTimerId = UNASSIGNED_ID;
-static tTimerId DisplayTimerId = UNASSIGNED_ID;
+static tTimerId LedTimerId = UNASSIGNED;
+static tTimerId ModeTimerId = UNASSIGNED;
 
 xTaskHandle DisplayHandle;
 
 static unsigned char RtcUpdateEnabled = pdFALSE;
 static unsigned char lastMin = 61;
-
-tLcdLine pMyBuffer[LCD_ROW_NUM];
 
 unsigned char CurrentMode = IDLE_MODE;
 unsigned char PageType = PAGE_TYPE_IDLE;
@@ -114,13 +83,9 @@ unsigned char PageType = PAGE_TYPE_IDLE;
 static eIdleModePage CurrentPage[PAGE_TYPE_NUM];
 
 static const unsigned int ModeTimeout[] = {65535, 600, 30, 600}; // seconds
+static const tSetVibrateModePayload RingTone = {1, 0x00, 0x01, 0x00, 0x01, 2};
 
 static unsigned char Splashing = pdTRUE;
-static unsigned char gBitColumnMask;
-static unsigned char gColumn;
-static unsigned char gRow;
-
-static const tSetVibrateModePayload RingTone = {1, 0x00, 0x01, 0x00, 0x01, 2};
 
 /******************************************************************************/
 static void DisplayTask(void *pvParameters);
@@ -128,62 +93,24 @@ static void DisplayQueueMessageHandler(tMessage* pMsg);
 
 /* Message handlers */
 static void IdleUpdateHandler();
+static void DetermineIdlePage(void);
 static void ChangeModeHandler(unsigned char Option);
 static void ModeTimeoutHandler();
-static void WatchStatusScreenHandler(void);
-static void ListPairedDevicesHandler(void);
 static void ModifyTimeHandler(tMessage* pMsg);
 static void MenuModeHandler(unsigned char Option);
 static void MenuButtonHandler(unsigned char MsgOptions);
 static void ServiceMenuHandler(void);
 static void ToggleSerialGndSbw(void);
 static void BluetoothStateChangeHandler(tMessage *pMsg);
+static void UpdateClock(void);
 
-/******************************************************************************/
-static void DrawConnectionScreen(void);
-static void InitMyBuffer(void);
-static void DisplayStartupScreen(void);
-static void DetermineIdlePage(void);
-
-static void DrawMenu1(void);
-static void DrawMenu2(void);
-static void DrawMenu3(void);
-static void DrawCommonMenuIcons(void);
-
-static void FillMyBuffer(unsigned char StartingRow,
-                         unsigned char NumberOfRows,
-                         unsigned char FillValue);
-
-static void SendMyBufferToLcd(unsigned char StartingRow,
-                              unsigned char NumberOfRows);
-
-static void CopyRowsIntoMyBuffer(unsigned char const* pImage,
-                                 unsigned char StartingRow,
-                                 unsigned char NumberOfRows);
-
-static void CopyColumnsIntoMyBuffer(unsigned char const* pImage,
-                                    unsigned char StartingRow,
-                                    unsigned char NumberOfRows,
-                                    unsigned char StartingColumn,
-                                    unsigned char NumberOfColumns);
-
-static void DrawSecs(void);
-static void DrawMins(void);
-static void DrawHours(void);
-static void WriteFontCharacter(unsigned char Character);
-static void WriteFontString(tString* pString);
-static void DrawLocalAddress(unsigned char Col, unsigned Row);
 static void HandleMusicPlayStateChange(unsigned char State);
-
-static void ShowNotification(tString *pString, unsigned char Type);
-
+static void ShowCall(tString *pString, unsigned char Type);
 static void LedChangeHandler(tMessage* pMsg);
 static void ReadBatteryVoltageHandler(void);
 static void NvalOperationHandler(tMessage* pMsg);
 static void SoftwareResetHandler(tMessage* pMsg);
 static void MonitorBattery(void);
-static void HandleVersionInfo(void);
-static void DrawBatteryOnIdleScreen(unsigned char Row, unsigned char Col, etFontType Font);
 static void HandleSecInvert(unsigned char Val);
 
 #if __IAR_SYSTEMS_ICC__
@@ -287,11 +214,8 @@ void Init(void)
   InitRealTimeClock(); // enable rtc interrupt
 
   LcdPeripheralInit();
-  InitMyBuffer();
-  DisplayStartupScreen();
+  DrawStartupScreen();
   SerialRamInit();
-
-  DisplayTimerId = AllocateOneSecondTimer();
 
   /* turn the radio on; initialize the serial port profile or BLE/GATT */
   CreateAndSendMessage(TurnRadioOnMsg, MSG_OPT_NONE);
@@ -299,25 +223,12 @@ void Init(void)
   DISABLE_LCD_LED();
 }
 
-/*! Display the startup image or Splash Screen */
-static void DisplayStartupScreen(void)
-{
-  Splashing = pdTRUE;
-  /* draw metawatch logo */
-  FillMyBuffer(STARTING_ROW, LCD_ROW_NUM, 0x00);
-  
-  CopyColumnsIntoMyBuffer(pIconSplashLogo, 21, 13, 3, 6);
-  CopyRowsIntoMyBuffer(pIconSplashMetaWatch, SPLASH_START_ROW, 12);
-  CopyColumnsIntoMyBuffer(pIconSplashHandsFree, 58, 5, 2, 8);
-  
-  SendMyBufferToLcd(STARTING_ROW, LCD_ROW_NUM);
-}
-
 /*! Handle the messages routed to the display queue */
 static void DisplayQueueMessageHandler(tMessage* pMsg)
 {
   tMessage Msg;
-  
+  unsigned char i = 0;
+
   switch (pMsg->Type)
   {
   case WriteBufferMsg:
@@ -332,8 +243,12 @@ static void DisplayQueueMessageHandler(tMessage* pMsg)
     UpdateDisplayHandler(pMsg);
     break;
     
-  case UpdateHomeWidgetMsg:
-    UpdateHomeWidget(pMsg->Options);
+  case UpdateClockMsg:
+    UpdateClock();
+    break;
+    
+  case DrawClockWidgetMsg:
+    DrawClockWidget(pMsg->Options);
     break;
 
   case MonitorBatteryMsg:
@@ -355,16 +270,16 @@ static void DisplayQueueMessageHandler(tMessage* pMsg)
   case CallerIdMsg:
 //    PrintStringAndDecimal("LcdDisp:CallerId Len:", pMsg->Length);
     pMsg->pBuffer[pMsg->Length] = NULL;
-    ShowNotification((char *)pMsg->pBuffer, pMsg->Options);
+    ShowCall((char *)pMsg->pBuffer, pMsg->Options);
     break;
     
   case CallerNameMsg:
     if (pMsg->Length)
     {
       pMsg->pBuffer[pMsg->Length] = NULL;
-      ShowNotification((char *)pMsg->pBuffer, SHOW_NOTIF_CALLER_NAME);
+      ShowCall((char *)pMsg->pBuffer, SHOW_NOTIF_CALLER_NAME);
     }
-    else ShowNotification("", pMsg->Options);
+    else ShowCall("", pMsg->Options);
     break;
 
   case MusicPlayStateMsg:
@@ -397,10 +312,15 @@ static void DisplayQueueMessageHandler(tMessage* pMsg)
 
   case DevTypeMsg:
     SetupMessageAndAllocateBuffer(&Msg, DevTypeRespMsg, MSG_OPT_NONE);
-    Msg.pBuffer[0] = BOARD_TYPE;
+    Msg.Options = BOARD_TYPE; //default G2
+    Msg.pBuffer[0] = BOARD_TYPE; // backward compatible
 
 #ifdef WATCH
-    if (GetMsp430HardwareRevision() < 'F') Msg.pBuffer[0] = DIGITAL_WATCH_TYPE;
+    if (GetMsp430HardwareRevision() < 'F')
+    {
+      Msg.Options = DIGITAL_WATCH_TYPE_G1;
+      Msg.pBuffer[0] = DIGITAL_WATCH_TYPE_G1; // backward compatible
+    }
 #endif
 
     Msg.Length = 1;
@@ -409,7 +329,22 @@ static void DisplayQueueMessageHandler(tMessage* pMsg)
     break;
 
   case VerInfoMsg:
-    HandleVersionInfo();
+    SetupMessageAndAllocateBuffer(&Msg, VerInfoRespMsg, MSG_OPT_NONE);
+
+    /* exclude middle '.' */
+    strncpy((char *)Msg.pBuffer, BUILD, 3);
+    strncpy((char *)Msg.pBuffer + 3, BUILD + 4, 3);
+    Msg.Length += strlen(BUILD) - 1;
+      
+    *(Msg.pBuffer + Msg.Length++) = (unsigned char)atoi(VERSION);
+    
+    while (VERSION[i++] != '.');
+    *(Msg.pBuffer + Msg.Length++) = atoi(VERSION + i);
+    *(Msg.pBuffer + Msg.Length++) = NULL;
+    
+    RouteMsg(&Msg);
+    
+    PrintString("-Ver:"); for (i = 6; i < Msg.Length; ++i) PrintHex(Msg.pBuffer[i]);
     break;
     
   case SetVibrateMode:
@@ -420,7 +355,7 @@ static void DisplayQueueMessageHandler(tMessage* pMsg)
     halRtcSet((tRtcHostMsgPayload*)pMsg->pBuffer);
 
 #ifdef DIGITAL
-    SendMessage(&Msg, UpdateHomeWidgetMsg, MSG_OPT_NONE);
+    UpdateClock();
 #endif
     break;
 
@@ -467,7 +402,7 @@ static void DisplayQueueMessageHandler(tMessage* pMsg)
     HandleSecInvert(pMsg->Options);
     break;
 
-  case LoadTemplate:
+  case LoadTemplateMsg:
     LoadTemplateHandler(pMsg);
     break;
 
@@ -494,12 +429,14 @@ static void DisplayQueueMessageHandler(tMessage* pMsg)
     break;
 
   case WatchStatusMsg:
-    WatchStatusScreenHandler();
+    PageType = PAGE_TYPE_INFO;
+    CurrentPage[PageType] = StatusPage;
+    DrawWatchStatusScreen();
     break;
 
-  case ListPairedDevicesMsg:
-    ListPairedDevicesHandler();
-    break;
+//  case ListPairedDevicesMsg:
+//    ListPairedDevicesHandler();
+//    break;
 
   case WatchDrawnScreenTimeout:
     IdleUpdateHandler();
@@ -513,7 +450,7 @@ static void DisplayQueueMessageHandler(tMessage* pMsg)
     break;
     
   case LowBatteryBtOffMsg:
-    UpdateHomeWidget(MSG_OPT_NONE);
+    UpdateClock();
     break;
 
 #if __IAR_SYSTEMS_ICC__
@@ -535,11 +472,9 @@ static void DisplayQueueMessageHandler(tMessage* pMsg)
     HandleAccelerometer(pMsg);
     break;
 
-#if ENABLE_LIGHT_SENSOR
   case ReadLightSensorMsg:
     ReadLightSensorHandler();
     break;
-#endif
 
   case RateTestMsg:
     SetupMessageAndAllocateBuffer(&Msg, DiagnosticLoopback, MSG_OPT_NONE);
@@ -564,7 +499,7 @@ static void IdleUpdateHandler(void)
 {
   PageType = PAGE_TYPE_IDLE;
 
-  if (CurrentPage[PageType] == InitPage || !GetProperty(PROP_PHONE_DRAW_TOP)) DrawDateTime();
+  UpdateClock();
   
   if (OnceConnected())
     CreateAndSendMessage(UpdateDisplayMsg, IDLE_MODE | MSG_OPT_NEWUI | MSG_OPT_UPD_INTERNAL);
@@ -590,19 +525,15 @@ static void ChangeModeHandler(unsigned char Option)
   if (Mode != IDLE_MODE)
   {
     PageType = PAGE_TYPE_IDLE;
-    SetupOneSecondTimer(DisplayTimerId,
-                        ModeTimeout[Mode],
-                        NO_REPEAT,
-                        DISPLAY_QINDEX,
-                        ModeTimeoutMsg,
-                        Mode);
-    StartOneSecondTimer(DisplayTimerId);
+    if (ModeTimerId == UNASSIGNED) ModeTimerId = AllocateOneSecondTimer();
+    SetupOneSecondTimer(ModeTimerId, ModeTimeout[Mode], NO_REPEAT, DISPLAY_QINDEX, ModeTimeoutMsg, Mode);
+    StartOneSecondTimer(ModeTimerId);
     
     if (Option & MSG_OPT_UPD_INTERNAL) SendMessage(&Msg, UpdateDisplayMsg, Option);
   }
   else
   {
-    StopOneSecondTimer(DisplayTimerId);
+    StopOneSecondTimer(ModeTimerId);
     IdleUpdateHandler();
   }
   
@@ -625,7 +556,7 @@ static void ModeTimeoutHandler()
 
 void ResetModeTimer(void)
 {
-  StartOneSecondTimer(DisplayTimerId);
+  StartOneSecondTimer(ModeTimerId);
 }
 
 static void BluetoothStateChangeHandler(tMessage *pMsg)
@@ -658,18 +589,11 @@ static void BluetoothStateChangeHandler(tMessage *pMsg)
       if (PageType == PAGE_TYPE_IDLE)
       {
         if (!OnceConnected()) DrawConnectionScreen();
+        else UpdateClock();
       }
-      else if (PageType == PAGE_TYPE_MENU)
-      {
-        MenuModeHandler(0);
-      }
-      else if (CurrentPage[PAGE_TYPE_INFO] == StatusPage)
-      {
-        WatchStatusScreenHandler();
-      }
+      else if (PageType == PAGE_TYPE_MENU) MenuModeHandler(0);
+      else if (CurrentPage[PAGE_TYPE_INFO] == StatusPage) DrawWatchStatusScreen();
     }
-
-    UpdateHomeWidget(MSG_OPT_NONE);
   }
 }
 
@@ -683,36 +607,10 @@ static void DetermineIdlePage(void)
 
 static void MenuModeHandler(unsigned char Option)
 {
-  /* draw entire region */
-  FillMyBuffer(STARTING_ROW, LCD_ROW_NUM, 0x00);
   PageType = PAGE_TYPE_MENU;
 
-  if (Option) CurrentPage[PageType] = (eIdleModePage)Option;
-  
-  switch (CurrentPage[PageType])
-  {
-  case Menu1Page:
-    DrawMenu1();
-    break;
-    
-  case Menu2Page:
-    DrawMenu2();
-    break;
-    
-  case Menu3Page:
-    DrawMenu3();
-    break;
-    
-  default:
-    PrintStringAndDecimal("# No Such Menu Page:", Option);
-    break;
-  }
-
-  /* these icons are common to all menus */
-  DrawCommonMenuIcons();
-
-  /* only invert the part that was just drawn */
-  SendMyBufferToLcd(STARTING_ROW, LCD_ROW_NUM);
+  if (Option) CurrentPage[PageType] = (eIdleModePage)Option;  
+  DrawMenu(CurrentPage[PageType]);
 }
 
 static void MenuButtonHandler(unsigned char MsgOptions)
@@ -791,296 +689,6 @@ static void ServiceMenuHandler(void)
   MenuModeHandler(Menu2Page);
 }
 
-static void DrawConnectionScreen()
-{
-  unsigned char const* pSwash;
-
-  if (!RadioOn()) pSwash = pBootPageBluetoothOffSwash;
-  else if (ValidAuthInfo()) pSwash = pBootPagePairedSwash;
-  else pSwash = pBootPageNoPairSwash;
-  
-  FillMyBuffer(WATCH_DRAW_SCREEN_ROW_NUM, PHONE_DRAW_SCREEN_ROW_NUM, 0x00);
-  CopyRowsIntoMyBuffer(pSwash, WATCH_DRAW_SCREEN_ROW_NUM + 1, 32);
-
-  /* add the firmware version */
-  gColumn = 4;
-  gRow = 68;
-  gBitColumnMask = BIT5;
-  SetFont(MetaWatch5);
-  WriteFontString("V ");
-  WriteFontString((char *)VERSION);
-
-  DrawLocalAddress(1, 80);
-  
-  SendMyBufferToLcd(WATCH_DRAW_SCREEN_ROW_NUM, PHONE_DRAW_SCREEN_ROW_NUM);
-}
-
-static void DrawLocalAddress(unsigned char Col, unsigned Row)
-{
-  char pAddr[6 * 2 + 3]; // BT_ADDR is 6 bytes long
-  GetBDAddrStr(pAddr);
-
-  gRow = Row;
-  gColumn = Col;
-  gBitColumnMask = BIT2;
-  SetFont(MetaWatch7);
-  
-  unsigned char i;
-  for (i = 2; i < 14; ++i)
-  {
-    WriteFontCharacter(pAddr[i]);
-    if (i % 4 == 1 && i != 13) WriteFontCharacter('-');
-  }
-}
-
-static void DrawMenu1(void)
-{
-  unsigned char const * pIcon;
-
-  if (BluetoothState() == Initializing)
-  {
-    pIcon = pBluetoothInitIcon;
-  }
-  else
-  {
-    pIcon = RadioOn() ? pBluetoothOnIcon : pBluetoothOffIcon;
-  }
-
-  CopyColumnsIntoMyBuffer(pIcon,
-                          BUTTON_ICON_A_F_ROW,
-                          BUTTON_ICON_SIZE_IN_ROWS,
-                          RIGHT_BUTTON_COLUMN,
-                          BUTTON_ICON_SIZE_IN_COLUMNS);
-
-  CopyColumnsIntoMyBuffer(pInvertDisplayIcon,
-                          BUTTON_ICON_B_E_ROW,
-                          BUTTON_ICON_SIZE_IN_ROWS,
-                          LEFT_BUTTON_COLUMN,
-                          BUTTON_ICON_SIZE_IN_COLUMNS);
-
-  CopyColumnsIntoMyBuffer(GetProperty(PROP_TIME_SECOND) ? pSecondsOnMenuIcon : pSecondsOffMenuIcon,
-                          BUTTON_ICON_B_E_ROW,
-                          BUTTON_ICON_SIZE_IN_ROWS,
-                          RIGHT_BUTTON_COLUMN,
-                          BUTTON_ICON_SIZE_IN_COLUMNS);
-
-  CopyColumnsIntoMyBuffer(!GetProperty(PROP_DISABLE_LINK_ALARM) ? pLinkAlarmOnIcon : pLinkAlarmOffIcon,
-                          BUTTON_ICON_C_D_ROW,
-                          BUTTON_ICON_SIZE_IN_ROWS,
-                          LEFT_BUTTON_COLUMN,
-                          BUTTON_ICON_SIZE_IN_COLUMNS);
-}
-
-static void DrawMenu2(void)
-{
-  CopyColumnsIntoMyBuffer(GetProperty(PROP_RSTNMI) ? pNmiPinIcon : pRstPinIcon,
-                          BUTTON_ICON_A_F_ROW,
-                          BUTTON_ICON_SIZE_IN_ROWS,
-                          RIGHT_BUTTON_COLUMN,
-                          BUTTON_ICON_SIZE_IN_COLUMNS);
-
-  unsigned char const * pIcon;
-  unsigned char MuxMode = GetMuxMode();
-
-  if (MuxMode == MUX_MODE_SERIAL) pIcon = pSerialIcon;
-  else if (MuxMode == MUX_MODE_GND) pIcon = pGroundIcon;
-  else pIcon = pSbwIcon;
-  
-  CopyColumnsIntoMyBuffer(pIcon,
-                          BUTTON_ICON_B_E_ROW,
-                          BUTTON_ICON_SIZE_IN_ROWS,
-                          LEFT_BUTTON_COLUMN,
-                          BUTTON_ICON_SIZE_IN_COLUMNS);
-
-  CopyColumnsIntoMyBuffer(pNextIcon,
-                          BUTTON_ICON_B_E_ROW,
-                          BUTTON_ICON_SIZE_IN_ROWS,
-                          RIGHT_BUTTON_COLUMN,
-                          BUTTON_ICON_SIZE_IN_COLUMNS);
-
-  CopyColumnsIntoMyBuffer(pResetButtonIcon,
-                          BUTTON_ICON_C_D_ROW,
-                          BUTTON_ICON_SIZE_IN_ROWS,
-                          LEFT_BUTTON_COLUMN,
-                          BUTTON_ICON_SIZE_IN_COLUMNS);
-}
-
-static void DrawMenu3(void)
-{
-  CopyColumnsIntoMyBuffer(pBootloaderIcon,
-                          BUTTON_ICON_A_F_ROW,
-                          BUTTON_ICON_SIZE_IN_ROWS,
-                          RIGHT_BUTTON_COLUMN,
-                          BUTTON_ICON_SIZE_IN_COLUMNS);
-
-  CopyColumnsIntoMyBuffer(ChargeEnabled() ? pIconChargingEnabled : pIconChargingDisabled,
-                          BUTTON_ICON_B_E_ROW,
-                          BUTTON_ICON_SIZE_IN_ROWS,
-                          LEFT_BUTTON_COLUMN,
-                          BUTTON_ICON_SIZE_IN_COLUMNS);
-
-  CopyColumnsIntoMyBuffer(pNextIcon,
-                          BUTTON_ICON_B_E_ROW,
-                          BUTTON_ICON_SIZE_IN_ROWS,
-                          RIGHT_BUTTON_COLUMN,
-                          BUTTON_ICON_SIZE_IN_COLUMNS);
-}
-
-static void DrawCommonMenuIcons(void)
-{
-  CopyColumnsIntoMyBuffer(pLedIcon,
-                          BUTTON_ICON_A_F_ROW,
-                          BUTTON_ICON_SIZE_IN_ROWS,
-                          LEFT_BUTTON_COLUMN,
-                          BUTTON_ICON_SIZE_IN_COLUMNS);
-
-  CopyColumnsIntoMyBuffer(pExitIcon,
-                          BUTTON_ICON_C_D_ROW,
-                          BUTTON_ICON_SIZE_IN_ROWS,
-                          RIGHT_BUTTON_COLUMN,
-                          BUTTON_ICON_SIZE_IN_COLUMNS);
-}
-
-static void WatchStatusScreenHandler(void)
-{
-  FillMyBuffer(STARTING_ROW, LCD_ROW_NUM, 0x00);
-  
-  CopyColumnsIntoMyBuffer(RadioOn() ? pRadioOnIcon : pRadioOffIcon,
-                          3,
-                          STATUS_ICON_SIZE_IN_ROWS,
-                          LEFT_STATUS_ICON_COLUMN,
-                          STATUS_ICON_SIZE_IN_COLUMNS);
-  // Connection status
-  CopyColumnsIntoMyBuffer(Connected(CONN_TYPE_MAIN) ? pConnectedIcon : pDisconnectedIcon,
-                          3,
-                          STATUS_ICON_SIZE_IN_ROWS,
-                          CENTER_STATUS_ICON_COLUMN,
-                          STATUS_ICON_SIZE_IN_COLUMNS);
-
-  gRow = 31;
-  gColumn = 5;
-  gBitColumnMask = BIT4;
-  SetFont(MetaWatch5);
-
-  if (PairedDeviceType() == DEVICE_TYPE_BLE) WriteFontString("BLE");
-  else if (PairedDeviceType() == DEVICE_TYPE_SPP) WriteFontString("BR");
-
-  DrawBatteryOnIdleScreen(6, 9, MetaWatch7);
-
-  // Add Wavy line
-  gRow += 12;
-  CopyRowsIntoMyBuffer(pWavyLine,gRow,NUMBER_OF_ROWS_IN_WAVY_LINE);
-
-  CopyColumnsIntoMyBuffer(pIconWatch, 54, 21, 0, 2); //54, 21, 2, 2);
-
-  /* add the firmware version */
-  gColumn = 2;
-  gRow = 56;
-  gBitColumnMask = BIT2;
-  WriteFontString("SW: ");
-  WriteFontString((char *)VERSION);
-  WriteFontString(" (");
-  WriteFontString((char *)BUILD);
-  WriteFontCharacter(')');
-  
-  gColumn = 2;
-  gRow = 65;
-  gBitColumnMask = BIT2;
-//  WriteFontString("HW: REV ");
-//  WriteFontCharacter(GetMsp430HardwareRevision());
-  WriteFontString("HW: ");
-  unsigned int HwVer = HardwareVersion();
-  WriteFontCharacter(HwVer / 1000 + '0');
-  WriteFontCharacter((HwVer % 1000) / 100 + '0');
-  WriteFontCharacter((HwVer % 100) / 10 + '0');
-  WriteFontCharacter(HwVer % 10 + '0');
-
-  DrawLocalAddress(1, 80);
-  
-  /* display entire buffer */
-  SendMyBufferToLcd(STARTING_ROW, LCD_ROW_NUM);
-  
-  PageType = PAGE_TYPE_INFO;
-  CurrentPage[PageType] = StatusPage;
-}
-
-static void DrawBatteryOnIdleScreen(unsigned char Row, unsigned char Col, etFontType Font)
-{
-  // Battery
-  CopyColumnsIntoMyBuffer(GetBatteryIcon(ICON_SET_BATTERY_V), Row,
-    IconInfo[ICON_SET_BATTERY_V].Height, Col, IconInfo[ICON_SET_BATTERY_V].Width);
-
-  SetFont(Font);
-  gRow = Row + (Font == MetaWatch7 ? 23 : 21); //29
-  gColumn = Col - 1; //8
-  gBitColumnMask = (Font == MetaWatch7) ? BIT4 : BIT7;
-
-  unsigned char BattVal = BatteryPercentage();
-  
-  if (BattVal < 100)
-  {
-    WriteFontCharacter(BattVal > 9 ? BattVal / 10 +'0' : ' ');
-    WriteFontCharacter(BattVal % 10 +'0');
-  }
-  else WriteFontString("100");
-
-  WriteFontCharacter('%');
-}
-
-const unsigned char *GetBatteryIcon(unsigned char Id)
-{
-  unsigned int Level = BatteryLevel();
-  unsigned char Index = 0;
-  
-  if (Level < BATTERY_FULL_LEVEL)
-  {
-    if (Level <= BatteryCriticalLevel(CRITICAL_WARNING) && !Charging()) Index = 1; // warning icon index
-    else
-    {
-      unsigned int Empty = BatteryCriticalLevel(CRITICAL_BT_OFF);
-      unsigned int Step = (BATTERY_FULL_LEVEL - Empty) / BATTERY_LEVEL_NUMBER;
-      
-      while (Level > (Empty + Step * Index)) Index ++;
-    }
-  }
-  else Index = BATTERY_LEVEL_NUMBER;
-  
-  const unsigned char *pIcon = IconInfo[Id].pIconSet + (Index * IconInfo[Id].Width * IconInfo[Id].Height);
-  if (!Charging()) pIcon += BATTERY_ICON_NUM * IconInfo[Id].Width * IconInfo[Id].Height;
-
-//  PrintStringAndThreeDecimals("- Batt L:", Level, " I:", Index, "P:", ExtPower());
-  return pIcon;
-}
-
-
-static void ListPairedDevicesHandler(void)
-{
-//  /* clearn screen */
-//  FillMyBuffer(STARTING_ROW, LCD_ROW_NUM, 0x00);
-//
-//  tString AddrStr[12+2+1];
-//
-//  gRow = 4;
-//  gColumn = 0;
-//  SetFont(MetaWatch7);
-//
-//  gColumn = 0;
-//  gBitColumnMask = BIT4;
-//  WriteFontString(GetConnectedDeviceName());
-//
-//  gRow += 12;
-//  gColumn = 0;
-//  gBitColumnMask = BIT4;
-//  GetConnectedDeviceAddress(AddrStr);
-//  WriteFontString(AddrStr);
-//  gRow += 12+5;
-//
-//  SendMyBufferToLcd(STARTING_ROW, LCD_ROW_NUM);
-//
-//  PageType = PAGE_TYPE_INFO;
-//  CurrentPage[PageType] = ListPairedDevicesPage;
-}
-
 static void ModifyTimeHandler(tMessage* pMsg)
 {
   switch (pMsg->Options)
@@ -1099,405 +707,7 @@ static void ModifyTimeHandler(tMessage* pMsg)
   }
   
   ResetWatchdog();
-  UpdateHomeWidget(MSG_OPT_NONE);
-}
-
-static void InitMyBuffer(void)
-{
-  unsigned char row;
-  unsigned char col;
-
-  // Clear the display buffer.  Step through the rows
-  for(row = STARTING_ROW; row < LCD_ROW_NUM; row++)
-  {
-    // clear a horizontal line
-    for(col = 0; col < BYTES_PER_LINE; col++)
-    {
-      pMyBuffer[row].Row = row + FIRST_LCD_LINE_OFFSET;
-      pMyBuffer[row].Data[col] = 0x00;
-      pMyBuffer[row].Dummy = 0x00;
-    }
-  }
-}
-
-static void FillMyBuffer(unsigned char StartingRow,
-                         unsigned char NumberOfRows,
-                         unsigned char FillValue)
-{
-  unsigned char row = StartingRow;
-  unsigned char col;
-
-  // Clear the display buffer.  Step through the rows
-  for( ; row < LCD_ROW_NUM && row < StartingRow+NumberOfRows; row++ )
-  {
-    pMyBuffer[row].Row = row + FIRST_LCD_LINE_OFFSET;
-    // clear a horizontal line
-    for(col = 0; col < BYTES_PER_LINE; col++)
-    {
-      pMyBuffer[row].Data[col] = FillValue;
-    }
-  }
-}
-
-static void SendMyBufferToLcd(unsigned char StartingRow, unsigned char NumberOfRows)
-{
-  unsigned char row = StartingRow;
-  unsigned char col;
-
-  /*
-   * flip the bits before sending to LCD task because it will
-   * dma this portion of the screen
-  */
-  if (!GetProperty(PROP_INVERT_DISPLAY))
-  {
-    for(; row < LCD_ROW_NUM && row < StartingRow+NumberOfRows; row++)
-    {
-      for (col = 0; col < BYTES_PER_LINE; col++)
-      {
-        pMyBuffer[row].Data[col] = ~(pMyBuffer[row].Data[col]);
-      }
-    }
-  }
-
-  UpdateMyDisplay((unsigned char*)&pMyBuffer[StartingRow], NumberOfRows);
-}
-
-static void CopyRowsIntoMyBuffer(unsigned char const* pImage,
-                                 unsigned char StartingRow,
-                                 unsigned char NumberOfRows)
-{
-
-  unsigned char DestRow = StartingRow;
-  unsigned char SourceRow = 0;
-  unsigned char col = 0;
-
-  while ( DestRow < LCD_ROW_NUM && SourceRow < NumberOfRows )
-  {
-    pMyBuffer[DestRow].Row = DestRow + FIRST_LCD_LINE_OFFSET;
-    for(col = 0; col < BYTES_PER_LINE; col++)
-    {
-      pMyBuffer[DestRow].Data[col] = pImage[SourceRow*BYTES_PER_LINE+col];
-    }
-    DestRow ++;
-    SourceRow ++;
-  }
-}
-
-static void CopyColumnsIntoMyBuffer(unsigned char const* pImage,
-                                    unsigned char StartingRow,
-                                    unsigned char NumberOfRows,
-                                    unsigned char StartingColumn,
-                                    unsigned char NumberOfColumns)
-{
-  unsigned char DestRow = StartingRow;
-  unsigned char RowCounter = 0;
-  unsigned char DestColumn = StartingColumn;
-  unsigned char ColumnCounter = 0;
-  unsigned int SourceIndex = 0;
-
-  /* copy rows into display buffer */
-  while ( DestRow < LCD_ROW_NUM && RowCounter < NumberOfRows )
-  {
-    DestColumn = StartingColumn;
-    ColumnCounter = 0;
-    pMyBuffer[DestRow].Row = DestRow + FIRST_LCD_LINE_OFFSET;
-    
-    while ( DestColumn < BYTES_PER_LINE && ColumnCounter < NumberOfColumns )
-    {
-      pMyBuffer[DestRow].Data[DestColumn] = pImage[SourceIndex];
-
-      DestColumn ++;
-      ColumnCounter ++;
-      SourceIndex ++;
-    }
-
-    DestRow ++;
-    RowCounter ++;
-  }
-}
-
-void DrawDateTime()
-{
-  // clean date&time area
-  FillMyBuffer(STARTING_ROW, WATCH_DRAW_SCREEN_ROW_NUM, 0x00);
-
-  DrawHours();
-  DrawMins();
-  
-  if (GetProperty(PROP_TIME_SECOND))
-  {
-    WriteFontCharacter(TIME_CHARACTER_COLON_INDEX);
-    DrawSecs();
-  }
-  else if (Charging()) DrawBatteryOnIdleScreen(3, 9, MetaWatch5);
-  else
-  {
-    if (!GetProperty(PROP_24H_TIME_FORMAT))
-    {
-      gRow = DEFAULT_AM_PM_ROW;
-      gColumn = DEFAULT_AM_PM_COL;
-      gBitColumnMask = DEFAULT_AM_PM_COL_BIT;
-      SetFont(DEFAULT_AM_PM_FONT);
-      WriteFontString((RTCHOUR >= 12) ? "PM" : "AM");
-    }
-
-    gRow = GetProperty(PROP_24H_TIME_FORMAT) ? DEFAULT_DOW_24HR_ROW : DEFAULT_DOW_12HR_ROW;
-    gColumn = DEFAULT_DOW_COL;
-    gBitColumnMask = DEFAULT_DOW_COL_BIT;
-    SetFont(DEFAULT_DOW_FONT);
-    WriteFontString((tString *)DaysOfTheWeek[LANG_EN][RTCDOW]);
-
-    //add year when time is in 24 hour mode
-    if (GetProperty(PROP_24H_TIME_FORMAT))
-    {
-      gRow = DEFAULT_DATE_YEAR_ROW;
-      gColumn = DEFAULT_DATE_YEAR_COL;
-      gBitColumnMask = DEFAULT_DATE_YEAR_COL_BIT;
-      SetFont(DEFAULT_DATE_YEAR_FONT);
-
-      int year = RTCYEAR;
-      WriteFontCharacter(year/1000+'0');
-      year %= 1000;
-      WriteFontCharacter(year/100+'0');
-      year %= 100;
-      WriteFontCharacter(year/10+'0');
-      year %= 10;
-      WriteFontCharacter(year+'0');
-    }
-
-    //Display month and day
-    //Watch controls time - use default date position
-    unsigned char MMDD = (!GetProperty(PROP_DDMM_DATE_FORMAT));
-
-    gRow = DEFAULT_DATE_FIRST_ROW;
-    gColumn = DEFAULT_DATE_FIRST_COL;
-    gBitColumnMask = DEFAULT_DATE_FIRST_COL_BIT;
-    SetFont(DEFAULT_DATE_MONTH_FONT);
-    
-    WriteFontCharacter((MMDD ? RTCMON : RTCDAY) / 10+'0');
-    WriteFontCharacter((MMDD ? RTCMON : RTCDAY) % 10+'0');
-    
-    //Display separator
-    SetFont(DEFAULT_DATE_SEPARATOR_FONT);
-    WriteFontCharacter(MMDD ? '/' : '.');
-    
-    //Display day second
-    gRow = DEFAULT_DATE_SECOND_ROW;
-    gColumn = DEFAULT_DATE_SECOND_COL;
-    gBitColumnMask = DEFAULT_DATE_SECOND_COL_BIT;
-    SetFont(DEFAULT_DATE_DAY_FONT);
-    
-    WriteFontCharacter((MMDD ? RTCDAY : RTCMON) / 10+'0');
-    WriteFontCharacter((MMDD ? RTCDAY : RTCMON) % 10+'0');
-  }
-  
-  SendMyBufferToLcd(STARTING_ROW, WATCH_DRAW_SCREEN_ROW_NUM);
-}
-
-static void DrawHours(void)
-{  
-  unsigned char msd;
-  unsigned char lsd;
-  
-  /* display hour */
-  int Hour = RTCHOUR;
-
-  /* if required convert to twelve hour format */
-  if (!GetProperty(PROP_24H_TIME_FORMAT))
-  {
-    Hour %= 12;
-    if (Hour == 0) Hour = 12;
-  }
-  
-  msd = Hour / 10;
-  lsd = Hour % 10;
-  
-  //Watch controls time - use default position
-  gRow = DEFAULT_HOURS_ROW;
-  gColumn = DEFAULT_HOURS_COL;
-  gBitColumnMask = DEFAULT_HOURS_COL_BIT;
-  SetFont(DEFAULT_HOURS_FONT);
-  
-  /* if first digit is zero then leave location blank */
-  if (msd == 0 && !GetProperty(PROP_24H_TIME_FORMAT))
-  {
-    WriteFontCharacter(TIME_CHARACTER_SPACE_INDEX);
-  }
-  else
-  {
-    WriteFontCharacter(msd);
-  }
-
-  WriteFontCharacter(lsd);
-  
-  //Draw colon char to separate HH and MM (uses same font has HH, but 
-  //can have different position
-  //Watch controls time - use current position (location after
-  //writing HH, which updates gRow and gColumn and gColumnBitMask)
-  SetFont(DEFAULT_TIME_SEPARATOR_FONT);
-  
-  WriteFontCharacter(TIME_CHARACTER_COLON_INDEX);
-}
-
-static void DrawMins(void)
-{  
-  //Watch controls time - use default position
-  gRow = DEFAULT_MINS_ROW;
-  gColumn = DEFAULT_MINS_COL;
-  gBitColumnMask = DEFAULT_MINS_COL_BIT;
-  SetFont(DEFAULT_MINS_FONT);
-  
-/* display minutes */
-  WriteFontCharacter(RTCMIN / 10);
-  WriteFontCharacter(RTCMIN % 10);
-}
-
-static void DrawSecs(void)
-{
-  //Watch controls time - use default position
-  gRow = DEFAULT_SECS_ROW;
-  gColumn = DEFAULT_SECS_COL;
-  gBitColumnMask = DEFAULT_SECS_COL_BIT;
-  SetFont(DEFAULT_SECS_FONT);
-  
-  //Draw colon separator - only needed when seconds are displayed
-  WriteFontCharacter(TIME_CHARACTER_COLON_INDEX);
-      
-  WriteFontCharacter(RTCSEC / 10);
-  WriteFontCharacter(RTCSEC % 10);
-}
-
-/******************************************************************************/
-
-static unsigned int CharacterMask;
-static unsigned char CharacterRows;
-static unsigned char CharacterWidth;
-static unsigned int bitmap[MAX_FONT_ROWS];
-
-/* fonts can be up to 16 bits wide */
-static void WriteFontCharacter(unsigned char Character)
-{
-  CharacterMask = BIT0;
-  CharacterRows = GetFontHeight();
-  CharacterWidth = GetCharacterWidth(Character);
-  GetCharacterBitmap(Character,(unsigned int*)&bitmap);
-
-  if ( gRow + CharacterRows > LCD_ROW_NUM )
-  {
-    PrintString("# WriteFontChar\r\n");
-    return;
-  }
-
-  /* do things bit by bit */
-  unsigned char i;
-  unsigned char row;
-
-  for (i = 0 ; i < CharacterWidth && gColumn < BYTES_PER_LINE; i++)
-  {
-  	for (row = 0; row < CharacterRows; row++)
-    {
-      if ((CharacterMask & bitmap[row]))
-        pMyBuffer[gRow+row].Data[gColumn] |= gBitColumnMask;
-//      else pMyBuffer[gRow+row].Data[gColumn] &= ~gBitColumnMask;
-    }
-
-    /* the shift direction seems backwards... */
-    CharacterMask = CharacterMask << 1;
-    gBitColumnMask = gBitColumnMask << 1;
-    if ( gBitColumnMask == 0 )
-    {
-      gBitColumnMask = BIT0;
-      gColumn++;
-    }
-  }
-
-  /* add spacing between characters */
-  if(gColumn < BYTES_PER_LINE)
-  {
-    unsigned char FontSpacing = GetFontSpacing();
-    for(i = 0; i < FontSpacing; i++)
-    {
-      gBitColumnMask = gBitColumnMask << 1;
-      if ( gBitColumnMask == 0 )
-      {
-        gBitColumnMask = BIT0;
-        gColumn++;
-      }
-    }
-  }
-}
-
-void WriteFontString(tString *pString)
-{
-  unsigned char i = 0;
-
-  while (pString[i] != 0 && gColumn < BYTES_PER_LINE)
-  {
-    WriteFontCharacter(pString[i++]);
-  }
-}
-
-void ShowNotification(tString *pString, unsigned char Type)
-{
-  static tString CallerId[15] = "";
-  tMessage Msg;
-
-  if (Type == SHOW_NOTIF_CALLER_ID) strcpy(CallerId, pString);
-  
-  if (Type == SHOW_NOTIF_CALLER_NAME && *CallerId)
-  {
-    PrintString3("- Caller:", pString, CR);
-  
-    SetupMessageAndAllocateBuffer(&Msg, SetVibrateMode, MSG_OPT_NONE);
-    *(tSetVibrateModePayload *)Msg.pBuffer = RingTone;
-    RouteMsg(&Msg);
-    
-    FillMyBuffer(STARTING_ROW, LCD_ROW_NUM, 0x00);
-    CopyRowsIntoMyBuffer(pCallNotif, CALL_NOTIF_START_ROW, CALL_NOTIF_ROWS);
-
-    gRow = 70;
-    gColumn = 1;
-    SetFont(MetaWatch7);
-    gBitColumnMask = BIT4;
-    WriteFontString(CallerId);
-
-    gRow = 48;
-    SetFont(MetaWatch16);
-
-    // align center
-    unsigned char i = 0;
-    unsigned char NameWidth = 0;
-    for (; i < strlen(pString); ++i) NameWidth += GetCharacterWidth(pString[i]);
-    NameWidth += GetFontSpacing() * strlen(pString);
-    
-    gColumn = ((LCD_COL_NUM - NameWidth) >> 1) / 8;
-    gBitColumnMask = 1 << ((LCD_COL_NUM - NameWidth) >> 1) % 8;
-
-//    PrintStringAndThreeDecimals("W:", NameWidth, "C:", gColumn, "M:", gBitColumnMask);
-
-    WriteFontString(pString);
-    SendMyBufferToLcd(STARTING_ROW, LCD_ROW_NUM);
-    
-    PageType = PAGE_TYPE_INFO;
-    CurrentPage[PageType] = CallPage;
-
-    // set a 5s timer for switching back to idle screen
-    SetupOneSecondTimer(DisplayTimerId, 10, NO_REPEAT, DISPLAY_QINDEX, CallerNameMsg, SHOW_NOTIF_END);
-    StartOneSecondTimer(DisplayTimerId);
-  }
-  else if (Type == SHOW_NOTIF_END || Type == SHOW_NOTIF_REJECT_CALL)
-  {
-    PrintString2("- Call Notif End", CR);
-    
-    *CallerId = NULL;
-    StopOneSecondTimer(DisplayTimerId);
-
-    PageType = PAGE_TYPE_IDLE;
-    SendMessage(&Msg, UpdateDisplayMsg, CurrentMode | MSG_OPT_UPD_INTERNAL |
-                (CurrentMode == IDLE_MODE ? MSG_OPT_NEWUI : 0));
-
-    if (Type == SHOW_NOTIF_REJECT_CALL) SendMessage(&Msg, HfpMsg, MSG_OPT_HFP_HANGUP);
-  }
+//  UpdateClockWidget(MSG_OPT_NONE);
 }
 
 static void HandleMusicPlayStateChange(unsigned char State)
@@ -1517,6 +727,46 @@ static void HandleMusicPlayStateChange(unsigned char State)
   RouteMsg(&Msg);
   
   SendMessage(&Msg, UpdateDisplayMsg, MUSIC_MODE);
+}
+
+static void ShowCall(tString *pString, unsigned char Type)
+{
+  static tString CallerId[15] = "";
+  static tTimerId NotifyTimerId = UNASSIGNED;
+  tMessage Msg;
+
+  if (Type == SHOW_NOTIF_CALLER_ID) strcpy(CallerId, pString);
+  
+  if (Type == SHOW_NOTIF_CALLER_NAME && *CallerId)
+  {
+    PrintString3("- Caller:", pString, CR);
+  
+    SetupMessageAndAllocateBuffer(&Msg, SetVibrateMode, MSG_OPT_NONE);
+    *(tSetVibrateModePayload *)Msg.pBuffer = RingTone;
+    RouteMsg(&Msg);
+    
+    PageType = PAGE_TYPE_INFO;
+    CurrentPage[PageType] = CallPage;
+    DrawCallScreen(CallerId, pString);
+
+    // set a 5s timer for switching back to idle screen
+    if (NotifyTimerId == UNASSIGNED) NotifyTimerId = AllocateOneSecondTimer();
+    SetupOneSecondTimer(NotifyTimerId, 10, NO_REPEAT, DISPLAY_QINDEX, CallerNameMsg, SHOW_NOTIF_END);
+    StartOneSecondTimer(NotifyTimerId);
+  }
+  else if (Type == SHOW_NOTIF_END || Type == SHOW_NOTIF_REJECT_CALL)
+  {
+    PrintString2("- Call Notif End", CR);
+    
+    *CallerId = NULL;
+    StopOneSecondTimer(NotifyTimerId);
+
+    PageType = PAGE_TYPE_IDLE;
+    SendMessage(&Msg, UpdateDisplayMsg, CurrentMode | MSG_OPT_UPD_INTERNAL |
+                (CurrentMode == IDLE_MODE ? MSG_OPT_NEWUI : 0));
+
+    if (Type == SHOW_NOTIF_REJECT_CALL) SendMessage(&Msg, HfpMsg, MSG_OPT_HFP_HANGUP);
+  }
 }
 
 #if __IAR_SYSTEMS_ICC__
@@ -1579,12 +829,19 @@ unsigned char LcdRtcUpdateHandlerIsr(void)
     lastMin = RTCMIN;
     
     tMessage Msg;
-    SetupMessage(&Msg, UpdateHomeWidgetMsg, MSG_OPT_NONE);
+    SetupMessage(&Msg, UpdateClockMsg, MSG_OPT_NONE);
     SendMessageToQueueFromIsr(DISPLAY_QINDEX, &Msg);
     return pdTRUE;
   }
   else return pdFALSE;
 }
+
+static void UpdateClock(void)
+{
+  if (!GetProperty(PROP_PHONE_DRAW_TOP) || CurrentPage[PageType] == InitPage) DrawDateTime();
+  else if (CurrentMode == IDLE_MODE && PageType == PAGE_TYPE_IDLE) UpdateClockWidgets();
+}
+
 
 /*! Led Change Handler
  *
@@ -1593,7 +850,7 @@ unsigned char LcdRtcUpdateHandlerIsr(void)
  */
 static void LedChangeHandler(tMessage* pMsg)
 {
-  if (LedTimerId == UNASSIGNED_ID)
+  if (LedTimerId == UNASSIGNED)
   {
     LedTimerId = AllocateOneSecondTimer();
     SetupOneSecondTimer(LedTimerId, 5, NO_REPEAT, DISPLAY_QINDEX, LedChange, LED_OFF_OPTION);
@@ -1641,33 +898,6 @@ unsigned char CurrentIdlePage(void)
   return CurrentPage[PageType];
 }
 
-void *GetDrawBuffer(void)
-{
-  return (void *)pMyBuffer;
-}
-
-static void HandleVersionInfo(void)
-{
-  tMessage Msg;
-  SetupMessageAndAllocateBuffer(&Msg, VerInfoRespMsg, MSG_OPT_NONE);
-
-  /* exclude middle '.' */
-  strncpy((char *)Msg.pBuffer, BUILD, 3);
-  strncpy((char *)Msg.pBuffer + 3, BUILD + 4, 3);
-  Msg.Length += strlen(BUILD) - 1;
-    
-  *(Msg.pBuffer + Msg.Length++) = (unsigned char)atoi(VERSION);
-  
-  unsigned char i = 0;
-  while (VERSION[i++] != '.');
-  *(Msg.pBuffer + Msg.Length++) = atoi(VERSION + i);
-  *(Msg.pBuffer + Msg.Length++) = NULL;
-  
-  RouteMsg(&Msg);
-  
-  PrintString("-Ver:"); for (i = 6; i < Msg.Length; ++i) PrintHex(Msg.pBuffer[i]);
-}
-
 /*! Read the voltage of the battery. This provides power good, battery charging,
  * battery voltage, and battery voltage average.
  *
@@ -1677,17 +907,16 @@ static void HandleVersionInfo(void)
 static void ReadBatteryVoltageHandler(void)
 {
   tMessage Msg;
-  SetupMessageAndAllocateBuffer(&Msg, ReadBatteryVoltageResponse, MSG_OPT_NONE);
-  Msg.Length = 5;
+  SetupMessageAndAllocateBuffer(&Msg, VBatRespMsg, MSG_OPT_NONE);
+  Msg.Length = 6;
 
   Msg.pBuffer[0] = ClipOn();
   Msg.pBuffer[1] = Charging();
+  Msg.pBuffer[2] = BatteryPercentage();
 
-  unsigned int bv = BatteryLevel();
-  Msg.pBuffer[2] = bv & 0xFF;
-  Msg.pBuffer[3] = (bv >> 8) & 0xFF;
-
-  Msg.pBuffer[4] = BatteryPercentage();
+  unsigned int bv = Read(BATTERY);
+  Msg.pBuffer[4] = bv & 0xFF;
+  Msg.pBuffer[5] = (bv >> 8) & 0xFF;
 
   RouteMsg(&Msg);
 }
@@ -1705,7 +934,7 @@ static void HandleSecInvert(unsigned char Val)
      (Val == MSG_OPT_SHOW_SECOND && !GetProperty(PROP_TIME_SECOND)))
   {
     ToggleProperty(PROP_TIME_SECOND);
-    CreateAndSendMessage(UpdateHomeWidgetMsg, MSG_OPT_NONE);
+    UpdateClock();
   }
 
   else if (Val == MSG_OPT_NORMAL_DISPLAY && GetProperty(PROP_INVERT_DISPLAY) ||
@@ -1715,7 +944,7 @@ static void HandleSecInvert(unsigned char Val)
 
     if (PageType == PAGE_TYPE_IDLE) IdleUpdateHandler();
     else if (PageType == PAGE_TYPE_MENU) MenuModeHandler(0);
-    else if (CurrentPage[PageType] == StatusPage) WatchStatusScreenHandler();
+    else if (CurrentPage[PageType] == StatusPage) DrawWatchStatusScreen();
   }
 }
 
@@ -1724,7 +953,7 @@ static void HandleProperty(unsigned char Options)
   if (Options & PROPERTY_READ) CreateAndSendMessage(PropRespMsg, GetProperty(PROP_ALL));
   else
   {
-    SetProperty(PROP_VALID, Options & PROP_VALID);
+    SetProperty(PROP_ALL, Options & PROP_ALL);
     CreateAndSendMessage(PropRespMsg, MSG_OPT_NONE);
     CreateAndSendMessage(UpdateDisplayMsg, IDLE_MODE | MSG_OPT_NEWUI);
   }
@@ -1763,7 +992,7 @@ static void NvalOperationHandler(tMessage* pMsg)
     else if (Property) // write operation
     {
       SetProperty(Property, pNvPayload->DataStartByte ? Property : 0);
-      CreateAndSendMessage(UpdateHomeWidgetMsg, MSG_OPT_NONE);
+      UpdateClock();
     }
     RouteMsg(&Msg);
   }
@@ -1778,21 +1007,7 @@ static void NvalOperationHandler(tMessage* pMsg)
 void EnterBootloader(void)
 {
   PrintString("- Entering Bootloader Mode\r\n");
-
-  FillMyBuffer(STARTING_ROW, LCD_ROW_NUM, 0x00);
-  CopyRowsIntoMyBuffer(pBootloader, BOOTLOADER_START_ROW, BOOTLOADER_ROWS);
-  
-  // Draw version
-  gColumn = 4;
-  gRow = 68;
-  gBitColumnMask = BIT5;
-  SetFont(MetaWatch5);
-  WriteFontString("V ");
-  WriteFontString((char *)VERSION);
-
-  DrawLocalAddress(1, 80);
-  
-  SendMyBufferToLcd(STARTING_ROW, LCD_ROW_NUM);
+  DrawBootloaderScreen();
   
   __disable_interrupt();
 
@@ -1800,23 +1015,6 @@ void EnterBootloader(void)
   SYSCTL &= ~SYSRIVECT;
   SetBootloaderSignature();
   SoftwareReset();
-}
-
-/* this function probably belongs somewhere else */
-void WhoAmI(void)
-{
-  PrintString3("Version: ", VERSION, CR);
-  PrintString3("Build: ", BUILD, CR);
-
-  PrintString2(BR_DEVICE_NAME, CR);
-  PrintString("Msp430 Version ");
-  PrintCharacter(GetMsp430HardwareRevision());
-  PrintString(CR);
-  
-  PrintStringAndDecimal("HwVersion: ", HardwareVersion());
-  PrintStringAndDecimal("BoardConfig: ", GetBoardConfiguration());
-  PrintStringAndDecimal("Calibration: ", ValidCalibration());
-  PrintStringAndDecimal("ErrataGroup1: ", QueryErrataGroup1());
 }
 
 /******************************************************************************/
@@ -1841,12 +1039,13 @@ static void MonitorBattery(void)
 
     if (CurrPercent != LastPercent || ClipChanged)
     {
-      if (CurrentPage[PageType] == StatusPage) WatchStatusScreenHandler();
-      else UpdateHomeWidget(MSG_OPT_NONE); // must be the last to avoid screen mess-up
+      if (CurrentPage[PageType] == StatusPage) DrawWatchStatusScreen();
+      else UpdateClock(); // must be the last to avoid screen mess-up
       
       LastPercent = CurrPercent;
     }
   }
+
   /* Watchdog requires each task to check in.
    * If the background task reaches here then it can check in.
    * Send a message to the other tasks so that they must check in.
@@ -1856,9 +1055,5 @@ static void MonitorBattery(void)
 
 #if TASK_DEBUG
   UTL_FreeRtosTaskStackCheck();
-#endif
-
-#if ENABLE_LIGHT_SENSOR
-  LightSenseCycle();
 #endif
 }

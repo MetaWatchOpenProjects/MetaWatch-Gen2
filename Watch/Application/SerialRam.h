@@ -38,6 +38,7 @@
 #define LAYOUT_MASK             (0x0C)
 #define LAYOUT_SHFT             (2)
 
+/* Layout type */
 #define LAYOUT_QUAD_SCREEN      (0)
 #define LAYOUT_HORI_SCREEN      (1)
 #define LAYOUT_VERT_SCREEN      (2)
@@ -54,6 +55,7 @@
 #define MSG_OPT_WRTBUF_1_LINE      (0x10)
 #define MSG_OPT_WRTBUF_MULTILINE   (0x40)
 
+#define FACE_ID(_x) ((_x & 0xF0) >> 4)
 
 typedef struct
 {
@@ -65,8 +67,7 @@ extern const Layout_t Layout[];
 
 unsigned char CurrentIdleScreen(void);
 
-// lower 4 bits used for 4 layouts' presense.
-unsigned char GetHomeWidgetLayout(void);
+void UpdateClockWidgets(void);
 
 /*! This sets up the peripheral in the MSP430, the external serial ram,
  * and clears the serial RAM memory to zero.

@@ -159,8 +159,14 @@
 /* 473    02/26/13  Mu Yang  Fix 2Q Hori/Vert mess-up.                        */
 /* 474    02/28/13  Mu Yang  Fix 1Q date/grid overlapping; BattPercent(0x57). */
 /* 475    03/03/13  Mu Yang  Support CCS5.                                    */
-/* 476    03/04/13  Mu Yang  Seperate clock drawing from LcdDisplay.          */
+/* 476    03/04/13  Mu Yang  Separate clock drawing from LcdDisplay.          */
 /* 477    03/06/13  Mu Yang  Fix modify-time-cause-WDT-reset.                 */
+/* 478    03/08/13  Mu Yang  Separate LcdBuffer from LcdDisplay.              */
+/* 479    03/08/13  Mu Yang  v1.36: Support multiple clock watch faces;       */
+/*                                  sample gap 20 -> 10 (8.4 is 1%).          */
+/* 480    03/12/13  Mu Yang  Add logs for response messages.                  */
+/* 481    03/14/13  Mu Yang  v1.4: Fix VBatRespMsg for backward compatable.   */
+/* 482    03/18/13  Mu Yang  v1.41: Enable Light Sensor.                      */
 /******************************************************************************/
 
 /** WRAPPER VERSION HISTORY ***************************************************/
@@ -273,9 +279,12 @@
 /*                                StartSniffTimer when ACL connected.         */
 /*   411      02/15/13  Mu Yang   Add exit_sniff on data-rcv for Android 4.2  */
 /*   412      03/05/13  Mu Yang   Chg SPP rcv buf & max frame to 32B; pBuf+=i */
+/*   413      03/08/13  Mu Yang   Set discoverable whenever SPP disconnected. */
+/*   414      03/13/13  Mu Yang   Inc SPP rcv buf to 32x2B (due MsgAlloc fail)*/
+/*   415      03/16/13  Mu Yang   Change back SPP rcv buf to 32B (no help)    */
 /******************************************************************************/
 
-#define APP_VER     "1.35"
-#define BUILD_VER   "477.412"
+#define APP_VER     "1.41"
+#define BUILD_VER   "481.415"
 
 #endif /* VERSION_H */

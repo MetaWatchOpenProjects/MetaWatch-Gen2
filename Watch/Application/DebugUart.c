@@ -32,6 +32,8 @@
 #include "hal_rtc.h"
 #include "hal_lpm.h"
 #include "hal_battery.h"
+#include "hal_calibration.h"
+#include "hal_miscellaneous.h"
 
 #include "DebugUart.h"
 #include "Statistics.h"
@@ -40,6 +42,8 @@
 #include "TermMode.h"
 
 /******************************************************************************/
+extern const char BUILD[];
+extern const char VERSION[];
 
 const char OK[] = "- ";
 const char NOK[] = "# ";
@@ -506,3 +510,20 @@ void vApplicationMallocFailedHook(size_t xWantedSize)
   
   __no_operation();
 }
+
+void WhoAmI(void)
+{
+  PrintString3("Version: ", VERSION, CR);
+  PrintString3("Build: ", BUILD, CR);
+
+  PrintString2(BR_DEVICE_NAME, CR);
+  PrintString("Msp430 Version ");
+  PrintCharacter(GetMsp430HardwareRevision());
+  PrintString(CR);
+  
+  PrintStringAndDecimal("HwVersion: ", HardwareVersion());
+  PrintStringAndDecimal("BoardConfig: ", GetBoardConfiguration());
+  PrintStringAndDecimal("Calibration: ", ValidCalibration());
+  PrintStringAndDecimal("ErrataGroup1: ", QueryErrataGroup1());
+}
+

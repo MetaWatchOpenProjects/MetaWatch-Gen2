@@ -117,7 +117,7 @@ void CheckBattery(void)
   }
   else if (ChargeEnable) ChargingControl();
   
-  PrintDecimal(BatteryLevel()); PrintString(CR);
+  PrintDecimal(Read(BATTERY)); PrintString(CR);
 }
 
 unsigned char ClipOn(void)

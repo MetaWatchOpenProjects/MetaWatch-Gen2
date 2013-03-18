@@ -36,6 +36,7 @@
 #include "SerialRam.h"
 #include "LcdDriver.h"
 #include "LcdDisplay.h"
+#include "LcdBuffer.h"
 #include "Utilities.h"
 #include "Adc.h"
 #include "BitmapData.h"
@@ -76,9 +77,17 @@
 #define WGTLST_PARTS_MASK       (0xC)
 #define WGTLST_PART_INDX_SHFT   (0)
 #define WGTLST_PARTS_SHFT       (2)
-#define RESERVED_WIDGET_ID      (0xFF)
-#define HOME_WIDGET_ID_RANGE    (15) // home widget: 0 - 15
+#define INVALID_ID              (0xFF)
+#define CLOCK_WIDGET_ID_RANGE   (15) // home widget: 0 - 15
 #define INVERT_BIT              (BIT6)
+#define CLOCK_WIDGET_BIT        (BIT7)
+#define CLOCK_WIDGET_BIT_SHFT   (7)
+#define WGT_CHG_REMOVE          (0)
+#define WGT_CHG_ADD             (1)
+#define WGT_CHG_CLK_ADD         (2)
+#define WGT_CHG_CLK_FACE        (3)
+#define WGT_CHG_SETTING         (4)
+
 #define BOARDER_PATTERN_ROW     (0x66)
 #define BOARDER_PATTERN_COL     (4)
 
@@ -112,6 +121,7 @@ typedef struct
 {
   unsigned char Id;
   unsigned char Layout;
+  unsigned char Outdated;
   unsigned char Buffers[QUAD_NUM];
 } Widget_t;
 
@@ -121,6 +131,8 @@ static Widget_t *pCurrWidgetList = &Widget[MAX_WIDGET_NUM]; // point to left/rig
 const Layout_t Layout[] = {{1, 0}, {2, 1}, {2, 2}, {4, 1}};
 
 static unsigned int BufTag = 0;
+///* low 4 bits: Clock widget ID; high 4 bits: to be updated if set */
+//static unsigned char ClkWgtUpd[CLOCK_WIDGET_ID_RANGE + 1];
 
 typedef struct
 {
@@ -137,6 +149,13 @@ typedef struct
 
 static const unsigned char ModePriority[] = {NOTIF_MODE, APP_MODE, IDLE_MODE, MUSIC_MODE};
 
+#define IS_CLOCK_WIDGET(_x) ((_x & CLOCK_WIDGET_BIT) >> CLOCK_WIDGET_BIT_SHFT)
+#define ON_CURRENT_PAGE(_x) ((_x & IDLE_PAGE_MASK) >> IDLE_PAGE_SHFT == CurrentPage)
+#define LAYOUT_TYPE(_x) ((_x & LAYOUT_MASK) >> LAYOUT_SHFT)
+#define WGTLST_INDEX(_x) ((_x & WGTLST_PART_INDX_MASK) >> WGTLST_PART_INDX_SHFT)
+#define WGTLST_TOTAL(_x) ((_x & WGTLST_PARTS_MASK) >> WGTLST_PARTS_SHFT)
+
+/******************************************************************************/
 static void SetupCycle(unsigned int Address,unsigned char CycleType);
 static void WriteBlockToSram(const unsigned char* pData,unsigned int Size);
 static void ReadBlock(unsigned char* pWriteData,unsigned char* pReadData);
@@ -146,10 +165,11 @@ static void AssignWidgetBuffer(Widget_t *pWidget);
 static void FreeWidgetBuffer(Widget_t *pWidget);
 static unsigned int GetAddr(WidgetHeader_t *pData);
 static void GetQuadAddr(QuadAddr_t *pAddr);
-static void WriteHomeWidget(unsigned char *pBuffer);
+static void WriteClockWidget(unsigned char *pBuffer);
 static void LoadBuffer(unsigned char i, const unsigned char *pTemp);
-static unsigned char HomeWidgetOnCurrentScreen(void);
 static signed char ComparePriority(unsigned char Mode);
+static unsigned char GetWidgetChange(unsigned char CurrId, unsigned char MsgId, unsigned char MsgOpt);
+static void TestFaceId(WidgetList_t *pWidget);
 
 #if __IAR_SYSTEMS_ICC__
 static void WriteData20BlockToSram(unsigned char __data20* pData,unsigned int Size);
@@ -159,8 +179,8 @@ void SetWidgetList(tMessage *pMsg)
 {
   static Widget_t *pCurrWidget = NULL; // point to Widget in current Widget[]
   static Widget_t *pNextWidget = NULL; // point to Widget in new Widget[]
-  static unsigned char NewHomeWidget = pdFALSE;
-  
+  static unsigned char ChangedClockWidget = INVALID_ID;
+
   xSemaphoreTake(SramMutex, portMAX_DELAY);
 
   WidgetList_t *pMsgWgtLst = (WidgetList_t *)pMsg->pBuffer;
@@ -168,13 +188,11 @@ void SetWidgetList(tMessage *pMsg)
 
   unsigned char i = 0;
   PrintString(">SetWLst ");
-  PrintStringAndThreeDecimals("I:",
-    (pMsg->Options & WGTLST_PART_INDX_MASK) >> WGTLST_PART_INDX_SHFT,
-    "T:", (pMsg->Options & WGTLST_PARTS_MASK) >> WGTLST_PARTS_SHFT,
-    "Num:", WidgetNum);
+  PrintStringAndThreeDecimals(
+    "I:", WGTLST_INDEX(pMsg->Options), "T:", WGTLST_TOTAL(pMsg->Options), "Num:", WidgetNum);
 
-//  PrintString("M:");
-//  for(; i<WidgetNum; ++i) {PrintHex(pMsgWgtLst[i].Id); PrintHex(pMsgWgtLst[i].Layout);} PrintString(CR);
+  PrintString("M:");
+  for(; i<WidgetNum; ++i) {PrintHex(pMsgWgtLst[i].Id); PrintHex(pMsgWgtLst[i].Layout);} PrintString(CR);
 
   if (pNextWidget == NULL) // first time call, only add widgets
   {
@@ -183,7 +201,7 @@ void SetWidgetList(tMessage *pMsg)
   }
   else
   {
-    if ((pMsg->Options & WGTLST_PART_INDX_MASK) >> WGTLST_PART_INDX_SHFT == 0 &&
+    if (WGTLST_INDEX(pMsg->Options) == 0 &&
       (pCurrWidget != pCurrWidgetList || (pNextWidget != &Widget[0] && pNextWidget != &Widget[MAX_WIDGET_NUM])))
     { // last SetWLst failed in the middle.Clean up whole list
       PrintString("# Last SetWgtLst broken!\r\n");
@@ -195,57 +213,73 @@ void SetWidgetList(tMessage *pMsg)
 
   while (WidgetNum) // number of list items
   {
-    if (pCurrWidget->Id == pMsgWgtLst->Id)
-    { //cpy layout to curr; cpy curr to next; msg, curr, next ++
+      /* test clock widgets */
+    if (pMsgWgtLst->Id <= CLOCK_WIDGET_ID_RANGE) TestFaceId(pMsgWgtLst);
+    
+    unsigned char Change = GetWidgetChange(pCurrWidget->Id, pMsgWgtLst->Id, pMsgWgtLst->Layout);
+    
+    switch (Change)
+    {
+    case WGT_CHG_CLK_FACE:
+      if (ON_CURRENT_PAGE(pMsgWgtLst->Layout)) ChangedClockWidget = pMsgWgtLst->Id;
+      
+    case WGT_CHG_SETTING:
+     //cpy layout to curr; cpy curr to next; msg, curr, next ++
       PrintStringAndHexByte("=", pCurrWidget->Id);
+      pCurrWidget->Id = pMsgWgtLst->Id;
       pCurrWidget->Layout = pMsgWgtLst->Layout;
       *pNextWidget++ = *pCurrWidget++;
       pMsgWgtLst ++;
       WidgetNum --;
-    }
-    else if (pCurrWidget->Id > pMsgWgtLst->Id)
-    { // add new widget: cpy msg to next; msg and next ++; curr stays
-//      PrintString("+"); PrintHex(pMsgWgtLst->Id);
+      break;
+
+    case WGT_CHG_CLK_ADD:
+      if (ON_CURRENT_PAGE(pMsgWgtLst->Layout)) ChangedClockWidget = pMsgWgtLst->Id;
+
+    case WGT_CHG_ADD: //pCurrWidget->Id > pMsgWgtLst->Id)
+     // add new widget: cpy msg to next; msg and next ++; curr stays
+      PrintString("+"); PrintHex(pMsgWgtLst->Id);
 
       pNextWidget->Id = pMsgWgtLst->Id;
       pNextWidget->Layout = pMsgWgtLst->Layout;
       AssignWidgetBuffer(pNextWidget);
 
-      if (pNextWidget->Id <= HOME_WIDGET_ID_RANGE) NewHomeWidget = pdTRUE;
-
       pNextWidget ++;
       pMsgWgtLst ++;
       WidgetNum --;
-    }
-    else
-    { // remove widget: curr ++
+      break;
+      
+    case WGT_CHG_REMOVE:
+    // remove widget: curr ++
       PrintStringAndHexByte("-", pCurrWidget->Id);
       FreeWidgetBuffer(pCurrWidget);
       pCurrWidget ++;
+      break;
+      
+    default: break;
     }
   }
   PrintString(CR);
 
   // if part index + 1 == parts, SetWidgetList complete
-  if ((pMsg->Options & WGTLST_PARTS_MASK) >> WGTLST_PARTS_SHFT ==
-      ((pMsg->Options & WGTLST_PART_INDX_MASK) >> WGTLST_PART_INDX_SHFT) + 1)
+  if (WGTLST_TOTAL(pMsg->Options) == WGTLST_INDEX(pMsg->Options) + 1)
   {
 //    PrintString("C:");
-//    for (i=0; pCurrWidgetList[i].Id != RESERVED_WIDGET_ID && i < MAX_WIDGET_NUM; ++i) PrintHex(pCurrWidgetList[i].Id);
+//    for (i=0; pCurrWidgetList[i].Id != INVALID_ID && i < MAX_WIDGET_NUM; ++i) PrintHex(pCurrWidgetList[i].Id);
 //    PrintString(CR);
 
-    while (pCurrWidget->Id != RESERVED_WIDGET_ID && pCurrWidget < &pCurrWidgetList[MAX_WIDGET_NUM])
+    while (pCurrWidget->Id != INVALID_ID && pCurrWidget < &pCurrWidgetList[MAX_WIDGET_NUM])
     {
       FreeWidgetBuffer(pCurrWidget);
-      pCurrWidget->Id = RESERVED_WIDGET_ID;
+      pCurrWidget->Id = INVALID_ID;
       pCurrWidget ++;
     }
 
     for (i = 0; i < MAX_WIDGET_NUM; ++i)
     {
-      if (pCurrWidgetList[i].Id != RESERVED_WIDGET_ID)
+      if (pCurrWidgetList[i].Id != INVALID_ID)
       { // clear the widget id in the curr list
-        pCurrWidgetList[i].Id = RESERVED_WIDGET_ID;
+        pCurrWidgetList[i].Id = INVALID_ID;
       }
     }
 
@@ -254,22 +288,62 @@ void SetWidgetList(tMessage *pMsg)
     pCurrWidget = pCurrWidgetList;
 
 //    PrintString("N:");
-//    for (i=0; pCurrWidgetList[i].Id != RESERVED_WIDGET_ID; ++i) PrintHex(pCurrWidgetList[i].Id);
+//    for (i=0; pCurrWidgetList[i].Id != INVALID_ID; ++i) PrintHex(pCurrWidgetList[i].Id);
 //    PrintString(CR);
     PrintStringAndHex("Tg:", BufTag);
 
-    if (NewHomeWidget)
+    if (ChangedClockWidget != INVALID_ID)
     {
-      NewHomeWidget = pdFALSE;
-      CreateAndSendMessage(UpdateHomeWidgetMsg, MSG_OPT_NONE);
+      CreateAndSendMessage(DrawClockWidgetMsg, ChangedClockWidget);
+      ChangedClockWidget = INVALID_ID;
     }
   }
   xSemaphoreGive(SramMutex);
 }
 
+static void TestFaceId(WidgetList_t *pWidget)
+{
+  PrintString("BF Clk:0x");
+  PrintHex(pWidget->Id); PrintString(" 0x");
+  PrintHex(pWidget->Layout); PrintString(CR);
+  
+  // copy layout type to faceId,
+  pWidget->Id |= LAYOUT_TYPE(pWidget->Layout) << 4;
+  // if type 3, invert-> faceId 4
+//  if (LAYOUT_TYPE(pWidget->Layout) == LAYOUT_FULL_SCREEN && (pWidget->Layout & INVERT_BIT))
+//  {
+//    pWidget->Layout &= ~INVERT_BIT;
+//    pWidget->Id = (((pWidget->Id >> 4) + 1) << 4) | (pWidget->Id & 0x0F);
+//  }
+
+  // set clock widget bit
+  pWidget->Layout |= CLOCK_WIDGET_BIT;
+  PrintString("- AF Clk:0x");
+  PrintHex(pWidget->Id); PrintString(" 0x");
+  PrintHex(pWidget->Layout); PrintString(CR);
+}
+
+static unsigned char GetWidgetChange(unsigned char CurrId, unsigned char MsgId, unsigned char MsgOpt)
+{
+  if (IS_CLOCK_WIDGET(MsgOpt))
+  {
+    unsigned char CurrWgtId = CurrId & 0x0F;
+    unsigned char MsgWgtId = MsgId & 0x0F;
+
+    if (CurrWgtId < MsgWgtId) return WGT_CHG_REMOVE;
+    if (CurrWgtId > MsgWgtId) return WGT_CHG_CLK_ADD;
+    if (CurrWgtId == MsgWgtId && FACE_ID(CurrId) != FACE_ID(MsgId))
+      return WGT_CHG_CLK_FACE;
+  }
+
+  if (CurrId == MsgId) return WGT_CHG_SETTING;
+  else if (CurrId < MsgId) return WGT_CHG_REMOVE;
+  else return WGT_CHG_ADD;
+}
+
 static void AssignWidgetBuffer(Widget_t *pWidget)
 {
-  unsigned QuadNum = Layout[(pWidget->Layout & LAYOUT_MASK) >> LAYOUT_SHFT].QuadNum;
+  unsigned QuadNum = Layout[LAYOUT_TYPE(pWidget->Layout)].QuadNum;
   unsigned char i;
 //  PrintCharacter('[');
 
@@ -295,7 +369,7 @@ static void AssignWidgetBuffer(Widget_t *pWidget)
 
 static void FreeWidgetBuffer(Widget_t *pWidget)
 {
-  unsigned QuadNum = Layout[(pWidget->Layout & LAYOUT_MASK) >> LAYOUT_SHFT].QuadNum;
+  unsigned QuadNum = Layout[LAYOUT_TYPE(pWidget->Layout)].QuadNum;
   unsigned char i;
 
   for (i = 0; i < QuadNum; ++i)
@@ -309,13 +383,13 @@ static void FreeWidgetBuffer(Widget_t *pWidget)
 }
 
 //#define MSG_OPT_NEWUI             (0x80)
-//#define MSG_OPT_HOME_WGT          (0x40)
+//#define MSG_OPT_HOME_WGT          (0x40) // new ui only
 //#define MODE_MASK                 (0x03)
 //#define MSG_OPT_WRTBUF_1_LINE     (0x10)
 //#define WRITE_BUFFER_TWO_LINES    (0x00)
 //#define IDLE_MODE_PAGE_MASK       (0x07)
-//#define MSG_OPT_WRTBUF_MULTILINE  (0x40)
-//#define MSG_OPT_WRTBUF_BPL_MASK   (0x38)
+//#define MSG_OPT_WRTBUF_MULTILINE  (0x40) // for music mode
+//#define MSG_OPT_WRTBUF_BPL_MASK   (0x38) // for music mode
 
 void WriteBufferHandler(tMessage* pMsg)
 {
@@ -323,7 +397,7 @@ void WriteBufferHandler(tMessage* pMsg)
   {
     if (pMsg->Options & MSG_OPT_HOME_WGT)
     {
-      WriteHomeWidget(pMsg->pBuffer);
+      WriteClockWidget(pMsg->pBuffer);
       pMsg->pBuffer = NULL; // the pBuffer here is not allocated in message queue
     }
     else
@@ -365,35 +439,42 @@ void WriteBufferHandler(tMessage* pMsg)
   }
 }
 
-unsigned char GetHomeWidgetLayout(void)
+/* mark all clock widgets outdated and request for updating
+   the first widget on current page */
+void UpdateClockWidgets(void)
 {
-  unsigned char Layout = 0;
   unsigned char i;
+  unsigned char NotUpdate = pdTRUE;
 
   xSemaphoreTake(SramMutex, portMAX_DELAY);
 
-  for (i = 0; pCurrWidgetList[i].Id != RESERVED_WIDGET_ID && i < MAX_WIDGET_NUM; ++i)
+  for (i = 0; pCurrWidgetList[i].Id != INVALID_ID && i < MAX_WIDGET_NUM; ++i)
   {
-    if (pCurrWidgetList[i].Id > HOME_WIDGET_ID_RANGE) continue;
-    if ((pCurrWidgetList[i].Layout & IDLE_PAGE_MASK) >> IDLE_PAGE_SHFT != CurrentPage) continue;
-    
-    Layout |= 1 << ((pCurrWidgetList[i].Layout & LAYOUT_MASK) >> LAYOUT_SHFT);
+    if (!IS_CLOCK_WIDGET(pCurrWidgetList[i].Layout)) continue;
+
+    pCurrWidgetList[i].Outdated = pdTRUE;
+    if (NotUpdate && ON_CURRENT_PAGE(pCurrWidgetList[i].Layout))
+    {
+      CreateAndSendMessage(DrawClockWidgetMsg, pCurrWidgetList[i].Id);
+      NotUpdate = pdFALSE;
+    }
   }
 
-//  PrintStringAndHexByte("HmWgtLyt: ", Layout);
   xSemaphoreGive(SramMutex);
-  return Layout;
 }
 
-static unsigned char HomeWidgetOnCurrentScreen(void)
+/* get widget ID of the next outdated clock widget of current page */
+static unsigned char GetNextOutdatedClockWidget(void)
 {
   unsigned char i = 0;
-  for (; pCurrWidgetList[i].Id != RESERVED_WIDGET_ID && i < MAX_WIDGET_NUM; ++i)
+  for (; pCurrWidgetList[i].Id != INVALID_ID && i < MAX_WIDGET_NUM; ++i)
   {
-    if (pCurrWidgetList[i].Id > HOME_WIDGET_ID_RANGE) continue;
-    if ((pCurrWidgetList[i].Layout & IDLE_PAGE_MASK) >> IDLE_PAGE_SHFT == CurrentPage) return pdTRUE;
+    if (pCurrWidgetList[i].Outdated &&
+        IS_CLOCK_WIDGET(pCurrWidgetList[i].Layout) &&
+        ON_CURRENT_PAGE(pCurrWidgetList[i].Layout))
+      return pCurrWidgetList[i].Id;
   }
-  return pdFALSE;
+  return INVALID_ID;
 }
 
 unsigned char CurrentIdleScreen(void)
@@ -401,41 +482,43 @@ unsigned char CurrentIdleScreen(void)
   return CurrentPage;
 }
 
-static void WriteHomeWidget(unsigned char *pBuffer)
+static void WriteClockWidget(unsigned char *pBuffer)
 {
-  //find out all home widgets by layout, write to their buffers one by one
-  unsigned char HomeLayout = *pBuffer;
-//  extern unsigned char CurrentMode;
-  tMessage Msg;
+  unsigned char Id = FACE_ID(*pBuffer);
+  unsigned char ClockId = INVALID_ID;
   unsigned char i, k;
 
-//  PrintStringAndDecimal("- WrtHw:", HomeLayout);
-  
-  for (i = 0; pCurrWidgetList[i].Id != RESERVED_WIDGET_ID && i < MAX_WIDGET_NUM; ++i)
+  for (i = 0; pCurrWidgetList[i].Id != INVALID_ID && i < MAX_WIDGET_NUM; ++i)
   {
-    if (pCurrWidgetList[i].Id > HOME_WIDGET_ID_RANGE ||
-       (pCurrWidgetList[i].Layout & LAYOUT_MASK) >> LAYOUT_SHFT != HomeLayout ||
-       (pCurrWidgetList[i].Layout & IDLE_PAGE_MASK) >> IDLE_PAGE_SHFT != CurrentPage) continue;
+    if (!IS_CLOCK_WIDGET(pCurrWidgetList[i].Layout)) continue;
     
-//    PrintString("[ ");
-
-    for (k = 0; k < Layout[HomeLayout].QuadNum; ++k)
+    if (ON_CURRENT_PAGE(pCurrWidgetList[i].Layout))
     {
-//      PrintHex(pCurrWidgetList[i].Buffers[k]);
+      if (FACE_ID(pCurrWidgetList[i].Id) == Id)
+      {
+        unsigned char LayoutType = LAYOUT_TYPE(pCurrWidgetList[i].Layout);
+        
+        for (k = 0; k < Layout[LayoutType].QuadNum; ++k)
+        {
+          unsigned int Addr = pCurrWidgetList[i].Buffers[k] * BYTES_PER_QUAD + WGT_BUF_START_ADDR;
+          unsigned char *pBuf = pBuffer + k * BYTES_PER_QUAD;
+          pBuf[0] = SPI_WRITE;
+          pBuf[1] = Addr >> 8;
+          pBuf[2] = Addr;
+          
+          WriteBlockToSram(pBuf, SRAM_HEADER_LEN + BYTES_PER_QUAD);
+        }
 
-      unsigned int Addr = pCurrWidgetList[i].Buffers[k] * BYTES_PER_QUAD + WGT_BUF_START_ADDR;
-      unsigned char *pBuf = pBuffer + k * BYTES_PER_QUAD;
-      pBuf[0] = SPI_WRITE;
-      pBuf[1] = Addr >> 8;
-      pBuf[2] = Addr;
-      
-      WriteBlockToSram(pBuf, SRAM_HEADER_LEN + BYTES_PER_QUAD);
+        pCurrWidgetList[i].Outdated = pdFALSE;
+      }
+      else if (ClockId == INVALID_ID && pCurrWidgetList[i].Outdated)
+        ClockId = pCurrWidgetList[i].Id;
     }
-//    PrintString("]\r\n");
   }
-
-  // tells UpdHomeWdiget() which layout-type widget is written
-  SendMessage(&Msg, UpdateHomeWidgetMsg, 1 << HomeLayout);
+  // update next outdated clock widget of the current page
+  if (ClockId == INVALID_ID) CreateAndSendMessage(UpdateDisplayMsg,
+    IDLE_MODE | MSG_OPT_NEWUI | MSG_OPT_UPD_INTERNAL | MSG_OPT_UPD_HWGT);
+  else CreateAndSendMessage(DrawClockWidgetMsg, ClockId);
 }
 
 static unsigned int GetAddr(WidgetHeader_t *pData)
@@ -445,12 +528,12 @@ static unsigned int GetAddr(WidgetHeader_t *pData)
 
   if (pData->Id != pCurrWidgetList[i].Id)
   {
-    for (i = 0; pCurrWidgetList[i].Id != RESERVED_WIDGET_ID && i < MAX_WIDGET_NUM; ++i)
+    for (i = 0; pCurrWidgetList[i].Id != INVALID_ID && i < MAX_WIDGET_NUM; ++i)
     {
       if (pData->Id == pCurrWidgetList[i].Id) break;
     }
 
-    if (pCurrWidgetList[i].Id == RESERVED_WIDGET_ID || i == MAX_WIDGET_NUM)
+    if (pCurrWidgetList[i].Id == INVALID_ID || i == MAX_WIDGET_NUM)
     {
       i = 0;
       return Addr;
@@ -467,11 +550,11 @@ static unsigned int GetAddr(WidgetHeader_t *pData)
 static void GetQuadAddr(QuadAddr_t *pAddr)
 {
   unsigned char i = 0;
-  for (i = 0; pCurrWidgetList[i].Id != RESERVED_WIDGET_ID && i < MAX_WIDGET_NUM; ++i)
+  for (i = 0; pCurrWidgetList[i].Id != INVALID_ID && i < MAX_WIDGET_NUM; ++i)
   {
     if ((pCurrWidgetList[i].Layout & IDLE_PAGE_MASK) >> IDLE_PAGE_SHFT == pAddr->Page)
     {
-      unsigned char Type = (pCurrWidgetList[i].Layout & LAYOUT_MASK) >> LAYOUT_SHFT;
+      unsigned char Type = LAYOUT_TYPE(pCurrWidgetList[i].Layout);
       unsigned char Quad = pCurrWidgetList[i].Layout & QUAD_NO_MASK;
       unsigned char k = 0;
       //PrintString("W:"); PrintHex(pCurrWidgetList[i].Id);
@@ -527,10 +610,12 @@ void UpdateDisplayHandler(tMessage* pMsg)
     // not in idle mode idle page
     if (CurrentMode != IDLE_MODE || PageType != PAGE_TYPE_IDLE) return;
 
+    unsigned char OutdatedClkWgt = GetNextOutdatedClockWidget();
+
     if (!(pMsg->Options & MSG_OPT_UPD_INTERNAL && pMsg->Options & MSG_OPT_UPD_HWGT) &&
-        HomeWidgetOnCurrentScreen())
-    { //ask for drawing home widget
-      SendMessage(&Msg, UpdateHomeWidgetMsg, MSG_OPT_NONE);
+        OutdatedClkWgt != INVALID_ID)
+    { //ask for drawing clock widget from external
+      SendMessage(&Msg, DrawClockWidgetMsg, OutdatedClkWgt);
       return; // will get back internal upddisp when updhomewgt done
     }
     
@@ -596,8 +681,8 @@ void UpdateDisplayHandler(tMessage* pMsg)
 //          }
 //          else
           {
-            unsigned char LayoutType = (QuadAddr.Layout[i+k] & LAYOUT_MASK) >> LAYOUT_SHFT;
-            
+            unsigned char LayoutType = LAYOUT_TYPE(QuadAddr.Layout[i+k]);
+
             if (Row % BOARDER_PATTERN_COL == 1 || Row % BOARDER_PATTERN_COL == 2)
             {// black dots
               // Rule 2: left and right side vertical boarders
@@ -886,25 +971,25 @@ void LoadTemplateHandler(tMessage* pMsg)
    */
   SetupCycle(Addr, SPI_WRITE);
 
-  if (!pMsg->pBuffer)
-  {
+  if (pMsg->pBuffer == NULL)
+  { // internal usage
     WriteBlockToSram(pTemplate[pMsg->Options >> 4], BYTES_PER_SCREEN);    
   }
-  /* template zero is reserved for simple patterns */
-  else if (*pMsg->pBuffer > 1)
+  else if (*pMsg->pBuffer <= 1)
+  {
+    /* clear or fill the screen */
+    ClearSram(Addr, *pMsg->pBuffer ? 0xFF : 0x00, BYTES_PER_SCREEN);
+  }
+  else
   {
 #if __IAR_SYSTEMS_ICC__
+    /* template zero is reserved for simple patterns */
     WriteData20BlockToSram(
       (unsigned char __data20*)&pWatchFace[*pMsg->pBuffer - TEMPLATE_1][0],
       BYTES_PER_SCREEN);
     
     PrintStringAndDecimal("-Template: ", *pMsg->pBuffer);
 #endif
-  }
-  else
-  {
-    /* clear or fill the screen */
-    ClearSram(Addr, *pMsg->pBuffer ? 0xFF : 0x00, BYTES_PER_SCREEN);
   }
 }
 
@@ -1006,7 +1091,7 @@ void SerialRamInit(void)
 
   unsigned char i;
   for (i = 0; i < MAX_WIDGET_NUM + MAX_WIDGET_NUM; ++i)
-    Widget[i].Id = RESERVED_WIDGET_ID;
+    Widget[i].Id = INVALID_ID;
 
   // load 16 buffers with empty widget template
   for (i = 0; i < MAX_WIDGET_NUM; ++i) LoadBuffer(i, pWidgetTemplate[TMPL_WGT_EMPTY]);
