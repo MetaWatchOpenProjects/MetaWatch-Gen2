@@ -323,9 +323,9 @@ UI Style | Reserved | One Row | Reserved | Mode
 * 0 - Gen1's three-row UI
 * 1 - Gen2's four-quad UI
 
-**One Row:**
+**One Row:** valid only for SPP.
 
-* 0 - the Payload contains two display rows of data. Only works for SPP.
+* 0 - the Payload contains two display rows of data.
 * 1 - the Payload contains only one display row of data (12 bytes).
 
 **Payloads:** the payload definition is different from Gen1 UI and Gen2 UI.
@@ -361,7 +361,7 @@ Widget ID | Row | Data
 5.16 Update LCD Display (0x43)
 ------------------------------
 
-This message is used to tell the watch data of which mode screen or idle mode page (if in idle mode) shall be drawn to the LCD display.
+This message is used to tell the watch data of which display mode or idle mode page (if it's for idle mode) shall be drawn to the LCD display.
 
 **Options:**
 
@@ -372,7 +372,7 @@ UI Style | Reserved | Buffer Type | Reserved | Page | Mode
 **Buffer Type:** specify which type of buffer's data shall be drawn to the display.
 
 * 0 - Mode buffer specified by **Mode**.
-* 1 - Page buffer specified by idle mode **Page**.
+* 1 - Page buffer specified by idle mode **Page** if it's for idle mode     .
 
 **Page:** 0 ~ 3: one of the four idle mode page.
 
