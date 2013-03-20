@@ -29,6 +29,7 @@ Revision | Details | Author | Date
 1.2.2 | Update 5.33 SetMsgList to include clock widget settings | Mu Yang | March 12, 2013
 2.0.0 | Rewritten in markdown format for easy maintenance. | Mu Yang | March 15, 2013
 2.0.1 | Add light sensor messages. | Mu Yang | March 18, 2013
+2.0.2 | Add enable auto backlight property. | Mu Yang | March 20, 2013
 
 
 3 Abbreviation
@@ -198,7 +199,7 @@ The message format is the same as **Set Real Time Clock (0x26)**.
 5.9 Watch Property Operation (0x30)
 --------------------------
 
-The message is used to get and set watch properties. The properties values retain till the battery is depleted. 
+The message is used to get and set watch properties. The properties values retain till the battery is depleted. Please note that all property bits are valid when the message is sent to the watch.
 
 **Options:**
 
@@ -208,9 +209,9 @@ Bit | Description
 1 | Show date in DDMM format. Default is MMDD.
 2 | Show seconds in the clock. Default is not-show.
 3 | Show separation line between widgets in idle mode. Default is set.
-4 | Invert display color.
-5 | Disable alarm for disconnection.
-6 | Phone draw full screen. This shall be set for Gen2 UI. See **Write LCD Buffer (0x40)**.
+4 | Enable auto-backlight (backlight switches on automatically when notification comes and the surrounding is too dark).
+5 | Reserved.
+6 | Reserved.
 7 | Read operation. Default is Write.
 
 **Payload:** not used.
