@@ -68,6 +68,7 @@ void EnableRtcUpdate(unsigned char Enable);
 
 unsigned char BackLightOn(void);
 unsigned char CurrentIdlePage(void);
+unsigned char LinkAlarmEnabled(void);
 void EnterBootloader(void);
 void WhoAmI(void);
 

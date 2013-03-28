@@ -73,7 +73,7 @@ void EnableTermMode(unsigned char Enable)
     DisableSmClkUser(TERM_MODE_USER);
   }
 
-  PrintStringAndDecimal("- TermMode:", Enable);
+  PrintF("- TermMode:%d", Enable);
 }
 
 /******************************************************************************/
@@ -119,7 +119,7 @@ void TermModeHandler(void)
   
   /* if the command exists then call the handler */
   if (i < NUMBER_OF_COMMANDS) COMMAND_TABLE[i].fpHandler();
-  else PrintString2(CmdBuf, CR);
+  else PrintS(CmdBuf);
 
   ReceiveCompleted = pdFALSE;
 }
@@ -128,10 +128,9 @@ void TermModeHandler(void)
 
 static void HelpCmdHandler(void)
 {
-  PrintString("\r\n***** Commands *****\r\n");
+  PrintS("***** Commands *****");
   
   unsigned char i = 0;
   /* don't print the last command because it is for PC tool */
-  while (i < NUMBER_OF_COMMANDS - 1)
-    PrintString2(COMMAND_TABLE[i++].Cmd, CR);
+  while (i < NUMBER_OF_COMMANDS - 1) PrintS(COMMAND_TABLE[i++].Cmd);
 }

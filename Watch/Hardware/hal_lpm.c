@@ -101,7 +101,6 @@ void MSP430_LPM_ENTER(void)
 static void EnterLpm3(void)
 {
 #if LPM_ENABLED
-//  PrintString2("- EnterLpm", CR);
   /*
    * we are already in critical section so that we do not get switched out by the
    * OS in the middle of stopping the OS Scheduler.
@@ -193,4 +192,10 @@ void ConfigResetPin(unsigned char Set)
     SFRRPCR &= ~SYSNMI;
   }
 }
+
+unsigned char ResetPin(void)
+{
+  return !(SFRRPCR & SYSNMI);
+}
+
 

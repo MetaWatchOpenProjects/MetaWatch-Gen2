@@ -74,11 +74,9 @@ static inline unsigned int GetTickCount(void)
   {
     value1 = value2;
     value2 = TA0R;
-  }
-  while ( value1 != value2 );
+  } while (value1 != value2);
   
   return value1;
-  
 }
 
 /******************************************************************************/
@@ -99,11 +97,8 @@ void SetupRtosTimer(void)
    * 32768 kHz -> 1024 kHz -> 0.9765625 ms
    */
   TA0EX0 = 0x7;
-
   Timer0Users = 0;
-  
   EnableRtosTick();
-
 }
 
 /* the timer is not stopped unless the rtos is off and all of the other timers
@@ -126,10 +121,7 @@ static void AddUser(unsigned char User,unsigned int CrystalTicks)
   portENTER_CRITICAL();
   
   /* minimum value of 1 tick */
-  if ( CrystalTicks < 1 )
-  {
-    CrystalTicks = 1;
-  }  
+  if ( CrystalTicks < 1 ) CrystalTicks = 1;
   
   unsigned int CaptureTime = GetTickCount() + CrystalTicks;
 
@@ -142,20 +134,15 @@ static void AddUser(unsigned char User,unsigned int CrystalTicks)
   case 3: TA0CCTL3 = 0; TA0CCR3 = CaptureTime; TA0CCTL3 = CCIE; break;
   case 4: TA0CCTL4 = 0; TA0CCR4 = CaptureTime; TA0CCTL4 = CCIE; break;
   default: break;
-    
   }
   
   /* start counting up in continuous mode if not already doing so */
-  if ( Timer0Users == 0 )
-  {
-    TA0CTL |= TASSEL_1 | MC_2 | ID_2; 
-  }
+  if (Timer0Users == 0) TA0CTL |= TASSEL_1 | MC_2 | ID_2;
   
   /* keep track of users */
   Timer0Users |= (1 << User);
   
   portEXIT_CRITICAL();
-  
 }
 
 static void RemoveUser(unsigned char User)
@@ -170,20 +157,15 @@ static void RemoveUser(unsigned char User)
   case 3: TA0CCTL3 = 0; break;
   case 4: TA0CCTL4 = 0; break;
   default: break;
-    
   }
   
   /* remove a user */
   Timer0Users &= ~(1 << User);
     
   /* disable timer if no one is using it */
-  if ( Timer0Users == 0 )
-  {
-    TA0CTL = 0;  
-  }
+  if (Timer0Users == 0) TA0CTL = 0;
   
   portEXIT_CRITICAL();
-  
 }
 
 
@@ -197,10 +179,7 @@ void StartCrystalTimer(unsigned char TimerId,
                        unsigned char (*pCallback) (void),
                        unsigned int Ticks)
 {   
-  if ( pCallback == 0 )
-  {
-    PrintString("## StartCrystalTimer: callback\r\n"); 
-  }
+  if (!pCallback) return;
   
   /* assign callback */
   switch (TimerId)
@@ -210,11 +189,9 @@ void StartCrystalTimer(unsigned char TimerId,
   case 3: pCrystalCallback3 = pCallback; break;
   case 4: pCrystalCallback4 = pCallback; break;
   default: break;
-    
   }
   
   AddUser(TimerId,Ticks);
-  
 }
 
 void StopCrystalTimer(unsigned char TimerId)
@@ -236,7 +213,7 @@ __interrupt void TIMER0_A1_VECTOR_ISR(void)
   unsigned char ExitLpm = 0;
   
   /* callback when timer expires */
-  switch(__even_in_range(TA0IV,8))
+  switch (__even_in_range(TA0IV,8))
   {
   /* remove the user first in case the callback is re-enabling this user */
   case 0: break;                  
@@ -247,9 +224,5 @@ __interrupt void TIMER0_A1_VECTOR_ISR(void)
   default: break;
   }
   
-  if ( ExitLpm )
-  {
-    EXIT_LPM_ISR();  
-  }
-  
+  if (ExitLpm) EXIT_LPM_ISR();
 }

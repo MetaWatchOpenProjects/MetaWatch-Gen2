@@ -63,7 +63,7 @@ static const unsigned char* HIGH_BUFFER_ADDRESS  = &(BufferPool[MSG_BUF_NUM - 1]
 
 static void SetBufferPoolFailureBit(void)
 {
-  PrintString2("@ BufPool Fail", CR);
+  PrintS("@ BufPool Fail");
   SoftwareReset();
 }
 
@@ -88,7 +88,7 @@ void InitBufferPool(void)
     // params: queue handle, ptr to item to queue, ticks to wait if full
     if (xQueueSend( QueueHandles[FREE_QINDEX], &pMsgBuffer, DONT_WAIT) != pdTRUE)
     {
-      PrintString2("@ Init BufPool", CR);
+      PrintS("@ Init BufPool");
       SetBufferPoolFailureBit();
     }
   }
@@ -101,13 +101,13 @@ unsigned char *BPL_AllocMessageBuffer(void)
   // params are: queue handle, ptr to the msg buffer, ticks to wait
   if (pdTRUE != xQueueReceive(QueueHandles[FREE_QINDEX], &pBuffer, DONT_WAIT))
   {
-    PrintString2("@ Alloc", CR);
+    PrintS("@ Alloc");
     SetBufferPoolFailureBit();
 
   }
   else if (pBuffer < LOW_BUFFER_ADDRESS || pBuffer > HIGH_BUFFER_ADDRESS)
   {
-    PrintStringAndHex("@ Alloc invalid pBuf 0x", (unsigned int)pBuffer);
+    PrintF("@ Alloc invalid pBuf 0x%04X", (unsigned int)pBuffer);
     SetBufferPoolFailureBit();
   }
 
@@ -119,7 +119,7 @@ void BPL_FreeMessageBuffer(unsigned char *pBuffer)
   // make sure the returned pointer is in range
   if (pBuffer < LOW_BUFFER_ADDRESS || pBuffer > HIGH_BUFFER_ADDRESS)
   {
-    PrintStringAndHex("@ Delloc invalid pBuf 0x", (unsigned int)pBuffer);
+    PrintF("@ Delloc invalid pBuf 0x%04X", (unsigned int)pBuffer);
     SetBufferPoolFailureBit();
   }
 
@@ -127,7 +127,7 @@ void BPL_FreeMessageBuffer(unsigned char *pBuffer)
   // the queue can't be full unless there is a bug, so don't wait on full
   if(pdTRUE != xQueueSend(QueueHandles[FREE_QINDEX], &pBuffer, DONT_WAIT))
   {
-    PrintString2("@ Delloc", CR);
+    PrintS("@ Delloc");
     SetBufferPoolFailureBit();
   }
 }
@@ -137,7 +137,7 @@ void BPL_FreeMessageBufferFromIsr(unsigned char *pBuffer)
   // make sure the returned pointer is in range
   if (pBuffer < LOW_BUFFER_ADDRESS || pBuffer > HIGH_BUFFER_ADDRESS)
   {
-    PrintString2("@ Delloc ISR invalid pBuf", CR);
+    PrintS("@ Delloc ISR invalid pBuf");
     SetBufferPoolFailureBit();
   }
 
@@ -147,7 +147,7 @@ void BPL_FreeMessageBufferFromIsr(unsigned char *pBuffer)
   // the queue can't be full unless there is a bug, so don't wait on full
   if(pdTRUE != xQueueSendFromISR(QueueHandles[FREE_QINDEX], &pBuffer, &HigherPriorityTaskWoken))
   {
-    PrintString2("@ Delloc ISR", CR);
+    PrintS("@ Delloc ISR");
     SetBufferPoolFailureBit();
   }
 
@@ -174,7 +174,7 @@ unsigned char* BPL_AllocMessageBufferFromISR(void)
                                      &pBuffer, 
                                      &HigherPriorityTaskWoken ))
   {
-    PrintString2("@ Alloc Buf frm Isr", CR);
+    PrintS("@ Alloc Buf frm Isr");
     SetBufferPoolFailureBit();
   }
   

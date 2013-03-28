@@ -73,7 +73,7 @@ extern char niBuild[BUILD_SIZE + 1];
 
 void CheckResetCode(void)
 {
-  char i = 0;
+  unsigned char i = 0;
   
   for (; i < BUILD_SIZE; ++i) if (niBuild[i] != BUILD[i]) break;
   

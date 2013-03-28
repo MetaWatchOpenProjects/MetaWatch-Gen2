@@ -1,5 +1,5 @@
 //==============================================================================
-//  Copyright 2011 Meta Watch Ltd. - http://www.MetaWatch.org/
+//  Copyright 2011-2013 Meta Watch Ltd. - http://www.MetaWatch.org/
 //
 //  Licensed under the Meta Watch License, Version 1.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -187,12 +187,8 @@ void SetWidgetList(tMessage *pMsg)
   unsigned char WidgetNum = pMsg->Length / WIDGET_HEADER_LEN;
 
   unsigned char i = 0;
-  PrintString(">SetWLst ");
-  PrintStringAndThreeDecimals(
-    "I:", WGTLST_INDEX(pMsg->Options), "T:", WGTLST_TOTAL(pMsg->Options), "Num:", WidgetNum);
-
-  PrintString("M:");
-  for(; i<WidgetNum; ++i) {PrintHex(pMsgWgtLst[i].Id); PrintHex(pMsgWgtLst[i].Layout);} PrintString(CR);
+  PrintF(">SetWLst I:%d %s %d %s %d", WGTLST_INDEX(pMsg->Options), "T:", WGTLST_TOTAL(pMsg->Options), "Num:", WidgetNum);
+  for(; i<WidgetNum; ++i) {PrintH(pMsgWgtLst[i].Id); PrintH(pMsgWgtLst[i].Layout);} PrintR();
 
   if (pNextWidget == NULL) // first time call, only add widgets
   {
@@ -204,7 +200,7 @@ void SetWidgetList(tMessage *pMsg)
     if (WGTLST_INDEX(pMsg->Options) == 0 &&
       (pCurrWidget != pCurrWidgetList || (pNextWidget != &Widget[0] && pNextWidget != &Widget[MAX_WIDGET_NUM])))
     { // last SetWLst failed in the middle.Clean up whole list
-      PrintString("# Last SetWgtLst broken!\r\n");
+      PrintS("# Last SetWgtLst broken!");
 
       pCurrWidget = pCurrWidgetList;
       pNextWidget = &Widget[0] + (&Widget[MAX_WIDGET_NUM] - pCurrWidgetList);
@@ -225,7 +221,7 @@ void SetWidgetList(tMessage *pMsg)
       
     case WGT_CHG_SETTING:
      //cpy layout to curr; cpy curr to next; msg, curr, next ++
-      PrintStringAndHexByte("=", pCurrWidget->Id);
+      PrintF("=%02x", pCurrWidget->Id);
       pCurrWidget->Id = pMsgWgtLst->Id;
       pCurrWidget->Layout = pMsgWgtLst->Layout;
       *pNextWidget++ = *pCurrWidget++;
@@ -238,7 +234,7 @@ void SetWidgetList(tMessage *pMsg)
 
     case WGT_CHG_ADD: //pCurrWidget->Id > pMsgWgtLst->Id)
      // add new widget: cpy msg to next; msg and next ++; curr stays
-      PrintString("+"); PrintHex(pMsgWgtLst->Id);
+      PrintF("+%02X", pMsgWgtLst->Id);
 
       pNextWidget->Id = pMsgWgtLst->Id;
       pNextWidget->Layout = pMsgWgtLst->Layout;
@@ -251,7 +247,7 @@ void SetWidgetList(tMessage *pMsg)
       
     case WGT_CHG_REMOVE:
     // remove widget: curr ++
-      PrintStringAndHexByte("-", pCurrWidget->Id);
+      PrintF("-%02X", pCurrWidget->Id);
       FreeWidgetBuffer(pCurrWidget);
       pCurrWidget ++;
       break;
@@ -259,14 +255,14 @@ void SetWidgetList(tMessage *pMsg)
     default: break;
     }
   }
-  PrintString(CR);
+  PrintR();
 
   // if part index + 1 == parts, SetWidgetList complete
   if (WGTLST_TOTAL(pMsg->Options) == WGTLST_INDEX(pMsg->Options) + 1)
   {
-//    PrintString("C:");
-//    for (i=0; pCurrWidgetList[i].Id != INVALID_ID && i < MAX_WIDGET_NUM; ++i) PrintHex(pCurrWidgetList[i].Id);
-//    PrintString(CR);
+//    PrintS("C:");
+//    for (i=0; pCurrWidgetList[i].Id != INVALID_ID && i < MAX_WIDGET_NUM; ++i) PrintH(pCurrWidgetList[i].Id);
+//    PrintR();
 
     while (pCurrWidget->Id != INVALID_ID && pCurrWidget < &pCurrWidgetList[MAX_WIDGET_NUM])
     {
@@ -287,10 +283,10 @@ void SetWidgetList(tMessage *pMsg)
     pCurrWidgetList = &Widget[0] + (&Widget[MAX_WIDGET_NUM] - pCurrWidgetList);
     pCurrWidget = pCurrWidgetList;
 
-//    PrintString("N:");
-//    for (i=0; pCurrWidgetList[i].Id != INVALID_ID; ++i) PrintHex(pCurrWidgetList[i].Id);
-//    PrintString(CR);
-    PrintStringAndHex("Tg:", BufTag);
+//    PrintS("N:");
+//    for (i=0; pCurrWidgetList[i].Id != INVALID_ID; ++i) PrintH(pCurrWidgetList[i].Id);
+//    PrintR();
+    PrintF("Tg:%04X", BufTag);
 
     if (ChangedClockWidget != INVALID_ID)
     {
@@ -303,9 +299,7 @@ void SetWidgetList(tMessage *pMsg)
 
 static void TestFaceId(WidgetList_t *pWidget)
 {
-  PrintString("BF Clk:0x");
-  PrintHex(pWidget->Id); PrintString(" 0x");
-  PrintHex(pWidget->Layout); PrintString(CR);
+  PrintF("Clk BF: Id:0x%02X Layout:0x%02X", pWidget->Id, pWidget->Layout);
   
   // copy layout type to faceId,
   pWidget->Id |= LAYOUT_TYPE(pWidget->Layout) << 4;
@@ -318,9 +312,7 @@ static void TestFaceId(WidgetList_t *pWidget)
 
   // set clock widget bit
   pWidget->Layout |= CLOCK_WIDGET_BIT;
-  PrintString("- AF Clk:0x");
-  PrintHex(pWidget->Id); PrintString(" 0x");
-  PrintHex(pWidget->Layout); PrintString(CR);
+  PrintF("Clk AF: Id:0x%02X Layout:0x%02X", pWidget->Id, pWidget->Layout);
 }
 
 static unsigned char GetWidgetChange(unsigned char CurrId, unsigned char MsgId, unsigned char MsgOpt)
@@ -345,7 +337,6 @@ static void AssignWidgetBuffer(Widget_t *pWidget)
 {
   unsigned QuadNum = Layout[LAYOUT_TYPE(pWidget->Layout)].QuadNum;
   unsigned char i;
-//  PrintCharacter('[');
 
   for (i = 0; i < QuadNum; ++i)
   {
@@ -359,12 +350,10 @@ static void AssignWidgetBuffer(Widget_t *pWidget)
 
       // add "..." template
         LoadBuffer(Tag, pWidgetTemplate[TMPL_WGT_LOADING]);
-//        PrintDecimal(Tag);
         break;
       }
     }
   }
-//  PrintString("]\r\n");
 }
 
 static void FreeWidgetBuffer(Widget_t *pWidget)
@@ -379,7 +368,7 @@ static void FreeWidgetBuffer(Widget_t *pWidget)
     LoadBuffer(pWidget->Buffers[i], pWidgetTemplate[TMPL_WGT_EMPTY]);
   }
 
-  PrintStringAndHex("-Tg:", BufTag);
+  PrintF("-Tg:%04X", BufTag);
 }
 
 //#define MSG_OPT_NEWUI             (0x80)
@@ -403,8 +392,6 @@ void WriteBufferHandler(tMessage* pMsg)
     else
     {
       unsigned int Addr = GetAddr((WidgetHeader_t *)(pMsg->pBuffer));
-      //PrintStringAndDecimal(":", Addr);
-
       unsigned char *pBuffer = pMsg->pBuffer + WIDGET_HEADER_LEN - SRAM_HEADER_LEN;
       pBuffer[0] = SPI_WRITE;
       pBuffer[1] = Addr >> 8;
@@ -424,7 +411,7 @@ void WriteBufferHandler(tMessage* pMsg)
                                  BYTES_PER_LINE;
     
     unsigned char i = (pMsg->Length - 1) / BytesPerLine;
-    if (BytesPerLine != BYTES_PER_LINE) PrintStringAndTwoDecimals("- Wrtbuf BPL:", BytesPerLine, "Ln:", i);
+    if (BytesPerLine != BYTES_PER_LINE) PrintF("- Wrtbuf BPL:%d %s %d", BytesPerLine, "Ln:", i);
     
     while (i--)
     {
@@ -557,11 +544,10 @@ static void GetQuadAddr(QuadAddr_t *pAddr)
       unsigned char Type = LAYOUT_TYPE(pCurrWidgetList[i].Layout);
       unsigned char Quad = pCurrWidgetList[i].Layout & QUAD_NO_MASK;
       unsigned char k = 0;
-      //PrintString("W:"); PrintHex(pCurrWidgetList[i].Id);
+      //PrintS("W:"); PrintH(pCurrWidgetList[i].Id);
 
       while (k < Layout[Type].QuadNum)
       {
-//        PrintString(" Q:"); PrintDecimal(Quad); PrintString(" B:"); PrintDecimal(pCurrWidgetList[i].Buffers[k]);
         pAddr->Addr[Quad] = pCurrWidgetList[i].Buffers[k] * BYTES_PER_QUAD + WGT_BUF_START_ADDR;
         pAddr->Layout[Quad] = pCurrWidgetList[i].Layout; //(pCurrWidgetList[i].Layout & LAYOUT_MASK) >> LAYOUT_SHFT;
         Quad += Layout[Type].Step;
@@ -590,8 +576,6 @@ void UpdateDisplayHandler(tMessage* pMsg)
   tLcdData LcdData;
   tMessage Msg;
 
-//  PrintStringAndHexByte("- UpdDsp Opt:0x", pMsg->Options);
-  
   if ((pMsg->Options & MSG_OPT_NEWUI) && GetProperty(PROP_PHONE_DRAW_TOP)) //for idle update only
   {
     if (!(pMsg->Options & MSG_OPT_UPD_INTERNAL) && pMsg->Options & MSG_OPT_SET_PAGE)
@@ -619,12 +603,11 @@ void UpdateDisplayHandler(tMessage* pMsg)
       return; // will get back internal upddisp when updhomewgt done
     }
     
-//    PrintCharacter('U');
+//    PrintC('U');
     xSemaphoreTake(SramMutex, portMAX_DELAY);
 
     QuadAddr_t QuadAddr;
     QuadAddr.Page = CurrentPage;
-    //PrintStringAndDecimal("P:", CurrentPage);
 
     // clear QuadAddr
     unsigned char i;
@@ -643,8 +626,6 @@ void UpdateDisplayHandler(tMessage* pMsg)
     {
      if (QuadAddr.Addr[i] == 0) QuadAddr.Addr[i] = Addr;
     }
-//    PrintStringSpaceAndTwoDecimals("Q-Ad:", QuadAddr.Addr[0], QuadAddr.Addr[1]);
-//    PrintStringSpaceAndTwoDecimals("Q-Ad:", QuadAddr.Addr[2], QuadAddr.Addr[3]);
 
     unsigned char Row = 0;
     i = 0; // 0 for upper Quads, 1 for lower Quads
@@ -744,7 +725,7 @@ void UpdateDisplayHandler(tMessage* pMsg)
       else if (CurrentMode != IDLE_MODE) ResetModeTimer();
       else if (PageType != PAGE_TYPE_IDLE) return;
     }
-    PrintStringAndDecimal("- UpdDsp PgTp:", PageType);
+    PrintF("- UpdDsp PgTp:%d", PageType);
     
     // determine starting line
     unsigned char StartRow = (Mode == IDLE_MODE && !GetProperty(PROP_PHONE_DRAW_TOP)) ?
@@ -988,7 +969,7 @@ void LoadTemplateHandler(tMessage* pMsg)
       (unsigned char __data20*)&pWatchFace[*pMsg->pBuffer - TEMPLATE_1][0],
       BYTES_PER_SCREEN);
     
-    PrintStringAndDecimal("-Template: ", *pMsg->pBuffer);
+    PrintF("-Template:%d", *pMsg->pBuffer);
 #endif
   }
 }
@@ -1054,8 +1035,7 @@ void SerialRamInit(void)
   }
 
   /* make sure correct value is read from the part */
-  if (ReadData != DefaultSrValue && ReadData != FinalSrValue)
-    PrintString("# SRAM Init1\r\n");
+  if (ReadData != DefaultSrValue && ReadData != FinalSrValue) PrintS("# SRAM Init1");
 
   SRAM_CSN_DEASSERT();
 
@@ -1082,7 +1062,7 @@ void SerialRamInit(void)
   ReadData = UCA0RXBUF;
 
   /* make sure correct value is read from the part */
-  if (ReadData != FinalSrValue) PrintString("# SRAM Init2\r\n");
+  if (ReadData != FinalSrValue) PrintS("# SRAM Init2");
 
   SRAM_CSN_DEASSERT();
 
@@ -1123,8 +1103,8 @@ __interrupt void DMA_ISR(void)
 
 void RamTestHandler(tMessage* pMsg)
 {
-  PrintString("* SRAM Test *\r\n");
+  PrintS("* SRAM Test *");
   unsigned int i = 0;
   for (; i < 0xffff; ++i) ClearSram(0x0,0x0,1000);
-  PrintString("* Done *\r\n");
+  PrintS("* Done *");
 }

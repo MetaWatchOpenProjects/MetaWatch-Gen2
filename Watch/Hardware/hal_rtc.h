@@ -60,7 +60,7 @@ void DisableRtcPrescaleInterruptUser(unsigned char user);
  *
  * \note This function does not change the value of the RTC
  */
-void InitRealTimeClock( void );
+void InitRealTimeClock(void);
 
 /*! Sets the RTC 
  *
@@ -70,16 +70,7 @@ void InitRealTimeClock( void );
  *
  * \param pRtcData
  */
-void halRtcSet(tRtcHostMsgPayload* pRtcData);
-
-/*!
- * Determine if a user is actively using the real time clock
- *
- * \param UserMask user of the RTC
- *
- * \return > 0 if RTC user is active
- */
-unsigned char QueryRtcUserActive(unsigned char UserMask);
+void halRtcSet(tRtcHostMsgPayload *pRtcData);
 
 // The exact value is 31.25 mS
 #define RTC_TIMER_MS_PER_TICK       31   
@@ -89,7 +80,7 @@ unsigned char QueryRtcUserActive(unsigned char UserMask);
  * \param pRtcData
  *
  */
-void halRtcGet(tRtcHostMsgPayload* pRtcData);
+void halRtcGet(tRtcHostMsgPayload *pRtcData);
 
 /*! Users of the RTC prescaler timer 0 interrupt.  This interrupt occurs at
  * 128 kHz and is divided down to occur at 32 khZ.

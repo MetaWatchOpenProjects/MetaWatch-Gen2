@@ -33,13 +33,13 @@
 /*! timers are not handled using lists
  * so don't allocate more timers than are required
 */
-#define TOTAL_ONE_SECOND_TIMERS (5)
-#define ONE_SECOND              (1)
-#define UNASSIGNED              (-1)
+#define TOTAL_TIMERS    (6)
+#define ONE_SECOND      (1)
+#define UNASSIGNED      (-1)
 
 /*! setting the repeat count to 0xFF causes a timer to repeat forever */
-#define NO_REPEAT      ( 0 )
-#define REPEAT_FOREVER ( 0xff )
+#define NO_REPEAT      (0)
+#define REPEAT_FOREVER (0xFF)
 
 /*! Timer id is a signed character but is typedefed so compiler helps keep
  * track of things */
@@ -48,39 +48,23 @@ typedef signed char tTimerId;
 /*! One Second Timer handler that occurs in interrupt context */
 unsigned char OneSecondTimerHandlerIsr(void);
 
-/*! Allocate a one second timer
- *
- * returns >= 0 TimerId, < 0 error
-*/
-signed char AllocateOneSecondTimer(void);
-
-
-/*! De-allocate a one second timer
- *
- * \param TimerId is the ID of the timer to de-allocate
-*/
-void DeallocateOneSecondTimer(tTimerId TimerId);
-
-/*! Start timer associated with TimerId */
-void StartOneSecondTimer(tTimerId TimerId);
-
 /*! Stop timer associated with TimerId */
-void StopOneSecondTimer(tTimerId TimerId);
+void StopTimer(tTimerId Id);
 
-/*! Setup Timer  
+void ResetTimer(tTimerId Id);
+
+/*! Setup and start a timer  
  *
- * \param TimerId - Id returned from Allocated timer
  * \param Timeout in seconds
  * \param RepeatCount Number of times to count
  * \param Qindex is the index of the queue to put the message into
  * \param CallbackMsgType The type of message to send when the timer expires
  * \param MsgOptions Options to send with the message
 */
-void SetupOneSecondTimer(tTimerId TimerId,
-                         unsigned int Timeout,
-                         unsigned char RepeatCount,
-                         unsigned char Qindex,
-                         eMessageType CallbackMsgType,
-                         unsigned char MsgOptions);
+tTimerId StartTimer(unsigned int Timeout,
+                    unsigned char RepeatCount,
+                    unsigned char Qindex,
+                    eMessageType CallbackMsgType,
+                    unsigned char MsgOptions);
 
 #endif /* ONE_SECOND_TIMERS_H */

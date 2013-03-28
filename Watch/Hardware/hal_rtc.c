@@ -49,7 +49,7 @@
 #define RTC_PRESCALE_ONE_IFG  ( 10 )
 
 #define RTCCAL_VALUE_MASK ( 0x3f )
-#define RTC_USER_MASK     (0x05)
+#define RTC_USER_MASK     (RTC_TIMER_VIBRATION | RTC_TIMER_BUTTON)
 
 static unsigned char RtcInUseMask = 0;
 
@@ -97,12 +97,12 @@ void InitRealTimeClock( void )
   RTC_1HZ_PORT_DIR |= RTC_1HZ_BIT;  
 
   RTCYEAR = (unsigned int)0x07db;
-  RTCMON = (unsigned int)5;
-  RTCDAY = (unsigned int)23;
-  RTCDOW = (unsigned int)5;
-  RTCHOUR = (unsigned int)23;
-  RTCMIN = (unsigned int)58;
-  RTCSEC = (unsigned int)0;
+  RTCMON = (unsigned char)5;
+  RTCDAY = (unsigned char)23;
+  RTCDOW = (unsigned char)5;
+  RTCHOUR = (unsigned char)23;
+  RTCMIN = (unsigned char)58;
+  RTCSEC = (unsigned char)0;
 
   // Enable the RTC
   RTCCTL01 &= ~RTCHOLD;  
@@ -118,12 +118,14 @@ void halRtcSet(tRtcHostMsgPayload* pRtcData)
   temp.Bytes.byte0 = pRtcData->YearLsb; 
   temp.Bytes.byte1 = pRtcData->YearMsb;
   RTCYEAR = (unsigned int) temp.word;
-  RTCMON = (unsigned int) pRtcData->Month;
-  RTCDAY = (unsigned int) pRtcData->DayOfMonth;
-  RTCDOW = (unsigned int) pRtcData->DayOfWeek;
-  RTCHOUR = (unsigned int) pRtcData->Hour;
-  RTCMIN = (unsigned int) pRtcData->Minute;
-  RTCSEC = (unsigned int) pRtcData->Second;
+  RTCMON = pRtcData->Month;
+  RTCDAY = pRtcData->DayOfMonth;
+  RTCDOW = pRtcData->DayOfWeek;
+  RTCHOUR = pRtcData->Hour;
+  RTCMIN = pRtcData->Minute;
+  RTCSEC = pRtcData->Second;
+
+  EnableTimeStamp();
   
   // Enable the RTC
   RTCCTL01 &= ~RTCHOLD;  
@@ -175,12 +177,6 @@ void DisableRtcPrescaleInterruptUser(unsigned char UserMask)
   portEXIT_CRITICAL();
 }
 
-unsigned char QueryRtcUserActive(unsigned char UserMask)
-{
-  return (RtcInUseMask & UserMask);
-}
-
-
 static unsigned char DivideByFour = 0;
 
 /*! Real Time Clock interrupt handler function.
@@ -213,14 +209,11 @@ __interrupt void RTC_ISR(void)
     {
       DivideByFour = 0;
            
-      if ( QueryRtcUserActive(RTC_TIMER_VIBRATION) )
+      if (RtcInUseMask & RTC_TIMER_VIBRATION) VibrationMotorStateMachineIsr();
+      
+      if (RtcInUseMask & RTC_TIMER_BUTTON)
       {
-        VibrationMotorStateMachineIsr();
-      }
-
-      if ( QueryRtcUserActive(RTC_TIMER_BUTTON) )
-      {
-        SetupMessage(&Msg, ButtonStateMsg,MSG_OPT_NONE);
+        SetupMessage(&Msg, ButtonStateMsg, MSG_OPT_NONE);
         SendMessageToQueueFromIsr(DISPLAY_QINDEX, &Msg);
         
         ExitLpm = 1;
@@ -240,18 +233,13 @@ __interrupt void RTC_ISR(void)
     
     IncrementUpTime();
     ExitLpm |= OneSecondTimerHandlerIsr();
-    
     break;
   
   default:
     break;
   }
 
-  if ( ExitLpm )
-  {
-    EXIT_LPM_ISR();  
-  }
-  
+  if (ExitLpm) EXIT_LPM_ISR();
 }
 
 

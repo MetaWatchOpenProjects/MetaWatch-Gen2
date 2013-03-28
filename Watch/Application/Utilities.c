@@ -49,7 +49,7 @@ unsigned char UTL_RegisterFreeRtosTask(void * TaskHandle,
   
   if(TaskIndex >= MAX_NUM_TASK_LOG_ENTRIES)
   {
-    PrintString("Task Log is Full \r\n");
+    PrintS("Task Log is Full");
     retValue = 0;  
   }
   else
@@ -76,17 +76,17 @@ static unsigned char PrintTaskIndex = 3;
 void UTL_FreeRtosTaskStackCheck(void)
 {
   taskInfoArray[PrintTaskIndex].FreeEntries = 
-    uxTaskGetStackHighWaterMark( taskInfoArray[PrintTaskIndex].taskHandle );
+    uxTaskGetStackHighWaterMark(taskInfoArray[PrintTaskIndex].taskHandle);
   
   /* free, used, total */
-  PrintStringSpaceAndThreeDecimals
-    ((char*)pcTaskGetTaskName( taskInfoArray[PrintTaskIndex].taskHandle ),
+  PrintF("%s %d %d %d",
+    (char*)pcTaskGetTaskName(taskInfoArray[PrintTaskIndex].taskHandle),
      taskInfoArray[PrintTaskIndex].FreeEntries,
      taskInfoArray[PrintTaskIndex].Depth - taskInfoArray[PrintTaskIndex].FreeEntries,
-                                   taskInfoArray[PrintTaskIndex].Depth);
+     taskInfoArray[PrintTaskIndex].Depth));
                
   PrintTaskIndex ++;
-  if ( rintTaskIndex >= TaskIndex)
+  if (rintTaskIndex >= TaskIndex)
   {
     PrintTaskIndex = 3;    
     CreateAndSendMessage(&Msg, QueryMemoryMsg, MSG_OPT_NONE);
@@ -101,19 +101,14 @@ void CheckStackUsage(xTaskHandle TaskHandle, tString *TaskName)
 #if CHECK_STACK_USAGE
 
   portBASE_TYPE HighWater = uxTaskGetStackHighWaterMark(TaskHandle);
-  
-  if (HighWater < 20)
-  {
-    PrintTimeStamp();
-    PrintStringAndDecimal(TaskName, HighWater);
-  }
+  if (HighWater < 20) PrintF("%s Water:%d", TaskName, HighWater);
 #endif
 }
 
 void vApplicationStackOverflowHook(xTaskHandle *pxTask, char *pcTaskName)
 {
   /* try to print task name */
-  PrintString2("# Stack overflow:",(tString*)pcTaskName);
+  PrintF("# Stack overflow:%s",(tString*)pcTaskName);
   SoftwareReset();
 }
 

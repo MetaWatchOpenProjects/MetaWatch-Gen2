@@ -79,9 +79,9 @@ void PrintMessageType(tMessage *pMsg)
   { 
     
 #if DONT_PRINT_MESSAGE_TYPE
-    PrintString2(MsgInfo[pMsg->Type].MsgStr, CR);
+    PrintS(MsgInfo[pMsg->Type].MsgStr);
 #else
-    PrintStringAndHexByte(MsgInfo[pMsg->Type].MsgStr, pMsg->Type);
+    PrintF("%s 0x%02x", MsgInfo[pMsg->Type].MsgStr, pMsg->Type);
 #endif
   }
 }
@@ -124,10 +124,10 @@ static void PrintQueueNameIsFull(unsigned char Qindex)
   
   switch(Qindex)
   {
-  case FREE_QINDEX:        PrintString("Shoud not get here\r\n");   break;
-  case DISPLAY_QINDEX:     PrintString("Display Q is full\r\n");    break;
-  case SPP_TASK_QINDEX:    PrintString("Spp Task Q is full\r\n");   break;
-  default:                 PrintString("Unknown Q is full\r\n");    break;
+  case FREE_QINDEX:        PrintS("Shoud not get here");   break;
+  case DISPLAY_QINDEX:     PrintS("Display Q is full");    break;
+  case SPP_TASK_QINDEX:    PrintS("Spp Task Q is full");   break;
+  default:                 PrintS("Unknown Q is full");    break;
   }
 }
 

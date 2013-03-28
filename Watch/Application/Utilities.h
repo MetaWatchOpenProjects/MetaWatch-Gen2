@@ -30,7 +30,7 @@
 
 #if TASK_DEBUG
 /*! Cycle through all of the tasks and display how much stack they are using 
- * (Prints information for one task each call)
+ * (PrintS( information for one task each call)
  */
 void UTL_FreeRtosTaskStackCheck(void);
 #endif

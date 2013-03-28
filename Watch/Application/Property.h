@@ -22,16 +22,17 @@
 #define PROP_DDMM_DATE_FORMAT   (0x02)
 #define PROP_TIME_SECOND        (0x04)
 #define PROP_WIDGET_GRID        (0x08)
-#define PROP_VALID              (0x0F)
+#define PROP_AUTO_BACKLIGHT     (0x10)
 
-#define PROP_INVERT_DISPLAY     (0x10)
-#define PROP_DISABLE_LINK_ALARM (0x20)
-#define PROP_PHONE_DRAW_TOP     (0x40)
-#define PROP_RSTNMI             (0x80)
-#define PROP_DEFAULT            (PROP_WIDGET_GRID)
-#define PROP_ALL                (0x3F)
+#define PROP_VALID              (0x01F)
+#define PROP_DEFAULT            (PROP_WIDGET_GRID | PROP_AUTO_BACKLIGHT)
 
 #define PROPERTY_READ           (0x80)
+
+/* internal usage */
+#define PROP_PHONE_DRAW_TOP     (0x20)
+#define PROP_INVERT_DISPLAY     (0x40)
+//#define PROP_DISABLE_LINK_ALARM (0x80)
 
 void InitProperty(void);
 unsigned char GetProperty(unsigned char Bits);

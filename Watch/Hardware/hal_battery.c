@@ -98,7 +98,7 @@ unsigned char CheckClip(void)
     ChangeMuxMode(Clip);
     EnableDebugUart(Clip);
 
-    if (Clip == CLIP_ON) PrintString2("- Atch", CR);
+    if (Clip == CLIP_ON) PrintS("- Atch");
     
     Changed = pdTRUE;
     Last = Clip;
@@ -115,9 +115,25 @@ void CheckBattery(void)
     ChargeStatus = CHARGE_STATUS_OFF;
     CheckBatteryLow();
   }
-  else if (ChargeEnable) ChargingControl();
-  
-  PrintDecimal(Read(BATTERY)); PrintString(CR);
+  else
+  {
+    char Status = SPACE;
+    
+    if (ChargeEnable)
+    {
+      ChargingControl();
+      
+      switch (ChargeStatus)
+      {
+      case CHARGE_STATUS_PRECHARGE:   Status = '.'; break;
+      case CHARGE_STATUS_FAST_CHARGE: Status = ':'; break;
+      case CHARGE_STATUS_DONE:        Status = '|'; break;
+      case CHARGE_STATUS_OFF:         Status = 'o'; break;
+      default:                        Status = '?'; break;
+      }
+    }
+    PrintF("%c%d", Status, Read(BATTERY));
+  }
 }
 
 unsigned char ClipOn(void)
@@ -164,15 +180,6 @@ static void ChargingControl(void)
   /* Decode the battery state */
   /* mask and shift to get the current battery charge status */
   ChargeStatus = BAT_CHARGE_IN & (BAT_CHARGE_STAT1 | BAT_CHARGE_STAT2);
-
-  switch (ChargeStatus)
-  {
-  case CHARGE_STATUS_PRECHARGE:   PrintString(".");  break;
-  case CHARGE_STATUS_FAST_CHARGE: PrintString(":"); break;
-  case CHARGE_STATUS_DONE:        PrintString("|"); break;
-  case CHARGE_STATUS_OFF:         PrintString("ChargeOff");  break;
-  default:                        PrintString("Charge???");  break;
-  }
 }
 
 unsigned char Charging(void)
@@ -193,7 +200,7 @@ unsigned char ChargeEnabled(void)
 void ToggleCharging(void)
 {
   ChargeEnable = !ChargeEnable;
-  PrintString2("- Charge ", ChargeEnable ? "Enabled" : "Disabled");
+  PrintF("- Charge %s", ChargeEnable ? "Enabled" : "Disabled");
   
   if (!ChargeEnable)
   {

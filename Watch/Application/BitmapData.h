@@ -23,6 +23,7 @@
 #define BITMAPDATA_H
 
 #define BYTES_PER_SCREEN          (1152)
+#define BYTES_PER_HALF_SCREEN     (576)
 #define SPLASH_ROWS               (32)
 #define TEMPLATE_NUM_FLASH_PAGES  (2)
 #define HAL_FLASH_PAGE_SIZE       (512)
@@ -51,6 +52,9 @@ extern const unsigned char pTemplate[][BYTES_PER_SCREEN];
 
 extern const unsigned char pWidgetTemplate[][6 * 48];
 #define WIDGET_TEMPLATE_NUM (sizeof(pWidgetTemplate) / (6 * 48))
+
+extern const unsigned char pTemplate2Q[][BYTES_PER_HALF_SCREEN];
+#define TEMPLATE_2Q_NUM    (sizeof(pTemplate2Q) / BYTES_PER_HALF_SCREEN)
 
 #if __IAR_SYSTEMS_ICC__
 extern __data20 const unsigned char pWatchFace[][1]; //TEMPLATE_FLASH_SIZE];

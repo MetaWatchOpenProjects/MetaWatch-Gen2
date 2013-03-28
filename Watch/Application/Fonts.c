@@ -77,7 +77,6 @@ unsigned char MapCharacterToIndex(unsigned char CharIn)
 {
   if (Font[CurrentType].Type == FONT_TYPE_TIME) return CharIn;
   
-  //Check if CharIn was entered as a Time or numeric character
   if(CharIn < TOTAL_TIME_CHARACTERS)
   {
     //Entered as Time or numeric character. 

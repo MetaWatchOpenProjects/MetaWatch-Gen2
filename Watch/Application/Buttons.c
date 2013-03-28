@@ -128,7 +128,7 @@ static const tButtonAction InitAction[] =
   {BTN_E | INIT_PAGE | BTN_EVT_IMDT, ModifyTimeMsg, MODIFY_TIME_INCREMENT_HOUR},
 
   {BTN_A | INFO_PAGE | BTN_EVT_IMDT, IdleUpdateMsg, 0},
-  {BTN_C | INFO_PAGE | BTN_EVT_RELS, MenuModeMsg, Menu1Page},
+//  {BTN_C | INFO_PAGE | BTN_EVT_RELS, MenuModeMsg, Menu1Page},
   {BTN_D | INFO_PAGE | BTN_EVT_IMDT, IdleUpdateMsg, 0},
 
   {BTN_A | CALL_PAGE | BTN_EVT_IMDT, CallerNameMsg, SHOW_NOTIF_REJECT_CALL},
@@ -259,7 +259,7 @@ static void ButtonStateMachine(unsigned char ButtonOn, unsigned char Index)
               
       if (ButtonData[Index].BtnHoldCounter == BTN_HOLD_COUNT)
       {
-        PrintString("btn HOLD\r\n");
+        PrintS("btn HOLD");
         ChangeButtonState(Index, BUTTON_STATE_HOLD);
       }
     }
@@ -354,8 +354,8 @@ static void HandleButtonEvent(unsigned char Index, unsigned char Event)
 {
   tMessage Msg;
 
-//  PrintStringAndTwoDecimals("- BtnEvt i:", Index, "e:", Event);
-//  PrintStringAndHexByte("LstBF:0x", LastButton);
+//  PrintS(tringAndTwoDecimals("- BtnEvt i:", Index, "e:", Event);
+//  PrintS(tringAndHexByte("LstBF:0x", LastButton);
 
 #ifdef DIGITAL
   unsigned char Done = pdFALSE;
@@ -378,11 +378,11 @@ static void HandleButtonEvent(unsigned char Index, unsigned char Event)
   }
   else if (Event == BTN_EVT_RELS)
   {
-    if (ButtonMode != IDLE_MODE) ResetModeTimer();
-    
+//    if (ButtonMode != IDLE_MODE) ResetModeTimer();
+
     if (BackLightOn() || Index == BTN_INDEX_F)
     {
-      SendMessage(&Msg, LedChange, LED_ON_OPTION);
+      SendMessage(&Msg, SetBacklightMsg, LED_ON_OPTION);
       if (Index == BTN_INDEX_F) Done = pdTRUE;
     }
   }
@@ -390,7 +390,7 @@ static void HandleButtonEvent(unsigned char Index, unsigned char Event)
   if (Index != LastButton >> BTN_NO_SHFT && (Event == BTN_EVT_HOLD || Event == BTN_EVT_RELS))
     LastButton = (Index << BTN_NO_SHFT) | Event;
   
-//  PrintStringAndHexByte("-LstAF:0x", LastButton);
+//  PrintS(tringAndHexByte("-LstAF:0x", LastButton);
 
   if (Done) return;
   
@@ -422,7 +422,7 @@ static void HandleButtonEvent(unsigned char Index, unsigned char Event)
     ModePage = CurrentIdlePage() - InitPage;
   }
   
-//  PrintStringAndThreeDecimals("- CurrP:", CurrentIdlePage(), " ActNum:", ActNum, " ModePage:", ModePage);
+//  PrintS(tringAndThreeDecimals("- CurrP:", CurrentIdlePage(), " ActNum:", ActNum, " ModePage:", ModePage);
 
 #else
 
@@ -445,13 +445,13 @@ static void HandleButtonEvent(unsigned char Index, unsigned char Event)
   
   if (i == ActNum) return;
   
-  //PrintStringAndDecimal("-No mask:", Event);
+  //PrintS(tringAndDecimal("-No mask:", Event);
   /* if this button press is going to the bluetooth then allocate
    * a buffer and add the button index
    */
   if (pAction[i].MsgType == ButtonEventMsg)
   {
-    PrintStringAndDecimal("- BtnEvtMsg:Evt:", Event);
+    PrintF("- BtnEvtMsg:Evt:%d", Event);
     SetupMessageAndAllocateBuffer(&Msg, pAction[i].MsgType, pAction[i].MsgOpt);
     Msg.pBuffer[0] = (Index >= SW_UNUSED_INDEX) ? Index + 1 : Index;
     Msg.pBuffer[1] = ButtonMode;
@@ -464,7 +464,6 @@ static void HandleButtonEvent(unsigned char Index, unsigned char Event)
   else if (pAction[i].MsgType != InvalidMessage)
   {
     SendMessage(&Msg, pAction[i].MsgType, pAction[i].MsgOpt);
-//    PrintStringAndTwoHexBytes(" M O:0x", pAction[i].MsgType, pAction[i].MsgOpt);
   }
 }
 
@@ -480,10 +479,13 @@ void EnableButtonMsgHandler(tMessage* pMsg)
   tButtonActionPayload *pAction = (tButtonActionPayload*)pMsg->pBuffer;
   if (pAction->ButtonIndex > SW_UNUSED_INDEX) pAction->ButtonIndex --;
 
-//  PrintStringAndThreeDecimals("-M:", pAction->DisplayMode, " i:", pAction->ButtonIndex,
+//  PrintS(tringAndThreeDecimals("-M:", pAction->DisplayMode, " i:", pAction->ButtonIndex,
 //                              "E:", pAction->ButtonEvent);
-//  PrintStringAndTwoHexBytes(" M O:0x", pAction->CallbackMsgType, pAction->CallbackMsgOptions);
-//  
+//  PrintS(tringAndTwoHexBytes(" M O:0x", pAction->CallbackMsgType, pAction->CallbackMsgOptions);
+//
+  /* redefine backlight key is not allowed */
+  if (pAction->ButtonIndex == BTN_INDEX_F) return;
+
   unsigned char BtnInfo = pAction->DisplayMode << BTN_MODE_PAGE_SHFT |
                           pAction->ButtonIndex << BTN_NO_SHFT |
                           pAction->ButtonEvent;
@@ -504,7 +506,7 @@ void EnableButtonMsgHandler(tMessage* pMsg)
     ButtonAction[i].MsgType = pAction->CallbackMsgType;
     ButtonAction[i].MsgOpt = pAction->CallbackMsgOptions;
   }
-  else PrintString2("# DefBtn", CR);
+  else PrintS("# DefBtn");
 }
 
 /*! Remove callback for the specified button press type.
@@ -517,9 +519,6 @@ void DisableButtonMsgHandler(tMessage* pMsg)
   tButtonActionPayload *pAction = (tButtonActionPayload*)pMsg->pBuffer;
   if (pAction->ButtonIndex > SW_UNUSED_INDEX) pAction->ButtonIndex --;
 
-//  PrintStringAndThreeDecimals("-M:", pAction->DisplayMode, " i:", pAction->ButtonIndex,
-//                              "E:", pAction->ButtonEvent);
-  
   unsigned char BtnInfo = pAction->DisplayMode << BTN_MODE_PAGE_SHFT |
                           pAction->ButtonIndex << BTN_NO_SHFT |
                           pAction->ButtonEvent;
@@ -599,7 +598,7 @@ __interrupt void ButtonPortIsr(void)
   
   BUTTON_PORT_IFG = 0;
 
-  if(StartDebouncing)
+  if (StartDebouncing)
   {
     EnableRtcPrescaleInterruptUser(RTC_TIMER_BUTTON); 
   }

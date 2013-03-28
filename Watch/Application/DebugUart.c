@@ -1,5 +1,5 @@
 //==============================================================================
-//  Copyright 2011 Meta Watch Ltd. - http://www.MetaWatch.org/
+//  Copyright 2011 - 2013 Meta Watch Ltd. - http://www.MetaWatch.org/
 // 
 //  Licensed under the Meta Watch License, Version 1.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -14,13 +14,9 @@
 //  limitations under the License.
 //==============================================================================
 
-/******************************************************************************/
-/*! \file DebugUart.c
- *
- *
- * The print functions cannot be used in interrupt context 
- */
-/******************************************************************************/
+#include <stdio.h>
+#include <string.h>
+#include <stdarg.h>
 
 #include "FreeRTOS.h"
 #include "semphr.h"
@@ -40,6 +36,7 @@
 #include "task.h"
 #include "Utilities.h"
 #include "TermMode.h"
+#include "Wrapper.h"
 
 /******************************************************************************/
 extern const char BUILD[];
@@ -47,31 +44,35 @@ extern const char VERSION[];
 
 const char OK[] = "- ";
 const char NOK[] = "# ";
-const char CR[] = "\r\n";
-const char SPACE[] = " ";
+const char CR = '\r';
+const char LN = '\n';
+const char SPACE = ' ';
+const char ZERO = '0';
+const char COLON = ':';
+const char DOT = '.';
+const char STAR = '*';
 
-tString ConversionString[6];
+static char Buffer[32];
 static unsigned char DebugEnabled;
+static unsigned char TimeStampEnabled = pdFALSE;
 static xSemaphoreHandle UartMutex = 0;
 
-static void InitDebugUart(void);
 static void WriteTxBuffer(const tString * pBuf);
+static void WriteTimeStamp(void);
+static void WriteTime(unsigned char Rtc, unsigned Separator);
 
 /******************************************************************************/
 /* if interrupts are disabled then return */
 #define GIE_CHECK() {                         \
   if ((__get_interrupt_state() & GIE) == 0    \
-      || DebugEnabled == pdFALSE)             \
-  {                                           \
-    return;                                   \
-  }                                           \
-}  
+      || DebugEnabled == pdFALSE) return;     \
+}
 
 #if PRETTY_PRINT
 
 /* getting and releasing mutex require about 10 us each */
-#define GET_MUTEX()  { xSemaphoreTake(UartMutex,portMAX_DELAY); }
-#define GIVE_MUTEX() { xSemaphoreGive(UartMutex); }
+#define GET_MUTEX()  {xSemaphoreTake(UartMutex, portMAX_DELAY);}
+#define GIVE_MUTEX() {xSemaphoreGive(UartMutex);}
   
 #else
 
@@ -80,43 +81,168 @@ static void WriteTxBuffer(const tString * pBuf);
 
 #endif
 
-/******************************************************************************/
-
-static void InitDebugUart(void)
-{
-  UCA3CTL1 = UCSWRST;
-  
-  /* set the baud rate to 115200 (from table 32-5 in slau208j) */
-  UCA3CTL1 |= UCSSEL__SMCLK;
-  UCA3BR0 = 145;
-  UCA3MCTL = UCBRS_5 + UCBRF_0;
-  
-  /* configure tx and rx pins */
-  P10SEL |= BIT4;
-  P10SEL |= BIT5;
-  
-  /* clear status */
-  UCA3STAT = 0;
-  
-  /* take uart out of reset */
-  UCA3CTL1 &= ~UCSWRST; 
-  
-  /* prime transmitter */
-  UCA3IE = 0;
-  UCA3IFG = 0; //UCTXIFG;
-  
-  UartMutex = xSemaphoreCreateMutex();
-  xSemaphoreGive(UartMutex);
-  
-  WriteTxBuffer("\r\n\r\n**** DebugUart ****\r\n\r\n");
-}
+#define WRITE_UART(_x) {UCA3TXBUF = _x; while ((UCA3IFG & UCTXIFG) == 0);}
 
 void EnableDebugUart(unsigned char Enable)
 {
-  if (!UartMutex) InitDebugUart();
-
+  if (!UartMutex)
+  {
+    UCA3CTL1 = UCSWRST;
+    
+    /* set the baud rate to 115200 (from table 32-5 in slau208j) */
+    UCA3CTL1 |= UCSSEL__SMCLK;
+    UCA3BR0 = 145;
+    UCA3MCTL = UCBRS_5 + UCBRF_0;
+    
+    /* configure tx and rx pins */
+    P10SEL |= BIT4;
+    P10SEL |= BIT5;
+    
+    /* clear status */
+    UCA3STAT = 0;
+    
+    /* take uart out of reset */
+    UCA3CTL1 &= ~UCSWRST; 
+    
+    /* prime transmitter */
+    UCA3IE = 0;
+    UCA3IFG = 0; //UCTXIFG;
+    
+    UartMutex = xSemaphoreCreateMutex();
+    xSemaphoreGive(UartMutex);
+    
+    DebugEnabled = pdTRUE;
+    PrintR(); PrintC(STAR); PrintC(STAR); PrintC(STAR); PrintR();
+  }
+  
   DebugEnabled = Enable;
   EnableTermMode(Enable);
+}
+
+/******************************************************************************/
+static void WriteTxBuffer(const tString *pBuf)
+{
+  EnableSmClkUser(BT_DEBUG_UART_USER);
+
+  if (TimeStampEnabled) WriteTimeStamp();
+  while (*pBuf) WRITE_UART(*pBuf++);
+  
+  /* wait until transmit is done */
+  while (UCA3STAT & UCBUSY); 
+  DisableSmClkUser(BT_DEBUG_UART_USER);  
+}
+
+static void WriteTimeStamp(void)
+{
+  WriteTime(RTCHOUR, COLON);
+  WriteTime(RTCMIN, COLON);
+  WriteTime(RTCSEC, SPACE);
+}
+
+static void WriteTime(unsigned char Rtc, unsigned Separator)
+{
+  tWordByteUnion Time;
+  Time.Bytes.byte0 = Rtc;
+
+  Time.Bytes.byte1 = 0; //hold quotient
+  while (Time.Bytes.byte0 >= 10)
+  {
+    Time.Bytes.byte0 -= 10;
+    Time.Bytes.byte1 ++;
+  }
+
+  Time.Bytes.byte1 += ZERO;
+  Time.Bytes.byte0 += ZERO;
+
+  WRITE_UART(Time.Bytes.byte1);
+  WRITE_UART(Time.Bytes.byte0);
+  WRITE_UART(Separator);
+}
+
+void EnableTimeStamp(void)
+{
+  WriteTxBuffer("--- ");
+  WriteTime(RTCMON, DOT);
+  WriteTime(RTCDAY, SPACE);
+  WriteTxBuffer(" ---\r\n");
+  
+  TimeStampEnabled = pdTRUE;
+}
+
+/* 120 us - 90 us = 33 us */
+void PrintC(char Char)
+{
+  GIE_CHECK();
+  GET_MUTEX();
+  WRITE_UART(Char);
+  GIVE_MUTEX();
+}
+
+void PrintR(void)
+{
+  GIE_CHECK();
+  GET_MUTEX();
+  WRITE_UART(CR);
+  WRITE_UART(LN);
+  GIVE_MUTEX();
+}
+
+void PrintH(unsigned char Value)
+{
+  unsigned char MSB = Value >> 4;
+  unsigned char LSB = Value & 0x0F;
+  MSB += MSB > 9 ? 'A' - 10 : '0';
+  LSB += LSB > 9 ? 'A' - 10 : '0';
+
+  GIE_CHECK();
+  GET_MUTEX();
+  WRITE_UART(MSB);
+  WRITE_UART(LSB);
+  WRITE_UART(SPACE);
+  GIVE_MUTEX();
+}
+
+void PrintS(const char *pString)
+{
+  GIE_CHECK();
+  GET_MUTEX();
+  WriteTxBuffer(pString);
+  WRITE_UART(CR);
+  WRITE_UART(LN);
+  GIVE_MUTEX();
+}
+
+void PrintF(const char *pFormat, ...)
+{
+  va_list args;
+
+  va_start(args, pFormat);
+  vSprintF(Buffer, pFormat, args);
+  va_end(args);
+
+  PrintS(Buffer);
+}
+
+/* callback from FreeRTOS 
+ *
+ * if the bt stack is open and closed enough then memory becomes fragmented
+ * enough so that a failure occurs
+ *
+ */
+void vApplicationMallocFailedHook(size_t xWantedSize)
+{
+  PrintF("@ Ask: %d %s %d",(unsigned int)xWantedSize, " Free:", xPortGetFreeHeapSize());
+  __no_operation();
+}
+
+void WhoAmI(void)
+{
+  PrintF("Firmware Ver:%s Build:%s", VERSION, BUILD);
+  PrintS(BR_DEVICE_NAME);
+  PrintF("Msp430 Rev:%c HwVer:%d", GetMsp430HardwareRevision(), HardwareVersion());
+  PrintF("BoardConfig: %d", GetBoardConfiguration());
+  PrintF("Calibration: %d", ValidCalibration());
+  PrintF("ErrataGroup1: %d", QueryErrataGroup1());
 }
 
 #ifndef __IAR_SYSTEMS_ICC__
@@ -141,389 +267,3 @@ __interrupt void DebugUartIsr(void)
   
   if (ExitLpm) EXIT_LPM_ISR();
 }
-
-/******************************************************************************/
-static void WriteTxBuffer(const tString * pBuf)
-{
-  EnableSmClkUser(BT_DEBUG_UART_USER);
-  
-  unsigned char i = 0;
-
-  while (pBuf[i] != 0)
-  {
-    /* writing buffer clears TXIFG */
-    UCA3TXBUF = pBuf[i++];
-    
-    /* wait for transmit complete flag */
-    while( (UCA3IFG & UCTXIFG) == 0 );
-  }
-  
-  /* wait until transmit is done */
-  while(UCA3STAT & UCBUSY); 
-  DisableSmClkUser(BT_DEBUG_UART_USER);
-}
-
-/*! convert a 16 bit value into a string */
-void ToDecimalString(unsigned int Value, tString * pString)
-{
-  unsigned int bar = 10000;
-  unsigned char index = 0;
-  unsigned int temp = 0;
-  unsigned char first = 0;
-  
-  unsigned char i;
-  for ( i = 0; i < 5; i++ )
-  {
-    temp = Value / bar;
-    
-    if ( temp > 0 || first || i == 4)
-    {
-      pString[index++] = temp + '0';
-      first = 1;
-    }
-    
-    Value = Value % bar;
-    
-    bar = bar / 10;
-    
-  }
-    
-  pString[index] = 0;
-  
-}
-
-
-/*! convert a 16 bit value into a hexadecimal string */
-void IntToHexString(unsigned int Value, tString * pString)
-{
-  unsigned char parts[4];
-  unsigned char index = 0;
-  
-  parts[3] = (0xF000 & Value) >> 12;
-  parts[2] = (0x0F00 & Value) >> 8; 
-  parts[1] = (0x00F0 & Value) >> 4;
-  parts[0] = (0x000F & Value);
-    
-  signed char i = 0;
-  for ( i = 3; i > -1; i-- )
-  {
-      if ( parts[i] > 9 )
-      {
-        pString[index++] = parts[i] + 'A' - 10;
-      }
-      else
-      {
-        pString[index++] = parts[i] + '0';
-      }
-    
-    }
-    
-  /* null */
-  pString[index] = 0;
-  
-  }
-    
-/*! convert a 8 bit value into a hexadecimal string */
-void ByteToHexString(unsigned char Value, tString * pString)
-{
-  unsigned char parts[2];
-  unsigned char index = 0;
-  
-  parts[1] = (0x00F0 & Value) >> 4;
-  parts[0] = (0x000F & Value);
-  
-  signed char i = 0;
-  for ( i = 1; i > -1; i-- )
-  {
-    if ( parts[i] > 9 )
-    {
-      pString[index++] = parts[i] + 'A' - 10;
-    }
-    else
-    {
-      pString[index++] = parts[i] + '0';
-    }
-  }
-
-  /* null */
-  pString[index] = 0;
-}
-
-/******************************************************************************/
-
-/* 120 us - 90 us = 33 us */
-void PrintCharacter(char Character)
-{
-  GIE_CHECK();
-  GET_MUTEX();
-  WriteTxBuffer((tString *)&Character);
-  GIVE_MUTEX();
-}
-
-void PrintString(const tString * pString)
-{
-  GIE_CHECK();
-  GET_MUTEX();
-  WriteTxBuffer(pString);
-  GIVE_MUTEX();
-  
-}
-
-void PrintString2(const tString * pString1, const tString * pString2)
-{
-  GIE_CHECK();
-  GET_MUTEX();
-  WriteTxBuffer(pString1);
-  WriteTxBuffer(pString2);
-  GIVE_MUTEX();
-  
-}
-
-void PrintString3(const tString *pString1, const tString *pString2, const tString *pString3)
-{
-  GIE_CHECK();
-  GET_MUTEX();
-  WriteTxBuffer(pString1);
-  WriteTxBuffer(pString2);
-  WriteTxBuffer(pString3);
-  GIVE_MUTEX();
-  
-}
-
-void PrintDecimal(unsigned int Value)
-{
-  GIE_CHECK();
-  GET_MUTEX();
-  ToDecimalString(Value,ConversionString);
-  WriteTxBuffer(ConversionString);  
-  GIVE_MUTEX();
-  
-}
-
-void PrintDecimalAndNewline(unsigned int Value)
-{
-  GIE_CHECK();
-  GET_MUTEX();
-  ToDecimalString(Value,ConversionString);
-  WriteTxBuffer(ConversionString);
-  WriteTxBuffer(CR);  
-  GIVE_MUTEX();
-  
-}
-
-void PrintSignedDecimalAndNewline(signed int Value)
-{
-  GIE_CHECK();
-  GET_MUTEX();
-  if ( Value < 0 )
-  {
-    Value = ~Value + 1;
-    WriteTxBuffer("-");
-  }
-  ToDecimalString(Value,ConversionString);
-  WriteTxBuffer(ConversionString);
-  WriteTxBuffer(CR);  
-  GIVE_MUTEX();
-  
-}
-
-void PrintStringAndDecimal(const tString * pString, unsigned int Value)
-{
-  GIE_CHECK();
-  GET_MUTEX();
-  WriteTxBuffer(pString);  
-  ToDecimalString(Value,ConversionString);
-  WriteTxBuffer(ConversionString);
-  WriteTxBuffer(CR);
-  GIVE_MUTEX();
-  
-}
-
-void PrintStringAndSpaceAndDecimal(tString * const pString,unsigned int Value)
-{
-  GIE_CHECK();
-  GET_MUTEX();
-  WriteTxBuffer(pString);
-  WriteTxBuffer(SPACE);  
-  ToDecimalString(Value,ConversionString);
-  WriteTxBuffer(ConversionString);
-  WriteTxBuffer(CR);
-  GIVE_MUTEX();
-  
-}
-
-void PrintStringAndTwoDecimals(tString * const pString1,
-                               unsigned int Value1,
-                               tString * const pString2,
-                               unsigned int Value2)
-{
-  GIE_CHECK();
-  GET_MUTEX();
-  WriteTxBuffer(pString1);  
-  ToDecimalString(Value1,ConversionString);
-  WriteTxBuffer(ConversionString);
-  WriteTxBuffer(SPACE);
-  
-  WriteTxBuffer(pString2);  
-  ToDecimalString(Value2,ConversionString);
-  WriteTxBuffer(ConversionString);
-  WriteTxBuffer(CR);
-  GIVE_MUTEX();
-  
-}
-
-void PrintStringAndThreeDecimals(tString * const pString1,
-                                 unsigned int Value1,
-                                 tString * const pString2,
-                                 unsigned int Value2,
-                                 tString * const pString3,
-                                 unsigned int Value3)
-{
-  GIE_CHECK();
-  GET_MUTEX();
-  WriteTxBuffer(pString1);  
-  ToDecimalString(Value1,ConversionString);
-  WriteTxBuffer(ConversionString);
-  WriteTxBuffer(SPACE);
-  
-  WriteTxBuffer(pString2);  
-  ToDecimalString(Value2,ConversionString);
-  WriteTxBuffer(ConversionString);
-  WriteTxBuffer(SPACE);
-  
-  WriteTxBuffer(pString3);  
-  ToDecimalString(Value3,ConversionString);
-  WriteTxBuffer(ConversionString);
-  WriteTxBuffer(CR);
-  GIVE_MUTEX();
-  
-}
-
-void PrintStringSpaceAndTwoDecimals(tString * const pString1,
-                                    unsigned int Value1,
-                                    unsigned int Value2)
-{
-  GIE_CHECK();
-  GET_MUTEX();
-  WriteTxBuffer(pString1);  
-  WriteTxBuffer(SPACE);
-  ToDecimalString(Value1,ConversionString);
-  WriteTxBuffer(ConversionString);
-  WriteTxBuffer(SPACE);
-  ToDecimalString(Value2,ConversionString);
-  WriteTxBuffer(ConversionString);
-  WriteTxBuffer(CR);
-  GIVE_MUTEX();
-  
-}
-
-
-void PrintStringSpaceAndThreeDecimals(tString * const pString1,
-                                      unsigned int Value1,
-                                      unsigned int Value2,
-                                      unsigned int Value3)
-{
-  GIE_CHECK();
-  GET_MUTEX();
-  WriteTxBuffer(pString1);  
-  WriteTxBuffer(SPACE);
-  ToDecimalString(Value1,ConversionString);
-  WriteTxBuffer(ConversionString);
-  WriteTxBuffer(SPACE);
-  ToDecimalString(Value2,ConversionString);
-  WriteTxBuffer(ConversionString);
-  WriteTxBuffer(SPACE);
-  ToDecimalString(Value3,ConversionString);
-  WriteTxBuffer(ConversionString);
-  WriteTxBuffer(CR);
-  GIVE_MUTEX();
-}
-
-void PrintStringAndHex(tString * const pString,unsigned int Value)
-{
-  GIE_CHECK();
-  GET_MUTEX();
-  WriteTxBuffer(pString);  
-  IntToHexString(Value,ConversionString);
-  WriteTxBuffer(ConversionString);   
-  WriteTxBuffer(CR);
-  GIVE_MUTEX();
-  
-}
-
-void PrintHex(unsigned char Value)
-{
-  GIE_CHECK();
-  GET_MUTEX();
-  ByteToHexString(Value,ConversionString);
-  WriteTxBuffer(ConversionString);   
-  WriteTxBuffer(SPACE);
-  GIVE_MUTEX();
-  
-}
-
-void PrintStringAndHexByte(tString * const pString,unsigned char Value)
-{
-  GIE_CHECK();
-  GET_MUTEX();
-  WriteTxBuffer(pString);  
-  ByteToHexString(Value,ConversionString);
-  WriteTxBuffer(ConversionString);   
-  WriteTxBuffer(CR);
-  GIVE_MUTEX();
-  
-}
-
-void PrintStringAndTwoHexBytes(tString * const pString,unsigned char Value, unsigned char Value1)
-{
-  GIE_CHECK();
-  GET_MUTEX();
-  WriteTxBuffer(pString);
-  ByteToHexString(Value,ConversionString);
-  WriteTxBuffer(ConversionString);
-  ByteToHexString(Value1,ConversionString);
-  WriteTxBuffer(ConversionString);
-  WriteTxBuffer(CR);
-  GIVE_MUTEX();
-  
-}
-
-void PrintTimeStamp(void)
-{
-  GIE_CHECK();
-  GET_MUTEX();
-  IntToHexString(RTCPS,ConversionString);
-  WriteTxBuffer(ConversionString);
-  WriteTxBuffer(SPACE);
-  GIVE_MUTEX();
-}
-
-/* callback from FreeRTOS 
- *
- * if the bt stack is open and closed enough then memory becomes fragmented
- * enough so that a failure occurs
- *
- */
-void vApplicationMallocFailedHook(size_t xWantedSize)
-{
-  PrintStringAndTwoDecimals("@ Ask: ",(unsigned int)xWantedSize, " Free: ", xPortGetFreeHeapSize());
-  
-  __no_operation();
-}
-
-void WhoAmI(void)
-{
-  PrintString3("Version: ", VERSION, CR);
-  PrintString3("Build: ", BUILD, CR);
-
-  PrintString2(BR_DEVICE_NAME, CR);
-  PrintString("Msp430 Version ");
-  PrintCharacter(GetMsp430HardwareRevision());
-  PrintString(CR);
-  
-  PrintStringAndDecimal("HwVersion: ", HardwareVersion());
-  PrintStringAndDecimal("BoardConfig: ", GetBoardConfiguration());
-  PrintStringAndDecimal("Calibration: ", ValidCalibration());
-  PrintStringAndDecimal("ErrataGroup1: ", QueryErrataGroup1());
-}
-

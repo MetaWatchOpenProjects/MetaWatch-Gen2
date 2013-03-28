@@ -132,12 +132,12 @@ static void InitAccelerometer(void)
      
   /* single byte read test */
   AccelerometerRead(KIONIX_DCST_RESP,pReadRegisterData,1);
-  //PrintStringAndHex("KIONIX_DCST_RESP (0x55) = 0x",pReadRegisterData[0]);
+  //PrintS(tringAndHex("KIONIX_DCST_RESP (0x55) = 0x",pReadRegisterData[0]);
   
   /* multiple byte read test */
   AccelerometerRead(KIONIX_WHO_AM_I,pReadRegisterData,2);
-//  PrintStringAndHex("KIONIX_WHO_AM_I (0x01) = 0x",pReadRegisterData[0]);
-//  PrintStringAndHex("KIONIX_TILT_POS_CUR (0x20) = 0x",pReadRegisterData[1]);  
+//  PrintS(tringAndHex("KIONIX_WHO_AM_I (0x01) = 0x",pReadRegisterData[0]);
+//  PrintS(tringAndHex("KIONIX_TILT_POS_CUR (0x20) = 0x",pReadRegisterData[1]);  
     
   /* 
    * KIONIX_CTRL_REG3 and DATA_CTRL_REG can remain at their default values 
@@ -167,7 +167,7 @@ static void InitAccelerometer(void)
   SidLength = XYZ_DATA_LENGTH;  
 
   AccelState = ACCEL_STATE_INIT;
-  PrintString2("- Accel Initd", CR);
+  PrintS("- Accel Initd");
 }
 
 /* 
@@ -222,7 +222,7 @@ static void AccelerometerSendDataHandler(void)
       || pReadRegisterData[5] != 0x28 )
   {
     // need to be checked
-    //PrintString("Invalid i2c burst read\r\n");
+    //PrintS("Invalid i2c burst read");
   }
           
   /* single read */
@@ -230,7 +230,7 @@ static void AccelerometerSendDataHandler(void)
   
   if (pReadRegisterData[0] != 0x55)
   {
-    PrintStringAndHex("Invalid i2c Read: ", pReadRegisterData[0]);
+    PrintF("Invalid i2c Read: 0x%02X", pReadRegisterData[0]);
   }
 
   AccelerometerRead(KIONIX_INT_SRC_REG2, pReadRegisterData, ONE_BYTE);
@@ -239,7 +239,7 @@ static void AccelerometerSendDataHandler(void)
   
   if ((*pReadRegisterData & INT_TAP_SINGLE) == INT_TAP_SINGLE)
   {
-    SendMessage(&Msg, LedChange, LED_ON_OPTION);
+    SendMessage(&Msg, SetBacklightMsg, LED_ON_OPTION);
   }
 //  else if ((*pReadRegisterData & INT_TAP_DOUBLE) == INT_TAP_DOUBLE)
 

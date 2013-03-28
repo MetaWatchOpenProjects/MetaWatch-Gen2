@@ -40,6 +40,8 @@
 #define BATTERY_LEVEL_NUMBER      (7)
 #define BATTERY_LEVEL_INTERVAL    (BATTERY_LEVEL_RANGE / BATTERY_LEVEL_NUMBER)
 
+#define DARK_LEVEL      (5)
+
 void InitAdc(void);
 
 /*! Returns the average of the last 8 sensor Sense ADC cycles
@@ -79,7 +81,7 @@ void CheckBatteryLow(void);
  * light sensor is ready to send data. The result can be read using the calling
  * ReadLightSense.
  */
-void LightSenseCycle(void);
+unsigned int LightSenseCycle(void);
 
 void ReadLightSensorHandler(void);
 

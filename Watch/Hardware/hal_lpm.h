@@ -58,5 +58,6 @@ void SoftwareReset(void);
  */
 void ConfigResetPin(unsigned char Set);
 
+unsigned char ResetPin(void);
 
 #endif /* HAL_LPM_H */

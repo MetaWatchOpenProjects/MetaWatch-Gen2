@@ -68,7 +68,7 @@ void OledWrite(unsigned char Command,unsigned char* pData,unsigned char Length)
   
   if ( Length < 1 )
   {
-    PrintString("Invalid OLED write Length\r\n");
+    PrintS("Invalid OLED write Length\r\n");
     return;
   }
   

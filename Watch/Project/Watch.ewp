@@ -166,6 +166,7 @@
           <name>CCDefines</name>
           <state>DIGITAL</state>
           <state>WATCH</state>
+          <state>BOOTLOADER</state>
           <state>SUPPORT_BLE</state>
           <state>INCLUDE_1316_PATCH</state>
         </option>
@@ -326,6 +327,7 @@
           <state>$PROJ_DIR$\..\Hardware</state>
           <state>$PROJ_DIR$\..\Hardware\F5xx_F6xx_Core_Lib\</state>
           <state>$PROJ_DIR$\..\Application</state>
+          <state>$PROJ_DIR$\..\..\Bootloader</state>
           <state>$PROJ_DIR$\..\..\Stack\Api</state>
         </option>
         <option>
@@ -727,7 +729,7 @@
         </option>
         <option>
           <name>XclFile</name>
-          <state>$PROJ_DIR$\LinkerConfiguration.xcl</state>
+          <state>$PROJ_DIR$\LinkerConfigurationBootloader.xcl</state>
         </option>
         <option>
           <name>XclFileSlave</name>
@@ -815,7 +817,7 @@
         </option>
         <option>
           <name>xcProgramEntryLabel</name>
-          <state>__program_start</state>
+          <state>bl_Main</state>
         </option>
         <option>
           <name>DebugInformation</name>
@@ -847,7 +849,7 @@
         </option>
         <option>
           <name>GenerateExtraOutput</name>
-          <state>0</state>
+          <state>1</state>
         </option>
         <option>
           <name>XExtraOutOverride</name>
@@ -855,7 +857,7 @@
         </option>
         <option>
           <name>ExtraOutputFile</name>
-          <state>Watch.a43</state>
+          <state>gen2.a43</state>
         </option>
         <option>
           <name>ExtraOutputFormat</name>
@@ -869,7 +871,7 @@
         </option>
         <option>
           <name>xcOverrideProgramEntryLabel</name>
-          <state>0</state>
+          <state>1</state>
         </option>
         <option>
           <name>xcProgramEntryLabelSelect</name>
@@ -893,6 +895,7 @@
           <state>-C $PROJ_DIR$\..\..\Stack\Api\IAR\stack.a</state>
           <state>-C $PROJ_DIR$\..\..\Stack\Api\IAR\libgat.a</state>
           <state>-C $PROJ_DIR$\..\..\Stack\Api\IAR\libmap.a</state>
+          <state>-C $PROJ_DIR$\..\..\Bootloader\Api\IAR\Bootloader.r43</state>
         </option>
         <option>
           <name>OverlaySystemMap</name>
@@ -3009,6 +3012,9 @@
       <name>$PROJ_DIR$\..\Application\Buttons.c</name>
     </file>
     <file>
+      <name>$PROJ_DIR$\..\Application\ClockWidget.c</name>
+    </file>
+    <file>
       <name>$PROJ_DIR$\..\Application\DebugUart.c</name>
     </file>
     <file>
@@ -3019,6 +3025,9 @@
     </file>
     <file>
       <name>$PROJ_DIR$\..\Application\IdleTask.c</name>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\..\Application\LcdBuffer.c</name>
     </file>
     <file>
       <name>$PROJ_DIR$\..\Application\LcdDisplay.c</name>

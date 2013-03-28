@@ -66,8 +66,6 @@ unsigned char PropertyBit(unsigned int NvIdentifier)
     break;
 
   case NVID_LINK_ALARM_ENABLE:
-    PropertyBit = PROP_DISABLE_LINK_ALARM;
-    break;
 
   default:
     break;
@@ -77,12 +75,8 @@ unsigned char PropertyBit(unsigned int NvIdentifier)
 
 void SetProperty(unsigned char Bits, unsigned char Val)
 {
-//  PrintStringAndHexByte("- BF SetNv: 0x", niProperty);
-//  PrintStringAndTwoHexBytes(" Bits: Val:", Bits, Val);
-
   niProperty |= Bits & Val; // set all 1 bits of Val
   niProperty &= ~Bits | Val; // set all 0 bits of Val
-//  PrintStringAndHexByte("- SetNv: 0x", niProperty);
 }
 
 void ToggleProperty(unsigned char Bit)

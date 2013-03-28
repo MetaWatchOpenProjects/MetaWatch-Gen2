@@ -182,7 +182,7 @@ typedef enum
    */
   WriteBufferMsg = 0x40,
   SecInvertMsg = 0x41,
-  ConfigureIdleBufferSize = 0x42,
+  ControlFullScreenMsg = 0x42,
   UpdateDisplayMsg = 0x43,
   LoadTemplateMsg = 0x44,
 
@@ -211,6 +211,8 @@ typedef enum
   LightSensorRespMsg = 0x59,
   LowBatteryWarningMsg = 0x5a,
   LowBatteryBtOffMsg = 0x5b,
+  AutoBacklightMsg = 0x5c,
+  SetBacklightMsg = 0x5d,
 
   /*****************************************************************************
    *
@@ -258,7 +260,7 @@ typedef enum
   ConnChangeMsg = 0xb9,
   UpdWgtIndMsg = 0xba,
 
-  LedChange = 0xc0,
+  SppAckMsg = 0xcc,
 
   QueryMemoryMsg = 0xd0,
   RamTestMsg = 0xd1,

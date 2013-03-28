@@ -48,6 +48,9 @@
 #define WARN_LEVEL_RADIO_OFF (1)
 #define WARN_LEVEL_NONE      (2)
 
+#define BATTERY_LEVEL_RANGE_ONETENTH  (BATTERY_LEVEL_RANGE / 10)
+#define BATTERY_LEVEL_RANGE_ONEPERCENT (BATTERY_LEVEL_RANGE / 100)
+
 typedef struct
 {
   unsigned char MsgType1;
@@ -224,7 +227,6 @@ void BatterySenseCycle(void)
   unsigned int Value = (unsigned int)(CONVERSION_FACTOR_BATTERY * (double)ADC12MEM1);
 
   if (ValidCalibration()) Value += GetBatteryCalibrationValue();
-  PrintDecimal(Value);
 
   /* smoothing algorithm: cut extreme values (gap > 20) */
   unsigned char Prev = (Index == 0) ? MAX_SAMPLES - 1: Index - 1;
@@ -246,31 +248,25 @@ void BatterySenseCycle(void)
 
 unsigned int Read(unsigned char Sensor)
 {
-  unsigned long Total = 0;
+  unsigned long Result = 0;
   unsigned char i = 0;
-
-//  PrintString(Sensor == BATTERY ? "[B][" : "[L][");
 
   /* moving average */
   while (i < MAX_SAMPLES && Sample[Sensor][i])
-  {
-//    PrintDecimal(Sample[Sensor][i]); PrintCharacter(' ');
-    Total += Sample[Sensor][i++];
-  }
-//  PrintString("] ");
+    Result += Sample[Sensor][i++];
 
-  return (Total / i);
+  return (i < MAX_SAMPLES) ? Result / i : Result >> 3; // devided by MAX_SAMPLES
 }
 
 unsigned char BatteryPercentage(void)
 {
   int BattVal = Read(BATTERY);
-  
-  if (BattVal > BATTERY_FULL_LEVEL) BattVal = BATTERY_FULL_LEVEL;
+  if (BattVal >= BATTERY_FULL_LEVEL) return 100;
+
   BattVal -= BATTERY_CRITICAL_LEVEL;
-  BattVal = BattVal > 0 ? BattVal * 10 / (BATTERY_LEVEL_RANGE / 10) : 0;
-    
-  return (unsigned char)BattVal;
+  if (BattVal == 0) return BattVal;
+
+  return (unsigned char)(BattVal * 10 / BATTERY_LEVEL_RANGE_ONETENTH);
 }
 
 // Shall be called only when clip is off
@@ -289,10 +285,10 @@ void CheckBatteryLow(void)
   */
   if (Average < WarningLevel)
   {
-    if (Average < RadioOffLevel && Severity != WARN_LEVEL_RADIO_OFF)
+    if (Average < RadioOffLevel && Severity == WARN_LEVEL_CRITICAL)
       Severity = WARN_LEVEL_RADIO_OFF;
     
-    else if (Average >= RadioOffLevel && Severity != WARN_LEVEL_CRITICAL)
+    else if (Average >= RadioOffLevel && Severity == WARN_LEVEL_NONE)
       Severity = WARN_LEVEL_CRITICAL;
     else return;
 
@@ -309,8 +305,8 @@ void CheckBatteryLow(void)
     /* now send a vibration to the wearer */
     SetupMessageAndAllocateBuffer(&Msg, SetVibrateMode, MSG_OPT_NONE);
 
-    unsigned char i = 0;
-    for (; i < sizeof(tSetVibrateModePayload); ++i)
+    signed char i = sizeof(tSetVibrateModePayload) - 1;
+    for (; i >= 0; i--)
       Msg.pBuffer[i] = *((unsigned char *)&LowBattWarning[Severity].VibrateData + i);
 
     RouteMsg(&Msg);
@@ -322,8 +318,8 @@ void CheckBatteryLow(void)
 /* Set new low battery levels and save them to flash */
 void SetBatteryLevels(unsigned char *pData)
 {
-  WarningLevel = (unsigned int)pData[0] * BATTERY_LEVEL_RANGE / 100 + BATTERY_CRITICAL_LEVEL;
-  RadioOffLevel = (unsigned int)pData[1] * BATTERY_LEVEL_RANGE / 100 + BATTERY_CRITICAL_LEVEL;
+  WarningLevel = (unsigned int)pData[0] * BATTERY_LEVEL_RANGE_ONEPERCENT + BATTERY_CRITICAL_LEVEL;
+  RadioOffLevel = (unsigned int)pData[1] * BATTERY_LEVEL_RANGE_ONEPERCENT + BATTERY_CRITICAL_LEVEL;
 }
 
 unsigned int BatteryCriticalLevel(unsigned char Type)
@@ -355,7 +351,7 @@ static void EndAdcCycle(void)
   xSemaphoreGive(AdcMutex);
 }
 
-void LightSenseCycle(void)
+unsigned int LightSenseCycle(void)
 {
   static unsigned char Index = 0;
 
@@ -382,13 +378,15 @@ void LightSenseCycle(void)
    * obtained readings from 2000-23000 with Android light in different positions
    */
   LightSense = (unsigned int)(CONVERSION_FACTOR * (double)ADC12MEM2);
-  PrintString("L:"); PrintDecimal(LightSense); PrintString(CR);
+  PrintF("L:%d", LightSense);
 
   Sample[LIGHT_SENSOR][Index++] = LightSense;
   if (Index >= MAX_SAMPLES) Index = 0;
 
   LIGHT_SENSOR_SHUTDOWN();
   EndAdcCycle();
+
+  return LightSense;
 }
 
 void ReadLightSensorHandler(void)

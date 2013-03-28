@@ -41,11 +41,14 @@
 #define MAX_DRAW_ITEM_NUM             (12)
 #define TEMPLATE_ID_MASK              (0x7F)
 #define FLASH_TEMPLATE_BIT            (BIT7)
+#define TEMP_TYPE_4Q                  (0)
+#define TEMP_TYPE_2Q                  (1)
 
 #define DRAW_OPT_NONE                 (0)
 #define DRAW_OPT_SEPARATOR            (':')
-#define DRAW_OPT_PROP_WIDTH           (0)
-#define DRAW_OPT_EQU_WIDTH            (1)
+#define SEPARATOR_MASK                (0x7F)
+#define DRAW_OPT_EQU_WIDTH            (0)
+#define DRAW_OPT_PROP_WIDTH           (0x80)
 #define DRAW_OPT_OVERLAP_NONE         (0)
 #define DRAW_OPT_OVERLAP_BT           (1)
 #define DRAW_OPT_OVERLAP_BATTERY      (2)
@@ -202,8 +205,6 @@ static void DrawBitmap(const unsigned char *pBitmap, unsigned char X, unsigned c
 
   if (!BmpWidthInBytes) BmpWidthInBytes = W % 8 ? (W >> 3) + 1: W >> 3;
 
-//  PrintStringAndThreeDecimals("DrwBmp W:", W, " H:", H, "WB:", BmpWidthInBytes);
-
   unsigned char ColBit = 1 << X % 8; // dst
   unsigned char MaskBit = BIT0; // src
   unsigned int Delta;
@@ -268,8 +269,6 @@ static void BitOp(unsigned char *pByte, unsigned char Bit, unsigned char Set, un
 static void DrawText(unsigned char *pText, unsigned char Len, unsigned char X, unsigned char Y,
                      unsigned char Font, unsigned char EqualWidth, unsigned char Op)
 {
-//  int d; for (d = 0; d < Len; d++) PrintHex(pText[d]); PrintString(CR);
-
   SetFont((etFontType)Font);
   const tFont *pFont = GetCurrentFont();
   unsigned char i;
@@ -282,7 +281,7 @@ static void DrawText(unsigned char *pText, unsigned char Len, unsigned char X, u
     unsigned char CharWidth = GetCharacterWidth(pText[i]);
     
     DrawBitmap(pBitmap, X, Y, CharWidth, pFont->Height, pFont->WidthInBytes, Op);
-    X += EqualWidth ? pFont->MaxWidth + 1 : CharWidth + 1;
+    X += EqualWidth ? CharWidth + 1 : pFont->MaxWidth + 1;
   }
 }
 
@@ -301,9 +300,9 @@ static void DrawHour(DrawInfo_t *Info)
   Hour[0] /= 10;
   if(Hour[0] == 0) Hour[0] = TIME_CHARACTER_SPACE_INDEX;
   Hour[0] += '0';
-  Hour[2] = Info->Opt; // separator
+  Hour[2] = Info->Opt & SEPARATOR_MASK; // separator
   
-  DrawText(Hour, Info->Opt ? 3 : 2, Info->X, Info->Y, Info->Id, DRAW_OPT_EQU_WIDTH, Info->Op);
+  DrawText(Hour, Info->Opt ? 3 : 2, Info->X, Info->Y, Info->Id, Info->Opt & DRAW_OPT_PROP_WIDTH, Info->Op);
 }
 
 static void DrawAmPm(DrawInfo_t *Info)
@@ -317,7 +316,7 @@ static void DrawMin(DrawInfo_t *Info)
   unsigned char Min[2];
   Min[0] = RTCMIN / 10 + '0';
   Min[1] = RTCMIN % 10 + '0';
-  DrawText(Min, 2, Info->X, Info->Y, Info->Id, DRAW_OPT_EQU_WIDTH, Info->Op);
+  DrawText(Min, 2, Info->X, Info->Y, Info->Id, Info->Opt & DRAW_OPT_PROP_WIDTH, Info->Op);
 }
 
 static void DrawSec(DrawInfo_t *Info)
@@ -383,9 +382,6 @@ static void DrawBluetoothState(DrawInfo_t *Info)
   
   if (Index != ICON_BLUETOOTH_OFF && Index != ICON_BLUETOOTH_DISC) return;
   
-//  PrintStringAndDecimal("- DrwBT:", Index);
-//  char d; for (d = 0; d < 20; d++) PrintHex(IconInfo[Info->Id].pIconSet[Index * IconInfo[Info->Id].Width * IconInfo[Info->Id].Height + d]); PrintString(CR);
-  
   DrawBitmap(IconInfo[Info->Id].pIconSet + Index * IconInfo[Info->Id].Width * IconInfo[Info->Id].Height,
              Info->X, Info->Y, IconInfo[Info->Id].Width * 8, IconInfo[Info->Id].Height,
              IconInfo[Info->Id].Width, Info->Op);
@@ -424,9 +420,10 @@ static void DrawTemplate(DrawInfo_t *Info)
   }
   else
   {
-    const unsigned char *pTemp =  pTemplate[TempId];
+    const unsigned char *pTemp =  (Info->Opt == TEMP_TYPE_4Q) ? pTemplate[TempId] : pTemplate2Q[TempId];
+    unsigned char RowNum = (Info->Opt == TEMP_TYPE_4Q) ? LCD_ROW_NUM : HALF_SCREEN_ROWS;
 
-    for (i = 0; i < LCD_ROW_NUM; ++i)
+    for (i = 0; i < RowNum; ++i)
     {
       if (i == HALF_SCREEN_ROWS) pByte += BYTES_PER_QUAD;
 

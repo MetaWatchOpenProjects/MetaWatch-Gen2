@@ -20,6 +20,7 @@
 */
 /******************************************************************************/
 
+#include <String.h>
 #include "FreeRTOS.h"
 #include "task.h"
 #include "queue.h"
@@ -35,6 +36,8 @@
 
 #include "OneSecondTimers.h"
 
+#define INVALID_ID(_x)    (_x == UNASSIGNED || _x >= TOTAL_TIMERS)
+
 /*! One Second Timer Structure */
 typedef struct
 {
@@ -49,7 +52,7 @@ typedef struct
 
 } tOneSecondTimer;
 
-static tOneSecondTimer OneSecondTimers[TOTAL_ONE_SECOND_TIMERS];
+static tOneSecondTimer Timers[TOTAL_TIMERS];
 static xSemaphoreHandle OneSecondTimerMutex;
   
 static void InitOneSecondTimers(void);
@@ -57,110 +60,77 @@ static void InitOneSecondTimers(void);
 static void InitOneSecondTimers(void)
 {
   /* clear information for all of the timers */
-  unsigned char i;
-  for ( i = 0; i < TOTAL_ONE_SECOND_TIMERS; i++ )
-  {
-    OneSecondTimers[i].Timeout = 0;
-    OneSecondTimers[i].DownCounter = 0;
-    OneSecondTimers[i].Allocated = 0;
-    OneSecondTimers[i].Running = 0;
-    OneSecondTimers[i].RepeatCount = 0;
-    OneSecondTimers[i].Qindex = 0;
-    OneSecondTimers[i].CallbackMsgType = InvalidMessage;
-    OneSecondTimers[i].CallbackMsgOptions = 0;
-  }
+  memset(Timers, 0, sizeof(tOneSecondTimer) * TOTAL_TIMERS);
 
   OneSecondTimerMutex = xSemaphoreCreateMutex();
   xSemaphoreGive(OneSecondTimerMutex);
 }
 
-tTimerId AllocateOneSecondTimer(void)
+/* setup a timer so the Restart timer function can be used */
+tTimerId StartTimer(unsigned int Timeout,
+                    unsigned char RepeatCount,
+                    unsigned char Qindex,
+                    eMessageType CallbackMsgType,
+                    unsigned char MsgOptions)
 {
   if (!OneSecondTimerMutex) InitOneSecondTimers();
-  
   xSemaphoreTake(OneSecondTimerMutex, portMAX_DELAY);
 
   unsigned char i;
-  for (i = 0; i < TOTAL_ONE_SECOND_TIMERS; ++i)
+  for (i = 0; i < TOTAL_TIMERS; ++i)
   {
-    if (OneSecondTimers[i].Allocated == 0)
+    if (!Timers[i].Allocated)
     {
-      OneSecondTimers[i].Allocated = 1;
+      Timers[i].Allocated = pdTRUE;
       break;
     }
   }
-
-  if (i == TOTAL_ONE_SECOND_TIMERS) PrintString("# Unable to allocate Timer\r\n");
-
   xSemaphoreGive(OneSecondTimerMutex);
-  
-  return (i < TOTAL_ONE_SECOND_TIMERS ? i : -1);
-}
 
-void DeallocateOneSecondTimer(tTimerId TimerId)
-{
-  if (TimerId < 0)
+  if (i == TOTAL_TIMERS)
   {
-    PrintString2("# Invalid TimerId", CR);
-    return;
+    PrintS("# AllocTimer");
+    return UNASSIGNED;
   }
   
   portENTER_CRITICAL();
-
-  if (OneSecondTimers[TimerId].Allocated == 1)
-  {
-    OneSecondTimers[TimerId].Allocated = 0;
-    OneSecondTimers[TimerId].Running = 0;
-  }
-
-  portEXIT_CRITICAL();
-}
-
-void StartOneSecondTimer(tTimerId TimerId)
-{
-  if (  OneSecondTimers[TimerId].Allocated == 0 ||
-        OneSecondTimers[TimerId].CallbackMsgType == InvalidMessage )
-  {
-    PrintString("Cannot start timer with invalid parameters\r\n");  
-    return;
-  }
-  
-  portENTER_CRITICAL();
-  OneSecondTimers[TimerId].Running = 1;
-  OneSecondTimers[TimerId].DownCounter = OneSecondTimers[TimerId].Timeout;
-  portEXIT_CRITICAL();
-}
-
-void StopOneSecondTimer(tTimerId TimerId)
-{
-  portENTER_CRITICAL();
-  OneSecondTimers[TimerId].Running = 0;
-  portEXIT_CRITICAL();
-}
-
-/* setup a timer so the Restart timer function can be used */
-void SetupOneSecondTimer(tTimerId TimerId,
-                         unsigned int Timeout,
-                         unsigned char RepeatCount,
-                         unsigned char Qindex,
-                         eMessageType CallbackMsgType,
-                         unsigned char MsgOptions)
-{
-  if (OneSecondTimers[TimerId].Allocated == 0 || TimerId < 0)
-  {
-    PrintString("Timer not Allocated\r\n");
-    return;
-  }
-  
-  portENTER_CRITICAL();
+  Timers[i].RepeatCount = RepeatCount;
+  Timers[i].Timeout = Timeout;
+  Timers[i].Qindex = Qindex;
+  Timers[i].CallbackMsgType = CallbackMsgType;
+  Timers[i].CallbackMsgOptions = MsgOptions;
     
-  OneSecondTimers[TimerId].RepeatCount = RepeatCount;
-  OneSecondTimers[TimerId].Timeout = Timeout;
-  OneSecondTimers[TimerId].Qindex = Qindex;
-  OneSecondTimers[TimerId].CallbackMsgType = CallbackMsgType;
-  OneSecondTimers[TimerId].CallbackMsgOptions = MsgOptions;
-    
+  /* start the timer */
+  Timers[i].Running = pdTRUE;
+  Timers[i].DownCounter = Timeout;
   portEXIT_CRITICAL();
+
+  return i;
+}
+
+void StopTimer(tTimerId Id)
+{
+  if (INVALID_ID(Id)) return;
+
+  if (Timers[Id].Allocated)
+  {
+    portENTER_CRITICAL();
+    Timers[Id].Running = pdFALSE;
+    Timers[Id].Allocated = pdFALSE;
+    portEXIT_CRITICAL();
+  }
+}
+
+void ResetTimer(tTimerId Id)
+{
+  if (INVALID_ID(Id)) return;
+
+  if (Timers[Id].Allocated)
+  {
+    portENTER_CRITICAL();
+    Timers[Id].DownCounter = Timers[Id].Timeout;
+    portEXIT_CRITICAL();
+  }
 }
 
 /* this should be as fast as possible because it happens in interrupt context
@@ -171,40 +141,27 @@ unsigned char OneSecondTimerHandlerIsr(void)
   unsigned char ExitLpm = 0;
   
   unsigned char i;
-  for ( i = 0; i < TOTAL_ONE_SECOND_TIMERS; i++ )
+  for (i = 0; i < TOTAL_TIMERS; ++i)
   {
-    if ( OneSecondTimers[i].Running == 1 )
+    if (Timers[i].Running)
     {        
-      /* decrement the counter first */
-      if ( OneSecondTimers[i].DownCounter > 0 )
+      /* decrement the counter first, then check if the counter == 0 */
+      if (--Timers[i].DownCounter == 0)
       {
-        OneSecondTimers[i].DownCounter--;
-      }
-      
-      /* has the counter reached 0 ?*/
-      if ( OneSecondTimers[i].DownCounter == 0 )
-      {
-        /* should the counter be reloaded or stopped */
-        if ( OneSecondTimers[i].RepeatCount == 0xFF )
+        if (Timers[i].RepeatCount == 0)
         {
-          OneSecondTimers[i].DownCounter = OneSecondTimers[i].Timeout;  
-        }
-        else if ( OneSecondTimers[i].RepeatCount > 0 )
-        {
-          OneSecondTimers[i].DownCounter = OneSecondTimers[i].Timeout;
-          OneSecondTimers[i].RepeatCount--;
+          Timers[i].Running = pdFALSE;
+          Timers[i].Allocated = pdFALSE;
         }
         else
         {
-          OneSecondTimers[i].Running = 0;  
+          Timers[i].DownCounter = Timers[i].Timeout;
+          if (Timers[i].RepeatCount != REPEAT_FOREVER) Timers[i].RepeatCount --;
         }
-        
-        tMessage OneSecondMsg;
-        SetupMessage(&OneSecondMsg,
-                     OneSecondTimers[i].CallbackMsgType,
-                     OneSecondTimers[i].CallbackMsgOptions);
-        
-        SendMessageToQueueFromIsr(OneSecondTimers[i].Qindex,&OneSecondMsg);
+
+        tMessage Msg;
+        SetupMessage(&Msg, Timers[i].CallbackMsgType, Timers[i].CallbackMsgOptions);
+        SendMessageToQueueFromIsr(Timers[i].Qindex, &Msg);
         ExitLpm = 1;
       }
     }

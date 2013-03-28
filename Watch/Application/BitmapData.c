@@ -419,6 +419,11 @@ const unsigned char pTemplate[][BYTES_PER_SCREEN] =
   }
 };
 
+const unsigned char pTemplate2Q[][BYTES_PER_HALF_SCREEN] =
+{
+  {0}
+};
+
 /******************************************************************************/
 //Watch Faces Templates
 //Each template array is made large enough to fit into 3 Flash segments so that

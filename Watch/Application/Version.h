@@ -160,131 +160,23 @@
 /* 474    02/28/13  Mu Yang  Fix 1Q date/grid overlapping; BattPercent(0x57). */
 /* 475    03/03/13  Mu Yang  Support CCS5.                                    */
 /* 476    03/04/13  Mu Yang  Separate clock drawing from LcdDisplay.          */
-/* 477    03/06/13  Mu Yang  Fix modify-time-cause-WDT-reset.                 */
+/* 477    03/06/13  Mu Yang  RELEASE: Fix modify-time-cause-WDT-reset.        */
 /* 478    03/08/13  Mu Yang  Separate LcdBuffer from LcdDisplay.              */
 /* 479    03/08/13  Mu Yang  v1.36: Support multiple clock watch faces;       */
-/*                                  sample gap 20 -> 10 (8.4 is 1%).          */
+/*                           sample gap 20 -> 10 (8.4 is 1%).                 */
 /* 480    03/12/13  Mu Yang  Add logs for response messages.                  */
-/* 481    03/14/13  Mu Yang  v1.4: Fix VBatRespMsg for backward compatable.   */
+/* 481    03/14/13  Mu Yang  v1.40: Fix VBatRespMsg for backward compatable.  */
 /* 482    03/18/13  Mu Yang  v1.41: Enable Light Sensor.                      */
+/* 483    03/20/13  Mu Yang  v1.42: Auto-backlight;Fix AllocTimer fail.       */
+/* 484    03/22/13  Mu Yang  v1.43: Optimise one-second-timer usage.          */
+/* 485    03/26/13  Mu Yang  v1.44: Support timestamp log.                    */
+/* 486    03/27/13  Mu Yang  v1.45: Optimise log print using vPrintF;         */
+/*                           Fix: clock-on-menu, repeat batter alarm;         */
+/*                           Support DUO/BLE/BR.                              */
 /******************************************************************************/
 
-/** WRAPPER VERSION HISTORY ***************************************************/
-/*                                                                            */
-/*   Version  mm/dd/yy   Author         Description of Modification           */
-/*   -------  --------- -------- -------------------------------------------  */
-/*   3.0.5    08/10/12  Mu Yang   Fix mem leak in switching on/off radio      */
-/*   3.1.0    08/15/12  Mu Yang   Support HFP                                 */
-/*   3.1.1    08/22/12  Mu Yang   Move heartbeat to Tunnel.c                  */
-/*   3.2.0    08/23/12  Mu Yang   Support MAP                                 */
-/*   3.2.2    08/23/12  Mu Yang   Support DUO MODE                            */
-/*   3.2.3    08/23/12  Mu Yang   Add HFP/MAP/SPP/BLE connection management   */
-/*   3.2.4    08/23/12  Mu Yang   Fix connection state mismatch bug           */
-/*   3.2.5    08/28/12  Mu Yang   Fix MAP delay: use Notif for Indication;    */
-/*                                Avoid direct call Host_Wrt() from HFP evt   */
-/*   3.2.6    08/30/12  Mu Yang   Add memory checking                         */
-/*   3.2.7    08/31/12  Mu Yang   Add HFP/MAP auto reconnect                  */
-/*   3.2.8    09/03/12  Mu Yang   Add Ring-Once to avoid BLE disconnecting    */
-/*   3.2.9    09/04/12  Mu Yang   Fix disconnect-fail; replace function call  */
-/*                                with msg handling on connection state change*/
-/*   3.3.0    09/07/12  Mu Yang   Fix heartbeat timeout using high/low bytes  */
-/*   3.3.1    09/10/12  Mu Yang   Fix 'HFP show notification too short'       */
-/*   3.3.2    09/13/12  Mu Yang   add more logs to monitor BTPS alloc         */
-/*   3.3.3    09/13/12  Mu Yang   Add back MAP for iOS 6                      */
-/*   3.3.4    09/13/12  Mu Yang   support for MUX; fix "UART ERROR"           */
-/*   3.3.5    09/17/12  Mu Yang   Use timer to retry failed HFP/MAP connection*/
-/*   3.3.6    09/18/12  Mu Yang   Support sending connection status to phone  */
-/*   3.3.6a   09/19/12  Mu Yang   Temporarily disable SPP                     */
-/*   3.3.7    09/20/12  Mu Yang   Don't connect HFP/MAP before pairing        */
-/*   3.3.8    09/24/12  Mu Yang   Fix HFP/MAP conn stuck by adding back       */
-/*                                dynamic channnel discovery.                 */
-/*   3.3.9    09/25/12  Mu Yang   Disable MTU request for checking disconn.   */
-/*   3.4.0    09/25/12  Mu Yang   Add 2 times 25s timer for keeping iOS dev's */
-/*                                sending data when setting up BLE connection.*/
-/*   3.4.1    09/25/12  Mu Yang   Merge bootloader from ah2 branch.           */
-/*   3.4.2    09/27/12  Mu Yang   Add GAPS primary service device name for iOS*/
-/*   3.4.3    10/02/12  Mu Yang   Fix WrapperInit semaphore cause radioon fail*/
-/*   3.4.4    10/03/12  Mu Yang   Update libBluetopia support "service change"*/
-/*   3.4.5    10/05/12  Mu Yang   Add Device Information Profile              */
-/*   3.4.6    10/06/12  Mu Yang   Change GAP-Dev-Name-handle to avoid iOS bug */
-/*   3.4.7    10/08/12  Mu Yang   Support BLE/SPP exclusively                 */
-/*   3.4.8    10/08/12  Mu Yang   Increase connection latency from 0 to 4     */
-/*   3.4.9    10/11/12  Mu Yang   Send UpdWgtIndMsg to iOS after Client Config*/
-/*   3.5.0    10/12/12  Mu Yang   Set conn params to 20, 40, 4, 400.          */
-/*   3.5.1    10/15/12  Mu Yang   Set conn params to 40ms, 60ms, 3, 5s.       */
-/*   3.5.2    10/16/12  Mu Yang   Fix SPP by rewritting GAP Service.          */
-/*   3.5.3    10/16/12  Mu Yang   auto change conn interval from 60ms to 480ms*/
-/*   3.5.4    10/17/12  Mu Yang   Open HF server when BLE time connected.     */
-/*   3.5.5    10/18/12  Mu Yang   Add delay-disconnect.                       */
-/*   3.5.6    10/20/12  Mu Yang   Fix pairable for MAP and visibility for HFP */
-/*   3.5.7    10/20/12  Mu Yang   Tell connect/disconnect in ConnChangeMsg.   */
-/*   3.5.8    10/22/12  Mu Yang   Connectable/Discoverable if not connected.  */
-/*   3.5.9    10/24/12  Mu Yang   Ask to send curr idle page no when reconn.  */
-/*   3.6.0    10/24/12  Mu Yang   Fix OutOfRange radio off; interval to 120ms.*/
-/*   361      10/28/12  Mu Yang   auto reconnect HFP/MAP at heartbeat.        */
-/*   362      10/29/12  Mu Yang   Set interval to 500ms.                      */
-/*   363      10/30/12  Mu Yang   stop connection timer when SPP connected.   */
-/*   364      10/30/12  Mu Yang   Set interval to 300ms.                      */
-/*   365      10/30/12  Mu Yang   Set SHORT for MapIndMsg.                    */
-/*   366      10/30/12  Mu Yang   Set 300ms interval after connected 40s.     */
-/*   367      11/01/12  Mu Yang   Stop handling MAP msg when no msg buffer;   */
-/*                                New libSS1 fix IntervalRequest() mem leak;  */
-/*   368      11/05/12  Mu Yang   Add BatteryPercentage() to heartbeat's opt. */
-/*   369      11/08/12  Mu Yang   Fix:Save LnkInfo(DevType+Addr);tVersion upd.*/
-/*   370      11/13/12  Mu Yang   Add 3rd party advertising API.              */
-/*   371      11/19/12  Mu Yang   Support for disconnect MWM cmd.             */
-/*   372      11/19/12  Mu Yang   Support for half-connect handling.          */
-/*   373      11/21/12  Mu Yang   Queue waiting for long MAP                  */
-/*   374      11/22/12  Mu Yang   Switch BT off/on when HCI HW error.         */
-/*   375      11/22/12  Mu Yang   Reboot till no boot error.                  */
-/*   376      11/24/12  Mu Yang   V1.1:Friendly name overwrites PairedDevType.*/
-/*   377      11/28/12  Mu Yang   SPP data receiving handling for multi-msg.  */
-/*   378      11/30/12  Mu Yang   HFP disconn SCO on receiving caller ID.     */
-/*   379      12/05/12  Mu Yang   Msg que:30 stack size:450; No radioOff timer*/
-/*                                3s SCO timer; KNL/TRANS WDT reset back.     */
-/*   380      12/06/12  Mu Yang   Make sure stored device type is valid.      */
-/*   381      12/07/12  Mu Yang   Rm log frm Tunnel/ToutHdlIsr;stack size:350.*/
-/*   382      12/07/12  Mu Yang   Replace KNL/TRANS WDT PUC by SW BOR reset.  */
-/*   383      12/11/12  Mu Yang   Mv UpdWgtInd to HB hdl.                     */
-/*   384      12/12/12  Mu Yang   Mv UpdConnParam frm MapInd to SND_EVT_IND.  */
-/*   385      12/14/12  Mu Yang   Mv conn HFP ahead of MAP; Delay conn BR 10s.*/
-/*   386      12/18/12  Mu Yang   Adv min interval 20->100 for lower Tx power;*/
-/*                                BLE power level 12*2 -> 2*2 in RfTest.c     */
-/*   387      12/19/12  Mu Yang   add back MTU for iOS6b4; BLE pwr -> 12 * 2  */
-/*   388      12/21/12  Mu Yang   BLE pwr level -> 6 * 2                      */
-/*   389      12/21/12  Mu Yang   Move SetConnected() from CliConf to HBHdl   */
-/*   390      12/31/12  Mu Yang   Fix memleak @Close_Conn() Map.c;Fix MAP port*/
-/*   391      12/31/12  Mu Yang   Fix multi-small-msgs crash.                 */
-/*   392      01/04/12  Mu Yang   SS1 4-17 fix MAP memleak / GOEP_Find_Header */
-/*   393      01/09/13  Mu Yang   Send conn_interval in HBHdl.                */
-/*   394      01/10/13  Mu Yang   Add iAP support.                            */
-/*   395      01/11/13  Mu Yang   Use RouteMsg in 2nd Request of MAP MsgBody. */
-/*   396      01/13/13  Mu Yang   Increase stack size 400->500.               */
-/*   397      01/14/13  Mu Yang   Get rid of crystal timer to use same OST.   */
-/*   398      01/15/13  Mu Yang   Fix bug when two MsgEvt comes in a row.     */
-/*   400      01/15/13  Mu Yang   V1.2:BLE pwr level 6->4;BR max level 15->13 */
-/*                                Add BLE disconnection counter.              */
-/*   401      01/18/13  Mu Yang   Remove semaphore in SPP sniff control.      */
-/*   402      01/24/13  Mu Yang   Optimise sniff control and apply to MNS;    */
-/*                                Support Tunnel read-cli-config-descriptor;  */
-/*                                Enter-Sniff-timeout 60s -> 3s.              */
-/*   403      01/24/13  Mu Yang   Entering sniff for SPP -> BR.               */
-/*   404      01/24/13  Mu Yang   Add missing Cli-Char-Config to ServiceChgd  */
-/*   405      01/29/13  Mu Yang   Enable MITM; Rmv ChangeSniffState()         */
-/*   406      01/29/13  Mu Yang   V1.3:Remove ServiceChanged frm SS1 GATT     */
-/*   407      01/30/13  Mu Yang   Force pairing by insufficient authentication*/
-/*   408      02/04/13  Mu Yang   Add Directed Advertising.                   */
-/*   409      02/11/13  Mu Yang   Add more log for sniff; BR IOCap: NoInOut   */
-/*   410      02/11/13  Mu Yang   Fix Conn_Handle missing for HFP/MAP;        */
-/*                                StartSniffTimer when ACL connected.         */
-/*   411      02/15/13  Mu Yang   Add exit_sniff on data-rcv for Android 4.2  */
-/*   412      03/05/13  Mu Yang   Chg SPP rcv buf & max frame to 32B; pBuf+=i */
-/*   413      03/08/13  Mu Yang   Set discoverable whenever SPP disconnected. */
-/*   414      03/13/13  Mu Yang   Inc SPP rcv buf to 32x2B (due MsgAlloc fail)*/
-/*   415      03/16/13  Mu Yang   Change back SPP rcv buf to 32B (no help)    */
-/******************************************************************************/
 
-#define APP_VER     "1.41"
-#define BUILD_VER   "481.415"
+#define APP_VER     "1.45"
+#define BUILD_VER   "486.418"
 
 #endif /* VERSION_H */

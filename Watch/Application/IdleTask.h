@@ -27,7 +27,7 @@ typedef struct
   
 } tWatchdogInfo;
 
-/*! This function prints information about the cause of a watchdog reset
+/*! This function prints about the cause of a watchdog reset
  * It also saves the values to non-volatile memory for the last occurence
  * of a watchdog reset.
  *
@@ -77,9 +77,9 @@ void TaskCheckIn(etTaskCheckInId TaskId);
   char i = STACK_SIZE, k = 0;             \
   while (i--) {                           \
     if (*pStack != FILL) k++;             \
-    PrintCharacter(*pStack-- == FILL ? FILL : MARK);\
+    PrintC(*pStack-- == FILL ? FILL : MARK);\
   }                                       \
-  PrintStringAndDecimal(" CSTK used:", k);     \
+  PrintF(" CSTK used:%d", k);     \
 }
 
 #endif //CHECK_CSTACK

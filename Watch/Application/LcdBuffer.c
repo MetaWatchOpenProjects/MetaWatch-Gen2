@@ -31,6 +31,7 @@
 #include "BitmapData.h"
 #include "Property.h"
 #include "LcdBuffer.h"
+#include "hal_lpm.h"
 
 #define SPLASH_START_ROW   (41)
 
@@ -111,7 +112,7 @@ void DrawMenu(eIdleModePage Page)
   case Menu1Page: DrawMenu1(); break;
   case Menu2Page: DrawMenu2(); break;
   case Menu3Page: DrawMenu3(); break;
-  default: PrintStringAndDecimal("# No Such Menu Page:", Page); break;
+  default: PrintF("# No Such Menu Page:%d", Page); break;
   }
 
   /* these icons are common to all menus */
@@ -150,7 +151,7 @@ static void DrawMenu1(void)
                           RIGHT_BUTTON_COLUMN,
                           BUTTON_ICON_SIZE_IN_COLUMNS);
 
-  CopyColumnsIntoMyBuffer(!GetProperty(PROP_DISABLE_LINK_ALARM) ? pLinkAlarmOnIcon : pLinkAlarmOffIcon,
+  CopyColumnsIntoMyBuffer(LinkAlarmEnabled() ? pLinkAlarmOnIcon : pLinkAlarmOffIcon,
                           BUTTON_ICON_C_D_ROW,
                           BUTTON_ICON_SIZE_IN_ROWS,
                           LEFT_BUTTON_COLUMN,
@@ -159,7 +160,7 @@ static void DrawMenu1(void)
 
 static void DrawMenu2(void)
 {
-  CopyColumnsIntoMyBuffer(GetProperty(PROP_RSTNMI) ? pNmiPinIcon : pRstPinIcon,
+  CopyColumnsIntoMyBuffer(ResetPin() ? pRstPinIcon : pNmiPinIcon,
                           BUTTON_ICON_A_F_ROW,
                           BUTTON_ICON_SIZE_IN_ROWS,
                           RIGHT_BUTTON_COLUMN,
@@ -272,7 +273,11 @@ void DrawWatchStatusScreen(void)
   gBitColumnMask = BIT4;
   SetFont(MetaWatch5);
 
-  if (PairedDeviceType() == DEVICE_TYPE_BLE) WriteFontString("BLE");
+  if (PairedDeviceType() == DEVICE_TYPE_BLE)
+  {
+    if (Connected(CONN_TYPE_HFP) && Connected(CONN_TYPE_MAP)) WriteFontString("DUO");
+    else WriteFontString("BLE");
+  }
   else if (PairedDeviceType() == DEVICE_TYPE_SPP) WriteFontString("BR");
 
   DrawBatteryOnIdleScreen(6, 9, MetaWatch7);
@@ -311,7 +316,7 @@ void DrawWatchStatusScreen(void)
 
 static void DrawLocalAddress(unsigned char Col, unsigned Row)
 {
-  char pAddr[6 * 2 + 3]; // BT_ADDR is 6 bytes long
+  char pAddr[12 + 3]; // BT_ADDR is 6 bytes long
   GetBDAddrStr(pAddr);
 
   gRow = Row;
@@ -323,7 +328,7 @@ static void DrawLocalAddress(unsigned char Col, unsigned Row)
   for (i = 2; i < 14; ++i)
   {
     WriteFontCharacter(pAddr[i]);
-    if (i % 4 == 1 && i != 13) WriteFontCharacter('-');
+    if ((i & 0x03) == 1 && i != 13) WriteFontCharacter('-');
   }
 }
 
@@ -347,10 +352,8 @@ void DrawCallScreen(char *pCallerId, char *pCallerName)
   for (; i < strlen(pCallerName); ++i) NameWidth += GetCharacterWidth(pCallerName[i]);
   NameWidth += GetFontSpacing() * strlen(pCallerName);
   
-  gColumn = ((LCD_COL_NUM - NameWidth) >> 1) / 8;
-  gBitColumnMask = 1 << ((LCD_COL_NUM - NameWidth) >> 1) % 8;
-
-//    PrintStringAndThreeDecimals("W:", NameWidth, "C:", gColumn, "M:", gBitColumnMask);
+  gColumn = ((LCD_COL_NUM - NameWidth) >> 1) >> 3;
+  gBitColumnMask = 1 << (((LCD_COL_NUM - NameWidth) >> 1) & 0x07);
 
   WriteFontString(pCallerName);
   SendMyBufferToLcd(STARTING_ROW, LCD_ROW_NUM);    
@@ -401,24 +404,20 @@ const unsigned char *GetBatteryIcon(unsigned char Id)
 {
   unsigned int Level = Read(BATTERY);
   unsigned char Index = 0;
-  
-  if (Level < BATTERY_FULL_LEVEL)
+
+  if (Level >= BATTERY_FULL_LEVEL) Index = BATTERY_LEVEL_NUMBER;
+  else if (Level <= BatteryCriticalLevel(CRITICAL_WARNING) && !Charging()) Index = 1; // warning icon index
+  else
   {
-    if (Level <= BatteryCriticalLevel(CRITICAL_WARNING) && !Charging()) Index = 1; // warning icon index
-    else
-    {
-      unsigned int Empty = BatteryCriticalLevel(CRITICAL_BT_OFF);
-      unsigned int Step = (BATTERY_FULL_LEVEL - Empty) / BATTERY_LEVEL_NUMBER;
-      
-      while (Level > (Empty + Step * Index)) Index ++;
-    }
+    unsigned int Empty = BatteryCriticalLevel(CRITICAL_BT_OFF);
+    unsigned int Step = (BATTERY_FULL_LEVEL - Empty) / BATTERY_LEVEL_NUMBER;
+    
+    while (Level > (Empty + Step * Index)) Index ++;
   }
-  else Index = BATTERY_LEVEL_NUMBER;
   
   const unsigned char *pIcon = IconInfo[Id].pIconSet + (Index * IconInfo[Id].Width * IconInfo[Id].Height);
   if (!Charging()) pIcon += BATTERY_ICON_NUM * IconInfo[Id].Width * IconInfo[Id].Height;
 
-//  PrintStringAndThreeDecimals("- Batt L:", Level, " I:", Index, "P:", ExtPower());
   return pIcon;
 }
 
@@ -597,7 +596,7 @@ static void WriteFontCharacter(unsigned char Character)
 
   if (gRow + CharacterRows > LCD_ROW_NUM)
   {
-    PrintString("# WriteFontChar\r\n");
+    PrintS("# WriteFontChar");
     return;
   }
 

@@ -118,15 +118,15 @@ void ShowWatchdogInfo(void)
 
   if (ResetSource == SYSRSTIV_WDTTO || ResetSource == SYSRSTIV_WDTKEY)
   {
-    PrintString3("# WDT ", ResetSource == SYSRSTIV_WDTTO ? "Failsafe" : "Forced", CR);
-    PrintStringAndDecimal("SppReadyToSleep ", WatchdogInfo.SppReadyToSleep);
-    PrintStringAndDecimal("TaskDelayLockCount ", WatchdogInfo.TaskDelayLockCount);
-    PrintStringAndDecimal("DisplayMsgWaiting ", WatchdogInfo.DisplayMessagesWaiting);
-    PrintStringAndDecimal("SppMsgWaiting ", WatchdogInfo.SppMessagesWaiting);
+    PrintF("# WDT %s", ResetSource == SYSRSTIV_WDTTO ? "Failsafe" : "Forced");
+    PrintF("SppReadyToSleep %d", WatchdogInfo.SppReadyToSleep);
+    PrintF("TaskDelayLockCount %d", WatchdogInfo.TaskDelayLockCount);
+    PrintF("DisplayMsgWaiting %d", WatchdogInfo.DisplayMessagesWaiting);
+    PrintF("SppMsgWaiting %d", WatchdogInfo.SppMessagesWaiting);
     niWdtCounter ++;
   }
   
-  PrintStringAndDecimal("Total Watchdogs: ", niWdtCounter);
+  PrintF("Total Watchdogs: %d", niWdtCounter);
 }
 
 void ResetWatchdog(void)
@@ -226,35 +226,33 @@ void TaskCheckIn(etTaskCheckInId TaskId)
   portEXIT_CRITICAL();
 }
 
-/* Prints reset code and the interrupt type */
+/* PrintS( reset code and the interrupt type */
 static void PrintResetSource(unsigned int Source)
 {  
-  PrintString("ResetSource 0x");
-  PrintHex(Source);
+  PrintF("ResetSource 0x%02X", Source);
 
 #if 0
-  PrintString(" - ");
+  PrintS(" - ");
   switch (Source)
   {
-  case 0x0000: PrintString("No interrupt pending"); break;
-  case 0x0002: PrintString("Brownout (BOR) (highest priority)"); break;
-  case 0x0004: PrintString("RST/NMI (BOR)"); break;
-  case 0x0006: PrintString("PMMSWBOR (BOR)"); break;
-  case 0x0008: PrintString("Wakeup from LPMx.5 (BOR)"); break;
-  case 0x000A: PrintString("Security violation (BOR)"); break;
-  case 0x000C: PrintString("SVSL (POR)"); break;
-  case 0x000E: PrintString("SVSH (POR)"); break;
-  case 0x0010: PrintString("SVML_OVP (POR)"); break;
-  case 0x0012: PrintString("SVMH_OVP (POR)"); break;
-  case 0x0014: PrintString("PMMSWPOR (POR)"); break;
-  case 0x0016: PrintString("WDT time out (PUC)"); break;
-  case 0x0018: PrintString("WDT password violation (PUC)"); break;
-  case 0x001A: PrintString("Flash password violation (PUC)"); break;
-  case 0x001C: PrintString("PLL unlock (PUC)"); break;
-  case 0x001E: PrintString("PERF peripheral/configuration area fetch (PUC)"); break;
-  case 0x0020: PrintString("PMM password violation (PUC)"); break;
-  default:     PrintString("Unknown"); break;
+  case 0x0000: PrintS("No interrupt pending"); break;
+  case 0x0002: PrintS("Brownout (BOR) (highest priority)"); break;
+  case 0x0004: PrintS("RST/NMI (BOR)"); break;
+  case 0x0006: PrintS("PMMSWBOR (BOR)"); break;
+  case 0x0008: PrintS("Wakeup from LPMx.5 (BOR)"); break;
+  case 0x000A: PrintS("Security violation (BOR)"); break;
+  case 0x000C: PrintS("SVSL (POR)"); break;
+  case 0x000E: PrintS("SVSH (POR)"); break;
+  case 0x0010: PrintS("SVML_OVP (POR)"); break;
+  case 0x0012: PrintS("SVMH_OVP (POR)"); break;
+  case 0x0014: PrintS("PMMSWPOR (POR)"); break;
+  case 0x0016: PrintS("WDT time out (PUC)"); break;
+  case 0x0018: PrintS("WDT password violation (PUC)"); break;
+  case 0x001A: PrintS("Flash password violation (PUC)"); break;
+  case 0x001C: PrintS("PLL unlock (PUC)"); break;
+  case 0x001E: PrintS("PERF peripheral/configuration area fetch (PUC)"); break;
+  case 0x0020: PrintS("PMM password violation (PUC)"); break;
+  default:     PrintS("Unknown"); break;
   }
 #endif
-  PrintString(CR);
 }

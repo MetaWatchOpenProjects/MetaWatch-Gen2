@@ -48,7 +48,7 @@ void SetMuxMode(unsigned char MuxMode)
  * This function does not modify the value stored in flash that is used 
  * during start-up
  * The RST/NMI pin is handled separately
- * This is used by the bootloader so don't use Print().
+ * This is used by the bootloader so don't use DebugUart.
  */
 void ChangeMuxMode(unsigned char Clip)
 {

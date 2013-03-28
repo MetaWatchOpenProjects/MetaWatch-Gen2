@@ -125,8 +125,8 @@ static const tMsgInfo MsgInfo[MAXIMUM_MESSAGE_TYPES] =
   {"RdLightSensorResp",           SPP_TASK_QINDEX,   1 }, /* 0x59 */
   {"LowBattMsg",                  DISPLAY_QINDEX,    0 }, /* 0x5a */
   {"LowBattBtOffMsg",             DISPLAY_QINDEX,    0 }, /* 0x5b */
-  {InvalidMsg,                    FREE_QINDEX,       0 }, /* 0x5c */
-  {InvalidMsg,                    FREE_QINDEX,       0 }, /* 0x5d */
+  {"AutoBklightMsg",              DISPLAY_QINDEX,    1 }, /* 0x5c */
+  {"SetBacklightMsg",             DISPLAY_QINDEX,    1 }, /* 0x5d */
   {InvalidMsg,                    FREE_QINDEX,       0 }, /* 0x5e */
   {InvalidMsg,                    FREE_QINDEX,       0 }, /* 0x5f */
   {InvalidMsg,                    FREE_QINDEX,       0 }, /* 0x60 */
@@ -219,13 +219,13 @@ static const tMsgInfo MsgInfo[MAXIMUM_MESSAGE_TYPES] =
   {"MapMsg",                      SPP_TASK_QINDEX,   0 }, /* 0xb7 */
   {"MapIndMsg",                   SPP_TASK_QINDEX,   1 }, /* 0xb8 */
   {"ConnChgMsg",                  SPP_TASK_QINDEX,   0 }, /* 0xb9 */
-  {"UpdWgtIndMsg",                SPP_TASK_QINDEX,   0 }, /* 0xba */
+  {"UpdWgtIndMsg",                SPP_TASK_QINDEX,   1 }, /* 0xba */
   {"ConnParamIndMsg",             SPP_TASK_QINDEX,   0 }, /* 0xbb */
   {InvalidMsg,                    FREE_QINDEX,       0 }, /* 0xbc */
   {InvalidMsg,                    FREE_QINDEX,       0 }, /* 0xbd */
   {InvalidMsg,                    FREE_QINDEX,       0 }, /* 0xbe */
   {InvalidMsg,                    FREE_QINDEX,       0 }, /* 0xbf */
-  {"LedChange",                   DISPLAY_QINDEX,    1 }, /* 0xc0 */
+  {InvalidMsg,                    FREE_QINDEX,       0 }, /* 0xc0 */
   {InvalidMsg,                    FREE_QINDEX,       0 }, /* 0xc1 */
   {InvalidMsg,                    FREE_QINDEX,       0 }, /* 0xc2 */
   {InvalidMsg,                    FREE_QINDEX,       0 }, /* 0xc3 */
@@ -237,7 +237,7 @@ static const tMsgInfo MsgInfo[MAXIMUM_MESSAGE_TYPES] =
   {InvalidMsg,                    FREE_QINDEX,       0 }, /* 0xc9 */
   {InvalidMsg,                    FREE_QINDEX,       0 }, /* 0xca */
   {InvalidMsg,                    FREE_QINDEX,       0 }, /* 0xcb */
-  {InvalidMsg,                    FREE_QINDEX,       0 }, /* 0xcc */
+  {"AckMsg",                      SPP_TASK_QINDEX,   1 }, /* 0xcc */
   {InvalidMsg,                    FREE_QINDEX,       0 }, /* 0xcd */
   {InvalidMsg,                    FREE_QINDEX,       0 }, /* 0xce */
   {InvalidMsg,                    FREE_QINDEX,       0 }, /* 0xcf */

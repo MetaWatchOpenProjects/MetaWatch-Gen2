@@ -23,6 +23,8 @@
 #ifndef WRAPPER_H
 #define WRAPPER_H
 
+#include <stdarg.h>
+
 #define CONN_TYPE_NULL  (0x00)
 #define CONN_TYPE_BLE   (0x01)
 #define CONN_TYPE_SPP   (0x02)
@@ -237,6 +239,8 @@ void DisableFlow(void);
 
 /*! enable flow to the BT radio */
 void EnableFlow(void);
+
+int vSprintF(char *buffer, const char *format, va_list ap);
 
 /******************************************************************************/
 
