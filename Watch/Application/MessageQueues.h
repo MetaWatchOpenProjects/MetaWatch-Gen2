@@ -96,7 +96,7 @@ void SetupMessage(tMessage* pMsg, unsigned char Type, unsigned char Options);
  * to be allocated from ISRs because of the amount of time it can take
  *
  */
-void SetupMessageAndAllocateBuffer(tMessage* pMsg,
+void SetupMessageWithBuffer(tMessage* pMsg,
                                    unsigned char Type,
                                    unsigned char Options);
 

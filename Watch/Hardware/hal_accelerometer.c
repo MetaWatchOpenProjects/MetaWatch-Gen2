@@ -108,22 +108,13 @@ void AccelerometerWrite(unsigned char RegisterAddress,
   
 }
 
-void AccelerometerReadSingle(unsigned char RegisterAddress,
-                             unsigned char* pData)
+void AccelerometerReadSingle(unsigned char RegisterAddress, unsigned char* pData)
 {
-#if 0
-  /* short circuit */
-  if ( Length == 0 )
-  {
-    return;
-  }
-#endif
-  
   EnableSmClkUser(ACCELEROMETER_USER);
-  xSemaphoreTake(AccelerometerMutex,portMAX_DELAY);
+  xSemaphoreTake(AccelerometerMutex, portMAX_DELAY);
   
   /* wait for bus to be free */
-  while(UCB1STAT & UCBBUSY);
+  while (UCB1STAT & UCBBUSY);
   
   AccelerometerBusy = 1;
   LengthCount = 1;
@@ -133,12 +124,12 @@ void AccelerometerReadSingle(unsigned char RegisterAddress,
   /* transmit address */
   ACCELEROMETER_IFG = 0;
   ACCELEROMETER_CTL1 |= UCTR + UCTXSTT;
-  while(!(ACCELEROMETER_IFG & UCTXIFG));
+  while (!(ACCELEROMETER_IFG & UCTXIFG));
   
   /* write register address */
   ACCELEROMETER_IFG = 0;
   ACCELEROMETER_TXBUF = RegisterAddress;
-  while(!(ACCELEROMETER_IFG & UCTXIFG));
+  while (!(ACCELEROMETER_IFG & UCTXIFG));
   
   
   /* send a repeated start (same slave address now it is a read command) 
@@ -153,7 +144,7 @@ void AccelerometerReadSingle(unsigned char RegisterAddress,
    * received. If this is interrupted an extra byte may be read.
    * however, it will be discarded during the next read
    */
-  if ( LengthCount == 1 )
+  if (LengthCount == 1)
   {
     /* errata usci30: prevent interruption of sending stop 
      * so that only one byte is read
@@ -163,7 +154,7 @@ void AccelerometerReadSingle(unsigned char RegisterAddress,
   
     ACCELEROMETER_CTL1 |= UCTXSTT;
   
-    while(ACCELEROMETER_CTL1 & UCTXSTT);
+    while (ACCELEROMETER_CTL1 & UCTXSTT);
 
     ACCELEROMETER_CTL1 |= UCTXSTP;
   
@@ -175,8 +166,8 @@ void AccelerometerReadSingle(unsigned char RegisterAddress,
   }
   
   /* wait until all data has been received and the stop bit has been sent */
-  while(AccelerometerBusy);
-  while(ACCELEROMETER_CTL1 & UCTXSTP);
+  while (AccelerometerBusy);
+  while (ACCELEROMETER_CTL1 & UCTXSTP);
   Index = 0;
   pAccelerometerData = NULL;
   
@@ -187,15 +178,9 @@ void AccelerometerReadSingle(unsigned char RegisterAddress,
 /* errata usci30: only perform single reads 
  * second solution: use DMA
  */
-void AccelerometerRead(unsigned char RegisterAddress,
-                       unsigned char* pData,
-                       unsigned char Length)
+void AccelerometerRead(unsigned char Addr, unsigned char *pData, unsigned char Length)
 {
-  unsigned char i;
-  for ( i = 0; i < Length; i++ )
-  {
-    AccelerometerReadSingle(RegisterAddress+i,pData+i);
-  }  
+  while (Length--) AccelerometerReadSingle(Addr++, pData++);
 }
 
 // length = data length

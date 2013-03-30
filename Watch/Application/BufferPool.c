@@ -69,24 +69,24 @@ static void SetBufferPoolFailureBit(void)
 
 void InitBufferPool(void)
 {
-  unsigned int  i;              // loop counter
-  unsigned char* pMsgBuffer;    // holds the address of the msg buffer to add to the queue
+  unsigned int i;              // loop counter
+  unsigned char *pMsgBuffer;    // holds the address of the msg buffer to add to the queue
   
   // create the queue to hold the free message buffers
   QueueHandles[FREE_QINDEX] =
-    xQueueCreate( ( unsigned portBASE_TYPE ) MSG_BUF_NUM,
-                  ( unsigned portBASE_TYPE ) sizeof(unsigned char*) );
+    xQueueCreate((unsigned portBASE_TYPE) MSG_BUF_NUM,
+                 (unsigned portBASE_TYPE) sizeof(unsigned char *));
   
   // Add the address of each buffer's data section to the queue
   for (i = 0; i < MSG_BUF_NUM; i++)
   {
     // use the address of the data section so that the header is only accessed
     // as needed
-    pMsgBuffer = &(BufferPool[i].buffer[0]);
+    pMsgBuffer = BufferPool[i].buffer;
 
     // We only call this at initialization so it should never fail
     // params: queue handle, ptr to item to queue, ticks to wait if full
-    if (xQueueSend( QueueHandles[FREE_QINDEX], &pMsgBuffer, DONT_WAIT) != pdTRUE)
+    if (!xQueueSend(QueueHandles[FREE_QINDEX], &pMsgBuffer, DONT_WAIT))
     {
       PrintS("@ Init BufPool");
       SetBufferPoolFailureBit();
@@ -99,7 +99,7 @@ unsigned char *BPL_AllocMessageBuffer(void)
   unsigned char *pBuffer = NULL;
 
   // params are: queue handle, ptr to the msg buffer, ticks to wait
-  if (pdTRUE != xQueueReceive(QueueHandles[FREE_QINDEX], &pBuffer, DONT_WAIT))
+  if (!xQueueReceive(QueueHandles[FREE_QINDEX], &pBuffer, DONT_WAIT))
   {
     PrintS("@ Alloc");
     SetBufferPoolFailureBit();
@@ -107,7 +107,7 @@ unsigned char *BPL_AllocMessageBuffer(void)
   }
   else if (pBuffer < LOW_BUFFER_ADDRESS || pBuffer > HIGH_BUFFER_ADDRESS)
   {
-    PrintF("@ Alloc invalid pBuf 0x%04X", (unsigned int)pBuffer);
+    PrintF("@ Alloc invalid Buf 0x%04X", (unsigned int)pBuffer);
     SetBufferPoolFailureBit();
   }
 
@@ -119,13 +119,13 @@ void BPL_FreeMessageBuffer(unsigned char *pBuffer)
   // make sure the returned pointer is in range
   if (pBuffer < LOW_BUFFER_ADDRESS || pBuffer > HIGH_BUFFER_ADDRESS)
   {
-    PrintF("@ Delloc invalid pBuf 0x%04X", (unsigned int)pBuffer);
-    SetBufferPoolFailureBit();
+    PrintF("@ Delloc invalid Buf 0x%04X", (unsigned int)pBuffer);
+    return;
   }
 
   // params are: queue handle, ptr to item to queue, tick to wait if full
   // the queue can't be full unless there is a bug, so don't wait on full
-  if(pdTRUE != xQueueSend(QueueHandles[FREE_QINDEX], &pBuffer, DONT_WAIT))
+  if(!xQueueSend(QueueHandles[FREE_QINDEX], &pBuffer, DONT_WAIT))
   {
     PrintS("@ Delloc");
     SetBufferPoolFailureBit();
@@ -145,7 +145,7 @@ void BPL_FreeMessageBufferFromIsr(unsigned char *pBuffer)
   
   // params are: queue handle, ptr to item to queue, tick to wait if full
   // the queue can't be full unless there is a bug, so don't wait on full
-  if(pdTRUE != xQueueSendFromISR(QueueHandles[FREE_QINDEX], &pBuffer, &HigherPriorityTaskWoken))
+  if(!xQueueSendFromISR(QueueHandles[FREE_QINDEX], &pBuffer, &HigherPriorityTaskWoken))
   {
     PrintS("@ Delloc ISR");
     SetBufferPoolFailureBit();

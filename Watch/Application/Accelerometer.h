@@ -19,8 +19,4 @@
 
 void HandleAccelerometer(tMessage *pMsg);
 
-/*! The accelerometer is configured to wake up on a certain threshold */
-//void AccelerometerIsr(void);
-//void AccelerometerPinIsr(void);
-
 #endif /*ACCELEROMETER_H */

@@ -173,10 +173,13 @@
 /* 486    03/27/13  Mu Yang  v1.45: Optimise log print using vPrintF;         */
 /*                           Fix: clock-on-menu, repeat batter alarm;         */
 /*                           Support DUO/BLE/BR.                              */
+/* 487    03/29/13  Mu Yang  v1.45: Fix time-adjust-not-update-clock;         */
+/* 488    03/29/13  Mu Yang   Fix "show 100% when volt < critical level".     */
+/* 489    03/30/13  Mu Yang   Ignore msg when msg que overflow.               */
 /******************************************************************************/
 
 
 #define APP_VER     "1.45"
-#define BUILD_VER   "486.418"
+#define BUILD_VER   "489.419"
 
 #endif /* VERSION_H */

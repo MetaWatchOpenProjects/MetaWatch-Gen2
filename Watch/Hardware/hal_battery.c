@@ -163,16 +163,13 @@ static void ChargingControl(void)
   
   /* disable BT flow during FLL loop */
   portENTER_CRITICAL();
-  unsigned char FlowDisabled = QueryFlowDisabled();
-  if (!FlowDisabled) DisableFlow();
-  portEXIT_CRITICAL();
-
+  EnableFlowControl(pdFALSE);
+  
   EnableSoftwareFll();
   vTaskDelay(1);
   DisableSoftwareFll();
   
-  portENTER_CRITICAL();
-  if (!FlowDisabled) EnableFlow();
+  EnableFlowControl(pdTRUE);
   portEXIT_CRITICAL();
 
   TaskDelayLpmEnable();

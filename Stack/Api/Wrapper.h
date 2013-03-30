@@ -228,17 +228,8 @@ unsigned int QuerySniffSlotParameter(eSniffSlotType SniffSlotType);
 
 /*! If a function wishes to disable the flow of characters from the radio
  * during a long interrupt routine, it must first read the state of flow
- * pin.
- *
- * \return 1 is flow to the Bluetooth Radio is disabled 
- */
-unsigned char QueryFlowDisabled(void);
-
-/*! disable flow to the BT radio */
-void DisableFlow(void);
-
-/*! enable flow to the BT radio */
-void EnableFlow(void);
+ * pin. */
+void EnableFlowControl(unsigned char Enable);
 
 int vSprintF(char *buffer, const char *format, va_list ap);
 

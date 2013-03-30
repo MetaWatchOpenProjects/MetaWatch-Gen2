@@ -452,14 +452,17 @@ static void HandleButtonEvent(unsigned char Index, unsigned char Event)
   if (pAction[i].MsgType == ButtonEventMsg)
   {
     PrintF("- BtnEvtMsg:Evt:%d", Event);
-    SetupMessageAndAllocateBuffer(&Msg, pAction[i].MsgType, pAction[i].MsgOpt);
-    Msg.pBuffer[0] = (Index >= SW_UNUSED_INDEX) ? Index + 1 : Index;
-    Msg.pBuffer[1] = ButtonMode;
-    Msg.pBuffer[2] = Event;
-    Msg.pBuffer[3] = pAction[i].MsgType;
-    Msg.pBuffer[4] = pAction[i].MsgOpt;
-    Msg.Length = 5;
-    RouteMsg(&Msg);
+    SetupMessageWithBuffer(&Msg, pAction[i].MsgType, pAction[i].MsgOpt);
+    if (Msg.pBuffer != NULL)
+    {
+      Msg.pBuffer[0] = (Index >= SW_UNUSED_INDEX) ? Index + 1 : Index;
+      Msg.pBuffer[1] = ButtonMode;
+      Msg.pBuffer[2] = Event;
+      Msg.pBuffer[3] = pAction[i].MsgType;
+      Msg.pBuffer[4] = pAction[i].MsgOpt;
+      Msg.Length = 5;
+      RouteMsg(&Msg);
+    }
   }
   else if (pAction[i].MsgType != InvalidMessage)
   {
@@ -539,7 +542,9 @@ void DisableButtonMsgHandler(tMessage* pMsg)
 void ReadButtonConfigHandler(tMessage* pMsg)
 {
   tMessage Msg;
-  SetupMessageAndAllocateBuffer(&Msg, ReadButtonConfigResponse, MSG_OPT_NONE);
+  SetupMessageWithBuffer(&Msg, ReadButtonConfigResponse, MSG_OPT_NONE);
+  if (Msg.pBuffer == NULL) return;
+
   Msg.Length = pMsg->Length;
 
   unsigned char i = 0;

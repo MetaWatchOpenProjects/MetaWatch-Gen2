@@ -309,39 +309,41 @@ static void DisplayQueueMessageHandler(tMessage* pMsg)
     break;
 
   case DevTypeMsg:
-    SetupMessageAndAllocateBuffer(&Msg, DevTypeRespMsg, MSG_OPT_NONE);
-    Msg.Options = BOARD_TYPE; //default G2
-    Msg.pBuffer[0] = BOARD_TYPE; // backward compatible
+    SetupMessageWithBuffer(&Msg, DevTypeRespMsg, BOARD_TYPE); //default G2
+    if (Msg.pBuffer != NULL)
+    {
+      Msg.pBuffer[0] = BOARD_TYPE; // backward compatible
 
 #ifdef WATCH
-    if (GetMsp430HardwareRevision() < 'F')
-    {
-      Msg.Options = DIGITAL_WATCH_TYPE_G1;
-      Msg.pBuffer[0] = DIGITAL_WATCH_TYPE_G1; // backward compatible
-    }
+      if (GetMsp430HardwareRevision() < 'F')
+      {
+        Msg.Options = DIGITAL_WATCH_TYPE_G1;
+        Msg.pBuffer[0] = DIGITAL_WATCH_TYPE_G1; // backward compatible
+      }
 #endif
-
-    Msg.Length = 1;
-    RouteMsg(&Msg);
+      Msg.Length = 1;
+      RouteMsg(&Msg);
+    }
     PrintF("- DevTypeResp:%d", Msg.pBuffer[0]);
     break;
 
   case VerInfoMsg:
-    SetupMessageAndAllocateBuffer(&Msg, VerInfoRespMsg, MSG_OPT_NONE);
-
-    /* exclude middle '.' */
-    strncpy((char *)Msg.pBuffer, BUILD, 3);
-    strncpy((char *)Msg.pBuffer + 3, BUILD + 4, 3);
-    Msg.Length += strlen(BUILD) - 1;
+    SetupMessageWithBuffer(&Msg, VerInfoRespMsg, MSG_OPT_NONE);
+    if (Msg.pBuffer != NULL)
+    {
+      /* exclude middle '.' */
+      strncpy((char *)Msg.pBuffer, BUILD, 3);
+      strncpy((char *)Msg.pBuffer + 3, BUILD + 4, 3);
+      Msg.Length += strlen(BUILD) - 1;
+        
+      *(Msg.pBuffer + Msg.Length++) = (unsigned char)atoi(VERSION);
       
-    *(Msg.pBuffer + Msg.Length++) = (unsigned char)atoi(VERSION);
-    
-    while (VERSION[i++] != '.');
-    *(Msg.pBuffer + Msg.Length++) = atoi(VERSION + i);
-    *(Msg.pBuffer + Msg.Length++) = NULL;
-    
-    RouteMsg(&Msg);
-    
+      while (VERSION[i++] != '.');
+      *(Msg.pBuffer + Msg.Length++) = atoi(VERSION + i);
+      *(Msg.pBuffer + Msg.Length++) = NULL;
+      
+      RouteMsg(&Msg);
+    }
     PrintS("-Ver:"); for (i = 6; i < Msg.Length; ++i) PrintH(Msg.pBuffer[i]);
     break;
     
@@ -358,10 +360,13 @@ static void DisplayQueueMessageHandler(tMessage* pMsg)
     break;
 
   case GetRtcMsg:
-    SetupMessageAndAllocateBuffer(&Msg, RtcRespMsg, MSG_OPT_NONE);
-    halRtcGet((tRtcHostMsgPayload*)Msg.pBuffer);
-    Msg.Length = sizeof(tRtcHostMsgPayload);
-    RouteMsg(&Msg);
+    SetupMessageWithBuffer(&Msg, RtcRespMsg, MSG_OPT_NONE);
+    if (Msg.pBuffer != NULL)
+    {
+      halRtcGet((tRtcHostMsgPayload*)Msg.pBuffer);
+      Msg.Length = sizeof(tRtcHostMsgPayload);
+      RouteMsg(&Msg);
+    }
     break;
 
   case ServiceMenuMsg:
@@ -411,18 +416,21 @@ static void DisplayQueueMessageHandler(tMessage* pMsg)
   case LinkAlarmMsg:
     if (LinkAlarmEnable)
     {
-      SetupMessageAndAllocateBuffer(&Msg, SetVibrateMode, MSG_OPT_NONE);
-      tSetVibrateModePayload* pMsgData;
-      pMsgData = (tSetVibrateModePayload *)Msg.pBuffer;
-      
-      pMsgData->Enable = 1;
-      pMsgData->OnDurationLsb = 0xC8;
-      pMsgData->OnDurationMsb = 0x00;
-      pMsgData->OffDurationLsb = 0xF4;
-      pMsgData->OffDurationMsb = 0x01;
-      pMsgData->NumberOfCycles = 1; //3
-      
-      RouteMsg(&Msg);
+      SetupMessageWithBuffer(&Msg, SetVibrateMode, MSG_OPT_NONE);
+      if (Msg.pBuffer != NULL)
+      {
+        tSetVibrateModePayload* pMsgData;
+        pMsgData = (tSetVibrateModePayload *)Msg.pBuffer;
+        
+        pMsgData->Enable = 1;
+        pMsgData->OnDurationLsb = 0xC8;
+        pMsgData->OnDurationMsb = 0x00;
+        pMsgData->OffDurationLsb = 0xF4;
+        pMsgData->OffDurationMsb = 0x01;
+        pMsgData->NumberOfCycles = 1; //3
+        
+        RouteMsg(&Msg);
+      }
     }
     break;
 
@@ -465,11 +473,11 @@ static void DisplayQueueMessageHandler(tMessage* pMsg)
     break;
 #endif
 
-  case EnableAccelerometerMsg:
-  case DisableAccelerometerMsg:
-  case AccelerometerSendDataMsg:
-  case AccelerometerAccessMsg:
-  case AccelerometerSetupMsg:
+  case EnableAccelMsg:
+  case DisableAccelMsg:
+  case AccelSendDataMsg:
+  case AccelAccessMsg:
+  case AccelSetupMsg:
 
     HandleAccelerometer(pMsg);
     break;
@@ -479,10 +487,13 @@ static void DisplayQueueMessageHandler(tMessage* pMsg)
     break;
 
   case RateTestMsg:
-    SetupMessageAndAllocateBuffer(&Msg, DiagnosticLoopback, MSG_OPT_NONE);
-    /* don't care what data is */
-    Msg.Length = 10;
-    RouteMsg(&Msg);
+    SetupMessageWithBuffer(&Msg, DiagnosticLoopback, MSG_OPT_NONE);
+    if (Msg.pBuffer != NULL)
+    {
+      /* don't care what data is */
+      Msg.Length = 10;
+      RouteMsg(&Msg);
+    }
     break;
     
   case RamTestMsg:
@@ -513,11 +524,13 @@ static void ChangeModeHandler(unsigned char Option)
   unsigned char Mode = Option & MODE_MASK;
 
   tMessage Msg;
-  SetupMessageAndAllocateBuffer(&Msg, ModeChangeIndMsg,  (CurrentIdleScreen() << 4) | Mode);
-  Msg.pBuffer[0] = eScUpdateComplete;
-  Msg.Length = 1;
-  RouteMsg(&Msg);
-
+  SetupMessageWithBuffer(&Msg, ModeChangeIndMsg,  (CurrentIdleScreen() << 4) | Mode);
+  if (Msg.pBuffer != NULL)
+  {
+    Msg.pBuffer[0] = eScUpdateComplete;
+    Msg.Length = 1;
+    RouteMsg(&Msg);
+  }
   PrintF("- ChgModInd:0x%02x", Msg.Options);
   
   if (Option & MSG_OPT_CHGMOD_IND) return; // ask for current idle page only
@@ -546,11 +559,13 @@ static void ModeTimeoutHandler()
   PrintS("- ModChgTout");
   
   tMessage Msg;
-  SetupMessageAndAllocateBuffer(&Msg, ModeChangeIndMsg, CurrentMode);
-  Msg.pBuffer[0] = eScModeTimeout;
-  Msg.Length = 1;
-  RouteMsg(&Msg);
-  
+  SetupMessageWithBuffer(&Msg, ModeChangeIndMsg, CurrentMode);
+  if (Msg.pBuffer != NULL)
+  {
+    Msg.pBuffer[0] = eScModeTimeout;
+    Msg.Length = 1;
+    RouteMsg(&Msg);
+  }
   ChangeModeHandler(IDLE_MODE);
 }
 
@@ -705,8 +720,8 @@ static void ModifyTimeHandler(tMessage* pMsg)
     break;
   }
   
-  ResetWatchdog();
-//  UpdateClockWidget(MSG_OPT_NONE);
+  DrawDateTime();
+  ResetWatchdog(); //battery timer can't be fire
 }
 
 static void HandleMusicPlayStateChange(unsigned char State)
@@ -714,17 +729,20 @@ static void HandleMusicPlayStateChange(unsigned char State)
   // music icon fits into one message
   PrintF("- HdlMusicPlyChg:%d", State);
   tMessage Msg;
-  SetupMessageAndAllocateBuffer(&Msg, WriteBufferMsg,
+  SetupMessageWithBuffer(&Msg, WriteBufferMsg,
     MUSIC_MODE | MSG_OPT_WRTBUF_MULTILINE | ICON_MUSIC_WIDTH << 3);
   
-  Msg.pBuffer[0] = MUSIC_STATE_START_ROW;
-  Msg.Length = ICON_MUSIC_WIDTH * ICON_MUSIC_HEIGHT + 1;
-  PrintF("- start:%d Len: %d", Msg.pBuffer[0], Msg.Length);
-  
-  unsigned char i = 1;
-  for (; i < Msg.Length; ++i) Msg.pBuffer[i] = pIconMusicState[1 - State][i - 1];
-  RouteMsg(&Msg);
-  
+  if (Msg.pBuffer != NULL)
+  {
+    Msg.pBuffer[0] = MUSIC_STATE_START_ROW;
+    Msg.Length = ICON_MUSIC_WIDTH * ICON_MUSIC_HEIGHT + 1;
+    PrintF("- start:%d Len: %d", Msg.pBuffer[0], Msg.Length);
+    
+    unsigned char i = 1;
+    for (; i < Msg.Length; ++i) Msg.pBuffer[i] = pIconMusicState[1 - State][i - 1];
+    RouteMsg(&Msg);
+  }
+
   SendMessage(&Msg, UpdateDisplayMsg, MUSIC_MODE);
 }
 
@@ -740,10 +758,12 @@ static void ShowCall(tString *pString, unsigned char Type)
   {
     PrintF("- Caller:%s", pString);
   
-    SetupMessageAndAllocateBuffer(&Msg, SetVibrateMode, MSG_OPT_NONE);
-    *(tSetVibrateModePayload *)Msg.pBuffer = RingTone;
-    RouteMsg(&Msg);
-    
+    SetupMessageWithBuffer(&Msg, SetVibrateMode, MSG_OPT_NONE);
+    if (Msg.pBuffer != NULL)
+    {
+      *(tSetVibrateModePayload *)Msg.pBuffer = RingTone;
+      RouteMsg(&Msg);
+    }
     PageType = PAGE_TYPE_INFO;
     CurrentPage[PageType] = CallPage;
     DrawCallScreen(CallerId, pString);
@@ -855,21 +875,18 @@ static void SetBacklight(unsigned char Value)
 {
   static tTimerId LedTimerId = UNASSIGNED;
 
-  if (Value == LED_OFF_OPTION && !LedOn) return;  
-  if (Value == LED_TOGGLE_OPTION) Value = LedOn ? LED_OFF_OPTION : LED_ON_OPTION;
-  
-  StopTimer(LedTimerId);
-
-  if (Value == LED_ON_OPTION)
-  {
-    ENABLE_LCD_LED();
-    LedOn = pdTRUE;
-    LedTimerId = StartTimer(5, NO_REPEAT, DISPLAY_QINDEX, SetBacklightMsg, LED_OFF_OPTION);
-  }
+  if (Value == LED_ON_OPTION && LedOn) ResetTimer(LedTimerId);
+  else if (Value == LED_OFF_OPTION && !LedOn) return;
   else
   {
-    DISABLE_LCD_LED();
-    LedOn = pdFALSE;
+    LedOn = !LedOn;
+
+    if (Value == LED_ON_OPTION)
+    {
+      ENABLE_LCD_LED();
+      LedTimerId = StartTimer(5, NO_REPEAT, DISPLAY_QINDEX, SetBacklightMsg, LED_OFF_OPTION);
+    }
+    else DISABLE_LCD_LED(); // get LED_OFF only when timeout
   }
 }
 
@@ -897,18 +914,19 @@ unsigned char LinkAlarmEnabled(void)
 static void ReadBatteryVoltageHandler(void)
 {
   tMessage Msg;
-  SetupMessageAndAllocateBuffer(&Msg, VBatRespMsg, MSG_OPT_NONE);
-  Msg.Length = 6;
+  SetupMessageWithBuffer(&Msg, VBatRespMsg, MSG_OPT_NONE);
+  if (Msg.pBuffer != NULL)
+  {
+    Msg.Length = 6;
+    Msg.pBuffer[0] = ClipOn();
+    Msg.pBuffer[1] = Charging();
+    Msg.pBuffer[2] = BatteryPercentage();
 
-  Msg.pBuffer[0] = ClipOn();
-  Msg.pBuffer[1] = Charging();
-  Msg.pBuffer[2] = BatteryPercentage();
-
-  unsigned int bv = Read(BATTERY);
-  Msg.pBuffer[4] = bv & 0xFF;
-  Msg.pBuffer[5] = (bv >> 8) & 0xFF;
-
-  RouteMsg(&Msg);
+    unsigned int bv = Read(BATTERY);
+    Msg.pBuffer[4] = bv & 0xFF;
+    Msg.pBuffer[5] = (bv >> 8) & 0xFF;
+    RouteMsg(&Msg);
+  }
 }
 
 /* choose whether or not to do a master reset (reset non-volatile values) */
@@ -962,30 +980,32 @@ static void NvalOperationHandler(tMessage* pMsg)
 
     /* create the outgoing message */
     tMessage Msg;
-    SetupMessageAndAllocateBuffer(&Msg, PropRespMsg, MSG_OPT_NONE);
-
-    /* add identifier to outgoing message */
-    tWordByteUnion Identifier;
-    Identifier.word = pNvPayload->NvalIdentifier;
-    Msg.pBuffer[0] = Identifier.Bytes.byte0;
-    Msg.pBuffer[1] = Identifier.Bytes.byte1;
-    Msg.Length = 2;
-
-    PrintF(">Nval %04x:%d", Identifier.word, pNvPayload->DataStartByte);
-    
-    unsigned char Property = PropertyBit(pNvPayload->NvalIdentifier);
-
-    if (pMsg->Options == NVAL_READ_OPERATION)
+    SetupMessageWithBuffer(&Msg, PropRespMsg, MSG_OPT_NONE);
+    if (Msg.pBuffer != NULL)
     {
-      if (Property) Msg.pBuffer[2] = GetProperty(Property);
-      Msg.Length += pNvPayload->Size;
+      /* add identifier to outgoing message */
+      tWordByteUnion Identifier;
+      Identifier.word = pNvPayload->NvalIdentifier;
+      Msg.pBuffer[0] = Identifier.Bytes.byte0;
+      Msg.pBuffer[1] = Identifier.Bytes.byte1;
+      Msg.Length = 2;
+
+      PrintF(">Nval %04x:%d", Identifier.word, pNvPayload->DataStartByte);
+      
+      unsigned char Property = PropertyBit(pNvPayload->NvalIdentifier);
+
+      if (pMsg->Options == NVAL_READ_OPERATION)
+      {
+        if (Property) Msg.pBuffer[2] = GetProperty(Property);
+        Msg.Length += pNvPayload->Size;
+      }
+      else if (Property) // write operation
+      {
+        SetProperty(Property, pNvPayload->DataStartByte ? Property : 0);
+        UpdateClock();
+      }
+      RouteMsg(&Msg);
     }
-    else if (Property) // write operation
-    {
-      SetProperty(Property, pNvPayload->DataStartByte ? Property : 0);
-      UpdateClock();
-    }
-    RouteMsg(&Msg);
   }
 }
 

@@ -156,9 +156,7 @@ void InitAccelerometerPeripheral(void);
  *
  * \note function must be called from a task that can block
  */
-void AccelerometerWrite(unsigned char RegisterAddress,
-                        unsigned char* pData,
-                        unsigned char Length);
+void AccelerometerWrite(unsigned char Addr, unsigned char* pData, unsigned char Length);
 
 /*! Read data from the accelerometer
  * 
@@ -168,9 +166,7 @@ void AccelerometerWrite(unsigned char RegisterAddress,
  *
  * \note function must be called from a task that can block
  */
-void AccelerometerRead(unsigned char RegisterAddress,
-                       unsigned char* pData,
-                       unsigned char Length);
+void AccelerometerRead(unsigned char Addr, unsigned char* pData, unsigned char Length);
 
 
 #endif /* HAL_ACCELEROMETER_H */

@@ -266,13 +266,13 @@ typedef enum
   RamTestMsg = 0xd1,
   RateTestMsg = 0xd2,
   
-  AccelerometerHostMsg = 0xe0,
-  EnableAccelerometerMsg  = 0xe1,
-  DisableAccelerometerMsg = 0xe2,
-  AccelerometerSendDataMsg = 0xe3,
-  AccelerometerAccessMsg = 0xe4,
-  AccelerometerResponseMsg = 0xe5,
-  AccelerometerSetupMsg = 0xe6,
+  AccelHostMsg = 0xe0,
+  EnableAccelMsg  = 0xe1,
+  DisableAccelMsg = 0xe2,
+  AccelSendDataMsg = 0xe3,
+  AccelAccessMsg = 0xe4,
+  AccelRespMsg = 0xe5,
+  AccelSetupMsg = 0xe6,
 
   RadioPowerControlMsg = 0xf0,
   
@@ -835,19 +835,7 @@ typedef struct
 
 /******************************************************************************/
 
-
-typedef struct
-{
-  unsigned char Address;
-  unsigned char Size;
-  unsigned char Data;
-
-} tAccelerometerAccessPayload;
-
 #define ACCELEROMETER_DATA_START_INDEX ( 2 )
-
-#define ACCELEROMETER_ACCESS_WRITE_OPTION ( 0 )
-#define ACCELEROMETER_ACCESS_READ_OPTION  ( 1 )
 
 #define INTERRUPT_CONTROL_DISABLE_INTERRUPT ( 0 )
 #define INTERRUPT_CONTROL_ENABLE_INTERRUPT  ( 1 )
@@ -856,16 +844,18 @@ typedef struct
 #define SID_CONTROL_SEND_INTERRUPT ( 0 )
 #define SID_CONTROL_SEND_DATA      ( 1 )
 
-#define ACCELEROMETER_SETUP_RESERVED_OPTION                 ( 0 )
-#define ACCELEROMETER_SETUP_INTERRUPT_CONTROL_OPTION        ( 1 )
-#define ACCELEROMETER_SETUP_OPMODE_OPTION                   ( 2 )
-#define ACCELEROMETER_SETUP_SID_CONTROL_OPTION              ( 3 )
-#define ACCELEROMETER_SETUP_SID_ADDR_OPTION                 ( 4 )
-#define ACCELEROMETER_SETUP_SID_LENGTH_OPTION               ( 5 )
-#define ACCELEROMETER_SETUP_INTERRUPT_ENABLE_DISABLE_OPTION ( 6 )
+#define ACCEL_RESERVED_OPTION                 ( 0 )
+#define ACCEL_INTERRUPT_CONTROL_OPTION        ( 1 )
+#define ACCEL_OPMODE_OPTION                   ( 2 )
+#define ACCEL_SID_CONTROL_OPTION              ( 3 )
+#define ACCEL_SID_ADDR_OPTION                 ( 4 )
+#define ACCEL_SID_LENGTH_OPTION               ( 5 )
+#define ACCEL_INTERRUPT_ENABLE_DISABLE_OPTION ( 6 )
 
-#define ACCELEROMETER_MSG_IS_DATA_OPTION      ( 1 )
-#define ACCELEROMETER_MSG_IS_INTERRUPT_OPTION ( 2 )
+#define MSG_OPT_ACCEL_DATA      ( 1 )
+#define MSG_OPT_ACCEL_INTERRUPT ( 2 )
+#define MSG_OPT_ACCEL_WRITE     ( 0 )
+#define MSG_OPT_ACCEL_READ      ( 1 )
 
 
 /******************************************************************************/

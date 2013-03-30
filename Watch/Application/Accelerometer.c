@@ -47,6 +47,14 @@
 #define ACCEL_STATE_DISABLED            (2)
 #define ACCEL_STATE_ENABLED             (3)
 
+typedef struct
+{
+  unsigned char Addr;
+  unsigned char Size;
+  unsigned char Data;
+
+} tAccelAccessPayload;
+
 static unsigned char WriteRegisterData;
 static unsigned char pReadRegisterData[16];
 
@@ -170,29 +178,6 @@ static void InitAccelerometer(void)
   PrintS("- Accel Initd");
 }
 
-/* 
- * The interrupt can either send a message to the host or
- * it can send data (send a message that causes the task to read data from 
- * part and then send it to the host).
- */
-void AccelerometerIsr(void)
-{
-#if 0
-  /* disabling the interrupt is the easiest way to make sure that
-   * the stack does not get blasted with
-   * data when it is in sleep mode
-   */
-  ACCELEROMETER_INT_DISABLE();
-#endif
-  
-  /* can't allocate buffer here so we must go to task to send interrupt
-   * occurred message
-   */
-  tMessage Msg;
-  SetupMessage(&Msg, AccelerometerSendDataMsg, MSG_OPT_NONE);  
-  SendMessageToQueueFromIsr(DISPLAY_QINDEX, &Msg);
-}
-
 static void ReadInterruptReleaseRegister(void)
 {
 #if 0
@@ -214,19 +199,19 @@ static void AccelerometerSendDataHandler(void)
   /* burst read */
   AccelerometerRead(KIONIX_TDT_TIMER, pReadRegisterData, 6);
   
-  if (   pReadRegisterData[0] != 0x78 
-      || pReadRegisterData[1] != 0xCB /* b6 */ 
-      || pReadRegisterData[2] != 0x1A 
-      || pReadRegisterData[3] != 0xA2 
-      || pReadRegisterData[4] != 0x24 
-      || pReadRegisterData[5] != 0x28 )
+  if (pReadRegisterData[0] != 0x78 ||
+      pReadRegisterData[1] != 0xCB || /* b6 */
+      pReadRegisterData[2] != 0x1A ||
+      pReadRegisterData[3] != 0xA2 ||
+      pReadRegisterData[4] != 0x24 ||
+      pReadRegisterData[5] != 0x28)
   {
     // need to be checked
-    //PrintS("Invalid i2c burst read");
+    PrintS("# Invalid i2c burst read");
   }
           
   /* single read */
-  AccelerometerRead(KIONIX_DCST_RESP,pReadRegisterData,1);
+  AccelerometerRead(KIONIX_DCST_RESP, pReadRegisterData, 1);
   
   if (pReadRegisterData[0] != 0x55)
   {
@@ -245,27 +230,15 @@ static void AccelerometerSendDataHandler(void)
 
   if (Connected(CONN_TYPE_MAIN))
   {
-    if (SidControl == SID_CONTROL_SEND_INTERRUPT)
+    SetupMessageWithBuffer(&Msg, AccelHostMsg, MSG_OPT_NONE);
+    if (Msg.pBuffer != NULL)
     {
-      SetupMessageAndAllocateBuffer(&Msg,
-                            AccelerometerHostMsg,
-                            ACCELEROMETER_MSG_IS_INTERRUPT_OPTION);
-    }
-    else
-    {
-      SetupMessageAndAllocateBuffer(&Msg,
-                                AccelerometerHostMsg,
-                                ACCELEROMETER_MSG_IS_DATA_OPTION);
-
+      Msg.Options = (SidControl == SID_CONTROL_SEND_INTERRUPT) ?
+        MSG_OPT_ACCEL_INTERRUPT : MSG_OPT_ACCEL_DATA;
       Msg.Length = SidLength;
       AccelerometerRead(SidAddr, Msg.pBuffer, SidLength);
-
-      // read orientation and tap status starting
-      // AccelerometerReadSingle(KIONIX_INT_SRC_REG1, Msg.pBuffer + SidLength);
-      //*(Msg.pBuffer + SidLength) = *pReadRegisterData;
-      //Msg.Length ++;
+      RouteMsg(&Msg);
     }
-    RouteMsg(&Msg);
   }
 
   ReadInterruptReleaseRegister();
@@ -300,23 +273,23 @@ void HandleAccelerometer(tMessage *pMsg)
 
   switch (pMsg->Type)
   {
-  case EnableAccelerometerMsg:
+  case EnableAccelMsg:
     if (AccelState == ACCEL_STATE_DISABLED) EnableAccelerometer();
     break;
 
-  case DisableAccelerometerMsg:
+  case DisableAccelMsg:
     if (AccelState == ACCEL_STATE_ENABLED) DisableAccelerometer();
     break;
 
-  case AccelerometerSendDataMsg:
+  case AccelSendDataMsg:
     AccelerometerSendDataHandler();
     break;
 
-  case AccelerometerAccessMsg:
+  case AccelAccessMsg:
     AccelerometerAccessHandler(pMsg);
     break;
 
-  case AccelerometerSetupMsg:
+  case AccelSetupMsg:
     AccelerometerSetupHandler(pMsg);
     break;
 
@@ -327,36 +300,36 @@ void HandleAccelerometer(tMessage *pMsg)
 
 /*
  * Control how the msp430 responds to an interrupt,
- * control function of EnableAccelerometerMsg,
+ * control function of EnableAccelMsg,
  * and allow enabling and disabling interrupt in msp430
  */
 static void AccelerometerSetupHandler(tMessage* pMsg)
 {  
   switch (pMsg->Options)
   {
-  case ACCELEROMETER_SETUP_OPMODE_OPTION:
-    OperatingModeRegister = pMsg->pBuffer[0];
+  case ACCEL_OPMODE_OPTION:
+    OperatingModeRegister = *pMsg->pBuffer;
     break;
 
-  case ACCELEROMETER_SETUP_INTERRUPT_CONTROL_OPTION:
-    InterruptControl = pMsg->pBuffer[0];
+  case ACCEL_INTERRUPT_CONTROL_OPTION:
+    InterruptControl = *pMsg->pBuffer;
     break;
 
-  case ACCELEROMETER_SETUP_SID_CONTROL_OPTION:
-    SidControl = pMsg->pBuffer[0];
+  case ACCEL_SID_CONTROL_OPTION:
+    SidControl = *pMsg->pBuffer;
     break;
 
-  case ACCELEROMETER_SETUP_SID_ADDR_OPTION:
-    SidAddr = pMsg->pBuffer[0];
+  case ACCEL_SID_ADDR_OPTION:
+    SidAddr = *pMsg->pBuffer;
     break;
 
-  case ACCELEROMETER_SETUP_SID_LENGTH_OPTION:
-    SidLength = pMsg->pBuffer[0];
+  case ACCEL_SID_LENGTH_OPTION:
+    SidLength = *pMsg->pBuffer;
     break;
 
-  case ACCELEROMETER_SETUP_INTERRUPT_ENABLE_DISABLE_OPTION:
-    if (pMsg->pBuffer[0] == 0) {ACCELEROMETER_INT_DISABLE();}
-    else {ACCELEROMETER_INT_ENABLE();}
+  case ACCEL_INTERRUPT_ENABLE_DISABLE_OPTION:
+    if (*pMsg->pBuffer) {ACCELEROMETER_INT_ENABLE();}
+    else {ACCELEROMETER_INT_DISABLE();}
     break;
     
   default:
@@ -367,31 +340,46 @@ static void AccelerometerSetupHandler(tMessage* pMsg)
 /* Perform a read or write access of the accelerometer */
 static void AccelerometerAccessHandler(tMessage* pMsg)
 {
-  tAccelerometerAccessPayload* pPayload = 
-    (tAccelerometerAccessPayload*) pMsg->pBuffer;
+  tAccelAccessPayload* pPayload = (tAccelAccessPayload *)pMsg->pBuffer;
 
-  if ( pMsg->Options == ACCELEROMETER_ACCESS_WRITE_OPTION )
+  if (pMsg->Options == MSG_OPT_ACCEL_WRITE)
   {
-    AccelerometerWrite(pPayload->Address,&pPayload->Data,pPayload->Size);
+    AccelerometerWrite(pPayload->Addr, &pPayload->Data, pPayload->Size);
   }
   else
   {
     tMessage Msg;
-    SetupMessageAndAllocateBuffer(&Msg,
-                                  AccelerometerResponseMsg,
-                                  pPayload->Size);
-    
-    AccelerometerRead(pPayload->Address,
-                      &Msg.pBuffer[ACCELEROMETER_DATA_START_INDEX],
-                      pPayload->Size);  
+    SetupMessageWithBuffer(&Msg, AccelRespMsg, pPayload->Size);
+    if (Msg.pBuffer != NULL)
+    {
+      AccelerometerRead(pPayload->Addr, Msg.pBuffer, pPayload->Size);
+      RouteMsg(&Msg);
+    }
   }
 }
-
 
 /* This interrupt port is used by the Bluetooth stack.
  * Do not change the name of this function because it is externed.
  */
+/*
+ * The interrupt can either send a message to the host or
+ * it can send data (send a message that causes the task to read data from 
+ * part and then send it to the host).
+ */
 void AccelerometerPinIsr(void)
 {
-  AccelerometerIsr();
+#if 0
+  /* disabling the interrupt is the easiest way to make sure that
+   * the stack does not get blasted with
+   * data when it is in sleep mode
+   */
+  ACCELEROMETER_INT_DISABLE();
+#endif
+  
+  /* can't allocate buffer here so we must go to task to send interrupt
+   * occurred message
+   */
+  tMessage Msg;
+  SetupMessage(&Msg, AccelSendDataMsg, MSG_OPT_NONE);  
+  SendMessageToQueueFromIsr(DISPLAY_QINDEX, &Msg);
 }

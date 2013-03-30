@@ -517,7 +517,8 @@ static unsigned int GetAddr(WidgetHeader_t *pData)
   {
     for (i = 0; pCurrWidgetList[i].Id != INVALID_ID && i < MAX_WIDGET_NUM; ++i)
     {
-      if (pData->Id == pCurrWidgetList[i].Id) break;
+      if (pData->Id == pCurrWidgetList[i].Id &&
+          !IS_CLOCK_WIDGET(pCurrWidgetList[i].Layout)) break;
     }
 
     if (pCurrWidgetList[i].Id == INVALID_ID || i == MAX_WIDGET_NUM)

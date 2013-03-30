@@ -47,7 +47,7 @@ void SetupMessage(tMessage* pMsg, unsigned char Type, unsigned char Options)
   pMsg->pBuffer = NULL;  
 }
 
-void SetupMessageAndAllocateBuffer(tMessage* pMsg, unsigned char Type, unsigned char Options)
+void SetupMessageWithBuffer(tMessage* pMsg, unsigned char Type, unsigned char Options)
 {
   pMsg->Length = 0;
   pMsg->Type = Type;
@@ -87,9 +87,9 @@ void PrintMessageType(tMessage *pMsg)
 }
 
 /* if the queue is full, don't wait */
-static void SendMsgToQ(unsigned char Qindex, tMessage* pMsg)
+static void SendMsgToQ(unsigned char Qindex, tMessage *pMsg)
 {
-  if ( Qindex == FREE_QINDEX )
+  if (Qindex == FREE_QINDEX)
   {
     SendToFreeQueue(pMsg);  
   }

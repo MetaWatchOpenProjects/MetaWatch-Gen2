@@ -35,30 +35,24 @@
   contact Texas Instruments Incorporated at www.TI.com. 
 **************************************************************************************************/
 
-#include "hal_board_type.h"
-
 #include "FreeRTOS.h"
-
+#include "hal_board_type.h"
 #include "Wrapper.h"
-
 #include "MSP430FlashUtil.h"
-
-static unsigned char FlowDisabled;
 
 /* disable interrupts during flash cycles
  * tell the bt chip that the msp cannot accept data
  * if flow control is on disable it
  * if flow control is already disabled then don't enable it when done
  */
-#define START_FLASH_CYCLE() {              \
-  portENTER_CRITICAL();                    \
-  FlowDisabled = QueryFlowDisabled();      \
-  if ( !FlowDisabled ) DisableFlow();      \
-}                                          \
+#define START_FLASH_CYCLE() {   \
+  portENTER_CRITICAL();         \
+  EnableFlowControl(0);               \
+}                               \
   
-#define END_FLASH_CYCLE() {              \
-  if ( !FlowDisabled ) EnableFlow();     \
-  portEXIT_CRITICAL();                   \
+#define END_FLASH_CYCLE() {     \
+  EnableFlowControl(1);               \
+  portEXIT_CRITICAL();          \
 }
 
 void flashErasePage(unsigned char *addr)

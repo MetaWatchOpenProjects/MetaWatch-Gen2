@@ -264,7 +264,7 @@ unsigned char BatteryPercentage(void)
   if (BattVal >= BATTERY_FULL_LEVEL) return 100;
 
   BattVal -= BATTERY_CRITICAL_LEVEL;
-  if (BattVal == 0) return BattVal;
+  if (BattVal <= 0) return 0;
 
   return (unsigned char)(BattVal * 10 / BATTERY_LEVEL_RANGE_ONETENTH);
 }
@@ -293,23 +293,27 @@ void CheckBatteryLow(void)
     else return;
 
     tMessage Msg;
-    SetupMessageAndAllocateBuffer(&Msg, LowBattWarning[Severity].MsgType1, MSG_OPT_NONE);
-    Msg.pBuffer[0] = (unsigned char)Average;
-    Msg.pBuffer[1] = (unsigned char)(Average >> 8);
-    Msg.Length = 2;
-    RouteMsg(&Msg);
-  
+    SetupMessageWithBuffer(&Msg, LowBattWarning[Severity].MsgType1, MSG_OPT_NONE);
+    if (Msg.pBuffer != NULL)
+    {
+      Msg.pBuffer[0] = (unsigned char)Average;
+      Msg.pBuffer[1] = (unsigned char)(Average >> 8);
+      Msg.Length = 2;
+      RouteMsg(&Msg);
+    }
     /* send the same message to the display task */
     SendMessage(&Msg, LowBattWarning[Severity].MsgType2, MSG_OPT_NONE);
 
     /* now send a vibration to the wearer */
-    SetupMessageAndAllocateBuffer(&Msg, SetVibrateMode, MSG_OPT_NONE);
+    SetupMessageWithBuffer(&Msg, SetVibrateMode, MSG_OPT_NONE);
+    if (Msg.pBuffer != NULL)
+    {
+      signed char i = sizeof(tSetVibrateModePayload) - 1;
+      for (; i >= 0; i--)
+        Msg.pBuffer[i] = *((unsigned char *)&LowBattWarning[Severity].VibrateData + i);
 
-    signed char i = sizeof(tSetVibrateModePayload) - 1;
-    for (; i >= 0; i--)
-      Msg.pBuffer[i] = *((unsigned char *)&LowBattWarning[Severity].VibrateData + i);
-
-    RouteMsg(&Msg);
+      RouteMsg(&Msg);
+    }
   }
   // re-enable alarm only if charging
   else if (Charging()) Severity = WARN_LEVEL_NONE;
@@ -396,18 +400,20 @@ void ReadLightSensorHandler(void)
 
   /* send message to the host */
   tMessage Msg;
-  SetupMessageAndAllocateBuffer(&Msg, LightSensorRespMsg, MSG_OPT_NONE);
+  SetupMessageWithBuffer(&Msg, LightSensorRespMsg, MSG_OPT_NONE);
+  if (Msg.pBuffer != NULL)
+  {
+    /* instantaneous value */
+    unsigned int lv = LightSense;
+    Msg.pBuffer[0] = lv & 0xFF;
+    Msg.pBuffer[1] = (lv >> 8 ) & 0xFF;
+    Msg.Length = 2;
 
-  /* instantaneous value */
-  unsigned int lv = LightSense;
-  Msg.pBuffer[0] = lv & 0xFF;
-  Msg.pBuffer[1] = (lv >> 8 ) & 0xFF;
-  Msg.Length = 2;
-
-//  /* average value */
-//  lv = Read(LIGHT_SENSOR);
-//  Msg.pBuffer[2] = lv & 0xFF;
-//  Msg.pBuffer[3] = (lv >> 8 ) & 0xFF;
-//  Msg.Length = 4;
-  RouteMsg(&Msg);
+  //  /* average value */
+  //  lv = Read(LIGHT_SENSOR);
+  //  Msg.pBuffer[2] = lv & 0xFF;
+  //  Msg.pBuffer[3] = (lv >> 8 ) & 0xFF;
+  //  Msg.Length = 4;
+    RouteMsg(&Msg);
+  }
 }
