@@ -28,6 +28,14 @@
 #define AUTH_INFO_ADDR 		0x1C14; // 23
 #define PROPERTY_ADDR 		0x1C2C;
 
+#define RTC_YEAR_ADDR           0x1C2E;
+#define RTC_MON_ADDR            0x1C30;
+#define RTC_DAY_ADDR            0x1C31;
+#define RTC_DOW_ADDR            0x1C32;
+#define RTC_HOUR_ADDR           0x1C33;
+#define RTC_MIN_ADDR            0x1C34;
+#define RTC_SEC_ADDR            0x1C35;
+
 /****************************************************************************/
 
 Signature = 0x5B80;
@@ -41,14 +49,21 @@ niDisconnects = 0x1C12;
 niAuth = 0x1C14;
 niProperty = 0x1C2C;
 
+RtcYear = 0x1C2E;
+RtcMon = 0x1C30;
+RtcDay = 0x1C31;
+RtcDow = 0x1C32;
+RtcHour = 0x1C33;
+RtcMin = 0x1C34;
+RtcSec = 0x1C35;
 
 MEMORY
 {
     SFR                     : origin = 0x0000, length = 0x0010
     PERIPHERALS_8BIT        : origin = 0x0010, length = 0x00F0
     PERIPHERALS_16BIT       : origin = 0x0100, length = 0x0100
-    NO_INIT_RAM             : origin = 0x1C00, length = 0x0030
-    RAM                     : origin = 0x1C30, length = 0x3FD0
+    NO_INIT_RAM             : origin = 0x1C00, length = 0x0040
+    RAM                     : origin = 0x1C40, length = 0x3FC0
     INFOA                   : origin = 0x1980, length = 0x0080
     INFOB                   : origin = 0x1900, length = 0x0080
     INFOC                   : origin = 0x1880, length = 0x0080
