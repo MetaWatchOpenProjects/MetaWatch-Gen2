@@ -42,6 +42,8 @@
 #define CHARGE_STATUS_DONE                    (0x08)
 #define CHARGE_STATUS_OFF                     (0x18)
 
+#define CHECK_CHARGING_STATUS_DELAY_IN_MS     (1 * portTICK_RATE_MS)
+
 // used to monitor battery status
 static unsigned char ChargeStatus;
 static unsigned char ChargeEnable;
@@ -122,7 +124,7 @@ void CheckBattery(void)
     if (ChargeEnable)
     {
       ChargingControl();
-      
+
       switch (ChargeStatus)
       {
       case CHARGE_STATUS_PRECHARGE:   Status = '.'; break;
@@ -159,21 +161,14 @@ static void ChargingControl(void)
   /* wait until signals are valid - measured 400 us 
    * during this delay we will also run the software FLL
    */
-  TaskDelayLpmDisable();
-  
   /* disable BT flow during FLL loop */
-  portENTER_CRITICAL();
-  EnableFlowControl(pdFALSE);
-  
-  EnableSoftwareFll();
-  vTaskDelay(1);
-  DisableSoftwareFll();
-  
-  EnableFlowControl(pdTRUE);
-  portEXIT_CRITICAL();
+//  EnableFlowControl(pdFALSE);
 
-  TaskDelayLpmEnable();
-  
+  EnableSoftwareFll();
+//  vTaskDelay(CHECK_CHARGING_STATUS_DELAY_IN_MS);
+  DisableSoftwareFll();
+//  EnableFlowControl(pdTRUE);
+
   /* Decode the battery state */
   /* mask and shift to get the current battery charge status */
   ChargeStatus = BAT_CHARGE_IN & (BAT_CHARGE_STAT1 | BAT_CHARGE_STAT2);

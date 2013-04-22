@@ -30,6 +30,7 @@
 extern const char OK[];
 extern const char NOK[];
 extern const char SPACE;
+extern const char ZERO;
 
 void EnableDebugUart(unsigned char Enable);
 void EnableTimeStamp(void);

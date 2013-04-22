@@ -98,20 +98,6 @@ extern const unsigned char TimeGWidth[];
 extern const unsigned char TimeKWidth[];
 
 
-/*! Convert a character into an index into the font table
- *
- * \param CharIn is the input character
- * \return Index into the table
- */
-unsigned char MapCharacterToIndex(unsigned char CharIn);
-
-/*! Convert a digit (0-9) into an index into the font table
- *
- * \param Digit is a number
- * \return Index into the table
- */
-unsigned char MapDigitToIndex(unsigned char Digit);
-
 /*! Get the bitmap for the specified character
  *
  * \param Character is the desired character
@@ -158,10 +144,10 @@ const tFont *GetCurrentFont(void);
  */
 unsigned char GetFontSpacing(void);
 
-
 /*!
  * \return The font height in rows
  */
-unsigned char GetFontHeight(void);
+unsigned char GetFontHeight(etFontType Type);
+unsigned char GetCurrentFontHeight(void);
 
 #endif /*FONTS_H*/

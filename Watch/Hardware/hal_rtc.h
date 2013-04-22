@@ -28,9 +28,36 @@
 #ifndef HAL_RTC_H
 #define HAL_RTC_H
 
-#ifndef MESSAGES_H
-  #error "Messages.h must be included before hal_rtc.h"
-#endif
+#define RTC_SEC   (0)
+#define RTC_MIN   (1)
+#define RTC_HOUR  (2)
+#define RTC_DAY   (3)
+#define RTC_DOW   (4)
+#define RTC_MON   (5)
+
+#define BCD_H(_x)  (_x >> 4)
+#define BCD_L(_x)  (_x & 0x0F)
+
+/*!
+ * \param Year is a 12 bit value
+ * \param Month of the year - 1 to 12
+ * \param Day is 1 to 31
+ * \param DayOfWeek is 0 to 6
+ * \param Hour is 0 to 24
+ * \param Minute is 0 to 59
+ * \param Second is 0 to 59
+ */
+typedef struct
+{
+  unsigned char YearMsb;
+  unsigned char YearLsb;
+  unsigned char Month;
+  unsigned char Day;
+  unsigned char DayOfWeek;
+  unsigned char Hour;
+  unsigned char Minute;
+  unsigned char Second;
+} Rtc_t;
 
 /*! Enables the prescale one RTC interrupt
  *
@@ -70,17 +97,19 @@ void InitRealTimeClock(void);
  *
  * \param pRtcData
  */
-void halRtcSet(tRtcHostMsgPayload *pRtcData);
+void SetRtc(Rtc_t *pRtcData);
+
+void BackupRtc(void);
+
+void IncRtc(unsigned char Index);
+
+unsigned char ToBCD(unsigned char Dec);
+unsigned char ToBin(unsigned char Bcd);
+
+unsigned char To12H(unsigned char H24);
 
 // The exact value is 31.25 mS
 #define RTC_TIMER_MS_PER_TICK       31   
-
-/*! Get the current structure containing the real time clock parameters.
- *
- * \param pRtcData
- *
- */
-void halRtcGet(tRtcHostMsgPayload *pRtcData);
 
 /*! Users of the RTC prescaler timer 0 interrupt.  This interrupt occurs at
  * 128 kHz and is divided down to occur at 32 khZ.

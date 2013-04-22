@@ -36,101 +36,72 @@
 
 #include "OneSecondTimers.h"
 
-#define INVALID_ID(_x)    (_x == UNASSIGNED || _x >= TOTAL_TIMERS)
-
 /*! One Second Timer Structure */
 typedef struct
 {
   unsigned int Timeout;
   unsigned int DownCounter;
-  unsigned char Allocated;
   unsigned char Running;
-  unsigned char RepeatCount;
+  unsigned char Repeat;
   unsigned char Qindex;
-  eMessageType CallbackMsgType;
-  unsigned char CallbackMsgOptions;
-
+  eMessageType MsgType;
+  unsigned char MsgOpt;
 } tOneSecondTimer;
 
-static tOneSecondTimer Timers[TOTAL_TIMERS];
-static xSemaphoreHandle OneSecondTimerMutex;
-  
-static void InitOneSecondTimers(void);
-
-static void InitOneSecondTimers(void)
+typedef struct
 {
-  /* clear information for all of the timers */
-  memset(Timers, 0, sizeof(tOneSecondTimer) * TOTAL_TIMERS);
+  unsigned int Timeout;
+  unsigned char Repeat;
+  unsigned char Qindex;
+  eMessageType MsgType;
+  unsigned char MsgOpt;
+} tTimerSettings;
 
-  OneSecondTimerMutex = xSemaphoreCreateMutex();
-  xSemaphoreGive(OneSecondTimerMutex);
-}
-
-/* setup a timer so the Restart timer function can be used */
-tTimerId StartTimer(unsigned int Timeout,
-                    unsigned char RepeatCount,
-                    unsigned char Qindex,
-                    eMessageType CallbackMsgType,
-                    unsigned char MsgOptions)
+static const tTimerSettings TimerSettings[] =
 {
-  if (!OneSecondTimerMutex) InitOneSecondTimers();
-  xSemaphoreTake(OneSecondTimerMutex, portMAX_DELAY);
+  {TOUT_MONITOR_BATTERY, REPEAT_FOREVER, DISPLAY_QINDEX, MonitorBatteryMsg, MSG_OPT_NONE},
+  {TOUT_NOTIF_MODE, NO_REPEAT, DISPLAY_QINDEX, ModeTimeoutMsg, NOTIF_MODE},
+  {TOUT_CALL_NOTIF, NO_REPEAT, DISPLAY_QINDEX, CallerNameMsg, SHOW_NOTIF_END},
+  {TOUT_BACKLIGHT, NO_REPEAT, DISPLAY_QINDEX, SetBacklightMsg, LED_OFF_OPTION},
+  {TOUT_CONN_HFP_MAP_LONG, NO_REPEAT, WRAPPER_QINDEX, ConnTimeoutMsg, MSG_OPT_NONE},
+  {TOUT_TUNNEL_IOS, NO_REPEAT, WRAPPER_QINDEX, TunnelTimeoutMsg, MSG_OPT_NONE}
+};
+#define TOTAL_TIMERS    (sizeof(TimerSettings) / sizeof(tTimerSettings))
 
-  unsigned char i;
-  for (i = 0; i < TOTAL_TIMERS; ++i)
-  {
-    if (!Timers[i].Allocated)
-    {
-      Timers[i].Allocated = pdTRUE;
-      break;
-    }
-  }
-  xSemaphoreGive(OneSecondTimerMutex);
-
-  if (i == TOTAL_TIMERS)
-  {
-    PrintS("# AllocTimer");
-    return UNASSIGNED;
-  }
+static tOneSecondTimer Timer[TOTAL_TIMERS];
   
+/* start the timer if not started already; restart otherwise */
+void StartTimer(eTimerId Id)
+{
   portENTER_CRITICAL();
-  Timers[i].RepeatCount = RepeatCount;
-  Timers[i].Timeout = Timeout;
-  Timers[i].Qindex = Qindex;
-  Timers[i].CallbackMsgType = CallbackMsgType;
-  Timers[i].CallbackMsgOptions = MsgOptions;
-    
-  /* start the timer */
-  Timers[i].Running = pdTRUE;
-  Timers[i].DownCounter = Timeout;
+  if (!Timer[Id].MsgType)
+  {
+    Timer[Id].Qindex = TimerSettings[Id].Qindex;
+    Timer[Id].MsgType = TimerSettings[Id].MsgType;
+    Timer[Id].MsgOpt = TimerSettings[Id].MsgOpt;
+  }
+
+  if (!Timer[Id].Timeout)
+  {
+    Timer[Id].Timeout = TimerSettings[Id].Timeout;
+    Timer[Id].Repeat = TimerSettings[Id].Repeat;
+  }
+  
+  Timer[Id].DownCounter = Timer[Id].Timeout;
+  Timer[Id].Running = pdTRUE;
   portEXIT_CRITICAL();
-
-  return i;
 }
 
-void StopTimer(tTimerId Id)
+void SetTimer(eTimerId Id, unsigned int Timeout, unsigned char Repeat)
 {
-  if (INVALID_ID(Id)) return;
-
-  if (Timers[Id].Allocated)
-  {
-    portENTER_CRITICAL();
-    Timers[Id].Running = pdFALSE;
-    Timers[Id].Allocated = pdFALSE;
-    portEXIT_CRITICAL();
-  }
+  Timer[Id].Timeout = Timeout;
+  Timer[Id].Repeat = Repeat;
+  StartTimer(Id);
 }
 
-void ResetTimer(tTimerId Id)
+void StopTimer(eTimerId Id)
 {
-  if (INVALID_ID(Id)) return;
-
-  if (Timers[Id].Allocated)
-  {
-    portENTER_CRITICAL();
-    Timers[Id].DownCounter = Timers[Id].Timeout;
-    portEXIT_CRITICAL();
-  }
+  Timer[Id].Running = pdFALSE;
 }
 
 /* this should be as fast as possible because it happens in interrupt context
@@ -143,25 +114,24 @@ unsigned char OneSecondTimerHandlerIsr(void)
   unsigned char i;
   for (i = 0; i < TOTAL_TIMERS; ++i)
   {
-    if (Timers[i].Running)
+    if (Timer[i].Running)
     {        
       /* decrement the counter first, then check if the counter == 0 */
-      if (--Timers[i].DownCounter == 0)
+      if (--Timer[i].DownCounter == 0)
       {
-        if (Timers[i].RepeatCount == 0)
+        if (Timer[i].Repeat == 0)
         {
-          Timers[i].Running = pdFALSE;
-          Timers[i].Allocated = pdFALSE;
+          Timer[i].Running = pdFALSE;
         }
         else
         {
-          Timers[i].DownCounter = Timers[i].Timeout;
-          if (Timers[i].RepeatCount != REPEAT_FOREVER) Timers[i].RepeatCount --;
+          Timer[i].DownCounter = Timer[i].Timeout;
+          if (Timer[i].Repeat != REPEAT_FOREVER) Timer[i].Repeat --;
         }
 
         tMessage Msg;
-        SetupMessage(&Msg, Timers[i].CallbackMsgType, Timers[i].CallbackMsgOptions);
-        SendMessageToQueueFromIsr(Timers[i].Qindex, &Msg);
+        SetupMessage(&Msg, Timer[i].MsgType, Timer[i].MsgOpt);
+        SendMessageToQueueFromIsr(Timer[i].Qindex, &Msg);
         ExitLpm = 1;
       }
     }

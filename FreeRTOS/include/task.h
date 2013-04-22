@@ -1271,14 +1271,6 @@ void vTaskPriorityDisinherit( xTaskHandle * const pxMutexHolder ) PRIVILEGED_FUN
  */
 signed portBASE_TYPE xTaskGenericCreate( pdTASK_CODE pvTaskCode, const signed char * const pcName, unsigned short usStackDepth, void *pvParameters, unsigned portBASE_TYPE uxPriority, xTaskHandle *pxCreatedTask, portSTACK_TYPE *puxStackBuffer, const xMemoryRegion * const xRegions ) PRIVILEGED_FUNCTION;
 
-
-
-void TaskDelayLpmDisable(void);
-
-void TaskDelayLpmEnable(void);
-
-unsigned char GetTaskDelayLockCount(void);
-
 #ifdef __cplusplus
 }
 #endif

@@ -27,6 +27,7 @@
 #include "hal_Battery.h"
 #include "hal_lpm.h"
 #include "hal_miscellaneous.h"
+#include "hal_rtc.h"
 #include "Wrapper.h"
 #include "DebugUart.h"
 #include "SerialRam.h"
@@ -158,8 +159,8 @@ static const Widget_t ClockWidget[] =
   {LAYOUT_QUAD_SCREEN, 7, DrawList[0]},
   {LAYOUT_HORI_SCREEN, 7, DrawList[1]},
   {LAYOUT_FULL_SCREEN, 9, DrawList[2]},
-  {LAYOUT_FULL_SCREEN, 9, DrawList[3]},
-  {LAYOUT_FULL_SCREEN, 10, DrawList[4]}
+  {LAYOUT_FULL_SCREEN, 10, DrawList[3]},
+  {LAYOUT_FULL_SCREEN, 9, DrawList[4]}
 };
 
 #define HOME_WIDGET_NUM (sizeof(ClockWidget) / sizeof(Widget_t))
@@ -216,11 +217,9 @@ static void DrawBitmap(const unsigned char *pBitmap, unsigned char X, unsigned c
     for(y = 0; y < H; ++y)
     {
       Set = *(pBitmap + y * BmpWidthInBytes) & MaskBit;
-//      if (Set)
       Delta = (ClockWidget[FACE_ID(*pDrawBuffer)].LayoutType == LAYOUT_FULL_SCREEN) &&
               (Y < HALF_SCREEN_ROWS && (Y + y) >= HALF_SCREEN_ROWS) ?
               BYTES_PER_QUAD : 0;
-//        *(pByte + y * BYTES_PER_QUAD_LINE + Delta) |= ColBit;
       
       BitOp(pByte + y * BYTES_PER_QUAD_LINE + Delta, ColBit, Set, Op);
     }
@@ -281,24 +280,20 @@ static void DrawText(unsigned char *pText, unsigned char Len, unsigned char X, u
     unsigned char CharWidth = GetCharacterWidth(pText[i]);
     
     DrawBitmap(pBitmap, X, Y, CharWidth, pFont->Height, pFont->WidthInBytes, Op);
-    X += EqualWidth ? CharWidth + 1 : pFont->MaxWidth + 1;
+    X += EqualWidth ? CharWidth + 1 : pFont->MaxWidth + 1; // add 1 pixel space
   }
 }
 
 static void DrawHour(DrawInfo_t *Info)
 {
   unsigned char Hour[3];
-  Hour[0] = RTCHOUR;
+  *Hour = RTCHOUR;
   
-  if (!GetProperty(PROP_24H_TIME_FORMAT))
-  {
-    Hour[0] %= 12;
-    if (Hour[0] == 0) Hour[0] = 12;
-  }
-  
-  Hour[1] = Hour[0] % 10 + '0';
-  Hour[0] /= 10;
-  if(Hour[0] == 0) Hour[0] = TIME_CHARACTER_SPACE_INDEX;
+  if (!GetProperty(PROP_24H_TIME_FORMAT)) *Hour = To12H(*Hour);
+
+  Hour[1] = BCD_L(Hour[0]) + '0';
+  Hour[0] = BCD_H(Hour[0]);
+  if(!Hour[0]) Hour[0] = TIME_CHARACTER_SPACE_INDEX;
   Hour[0] += '0';
   Hour[2] = Info->Opt & SEPARATOR_MASK; // separator
   
@@ -314,8 +309,8 @@ static void DrawAmPm(DrawInfo_t *Info)
 static void DrawMin(DrawInfo_t *Info)
 {
   unsigned char Min[2];
-  Min[0] = RTCMIN / 10 + '0';
-  Min[1] = RTCMIN % 10 + '0';
+  Min[0] = BCD_H(RTCMIN) + '0';
+  Min[1] = BCD_L(RTCMIN) + '0';
   DrawText(Min, 2, Info->X, Info->Y, Info->Id, Info->Opt & DRAW_OPT_PROP_WIDTH, Info->Op);
 }
 
@@ -325,8 +320,8 @@ static void DrawSec(DrawInfo_t *Info)
 
   unsigned char Sec[3];
   Sec[0] = DRAW_OPT_SEPARATOR;
-  Sec[1] = RTCSEC / 10 + '0';
-  Sec[2] = RTCSEC % 10 + '0';
+  Sec[1] = BCD_H(RTCSEC) + '0';
+  Sec[2] = BCD_L(RTCSEC) + '0';
   DrawText(Sec, 3, Info->X, Info->Y, Info->Id, DRAW_OPT_PROP_WIDTH, Info->Op);
 }
 
@@ -339,16 +334,19 @@ static void DrawDate(DrawInfo_t *Info)
   unsigned char DayFirst = GetProperty(PROP_DDMM_DATE_FORMAT);
 
   memset(pDate, 0, 5); // clear Date[]
-  
-  *pDate = (DayFirst ? RTCDAY : RTCMON) / 10;
-  if (*pDate) *pDate++ += '0';
 
-  *pDate++ = (DayFirst ? RTCDAY : RTCMON) % 10 + '0';
+  unsigned char Rtc[2];
+  Rtc[DayFirst ? 0 : 1] = RTCDAY;
+  Rtc[DayFirst ? 1 : 0] = RTCMON;
+
+  *pDate = BCD_H(Rtc[0]);
+  if (*pDate) *pDate++ += '0';
+  *pDate++ = BCD_L(Rtc[0]) + '0';
   *pDate++ = '/';
-  *pDate = (DayFirst ? RTCMON : RTCDAY) / 10;
-  if (*pDate) *pDate++ += '0';
 
-  *pDate = (DayFirst ? RTCMON : RTCDAY) % 10 + '0';
+  *pDate = BCD_H(Rtc[1]);
+  if (*pDate) *pDate++ += '0';
+  *pDate = BCD_L(Rtc[1]) + '0';
 
   DrawText(Date, 5, Info->X, Info->Y, Info->Id, DRAW_OPT_PROP_WIDTH, Info->Op);
 }

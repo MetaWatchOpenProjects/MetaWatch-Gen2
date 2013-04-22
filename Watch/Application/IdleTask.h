@@ -21,7 +21,6 @@
 typedef struct
 {
   unsigned char SppReadyToSleep;
-  unsigned char TaskDelayLockCount;
   unsigned int DisplayMessagesWaiting;
   unsigned int SppMessagesWaiting;
   

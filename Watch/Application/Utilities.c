@@ -18,6 +18,7 @@
 #include "task.h"
 #include "queue.h"
 #include "hal_board_type.h"
+#include "hal_boot.h"
 #include "hal_lpm.h"
 #include "Messages.h"
 #include "MessageQueues.h"

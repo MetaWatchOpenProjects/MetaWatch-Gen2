@@ -141,21 +141,8 @@ static void WriteTimeStamp(void)
 
 static void WriteTime(unsigned char Rtc, unsigned Separator)
 {
-  tWordByteUnion Time;
-  Time.Bytes.byte0 = Rtc;
-
-  Time.Bytes.byte1 = 0; //hold quotient
-  while (Time.Bytes.byte0 >= 10)
-  {
-    Time.Bytes.byte0 -= 10;
-    Time.Bytes.byte1 ++;
-  }
-
-  Time.Bytes.byte1 += ZERO;
-  Time.Bytes.byte0 += ZERO;
-
-  WRITE_UART(Time.Bytes.byte1);
-  WRITE_UART(Time.Bytes.byte0);
+  WRITE_UART(BCD_H(Rtc) + ZERO);
+  WRITE_UART(BCD_L(Rtc) + ZERO);
   WRITE_UART(Separator);
 }
 
@@ -242,7 +229,7 @@ void WhoAmI(void)
   PrintF("Msp430 Rev:%c HwVer:%d", GetMsp430HardwareRevision(), HardwareVersion());
   PrintF("BoardConfig: %d", GetBoardConfiguration());
   PrintF("Calibration: %d", ValidCalibration());
-  PrintF("ErrataGroup1: %d", QueryErrataGroup1());
+  PrintF("Errata: %d", Errata());
 }
 
 #ifndef __IAR_SYSTEMS_ICC__

@@ -103,15 +103,34 @@
 extern const char DaysOfTheWeek[][7][4];
 extern const char MonthsOfYear[][13][7];
 
-void DrawStartupScreen(void);
+typedef struct
+{
+  unsigned char Col;
+  unsigned char ColMask;
+  unsigned char Row;
+  etFontType Font;
+  char *pText;
+  unsigned char Length;
+} DrawLcd_t;
+
+void DrawTextToLcd(DrawLcd_t *pData);
+
+void DrawSplashScreen(void);
 void DrawDateTime(void);
 void DrawConnectionScreen(void);
 void DrawMenu(eIdleModePage Page);
 void DrawWatchStatusScreen(void);
 void DrawBootloaderScreen(void);
 void DrawCallScreen(char *pCallerId, char *pCallerName);
+void CopyRowsIntoMyBuffer(unsigned char const *pImage, unsigned char StartRow, unsigned char RowNum);
+void SendMyBufferToLcd(unsigned char StartRow, unsigned char RowNum);
+void FillMyBuffer(unsigned char StartRow, unsigned char RowNum, unsigned char Value);
 
 const unsigned char *GetBatteryIcon(unsigned char Id);
 void *GetDrawBuffer(void);
+
+#if __IAR_SYSTEMS_ICC__
+void CopyRowsIntoMyBuffer_20(unsigned char const __data20 *pImage, unsigned char StartRow, unsigned char RowNum);
+#endif
 
 #endif /* LCD_BUFFER_H */

@@ -55,9 +55,9 @@
 #define LCD_DMA ( 1 )
 
 /*! enable entry into low power mode 3 */
-#define LPM_ENABLED ( 1 ) 
+#define SUPPORT_LPM ( 1 ) 
 
-#define SHIPPING_MODE (0)
+#define SUPPORT_SHIPPING_MODE (0)
 
 /*! print task information */
 #define TASK_DEBUG ( 0 )
@@ -81,7 +81,7 @@
 #define DEBUG_POWER_GOOD ( 0 ) 
 
 /*! when 0 the message type is printed in hex, when 1 it is not */
-#define DONT_PRINT_MESSAGE_TYPE ( 1 )
+#define PRINT_MESSAGE_OPTIONS ( 1 )
    
 /*! use mutex to attempt to make string printing look prettier */
 #define PRETTY_PRINT ( 1 )

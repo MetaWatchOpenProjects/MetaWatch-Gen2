@@ -26,6 +26,7 @@
 #include "task.h"
 
 #include "hal_board_type.h"
+#include "hal_boot.h"
 #include "hal_lpm.h"
 
 #include "Messages.h"
@@ -50,7 +51,7 @@ typedef struct
 
 
 /*! number of buffers in the message buffer pool */
-#define MSG_BUF_NUM 20 //15
+#define MSG_BUF_NUM 22 //20
 
 // This memory is never accessed directly, pointers to the buffers are put on
 // a queue at startup
@@ -102,13 +103,14 @@ unsigned char *BPL_AllocMessageBuffer(void)
   if (!xQueueReceive(QueueHandles[FREE_QINDEX], &pBuffer, DONT_WAIT))
   {
     PrintS("@ Alloc");
-    SetBufferPoolFailureBit();
-
+//    SetBufferPoolFailureBit();
   }
   else if (pBuffer < LOW_BUFFER_ADDRESS || pBuffer > HIGH_BUFFER_ADDRESS)
   {
     PrintF("@ Alloc invalid Buf 0x%04X", (unsigned int)pBuffer);
-    SetBufferPoolFailureBit();
+    BPL_FreeMessageBuffer(pBuffer);
+    pBuffer = NULL;
+//    SetBufferPoolFailureBit();
   }
 
   return pBuffer;
@@ -120,12 +122,12 @@ void BPL_FreeMessageBuffer(unsigned char *pBuffer)
   if (pBuffer < LOW_BUFFER_ADDRESS || pBuffer > HIGH_BUFFER_ADDRESS)
   {
     PrintF("@ Delloc invalid Buf 0x%04X", (unsigned int)pBuffer);
-    return;
+//    return;
   }
 
   // params are: queue handle, ptr to item to queue, tick to wait if full
   // the queue can't be full unless there is a bug, so don't wait on full
-  if(!xQueueSend(QueueHandles[FREE_QINDEX], &pBuffer, DONT_WAIT))
+  if (!xQueueSend(QueueHandles[FREE_QINDEX], &pBuffer, DONT_WAIT))
   {
     PrintS("@ Delloc");
     SetBufferPoolFailureBit();

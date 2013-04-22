@@ -111,7 +111,7 @@ typedef struct
  */
 typedef enum
 {
-  InvalidMessage = 0x00,
+  InvalidMsg = 0x00,
 
   DevTypeMsg = 0x01,
   DevTypeRespMsg = 0x02,
@@ -155,7 +155,6 @@ typedef enum
   
   /* config and (dis)enable vibrate */
   SetVibrateMode = 0x23,
-
   ButtonStateMsg = 0x24,
 
   /* Sets the RTC */
@@ -169,9 +168,7 @@ typedef enum
 
   /* status of the current display operation */
   ModeChangeIndMsg = 0x33,
-
   ButtonEventMsg = 0x34,
-
   GeneralPurposePhoneMsg = 0x35,
   GeneralPurposeWatchMsg = 0x36,
   WrapperTaskCheckInMsg = 0x37,
@@ -185,22 +182,20 @@ typedef enum
   ControlFullScreenMsg = 0x42,
   UpdateDisplayMsg = 0x43,
   LoadTemplateMsg = 0x44,
-
-  ExtAppMsg = 0x45,
-  ExtAppIndMsg = 0x4a,
-  
+  ExtAppMsg = 0x45,  
   EnableButtonMsg = 0x46,
   DisableButtonMsg = 0x47,
   ReadButtonConfigMsg = 0x48,
   ReadButtonConfigResponse = 0x49,
+  ExtAppIndMsg = 0x4a,
   EraseTemplateMsg = 0x4b,
   WriteToTemplateMsg = 0x4c,
   SetClockWidgetSettingsMsg = 0x4d,
   DrawClockWidgetMsg = 0x4e,
   WriteClockWidgetDoneMsg = 0x4f,
+
   SetExtWidgetMsg = 0x50,
   UpdateClockMsg = 0x51,
-
   MonitorBatteryMsg = 0x52,
   BatteryConfigMsg = 0x53,
   LowBatteryWarningMsgHost = 0x54,
@@ -228,8 +223,7 @@ typedef enum
   IdleUpdateMsg = 0xa0,
   SetWidgetListMsg = 0xa1, // for new UI
   WatchDrawnScreenTimeout = 0xa2,
-  Unused_0xa4 = 0xa4,
-  Unused_0xa5 = 0xa5,
+
   ChangeModeMsg = 0xa6,
   ModeTimeoutMsg = 0xa7,
   WatchStatusMsg = 0xa8,
@@ -245,8 +239,7 @@ typedef enum
   SetHeartbeatMsg = 0xb0,
   TunnelTimeoutMsg = 0xb1,
   UpdConnParamMsg = 0xb2,
-  ConnParamChgIndMsg = 0xbb,
-  
+
   /* HFP messages */
   CallerIdIndMsg = 0xb3,
   CallerNameMsg = 0xb4,
@@ -259,20 +252,18 @@ typedef enum
 
   ConnChangeMsg = 0xb9,
   UpdWgtIndMsg = 0xba,
+  ConnParamChgIndMsg = 0xbb,
 
   SppAckMsg = 0xcc,
-
+  CountDownMsg = 0xcd,
+  SetCountdownDoneMsg = 0xce,
+  
   QueryMemoryMsg = 0xd0,
   RamTestMsg = 0xd1,
   RateTestMsg = 0xd2,
   
-  AccelHostMsg = 0xe0,
-  EnableAccelMsg  = 0xe1,
-  DisableAccelMsg = 0xe2,
-  AccelSendDataMsg = 0xe3,
-  AccelAccessMsg = 0xe4,
-  AccelRespMsg = 0xe5,
-  AccelSetupMsg = 0xe6,
+  AccelIndMsg = 0xe0,
+  AccelMsg = 0xe1,
 
   RadioPowerControlMsg = 0xf0,
   
@@ -281,7 +272,7 @@ typedef enum
   SetScanRespMsg = 0xf3
 } eMessageType;
 
-#define MAXIMUM_MESSAGE_TYPES ( 256 )
+#define MAXIMUM_MESSAGE_TYPES      (256)
 
 #define MSG_OPT_NONE               (0)
 #define NONZERO_MSG_OPTIONS        (0xFF)
@@ -371,6 +362,18 @@ typedef enum
 #define MUSIC_MODE        (3)
 #define MODE_NUM          (4)
 #define MODE_MASK         (0x3)
+
+/* Timeout for OneSecondTimer */
+#define TOUT_MONITOR_BATTERY          (10) //second
+#define TOUT_BACKLIGHT                (5) //second
+#define TOUT_NOTIF_MODE               (30)
+#define TOUT_MUSIC_MODE               (600)
+#define TOUT_APP_MODE                 (600)
+#define TOUT_CALL_NOTIF               (10)
+#define TOUT_CONN_HFP_MAP_LONG        (10)
+#define TOUT_CONN_HFP_MAP_SHORT       (1)
+#define TOUT_TUNNEL_CONNECTING        (10)
+#define TOUT_TUNNEL_IOS               (1)
 
 /* these should match the display modes for idle, application, notification,
  * and scroll modes
@@ -501,27 +504,6 @@ typedef struct
 
 } tAdvanceWatchHandsPayload;
 
-/*! Set Vibrate Mode Payload Structure
- *
- * \param Enable when > 0 disabled when == 0.
- * \param OnDuration is the duration in milliseconds
- * \param OffDuration is the off duration in milliseconds.
- * \param NumberOfCycles is the number of on/off cycles to perform
- *
- * \note when durations were changed to integers the on duration was correct
- * but the number of cycles became first byte of checksum (packing problem)
- */
-typedef struct
-{
-  unsigned char Enable;
-  unsigned char OnDurationLsb;
-  unsigned char OnDurationMsb;
-  unsigned char OffDurationLsb;
-  unsigned char OffDurationMsb;
-  unsigned char NumberOfCycles;
-
-} tSetVibrateModePayload;
-
 /*! Write To Template Strucutre
  *
  * @param TemplateSelect (the first bye of payload) selects which template will
@@ -643,28 +625,6 @@ typedef struct
 } tSetCustomFontMsgPayload;
 
 /*!
- * \param Year is a 12 bit value
- * \param Month of the year - 1 to 12
- * \param DayOfMonth is 1 to 31
- * \param DayOfWeek is 0 to 6
- * \param Hour is 0 to 24
- * \param Minute is 0 to 59
- * \param Second is 0 to 59
- */
-typedef struct
-{
-  unsigned char YearMsb;
-  unsigned char YearLsb;
-  unsigned char Month;
-  unsigned char DayOfMonth;
-  unsigned char DayOfWeek;
-  unsigned char Hour;
-  unsigned char Minute;
-  unsigned char Second;
-
-} tRtcHostMsgPayload;
-
-/*!
  * \param DisplayMode is Idle, Application, or Notification
  * \param ButtonIndex is the button index
  * \param ButtonEvent is immediate, pressed, hold, or long hold
@@ -740,7 +700,7 @@ typedef struct
 #define MENU_BUTTON_OPTION_TOGGLE_LINK_ALARM            (2)
 #define MENU_BUTTON_OPTION_EXIT                         (3)
 #define MENU_BUTTON_OPTION_TOGGLE_BLUETOOTH             (4)
-#define MENU_BUTTON_OPTION_TOGGLE_SECURE_SIMPLE_PAIRING (5)
+#define MENU_BUTTON_OPTION_TEST                         (5)
 #define MENU_BUTTON_OPTION_TOGGLE_RST_NMI_PIN           (6)
 #define MENU_BUTTON_OPTION_DISPLAY_SECONDS              (7)
 #define MENU_BUTTON_OPTION_INVERT_DISPLAY               (8)
@@ -835,42 +795,16 @@ typedef struct
 
 /******************************************************************************/
 
-#define ACCELEROMETER_DATA_START_INDEX ( 2 )
-
-#define INTERRUPT_CONTROL_DISABLE_INTERRUPT ( 0 )
-#define INTERRUPT_CONTROL_ENABLE_INTERRUPT  ( 1 )
-
-/* send interrupt data = sid */
-#define SID_CONTROL_SEND_INTERRUPT ( 0 )
-#define SID_CONTROL_SEND_DATA      ( 1 )
-
-#define ACCEL_RESERVED_OPTION                 ( 0 )
-#define ACCEL_INTERRUPT_CONTROL_OPTION        ( 1 )
-#define ACCEL_OPMODE_OPTION                   ( 2 )
-#define ACCEL_SID_CONTROL_OPTION              ( 3 )
-#define ACCEL_SID_ADDR_OPTION                 ( 4 )
-#define ACCEL_SID_LENGTH_OPTION               ( 5 )
-#define ACCEL_INTERRUPT_ENABLE_DISABLE_OPTION ( 6 )
-
-#define MSG_OPT_ACCEL_DATA      ( 1 )
-#define MSG_OPT_ACCEL_INTERRUPT ( 2 )
-#define MSG_OPT_ACCEL_WRITE     ( 0 )
-#define MSG_OPT_ACCEL_READ      ( 1 )
-
-
-/******************************************************************************/
-
 #define READ_RSSI_SUCCESS_OPTION ( 1 )
 #define READ_RSSI_FAILURE_OPTION ( 2 )
-
 
 /******************************************************************************/
 
 #define CONFIGURE_DISPLAY_OPTION_RESERVED             ( 0 )
-#define MSG_OPT_HIDE_SECOND ( 1 )
-#define MSG_OPT_SHOW_SECOND      ( 2 )
-#define MSG_OPT_NORMAL_DISPLAY  ( 3 )
-#define MSG_OPT_INVERT_DISPLAY       ( 4 )
+#define MSG_OPT_HIDE_SECOND       ( 1 )
+#define MSG_OPT_SHOW_SECOND       ( 2 )
+#define MSG_OPT_NORMAL_DISPLAY    ( 3 )
+#define MSG_OPT_INVERT_DISPLAY    ( 4 )
 /******************************************************************************/
 
 #endif  /* MESSAGES_H */

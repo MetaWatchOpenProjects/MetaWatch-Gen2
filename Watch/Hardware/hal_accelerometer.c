@@ -35,11 +35,12 @@
 static unsigned char AccelerometerBusy;
 static unsigned char LengthCount;
 static unsigned char Index;
-static unsigned char* pAccelerometerData;
+static unsigned char *pAccelerometerData;
   
 static xSemaphoreHandle AccelerometerMutex;
 
-  
+static void AccelerometerReadSingle(unsigned char Addr, unsigned char* pData);
+
 /******************************************************************************/
 
 /* the accelerometer can run at 400 kHz */
@@ -61,24 +62,15 @@ void InitAccelerometerPeripheral(void)
   
   AccelerometerMutex = xSemaphoreCreateMutex();
   xSemaphoreGive(AccelerometerMutex);
-  
 }
 
 /* not very efficient, but simple */
-void AccelerometerWrite(unsigned char RegisterAddress,
-                        unsigned char* pData,
-                        unsigned char Length)
+void AccelerometerWrite(unsigned char Addr, unsigned char* pData, unsigned char Length)
 {
-  /* short circuit */
-  if ( Length == 0 )
-  {
-    return;  
-  }
-  
   EnableSmClkUser(ACCELEROMETER_USER);
-  xSemaphoreTake(AccelerometerMutex,portMAX_DELAY);
+  xSemaphoreTake(AccelerometerMutex, portMAX_DELAY);
   
-  while(UCB1STAT & UCBBUSY);
+  while (UCB1STAT & UCBBUSY);
   
   AccelerometerBusy = 1;
   LengthCount = Length;
@@ -91,7 +83,7 @@ void AccelerometerWrite(unsigned char RegisterAddress,
    */
   ACCELEROMETER_IFG = 0;
   ACCELEROMETER_CTL1 |= UCTR + UCTXSTT;
-  while(!(ACCELEROMETER_IFG & UCTXIFG));
+  while (!(ACCELEROMETER_IFG & UCTXIFG));
   
   /* 
    * clear transmit interrupt flag, enable interrupt, 
@@ -99,16 +91,15 @@ void AccelerometerWrite(unsigned char RegisterAddress,
    */
   ACCELEROMETER_IFG = 0;
   ACCELEROMETER_IE |= UCTXIE;
-  ACCELEROMETER_TXBUF = RegisterAddress;
-  while(AccelerometerBusy);
-  while(ACCELEROMETER_CTL1 & UCTXSTP);
+  ACCELEROMETER_TXBUF = Addr;
+  while (AccelerometerBusy);
+  while (ACCELEROMETER_CTL1 & UCTXSTP);
   
   DisableSmClkUser(ACCELEROMETER_USER);
   xSemaphoreGive(AccelerometerMutex);
-  
 }
 
-void AccelerometerReadSingle(unsigned char RegisterAddress, unsigned char* pData)
+static void AccelerometerReadSingle(unsigned char Addr, unsigned char *pData)
 {
   EnableSmClkUser(ACCELEROMETER_USER);
   xSemaphoreTake(AccelerometerMutex, portMAX_DELAY);
@@ -128,7 +119,7 @@ void AccelerometerReadSingle(unsigned char RegisterAddress, unsigned char* pData
   
   /* write register address */
   ACCELEROMETER_IFG = 0;
-  ACCELEROMETER_TXBUF = RegisterAddress;
+  ACCELEROMETER_TXBUF = Addr;
   while (!(ACCELEROMETER_IFG & UCTXIFG));
   
   

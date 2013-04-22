@@ -40,16 +40,12 @@ static const tFont Font[] =
 
 static etFontType CurrentType;
 
+static unsigned char MapCharacterToIndex(unsigned char CharIn);
+
 
 void SetFont(etFontType Type)
 {
   CurrentType = Type;
-}
-
-unsigned char MapDigitToIndex(unsigned char Digit)
-{
-  /* default is a space (the first printable character) */
-  return (Digit < 10 ? Digit + 0x10 : 0);
 }
 
 unsigned char GetCharacterWidth(unsigned char Character)
@@ -58,7 +54,12 @@ unsigned char GetCharacterWidth(unsigned char Character)
   return Font[CurrentType].pWidth[index];
 }
 
-unsigned char GetFontHeight(void)
+unsigned char GetFontHeight(etFontType Type)
+{
+  return Font[Type].Height;
+}
+
+unsigned char GetCurrentFontHeight(void)
 {
   return Font[CurrentType].Height;
 }
@@ -73,7 +74,7 @@ const tFont *GetCurrentFont(void)
   return &Font[CurrentType];
 }
 
-unsigned char MapCharacterToIndex(unsigned char CharIn)
+static unsigned char MapCharacterToIndex(unsigned char CharIn)
 {
   if (Font[CurrentType].Type == FONT_TYPE_TIME) return CharIn;
   
@@ -91,7 +92,7 @@ unsigned char MapCharacterToIndex(unsigned char CharIn)
   return 0;
 }
 
-void GetCharacterBitmap(unsigned char Character,unsigned int * pBitmap)
+void GetCharacterBitmap(unsigned char Character, unsigned int *pBitmap)
 {
   unsigned char index = MapCharacterToIndex(Character);
 

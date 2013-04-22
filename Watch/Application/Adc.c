@@ -30,11 +30,13 @@
 #include "MessageQueues.h"
 #include "DebugUart.h"
 #include "Utilities.h"
+#include "Vibration.h"
 #include "Adc.h"
 
 #define HARDWARE_CFG_INPUT_CHANNEL  ( ADC12INCH_13 )
 #define BATTERY_SENSE_INPUT_CHANNEL ( ADC12INCH_15 )
 #define LIGHT_SENSE_INPUT_CHANNEL   ( ADC12INCH_1 )
+#define LIGHT_SENSOR_WAKEUP_DELAY_IN_MS   (10 * portTICK_RATE_MS)
 
 #define ENABLE_REFERENCE()  {  }
 #define DISABLE_REFERENCE() {  }
@@ -89,8 +91,11 @@ extern unsigned char BoardType;
 
 static xSemaphoreHandle AdcMutex = 0;
 
-#define MAX_SAMPLES (8)
-#define SAMPLE_GAP  (10)
+#define MAX_SAMPLES          (8)
+#define GAP_BIG              (10)
+#define GAP_SMALL            (5)
+#define GAP_BIG_NEGATIVE     (0 - GAP_BIG)
+#define GAP_SMALL_NEGATIVE   (0 - GAP_SMALL)
 
 static unsigned int Sample[2][MAX_SAMPLES];
 
@@ -233,9 +238,17 @@ void BatterySenseCycle(void)
   if (Sample[BATTERY][Prev])
   {
     int Gap = Value - Sample[BATTERY][Prev];
+    if (Charging())
+    {
+      if (Gap > GAP_BIG) Gap = GAP_BIG;
+      else if (Gap < GAP_SMALL_NEGATIVE) Gap = GAP_SMALL_NEGATIVE;
+    }
+    else
+    {
+      if (Gap > GAP_SMALL) Gap = GAP_SMALL;
+      else if (Gap < GAP_BIG_NEGATIVE) Gap = GAP_BIG_NEGATIVE;
+    }
     
-    if (Gap > SAMPLE_GAP) Gap = SAMPLE_GAP;
-    else if (Gap < -1 * SAMPLE_GAP) Gap = -1 * SAMPLE_GAP;
     Sample[BATTERY][Index] = Sample[BATTERY][Prev] + Gap;
   }
   else Sample[BATTERY][Index] = Value;
@@ -365,9 +378,7 @@ unsigned int LightSenseCycle(void)
   ENABLE_REFERENCE();
   
   /* light sensor requires 1 ms to wake up in the dark */
-  TaskDelayLpmDisable();
-  vTaskDelay(10);
-  TaskDelayLpmEnable();
+  vTaskDelay(LIGHT_SENSOR_WAKEUP_DELAY_IN_MS);
   
   AdcCheck();
   

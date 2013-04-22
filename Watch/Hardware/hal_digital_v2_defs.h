@@ -108,102 +108,6 @@
 #define LCD_SPI_UCBxIV              UCB0IV            // Interrupt vector register
 #define LCD_SPI_UCBxSTAT            UCB0STAT          // status register
 
-#if 0
-// Definitions for the OLED Display
-// peripheral mapping for OLED
-#define OLED_I2C_CTL0  ( UCB0CTL0 )
-#define OLED_I2C_CTL1  ( UCB0CTL1 )
-#define OLED_I2C_BR0   ( UCB0BR0 )
-#define OLED_I2C_BR1   ( UCB0BR1 )
-#define OLED_I2C_I2CSA ( UCB0I2CSA )
-#define OLED_I2C_IE    ( UCB0IE )
-#define OLED_I2C_IFG   ( UCB0IFG )
-#define OLED_I2C_TXBUF ( UCB0TXBUF )
-#define OLED_I2C_RXBUF ( UCB0RXBUF )
-// interrupt mapping for OLED
-#define USCI_OLED_I2C_VECTOR ( USCI_B0_VECTOR )
-#define USCI_OLED_I2C_IV     ( UCB0IV ) 
-
-// OLED reset is active low
-#define OLED_RSTN_PDIR  ( P3DIR )
-#define OLED_RSTN_POUT  ( P3OUT )
-#define OLED_RSTN_PIN   ( BIT3  )
-
-#define OLED_RSTN_CONFIG()   { OLED_RSTN_PDIR |= OLED_RSTN_PIN; OLED_RSTN_ASSERT(); }
-#define OLED_RSTN_ASSERT()   { OLED_RSTN_POUT &= ~OLED_RSTN_PIN; }
-#define OLED_RSTN_DEASSERT() { OLED_RSTN_POUT |= OLED_RSTN_PIN; }
-
-#define OLED_CS1N_PDIR ( P8DIR )
-#define OLED_CS1N_POUT ( P8OUT )
-#define OLED_CS1N_PIN  ( BIT0 )
-
-#define OLED_CS1N_CONFIG()  { OLED_CS1N_PDIR |= OLED_CS1N_PIN; OLED_CS1N_DISABLE(); }
-#define OLED_CS1N_ENABLE()  { OLED_CS1N_POUT &= ~OLED_CS1N_PIN; }
-#define OLED_CS1N_DISABLE() { OLED_CS1N_POUT |= OLED_CS1N_PIN; }
-
-#define OLED_CS2N_PDIR ( P8DIR )
-#define OLED_CS2N_POUT ( P8OUT )
-#define OLED_CS2N_PIN  ( BIT1 )
-
-#define OLED_CS2N_CONFIG()  { OLED_CS2N_PDIR |= OLED_CS2N_PIN; OLED_CS2N_DISABLE(); }
-#define OLED_CS2N_ENABLE()  { OLED_CS2N_POUT &= ~OLED_CS2N_PIN; }
-#define OLED_CS2N_DISABLE() { OLED_CS2N_POUT |= OLED_CS2N_PIN; }
-
-#define OLED_SDA_PDIR ( P3DIR )
-#define OLED_SDA_POUT ( P3OUT )
-#define OLED_SDA_PIN  ( BIT1 )
-#define OLED_SDA_PSEL ( P3SEL)
-
-#define OLED_SCL_PDIR ( P3DIR )
-#define OLED_SCL_POUT ( P3OUT )
-#define OLED_SCL_PORT ( P3 )
-#define OLED_SCL_PIN  ( BIT2 )
-#define OLED_SCL_PSEL ( P3SEL )
-
-// the select line overrides the pdir and pout settings
-#define OLED_SDA_CONFIG_FOR_PERIPHERAL_USE() { OLED_SDA_PSEL |= OLED_SDA_PIN; }
-#define OLED_SCL_CONFIG_FOR_PERIPHERAL_USE() { OLED_SCL_PSEL |= OLED_SCL_PIN; }
-
-#define OLED_I2C_CONFIG_FOR_PERIPHERAL_USE() { \
-  OLED_SDA_CONFIG_FOR_PERIPHERAL_USE();        \
-  OLED_SCL_CONFIG_FOR_PERIPHERAL_USE(); }
-
-#define OLED_SDA_CONFIG_FOR_SLEEP() { \
-  OLED_SDA_PSEL &= ~OLED_SDA_PIN;     \
-  OLED_SDA_PDIR |= OLED_SDA_PIN;      \
-  OLED_SDA_POUT |= OLED_SDA_PIN; }
-
-#define OLED_SCL_CONFIG_FOR_SLEEP() { \
-  OLED_SCL_PSEL &= ~OLED_SCL_PIN;     \
-  OLED_SCL_PDIR |= OLED_SCL_PIN;      \
-  OLED_SCL_POUT |= OLED_SCL_PIN; }
-
-#define OLED_I2C_CONFIG_FOR_SLEEP() { \
-  OLED_SDA_CONFIG_FOR_SLEEP();        \
-  OLED_SCL_CONFIG_FOR_SLEEP(); }
-
-#define OLED_POWER_ENABLE_PIN  ( BIT0 )
-#define OLED_POWER_ENABLE_POUT ( P4OUT )
-#define OLED_POWER_ENABLE_PDIR ( P4DIR )
-#define OLED_POWER_CONFIG()    { P4DIR |= OLED_POWER_ENABLE_PIN; OLED_POWER_DISABLE(); }
-#define OLED_POWER_ENABLE()    { P4OUT |= OLED_POWER_ENABLE_PIN; }
-#define OLED_POWER_DISABLE()   { P4OUT &= ~OLED_POWER_ENABLE_PIN; }
-
-// VLED_EN is active low
-#define OLED_IO_POWER_ENABLE_PIN  ( BIT3 )
-#define OLED_IO_POWER_ENABLE_POUT ( P5OUT )
-#define OLED_IO_POWER_ENABLE_PDIR ( P5DIR )
-#define OLED_IO_POWER_CONFIG()    { P5DIR |= OLED_IO_POWER_ENABLE_PIN; OLED_IO_POWER_DISABLE(); }
-#define OLED_IO_POWER_ENABLE()    { P5OUT &= ~OLED_IO_POWER_ENABLE_PIN; }
-#define OLED_IO_POWER_DISABLE()   { P5OUT |= OLED_IO_POWER_ENABLE_PIN; }
-
-
-
-
-
-
-#endif // OLED
-
 #define CONFIG_OLED_PINS() { }
 
 
@@ -316,6 +220,10 @@
 // disable charging, sleep the part
 #define BATTERY_CHARGE_DISABLE()  { BAT_CHARGE_OUT |= BAT_CHARGE_ENABLE_PIN; }
 
+//RESET PIN NMI or RESET
+#define SET_RESET_PIN_NMI() {SFRRPCR &= ~SYSRSTRE; SFRRPCR |= SYSNMI;}
+#define SET_RESET_PIN_RST() {SFRRPCR |= SYSRSTRE; SFRRPCR &= ~SYSNMI;}
+#define RESET_PIN (SFRRPCR & SYSNMI) // return 1 for NMI
 
 //
 // Ambient Light Sensor

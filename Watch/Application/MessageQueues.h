@@ -35,7 +35,7 @@
 
 #define FREE_QINDEX        ( 0 )
 #define DISPLAY_QINDEX     ( 1 )
-#define SPP_TASK_QINDEX    ( 2 )
+#define WRAPPER_QINDEX    ( 2 )
 #define TOTAL_QUEUES       ( 3 )
 
 /*! Array of all of the queue handles */
@@ -46,21 +46,13 @@ extern xQueueHandle QueueHandles[TOTAL_QUEUES];
  *
  * \param pMsg A pointer to message buffer
  */
-void SendToFreeQueue(tMessage* pMsg);
-
-
-/*! Send a message to the free queue.  If this is a short message that 
- * did not allocate a buffer then no action is taken.
- *
- * \param pMsg A pointer to a message buffer
- */
-void SendToFreeQueueIsr(tMessage* pMsg);
+void SendToFreeQueue(tMessage *pMsg);
 
 /*! Route a message to the appropriate task (queue). This operation is a copy.
  *
  * \param pMsg A pointer to a message buffer
  */
-void RouteMsg(tMessage* pMsg);
+void RouteMsg(tMessage *pMsg);
 
 /*! Send a message to a queue from an ISR.  This requires 1/2 the time of 
  * RouteMsgFromIsr.
@@ -68,7 +60,7 @@ void RouteMsg(tMessage* pMsg);
  * \param Qindex is the queue index to place the message in
  * \param pMsg A pointer to a message buffer
  */
-void SendMessageToQueueFromIsr(unsigned char Qindex,tMessage* pMsg);
+void SendMessageToQueueFromIsr(unsigned char Qindex,tMessage *pMsg);
 
 /*! Set the message parameters.  Safe to call when in interrupt context.
  *
@@ -80,7 +72,7 @@ void SendMessageToQueueFromIsr(unsigned char Qindex,tMessage* pMsg);
  * "short" message ).
  *
  */
-void SetupMessage(tMessage* pMsg, unsigned char Type, unsigned char Options);
+void SetupMessage(tMessage *pMsg, unsigned char Type, unsigned char Options);
 
 /*! Set the message parameters.
  *
@@ -96,12 +88,9 @@ void SetupMessage(tMessage* pMsg, unsigned char Type, unsigned char Options);
  * to be allocated from ISRs because of the amount of time it can take
  *
  */
-void SetupMessageWithBuffer(tMessage* pMsg,
-                                   unsigned char Type,
-                                   unsigned char Options);
+void SetupMessageWithBuffer(tMessage *pMsg, unsigned char Type, unsigned char Options);
 
-
-void SendMessage(tMessage* pMsg, unsigned char Type, unsigned char Options);
+void SendMessage(tMessage *pMsg, unsigned char Type, unsigned char Options);
 
 void CreateAndSendMessage(unsigned char Type, unsigned char Options);
 
@@ -110,7 +99,7 @@ void CreateAndSendMessage(unsigned char Type, unsigned char Options);
  * \param pMsg is a pointer to a message 
  *
  */
-void PrintMessageType(tMessage* pMsg);
+void PrintMessageType(tMessage *pMsg);
 
 #endif /* MESSAGE_QUEUES_H */
 

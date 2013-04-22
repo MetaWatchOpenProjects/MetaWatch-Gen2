@@ -31,7 +31,6 @@
 #define SPI_PRESCALE_H   0x00
 
 static unsigned char LCD_CLEAR_COMMAND[] = {LCD_CLEAR_CMD, 0x00, 0x00};
-
 static unsigned char LCD_STATIC_COMMAND[] = {LCD_STATIC_CMD, 0x00, 0x00};
 
 /* errata - DMA variables cannot be function scope */
@@ -79,14 +78,11 @@ void WriteLcdHandler(tLcdData *pLcdData)
   pLcdData->LcdCommand = LCD_WRITE_CMD;
   pLcdData->RowNumber += FIRST_LCD_LINE_OFFSET;
   
-  /* point to the first byte to be transmitted to LCD */
-  unsigned char* pData = &pLcdData->LcdCommand;
-
   /* flip bits */
   if (!GetProperty(PROP_INVERT_DISPLAY))
   {
   	unsigned char i;
-    for (i = 0; i < 12; i++ )
+    for (i = 0; i < BYTES_PER_LINE; ++i)
     {
       pLcdData->pLine[i] = ~(pLcdData->pLine[i]);
     }
@@ -95,15 +91,16 @@ void WriteLcdHandler(tLcdData *pLcdData)
   pLcdData->Dummy1 = 0x00;
   pLcdData->Dummy2 = 0x00;
   
-  /* 
-   * 1 for command, 1 for row, 12 for line, 2 for dummy
-   */
+  /* point to the first byte to be transmitted to LCD */
+  unsigned char *pData = &pLcdData->LcdCommand;
+
+  /* one byte for command, one for row, 12 for line, two for dummy */
   WriteLineToLcd((unsigned char *)pData, LCD_DATA_SIZE);
 }
 
 void ClearLcd(void)
 {
-  WriteLineToLcd(LCD_CLEAR_COMMAND,LCD_CLEAR_CMD_SIZE);   
+  WriteLineToLcd(LCD_CLEAR_COMMAND, LCD_CLEAR_CMD_SIZE);   
 }
     
 void PutLcdIntoStaticMode(void)
@@ -126,9 +123,7 @@ static void WriteLineToLcd(unsigned char* pData, unsigned char Size)
   DMACTL1 = DMA2TSEL_19;    
     
   __data16_write_addr((unsigned short) &DMA2SA,(unsigned long) pData);
-                                            
-  __data16_write_addr((unsigned short) &DMA2DA,
-                      (unsigned long) &LCD_SPI_UCBxTXBUF);
+  __data16_write_addr((unsigned short) &DMA2DA, (unsigned long) &LCD_SPI_UCBxTXBUF);
             
   DMA2SZ = (unsigned int)Size;
   
@@ -141,11 +136,11 @@ static void WriteLineToLcd(unsigned char* pData, unsigned char Size)
   /* start the transfer */
   DMA2CTL |= DMAEN;
   
-  while(LcdDmaBusy);
+  while (LcdDmaBusy);
     
 #else
 
-  for ( unsigned char Index = 0; Index < Size; Index++ )
+  for (unsigned char Index = 0; Index < Size; Index++)
   {
     LCD_SPI_UCBxTXBUF = pData[Index];
     while (!(LCD_SPI_UCBxIFG&UCTXIFG));
@@ -154,15 +149,14 @@ static void WriteLineToLcd(unsigned char* pData, unsigned char Size)
 #endif
     
   /* wait for shift to complete ( ~3 us ) */
-  while( (LCD_SPI_UCBxSTAT & 0x01) != 0 );
+  while((LCD_SPI_UCBxSTAT & 0x01) != 0);
   
   /* now the chip select can be deasserted */
   LCD_CS_DEASSERT();
   DisableSmClkUser(LCD_USER);
-        
 }
 
-void UpdateMyDisplay(unsigned char * pBuffer,unsigned int TotalLines)
+void UpdateMyDisplay(unsigned char *pBuffer, unsigned int TotalLines)
 {  
   EnableSmClkUser(LCD_USER);
   LCD_CS_ASSERT();
@@ -180,11 +174,8 @@ void UpdateMyDisplay(unsigned char * pBuffer,unsigned int TotalLines)
    */
   DMACTL1 = DMA2TSEL_19;    
     
-  __data16_write_addr((unsigned short) &DMA2SA,
-                      (unsigned long) pBuffer);
-                                            
-  __data16_write_addr((unsigned short) &DMA2DA,
-                      (unsigned long) &LCD_SPI_UCBxTXBUF);
+  __data16_write_addr((unsigned short) &DMA2SA, (unsigned long) pBuffer);
+  __data16_write_addr((unsigned short) &DMA2DA, (unsigned long) &LCD_SPI_UCBxTXBUF);
             
   DMA2SZ = TotalLines * sizeof(tLcdLine);
   
@@ -208,8 +199,8 @@ void UpdateMyDisplay(unsigned char * pBuffer,unsigned int TotalLines)
   unsigned int Size = TotalLines*sizeof(tLcdLine);
   for ( unsigned int Index = 0; Index < Size; Index++ )
   {
-      LCD_SPI_UCBxTXBUF = pBuffer[Index];
-      while (!(LCD_SPI_UCBxIFG&UCTXIFG));
+    LCD_SPI_UCBxTXBUF = pBuffer[Index];
+    while (!(LCD_SPI_UCBxIFG&UCTXIFG));
   }
     
 #endif

@@ -343,10 +343,10 @@ static void InitializeDisplayControllers(void)
    * Initialize display controllers for both of the OLEDs
    */
   InitializeOledDisplayController(TopOled,ContrastTable[nvTopOledContrastIndexDay]);
-  PrintString("Initialized TopOled\r\n");
+  PrintS("Initialized TopOled\r\n");
   
   InitializeOledDisplayController(BottomOled,ContrastTable[nvBottomOledContrastIndexDay]);
-  PrintString("Initialized BottomOled\r\n");
+  PrintS("Initialized BottomOled\r\n");
   
 #if 0
   OledPrint(TopOled,"Testing 123456789abcdefghijklmnopq");
@@ -473,7 +473,7 @@ static void DisplayQueueMessageHandler(tMessage* pMsg)
     break;
     
   default:
-    PrintStringAndHex("<<Unhandled Message>> in Oled Display Task: Type 0x", Type);
+    PrintS(tringAndHex("<<Unhandled Message>> in Oled Display Task: Type 0x", Type);
     break;
   }
 }
@@ -482,7 +482,7 @@ static void DisplayTask(void *pvParameters)
 {
   if ( QueueHandles[DISPLAY_QINDEX] == 0 )
   {
-    PrintString("Display Queue not created!\r\n");  
+    PrintS("Display Queue not created!\r\n");  
   }
   
   InitializeDisplayTimers();
@@ -503,10 +503,8 @@ static void DisplayTask(void *pvParameters)
   /* force startup screens to be displayed 
    * without something else overwriting them
    */
-  TaskDelayLpmDisable();
   vTaskDelay(2000);
-  TaskDelayLpmEnable();
-  
+
   /* don't enable buttons until after splash screen */
   DontChangeButtonConfiguration();
   ChangeAnalogButtonConfiguration(IdleButtonMode);
@@ -786,7 +784,7 @@ static void ScrollHandler(void)
     if ( LastScrollPacketReceived == 0 )
     {
       /* send a scroll request message to the host */
-      SetupMessageAndAllocateBuffer(&OutgoingMsg,
+      SetupMessageWithBuffer(&OutgoingMsg,
                                     ModeChangeIndMsg,
                                     NOTIF_MODE);
       OutgoingMsg.Length = 2;
@@ -818,7 +816,7 @@ static void ScrollHandler(void)
   {
     StopOneSecondTimer(ScreenTimerId);
     
-    SetupOneSecondTimer(ScreenTimerId,
+    SetupTimer(ScreenTimerId,
                         ONE_SECOND*2,
                         NO_REPEAT,
                         DISPLAY_QINDEX,
@@ -834,7 +832,7 @@ static void ScrollHandler(void)
     LastScrollPacketReceived = 0;
     
     /* send scroll done status */
-    SetupMessageAndAllocateBuffer(&OutgoingMsg,
+    SetupMessageWithBuffer(&OutgoingMsg,
                                   ModeChangeIndMsg,
                                   NOTIF_MODE);
           
@@ -1111,7 +1109,7 @@ static void TurnDisplayOn(tImageBuffer* pBuffer)
   /* is there a condition in which more than one timer would be needed ? */
   StopOneSecondTimer(ScreenTimerId);
   
-  SetupOneSecondTimer(ScreenTimerId,
+  SetupTimer(ScreenTimerId,
                       DisplayTimeoutInSeconds,
                       NO_REPEAT,
                       DISPLAY_QINDEX,
@@ -1156,7 +1154,7 @@ static void TurnDisplayOff(etOledPosition OledPosition)
     break;
 
   default:
-    PrintString("Display ? off\r\n");
+    PrintS("Display ? off\r\n");
     break;
   }
 
@@ -1758,10 +1756,7 @@ static void DisplayLowBatteryFace(void)
   BuildOledScreenSendToDisplay();
   
   /* force minimum display time of 2 seconds */
-  TaskDelayLpmDisable();
   vTaskDelay(2000);
-  TaskDelayLpmEnable();
-  
 }
 
 static void DisplayLowBatteryBluetoothOffFace(void)
@@ -1776,10 +1771,7 @@ static void DisplayLowBatteryBluetoothOffFace(void)
   BuildOledScreenSendToDisplay();
   
   /* force minimum display time of 2 seconds */
-  TaskDelayLpmDisable();
   vTaskDelay(2000);
-  TaskDelayLpmEnable();
-  
 }
 
 static void DisplayLinkAlarmFace(void)
@@ -2096,7 +2088,7 @@ static void InitializeDisplayTimers(void)
 {
   ScreenTimerId = AllocateOneSecondTimer();
   
-  SetupOneSecondTimer(ScreenTimerId,
+  SetupTimer(ScreenTimerId,
                       ONE_SECOND*2,
                       NO_REPEAT,
                       DISPLAY_QINDEX,
@@ -2193,12 +2185,12 @@ static void ChangeModeHandler(unsigned char Mode)
     
     if ( LastMode != CurrentMode )
     {
-      PrintString("Changing mode to Idle\r\n");
+      PrintS("Changing mode to Idle\r\n");
       ChangeAnalogButtonConfiguration(IdleButtonMode);
     }
     else
     {
-      PrintString("Already in Idle mode\r\n");
+      PrintS("Already in Idle mode\r\n");
     }
     // if a client calls writebuffer followed by changemode, display will be on forever
     //StopOneSecondTimer(ModeTimerId);
@@ -2206,35 +2198,27 @@ static void ChangeModeHandler(unsigned char Mode)
   
   case APP_MODE:
     ReturnToApplicationMode = 1;
-    PrintString("Changing mode to Application\r\n");
+    PrintS("Changing mode to Application\r\n");
     
-    StopOneSecondTimer(ModeTimerId);
-    
-    SetupOneSecondTimer(ModeTimerId,
-                        QueryModeTimeout(APP_MODE),
+    ModeTimerId = StartTimer(QueryModeTimeout(APP_MODE),
                         NO_REPEAT,
                         DISPLAY_QINDEX,
                         ModeTimeoutMsg,
                         APP_MODE);
     
-    StartOneSecondTimer(ModeTimerId);
-    
     break;
   
   case NOTIF_MODE:
     
-    PrintString("Changing mode to Notification\r\n");
+    PrintS("Changing mode to Notification\r\n");
     
     StopOneSecondTimer(ModeTimerId);
     
-    SetupOneSecondTimer(ModeTimerId,
-                        QueryModeTimeout(NOTIF_MODE),
+    ModeTimerId = StartTimer(QueryModeTimeout(NOTIF_MODE),
                         NO_REPEAT,
                         DISPLAY_QINDEX,
                         ModeTimeoutMsg,
                         NOTIF_MODE);
-    
-    StartOneSecondTimer(ModeTimerId);
     
     break;
 
@@ -2274,7 +2258,7 @@ static void ModeTimeoutHandler(unsigned char CurrentMode)
   
   /* send a message to the host indicating that a timeout occurred */
   tMessage OutgoingMsg;
-  SetupMessageAndAllocateBuffer(&OutgoingMsg,
+  SetupMessageWithBuffer(&OutgoingMsg,
                                 ModeChangeIndMsg,
                                 CurrentMode);
     

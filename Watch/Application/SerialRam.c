@@ -36,6 +36,7 @@
 #include "SerialRam.h"
 #include "LcdDriver.h"
 #include "LcdDisplay.h"
+#include "Fonts.h"
 #include "LcdBuffer.h"
 #include "Utilities.h"
 #include "Adc.h"
@@ -51,6 +52,7 @@
 #define SPI_RDSR  ( 0x05 )
 #define SPI_WRSR  ( 0x01 )
 #define SPI_OVERHEAD ( 3 )
+#define SPI_INIT_DELAY_IN_MS (10 * portTICK_RATE_MS)
 
 /* the 256Kbit part does not have a 1 in bit position 1 */
 #define DEFAULT_SR_VALUE        (0x02)
@@ -159,16 +161,16 @@ static const unsigned char ModePriority[] = {NOTIF_MODE, APP_MODE, IDLE_MODE, MU
 static void SetupCycle(unsigned int Address,unsigned char CycleType);
 static void WriteBlockToSram(const unsigned char* pData,unsigned int Size);
 static void ReadBlock(unsigned char* pWriteData,unsigned char* pReadData);
-static void WaitForDmaEnd(void);
+static void LoadBuffer(unsigned char i, const unsigned char *pTemp);
+static void ClearSram(unsigned int Address, unsigned char Data, unsigned int Size);
 
 static void AssignWidgetBuffer(Widget_t *pWidget);
 static void FreeWidgetBuffer(Widget_t *pWidget);
 static unsigned int GetAddr(WidgetHeader_t *pData);
 static void GetQuadAddr(QuadAddr_t *pAddr);
 static void WriteClockWidget(unsigned char *pBuffer);
-static void LoadBuffer(unsigned char i, const unsigned char *pTemp);
 static signed char ComparePriority(unsigned char Mode);
-static unsigned char GetWidgetChange(unsigned char CurrId, unsigned char MsgId, unsigned char MsgOpt);
+static unsigned char GetWidgetChange(unsigned char CurId, unsigned char CurOpt, unsigned char MsgId, unsigned char MsgOpt);
 static void TestFaceId(WidgetList_t *pWidget);
 
 #if __IAR_SYSTEMS_ICC__
@@ -209,19 +211,19 @@ void SetWidgetList(tMessage *pMsg)
 
   while (WidgetNum) // number of list items
   {
-      /* test clock widgets */
-    if (pMsgWgtLst->Id <= CLOCK_WIDGET_ID_RANGE) TestFaceId(pMsgWgtLst);
-    
-    unsigned char Change = GetWidgetChange(pCurrWidget->Id, pMsgWgtLst->Id, pMsgWgtLst->Layout);
+      /* old clock widgets */
+    if (!IS_CLOCK_WIDGET(pMsgWgtLst->Layout) && pMsgWgtLst->Id <= CLOCK_WIDGET_ID_RANGE) TestFaceId(pMsgWgtLst);
+    unsigned char Change = GetWidgetChange(pCurrWidget->Id, pCurrWidget->Layout, pMsgWgtLst->Id, pMsgWgtLst->Layout);
     
     switch (Change)
     {
     case WGT_CHG_CLK_FACE:
+      PrintS("Chg ClkFce");
       if (ON_CURRENT_PAGE(pMsgWgtLst->Layout)) ChangedClockWidget = pMsgWgtLst->Id;
       
     case WGT_CHG_SETTING:
      //cpy layout to curr; cpy curr to next; msg, curr, next ++
-      PrintF("=%02x", pCurrWidget->Id);
+      PrintF("=%02X", pCurrWidget->Id);
       pCurrWidget->Id = pMsgWgtLst->Id;
       pCurrWidget->Layout = pMsgWgtLst->Layout;
       *pNextWidget++ = *pCurrWidget++;
@@ -230,6 +232,7 @@ void SetWidgetList(tMessage *pMsg)
       break;
 
     case WGT_CHG_CLK_ADD:
+      PrintS("+Clk");
       if (ON_CURRENT_PAGE(pMsgWgtLst->Layout)) ChangedClockWidget = pMsgWgtLst->Id;
 
     case WGT_CHG_ADD: //pCurrWidget->Id > pMsgWgtLst->Id)
@@ -297,6 +300,37 @@ void SetWidgetList(tMessage *pMsg)
   xSemaphoreGive(SramMutex);
 }
 
+static unsigned char GetWidgetChange(unsigned char CurId, unsigned char CurOpt,
+                                     unsigned char MsgId, unsigned char MsgOpt)
+{
+  unsigned char CurFaceId = FACE_ID(CurId);
+  unsigned char MsgFaceId = FACE_ID(MsgId);
+  unsigned char Change;
+
+  if (IS_CLOCK_WIDGET(CurOpt)) CurId = CurId & 0x0F;
+  if (IS_CLOCK_WIDGET(MsgOpt)) MsgId = MsgId & 0x0F;
+
+//  if (IS_CLOCK_WIDGET(MsgOpt))
+//  {
+//    unsigned char CurrWgtId = CurrId & 0x0F;
+//    unsigned char MsgWgtId = MsgId & 0x0F;
+//
+//    if (CurrWgtId < MsgWgtId) return WGT_CHG_REMOVE;
+//    if (CurrWgtId > MsgWgtId) return WGT_CHG_CLK_ADD;
+//    if (CurrWgtId == MsgWgtId && FACE_ID(CurrId) != FACE_ID(MsgId))
+//      return WGT_CHG_CLK_FACE;
+//  }
+
+  if (CurId == MsgId)
+  {
+    Change = IS_CLOCK_WIDGET(CurOpt) && CurFaceId != MsgFaceId ?
+      WGT_CHG_CLK_FACE : WGT_CHG_SETTING;
+  }
+  else if (CurId < MsgId) Change = WGT_CHG_REMOVE;
+  else Change = IS_CLOCK_WIDGET(MsgOpt) ? WGT_CHG_CLK_ADD : WGT_CHG_ADD;
+  return Change;
+}
+
 static void TestFaceId(WidgetList_t *pWidget)
 {
   PrintF("Clk BF: Id:0x%02X Layout:0x%02X", pWidget->Id, pWidget->Layout);
@@ -313,24 +347,6 @@ static void TestFaceId(WidgetList_t *pWidget)
   // set clock widget bit
   pWidget->Layout |= CLOCK_WIDGET_BIT;
   PrintF("Clk AF: Id:0x%02X Layout:0x%02X", pWidget->Id, pWidget->Layout);
-}
-
-static unsigned char GetWidgetChange(unsigned char CurrId, unsigned char MsgId, unsigned char MsgOpt)
-{
-  if (IS_CLOCK_WIDGET(MsgOpt))
-  {
-    unsigned char CurrWgtId = CurrId & 0x0F;
-    unsigned char MsgWgtId = MsgId & 0x0F;
-
-    if (CurrWgtId < MsgWgtId) return WGT_CHG_REMOVE;
-    if (CurrWgtId > MsgWgtId) return WGT_CHG_CLK_ADD;
-    if (CurrWgtId == MsgWgtId && FACE_ID(CurrId) != FACE_ID(MsgId))
-      return WGT_CHG_CLK_FACE;
-  }
-
-  if (CurrId == MsgId) return WGT_CHG_SETTING;
-  else if (CurrId < MsgId) return WGT_CHG_REMOVE;
-  else return WGT_CHG_ADD;
 }
 
 static void AssignWidgetBuffer(Widget_t *pWidget)
@@ -559,7 +575,6 @@ static void GetQuadAddr(QuadAddr_t *pAddr)
 }
 
 //#define MSG_OPT_NEWUI             (0x80)
-//#define MSG_OPT_UPD_GRID_BIT      (0x40)
 //#define MSG_OPT_SET_PAGE          (0x20)
 //#define MSG_OPT_UPD_HWGT          (0x20)
 //#define MSG_OPT_UPD_INTERNAL      (0x10)
@@ -586,10 +601,17 @@ void UpdateDisplayHandler(tMessage* pMsg)
     else if (pMsg->Options & MSG_OPT_TURN_PAGE)
     { // turn page
       if ((pMsg->Options & MSG_OPT_TURN_PAGE) == MSG_OPT_NXT_PAGE) CurrentPage ++;
-      else CurrentPage --;
 
-      if (CurrentPage < 0) CurrentPage = IDLE_PAGE_NUM - 1;
-      if (CurrentPage == IDLE_PAGE_NUM) CurrentPage = 0;
+#if COUNTDOWN_TIMER
+      if (CurrentPage == IDLE_PAGE_NUM)
+      {
+        CurrentPage = 0;
+        SendMessage(&Msg, CountDownMsg, MSG_OPT_NONE);
+        return;
+      }
+#endif
+
+      if (CurrentPage > IDLE_PAGE_NUM) CurrentPage = 0;
     }
     
     // not in idle mode idle page
@@ -600,6 +622,7 @@ void UpdateDisplayHandler(tMessage* pMsg)
     if (!(pMsg->Options & MSG_OPT_UPD_INTERNAL && pMsg->Options & MSG_OPT_UPD_HWGT) &&
         OutdatedClkWgt != INVALID_ID)
     { //ask for drawing clock widget from external
+      PrintF("- UpdDsp OtdClk:0x%02X", OutdatedClkWgt);
       SendMessage(&Msg, DrawClockWidgetMsg, OutdatedClkWgt);
       return; // will get back internal upddisp when updhomewgt done
     }
@@ -643,7 +666,6 @@ void UpdateDisplayHandler(tMessage* pMsg)
         SramBuf[2] = Addr;
 
         ReadBlock(SramBuf, (unsigned char *)&LcdData + BYTES_PER_QUAD_LINE * k);
-        WaitForDmaEnd();
 
         unsigned char c; // Column byte number
         
@@ -759,7 +781,6 @@ void UpdateDisplayHandler(tMessage* pMsg)
        * (room for bytes read in when cmd and address are sent)
        */
       ReadBlock(SramBuf, (unsigned char *)&LcdData);
-      WaitForDmaEnd();
 
       /* now add the row number */
       LcdData.RowNumber = StartRow ++;
@@ -784,6 +805,7 @@ static signed char ComparePriority(unsigned char Mode)
 /* use DMA to write a block of data to the serial ram */
 static void WriteBlockToSram(const unsigned char* pData, unsigned int Size)
 {
+  EnableSmClkUser(SERIAL_RAM_USER);
   DmaBusy = 1;
   SRAM_CSN_ASSERT();
 
@@ -791,7 +813,6 @@ static void WriteBlockToSram(const unsigned char* pData, unsigned int Size)
   DMACTL0 = DMA0TSEL_17;
 
   __data16_write_addr((unsigned short) &DMA0SA,(unsigned long) pData);
-
   __data16_write_addr((unsigned short) &DMA0DA,(unsigned long) &UCA0TXBUF);
 
   DMA0SZ = Size;
@@ -805,20 +826,22 @@ static void WriteBlockToSram(const unsigned char* pData, unsigned int Size)
   /* start the transfer */
   DMA0CTL |= DMAEN;
 
-  WaitForDmaEnd();
+  while(DmaBusy);
+  SRAM_CSN_DEASSERT();
+  DisableSmClkUser(SERIAL_RAM_USER);
 }
 
 #if __IAR_SYSTEMS_ICC__
 static void WriteData20BlockToSram(unsigned char __data20* pData,unsigned int Size)
 {
   DmaBusy = 1;
+  EnableSmClkUser(SERIAL_RAM_USER);
   SRAM_CSN_ASSERT();
 
   /* USCIA0 TXIFG is the DMA trigger */
   DMACTL0 = DMA0TSEL_17;
 
   __data16_write_addr((unsigned short) &DMA0SA,(unsigned long) pData);
-
   __data16_write_addr((unsigned short) &DMA0DA,(unsigned long) &UCA0TXBUF);
 
   DMA0SZ = Size;
@@ -832,22 +855,22 @@ static void WriteData20BlockToSram(unsigned char __data20* pData,unsigned int Si
   /* start the transfer */
   DMA0CTL |= DMAEN;
 
-  WaitForDmaEnd();
+  while(DmaBusy);
+  SRAM_CSN_DEASSERT();
+  DisableSmClkUser(SERIAL_RAM_USER);
 }
 #endif
 
 static void SetupCycle(unsigned int Address,unsigned char CycleType)
 {
-  EnableSmClkUser(SERIAL_RAM_USER);
   SRAM_CSN_ASSERT();
-
   UCA0TXBUF = CycleType;
   while (!(UCA0IFG&UCTXIFG));
   while (!(UCA0IFG&UCRXIFG));
   ReadData = UCA0RXBUF;
 
   /* write 16 bit address (only 13 bits are used) */
-  UCA0TXBUF = (unsigned char) ( Address >> 8 );
+  UCA0TXBUF = (unsigned char)(Address >> 8);
   while (!(UCA0IFG&UCTXIFG));
   while (!(UCA0IFG&UCRXIFG));
   ReadData = UCA0RXBUF;
@@ -856,22 +879,10 @@ static void SetupCycle(unsigned int Address,unsigned char CycleType)
    * wait until read is done (transmit must be done)
    * then clear read flag so it is ready for the DMA
   */
-  UCA0TXBUF = (unsigned char) Address;
+  UCA0TXBUF = (unsigned char)Address;
   while (!(UCA0IFG&UCTXIFG));
   while (!(UCA0IFG&UCRXIFG));
   ReadData = UCA0RXBUF;
-}
-
-/*
- * Wait until the DMA interrupt clears the busy flag
- *
- */
-static void WaitForDmaEnd(void)
-{
-  while(DmaBusy);
-
-  SRAM_CSN_DEASSERT();
-  DisableSmClkUser(SERIAL_RAM_USER);
 }
 
 static void ReadBlock(unsigned char* pWriteData,unsigned char* pReadData)
@@ -915,11 +926,15 @@ static void ReadBlock(unsigned char* pWriteData,unsigned char* pReadData)
   /* start the transfer */
   DMA1CTL |= DMAEN;
   DMA0CTL |= DMAEN;
+
+  while(DmaBusy);
+  SRAM_CSN_DEASSERT();
 }
 
 static void ClearSram(unsigned int Address, unsigned char Data, unsigned int Size)
 {
   DmaBusy = 1;
+  EnableSmClkUser(SERIAL_RAM_USER);
   SetupCycle(Address, SPI_WRITE);
 
   /* USCIA0 TXIFG is the DMA trigger */
@@ -938,7 +953,10 @@ static void ClearSram(unsigned int Address, unsigned char Data, unsigned int Siz
 
   /* start the transfer */
   DMA0CTL |= DMAEN;
-  WaitForDmaEnd();
+
+  while(DmaBusy);
+  SRAM_CSN_DEASSERT();
+  DisableSmClkUser(SERIAL_RAM_USER);
 }
 
 /* Load a template from flash into a draw buffer (ram)
@@ -951,11 +969,11 @@ void LoadTemplateHandler(tMessage* pMsg)
    * templates don't have extra space in them for additional 3 bytes of
    * cmd and address
    */
-  SetupCycle(Addr, SPI_WRITE);
 
   if (pMsg->pBuffer == NULL)
   { // internal usage
-    WriteBlockToSram(pTemplate[pMsg->Options >> 4], BYTES_PER_SCREEN);    
+    SetupCycle(Addr, SPI_WRITE);
+    WriteBlockToSram(pTemplate[pMsg->Options >> 4], BYTES_PER_SCREEN);
   }
   else if (*pMsg->pBuffer <= 1)
   {
@@ -966,6 +984,7 @@ void LoadTemplateHandler(tMessage* pMsg)
   {
 #if __IAR_SYSTEMS_ICC__
     /* template zero is reserved for simple patterns */
+    SetupCycle(Addr, SPI_WRITE);
     WriteData20BlockToSram(
       (unsigned char __data20*)&pWatchFace[*pMsg->pBuffer - TEMPLATE_1][0],
       BYTES_PER_SCREEN);
@@ -981,12 +1000,9 @@ static void LoadBuffer(unsigned char i, const unsigned char *pTemp)
   WriteBlockToSram(pTemp, BYTES_PER_QUAD);
 }
 
+/* configure the MSP430 SPI peripheral */
 void SerialRamInit(void)
 {
-  /*
-   * configure the MSP430 SPI peripheral
-   */
-
   /* assert reset when configuring */
   UCA0CTL1 = UCSWRST;
 
@@ -1007,9 +1023,7 @@ void SerialRamInit(void)
 
   /* release reset and wait for SPI to initialize */
   UCA0CTL1 &= ~UCSWRST;
-  TaskDelayLpmDisable();
-  vTaskDelay(10);
-  TaskDelayLpmEnable();
+  vTaskDelay(SPI_INIT_DELAY_IN_MS);
 
   /*
    * Read the status register
@@ -1037,7 +1051,6 @@ void SerialRamInit(void)
 
   /* make sure correct value is read from the part */
   if (ReadData != DefaultSrValue && ReadData != FinalSrValue) PrintS("# SRAM Init1");
-
   SRAM_CSN_DEASSERT();
 
   /*
@@ -1049,7 +1062,6 @@ void SerialRamInit(void)
   UCA0TXBUF = SEQUENTIAL_MODE_COMMAND;
   while (!(UCA0IFG&UCTXIFG));
   WAIT_FOR_SRAM_SPI_SHIFT_COMPLETE();
-
   SRAM_CSN_DEASSERT();
 
   /**/
@@ -1064,7 +1076,6 @@ void SerialRamInit(void)
 
   /* make sure correct value is read from the part */
   if (ReadData != FinalSrValue) PrintS("# SRAM Init2");
-
   SRAM_CSN_DEASSERT();
 
   /* now use the DMA to clear the serial ram */
@@ -1079,6 +1090,7 @@ void SerialRamInit(void)
   
   SramMutex = xSemaphoreCreateMutex();
   xSemaphoreGive(SramMutex);
+  DisableSmClkUser(SERIAL_RAM_USER);
 }
 
 /* Serial RAM controller uses two dma channels
@@ -1100,12 +1112,4 @@ __interrupt void DMA_ISR(void)
   case 6: LcdDmaIsr(); break;
   default: break;
   }
-}
-
-void RamTestHandler(tMessage* pMsg)
-{
-  PrintS("* SRAM Test *");
-  unsigned int i = 0;
-  for (; i < 0xffff; ++i) ClearSram(0x0,0x0,1000);
-  PrintS("* Done *");
 }

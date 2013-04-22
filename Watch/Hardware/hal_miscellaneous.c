@@ -33,42 +33,19 @@
 
 unsigned char BoardType;
 
-static unsigned char PMM15Check (void);
+static unsigned char PMM15Check(void);
 
 /******************************************************************************/
 #define HARDWARE_REVISION_ADDRESS (0x1a07)
 
 unsigned char GetMsp430HardwareRevision(void)
 {
-  unsigned char *pDeviceType = 
-    (unsigned char *)(unsigned char *)HARDWARE_REVISION_ADDRESS;
-  
-  return pDeviceType[0]+'1';                         
+  return *(unsigned char *)(unsigned char *)HARDWARE_REVISION_ADDRESS + '1';
 }
 
-/******************************************************************************/
-static unsigned char ErrataGroup1;
-
-/* see header file */
-void DetermineErrata(void)
+unsigned char Errata(void)
 {
-  unsigned char Revision = GetMsp430HardwareRevision();
-  
-  switch ( Revision )
-  {
-  case 'F':
-  case 'H':
-    ErrataGroup1 = 0;
-    break;
-  default:
-    ErrataGroup1 = 1;
-    break;
-  }
-}
-
-unsigned char QueryErrataGroup1(void)
-{
-  return ErrataGroup1;
+  return GetMsp430HardwareRevision() < 'F';
 }
 
 /******************************************************************************/
@@ -131,7 +108,7 @@ void SetupClockAndPowerManagementModule(void)
   while (PMM15Check());
 #endif
 
-  if (ErrataGroup1)
+  if (Errata())
   {
     /* Errata PMM17 - automatic prolongation mechanism
     * SVSLOW is disabled
@@ -144,7 +121,7 @@ void SetupClockAndPowerManagementModule(void)
 /*! Check the configuration of the power management module to make sure that
  * it is not setup in a mode that will cause problems
  */
-static unsigned char PMM15Check (void)
+static unsigned char PMM15Check(void)
 {
   // First check if SVSL/SVML is configured for fast wake-up
   if ((!(SVSMLCTL & SVSLE)) || ((SVSMLCTL & SVSLE) && (SVSMLCTL & SVSLFP)) ||

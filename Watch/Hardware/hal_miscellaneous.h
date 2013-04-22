@@ -41,13 +41,9 @@ unsigned char GetMsp430HardwareRevision(void);
  * This be called ErrataGroup1.
  *
  * These could also be compiled out at some time (or even removed from source)
- *
- * \note This needs to be called in main before hardware is configured.
  */
-void DetermineErrata(void);
-
 /*! return 1 if workarounds for errata group 1 are required */
-unsigned char QueryErrataGroup1(void);
+unsigned char Errata(void);
 
 /*! Setup the CPU clock and the power managment module.
  * This function uses TI provided routines to start the crystal

@@ -37,6 +37,17 @@
 #define AUTH_INFO_ADDR        (0x1C14) // 23
 #define PROPERTY_ADDR         (0x1C2C)
 
+#define RTC_YEAR_ADDR         (0x1C2E)
+#define RTC_MON_ADDR          (0x1C30)
+#define RTC_DAY_ADDR          (0x1C31)
+#define RTC_DOW_ADDR          (0x1C32)
+#define RTC_HOUR_ADDR         (0x1C33)
+#define RTC_MIN_ADDR          (0x1C34)
+#define RTC_SEC_ADDR          (0x1C35)
+
+#define CDT_DAY_ADDR          (0x1C36)
+#define CDT_MIN_ADDR          (0x1C38)
+
 /******************************************************************************/
 
 /* software reset (done using PMMSWBOR) */
@@ -48,7 +59,7 @@
 #define BOOTLOADER_SIGNATURE      (0x746F6F426174654D)
 #define MASTER_RESET_CODE         (0xDEAF)
 #define FLASH_RESET_CODE          (0xABCD)
-#define NO_RESET_CODE             (0x0000)
+#define NORMAL_RESET_CODE         (0x0000)
 
 void SetBootloaderSignature(void);
 void ClearBootloaderSignature(void);
@@ -60,5 +71,6 @@ unsigned int GetResetSource(void);
 void CheckResetCode(void);
 void SetMasterReset(void);
 void ClearResetCode(void);
+void SoftwareReset(void);
 
 #endif /* HAL_BOOT */

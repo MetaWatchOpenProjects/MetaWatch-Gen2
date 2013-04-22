@@ -76,6 +76,7 @@
 #define INIT_PAGE             (0 << 2)
 #define INFO_PAGE             (1 << 2)
 #define CALL_PAGE             (2 << 2)
+#define CDT_PAGE              (3 << 2)
 
 #define MENU_PAGE_0           (0 << 2)
 #define MENU_PAGE_1           (1 << 2)
@@ -121,11 +122,15 @@ static const tButtonAction DisconnAction[] =
 
 static const tButtonAction InitAction[] =
 {
-  {BTN_A | INIT_PAGE | BTN_EVT_IMDT, ModifyTimeMsg, MODIFY_TIME_INCREMENT_MINUTE},
-  {BTN_B | INIT_PAGE | BTN_EVT_IMDT, ModifyTimeMsg, MODIFY_TIME_INCREMENT_DOW},
+  {BTN_A | INIT_PAGE | BTN_EVT_IMDT, ModifyTimeMsg, RTC_MIN},
+#if COUNTDOWN_TIMER
+  {BTN_B | INIT_PAGE | BTN_EVT_IMDT, CountDownMsg, MSG_OPT_NONE},
+#else
+  {BTN_B | INIT_PAGE | BTN_EVT_IMDT, ModifyTimeMsg, RTC_DOW},
+#endif
   {BTN_C | INIT_PAGE | BTN_EVT_RELS, MenuModeMsg, Menu1Page},
   {BTN_D | INIT_PAGE | BTN_EVT_IMDT, WatchStatusMsg, 0},
-  {BTN_E | INIT_PAGE | BTN_EVT_IMDT, ModifyTimeMsg, MODIFY_TIME_INCREMENT_HOUR},
+  {BTN_E | INIT_PAGE | BTN_EVT_IMDT, ModifyTimeMsg, RTC_HOUR},
 
   {BTN_A | INFO_PAGE | BTN_EVT_IMDT, IdleUpdateMsg, 0},
 //  {BTN_C | INFO_PAGE | BTN_EVT_RELS, MenuModeMsg, Menu1Page},
@@ -133,6 +138,9 @@ static const tButtonAction InitAction[] =
 
   {BTN_A | CALL_PAGE | BTN_EVT_IMDT, CallerNameMsg, SHOW_NOTIF_REJECT_CALL},
   {BTN_C | CALL_PAGE | BTN_EVT_RELS, MenuModeMsg, Menu1Page},
+// for testing Wwz
+  {BTN_B | CDT_PAGE | BTN_EVT_IMDT, IdleUpdateMsg, MSG_OPT_NONE},
+  {BTN_D | CDT_PAGE | BTN_EVT_IMDT, SetCountdownDoneMsg, MSG_OPT_NONE},
 };
 #define INIT_PAGE_ACT_NUM (sizeof(InitAction) / sizeof(tButtonAction))
 
@@ -153,6 +161,7 @@ static const tButtonAction MenuAction[] =
   {BTN_A | MENU_PAGE_2 | BTN_EVT_IMDT, MenuButtonMsg, MENU_BUTTON_OPTION_ENTER_BOOTLOADER_MODE},
   {BTN_B | MENU_PAGE_2 | BTN_EVT_IMDT, MenuModeMsg, Menu2Page},
   {BTN_C | MENU_PAGE_2 | BTN_EVT_RELS, MenuButtonMsg, MENU_BUTTON_OPTION_EXIT},
+  {BTN_D | MENU_PAGE_2 | BTN_EVT_IMDT, MenuButtonMsg, MENU_BUTTON_OPTION_TEST},
   {BTN_E | MENU_PAGE_2 | BTN_EVT_IMDT, MenuButtonMsg, MENU_BUTTON_OPTION_TOGGLE_ENABLE_CHARGING},
 };
 #define MENU_PAGE_ACT_NUM (sizeof(MenuAction) / sizeof(tButtonAction))
@@ -378,8 +387,6 @@ static void HandleButtonEvent(unsigned char Index, unsigned char Event)
   }
   else if (Event == BTN_EVT_RELS)
   {
-//    if (ButtonMode != IDLE_MODE) ResetModeTimer();
-
     if (BackLightOn() || Index == BTN_INDEX_F)
     {
       SendMessage(&Msg, SetBacklightMsg, LED_ON_OPTION);
@@ -455,7 +462,7 @@ static void HandleButtonEvent(unsigned char Index, unsigned char Event)
     SetupMessageWithBuffer(&Msg, pAction[i].MsgType, pAction[i].MsgOpt);
     if (Msg.pBuffer != NULL)
     {
-      Msg.pBuffer[0] = (Index >= SW_UNUSED_INDEX) ? Index + 1 : Index;
+      Msg.pBuffer[0] = (Index >= SW_UNUSED_INDEX) ? ++Index : Index;
       Msg.pBuffer[1] = ButtonMode;
       Msg.pBuffer[2] = Event;
       Msg.pBuffer[3] = pAction[i].MsgType;
@@ -464,7 +471,7 @@ static void HandleButtonEvent(unsigned char Index, unsigned char Event)
       RouteMsg(&Msg);
     }
   }
-  else if (pAction[i].MsgType != InvalidMessage)
+  else if (pAction[i].MsgType != InvalidMsg)
   {
     SendMessage(&Msg, pAction[i].MsgType, pAction[i].MsgOpt);
   }
@@ -498,7 +505,7 @@ void EnableButtonMsgHandler(tMessage* pMsg)
   for (i = 0; i < CONN_PAGE_ACT_NUM; ++i)
   {
     if (ButtonAction[i].Info == BtnInfo) break;
-    else if (ButtonAction[i].MsgType == InvalidMessage && k == CONN_PAGE_ACT_NUM) k = i;
+    else if (ButtonAction[i].MsgType == InvalidMsg && k == CONN_PAGE_ACT_NUM) k = i;
   }
   
   if (i == CONN_PAGE_ACT_NUM && k < CONN_PAGE_ACT_NUM) i = k;
@@ -529,7 +536,7 @@ void DisableButtonMsgHandler(tMessage* pMsg)
   unsigned char i;
   for (i = 0; i < CONN_PAGE_ACT_NUM; ++i)
   {
-    if (ButtonAction[i].Info == BtnInfo) ButtonAction[i].MsgType = InvalidMessage;
+    if (ButtonAction[i].Info == BtnInfo) ButtonAction[i].MsgType = InvalidMsg;
   }
 }
 

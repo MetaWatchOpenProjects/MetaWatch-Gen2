@@ -34,6 +34,7 @@
 #include "DebugUart.h"
 #include "LcdDisplay.h"
 #include "Utilities.h"
+#include "Vibration.h"
 
 /******************************************************************************/
 
@@ -65,10 +66,10 @@ void InitVibration(void)
 }
 
 /* Handle the message from the host that starts a vibration event */
-void SetVibrateModeHandler(tMessage* pMsg)
+void SetVibrateModeHandler(tMessage *pMsg)
 {
   // overlay a structure pointer on the data section
-  tSetVibrateModePayload* pMsgData;
+  tSetVibrateModePayload *pMsgData;
   pMsgData = (tSetVibrateModePayload*) pMsg->pBuffer;
 
   // set it active or cancel it

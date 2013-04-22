@@ -1,5 +1,5 @@
 //==============================================================================
-//  Copyright 2011 Meta Watch Ltd. - http://www.MetaWatch.org/
+//  Copyright 2011-2013 Meta Watch Ltd. - http://www.MetaWatch.org/
 // 
 //  Licensed under the Meta Watch License, Version 1.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -14,12 +14,6 @@
 //  limitations under the License.
 //==============================================================================
 
-/******************************************************************************/
-/*! \file hal_rtc.c
-*
-*/
-/******************************************************************************/
-
 #include "FreeRTOS.h"
 #include "queue.h"
 #include "task.h"
@@ -28,6 +22,7 @@
 #include "MessageQueues.h"
 
 #include "hal_board_type.h"
+#include "hal_boot.h"
 #include "hal_rtc.h"
 #include "hal_lpm.h"
 #include "hal_calibration.h"
@@ -48,12 +43,36 @@
 #define RTC_PRESCALE_ZERO_IFG ( 8 )
 #define RTC_PRESCALE_ONE_IFG  ( 10 )
 
-#define RTCCAL_VALUE_MASK ( 0x3f )
+#define RTCCAL_VALUE_MASK     (0x3F)
 #define RTC_USER_MASK     (RTC_TIMER_VIBRATION | RTC_TIMER_BUTTON)
 
+#if __IAR_SYSTEMS_ICC__
+__no_init __root unsigned int RtcYear @RTC_YEAR_ADDR;
+__no_init __root unsigned char RtcMon @RTC_MON_ADDR;
+__no_init __root unsigned char RtcDay @RTC_DAY_ADDR;
+__no_init __root unsigned char RtcDow @RTC_DOW_ADDR;
+__no_init __root unsigned char RtcHour @RTC_HOUR_ADDR;
+__no_init __root unsigned char RtcMin @RTC_MIN_ADDR;
+__no_init __root unsigned char RtcSec @RTC_SEC_ADDR;
+#else
+extern unsigned int RtcYear;
+extern unsigned char RtcMon;
+extern unsigned char RtcDay;
+extern unsigned char RtcDow;
+extern unsigned char RtcHour;
+extern unsigned char RtcMin;
+extern unsigned char RtcSec;
+#endif
+
+extern unsigned int niReset;
+
+static const unsigned char MaxRtc[] = {59, 59, 12, 31, 6, 12};
 static unsigned char RtcInUseMask = 0;
 
-void InitRealTimeClock( void )
+static void RestoreRtc(void);
+static unsigned char IncBCD(unsigned char Rtc, unsigned char Index);
+
+void InitRealTimeClock(void)
 {
   RtcInUseMask = 0;
   
@@ -65,9 +84,9 @@ void InitRealTimeClock( void )
   {
     signed char RtcCalibrationValue = GetRtcCalibrationValue();
     
-    if ( RtcCalibrationValue < 0 )
+    if (RtcCalibrationValue < 0)
     {
-      RtcCalibrationValue = -1 * RtcCalibrationValue;
+      RtcCalibrationValue = -RtcCalibrationValue;
       RTCCTL2 = RtcCalibrationValue & RTCCAL_VALUE_MASK;
     }
     else
@@ -78,8 +97,8 @@ void InitRealTimeClock( void )
     }
   }
   
-  // Set the counter for RTC mode
-  RTCCTL01 |= RTCMODE;
+  // Set RTC mode and BCD format
+  RTCCTL01 |= RTCMODE | RTCBCD;
 
   // set 128 Hz rate for prescale 0 interrupt
   RTCPS0CTL |= RT0IP_7;
@@ -94,55 +113,125 @@ void InitRealTimeClock( void )
   // P2.4 = 1 Hz RTC calibration output
   // Direction needs to be set as output
   RTC_1HZ_PORT_SEL |= RTC_1HZ_BIT;  
-  RTC_1HZ_PORT_DIR |= RTC_1HZ_BIT;  
+  RTC_1HZ_PORT_DIR |= RTC_1HZ_BIT;
 
-  RTCYEAR = (unsigned int)0x07db;
-  RTCMON = (unsigned char)5;
-  RTCDAY = (unsigned char)23;
-  RTCDOW = (unsigned char)5;
-  RTCHOUR = (unsigned char)23;
-  RTCMIN = (unsigned char)58;
-  RTCSEC = (unsigned char)0;
+  RestoreRtc();
 
   // Enable the RTC
   RTCCTL01 &= ~RTCHOLD;  
 }
 
-void halRtcSet(tRtcHostMsgPayload* pRtcData)
+void SetRtc(Rtc_t *pRtcData)
 {
   // Stop the RTC
   RTCCTL01 |= RTCHOLD;    
 
   // These calls are to asm level patch functions provided by TI for the MSP430F5438
-  tWordByteUnion temp;
-  temp.Bytes.byte0 = pRtcData->YearLsb; 
-  temp.Bytes.byte1 = pRtcData->YearMsb;
-  RTCYEAR = (unsigned int) temp.word;
-  RTCMON = pRtcData->Month;
-  RTCDAY = pRtcData->DayOfMonth;
-  RTCDOW = pRtcData->DayOfWeek;
-  RTCHOUR = pRtcData->Hour;
-  RTCMIN = pRtcData->Minute;
-  RTCSEC = pRtcData->Second;
+  unsigned int Year = (pRtcData->YearMsb << 8) + pRtcData->YearLsb;
+  PrintF(">SetRtc Year: %d", Year);
+  RtcYear = (ToBCD(Year / 100) << 8) + ToBCD(Year % 100);
+  PrintF(" %04X", RtcYear);
+  
+  RtcMon = ToBCD(pRtcData->Month);
+  RtcDay = ToBCD(pRtcData->Day);
+  RtcDow = ToBCD(pRtcData->DayOfWeek);
+  RtcHour = ToBCD(pRtcData->Hour);
+  RtcMin = ToBCD(pRtcData->Minute);
+  RtcSec = ToBCD(pRtcData->Second);
 
-  EnableTimeStamp();
+  RestoreRtc();
   
   // Enable the RTC
-  RTCCTL01 &= ~RTCHOLD;  
+  RTCCTL01 &= ~RTCHOLD;
+
+  EnableTimeStamp();
 }
 
-void halRtcGet(tRtcHostMsgPayload* pRtcData)
+static void RestoreRtc(void)
 {
-  tWordByteUnion temp;
-  temp.word = RTCYEAR;
-  pRtcData->YearLsb = temp.Bytes.byte0;
-  pRtcData->YearMsb = temp.Bytes.byte1;
-  pRtcData->Month = RTCMON;
-  pRtcData->DayOfMonth = RTCDAY; 
-  pRtcData->DayOfWeek = RTCDOW;
-  pRtcData->Hour = RTCHOUR;
-  pRtcData->Minute = RTCMIN;
-  pRtcData->Second = RTCSEC;
+  CheckResetCode();
+  
+  if (niReset == NORMAL_RESET_CODE &&
+      RtcYear >= 0x2013 && RtcYear <= 0x2099)
+  {
+    RTCYEAR = RtcYear;
+    RTCMON = RtcMon;
+    RTCDAY = RtcDay;
+    RTCDOW = RtcDow;
+    RTCHOUR = RtcHour;
+    RTCMIN = RtcMin;
+    RTCSEC = RtcSec;
+  }
+  else
+  {
+    RTCYEARH = 0x20;
+    RTCYEARL = 0x13;
+    RTCMON = 0x05;
+    RTCDAY = 0x23;
+    RTCDOW = 0x05;
+    RTCHOUR = 0x11;
+    RTCMIN = 0x58;
+    RTCSEC = 0x0;
+  }  
+}
+
+unsigned char ToBCD(unsigned char Bin)
+{
+  unsigned char Quotient = 0;
+  while (Bin >= 10)
+  {
+    Bin -= 10;
+    Quotient ++;
+  }
+  return (Quotient << 4) + Bin;
+}
+
+unsigned char ToBin(unsigned char Bcd)
+{
+ return (((BCD_H(Bcd) << 2) + BCD_H(Bcd)) << 1) + BCD_L(Bcd);
+}
+
+void IncRtc(unsigned char Index)
+{
+  switch (Index)
+  {
+  case RTC_DAY: RTCDAY = IncBCD(RTCDAY, Index); break;
+  case RTC_DOW: RTCDOW = IncBCD(RTCDOW, Index); break;
+  case RTC_HOUR: RTCHOUR = IncBCD(RTCHOUR, Index); break;
+  case RTC_MIN: RTCMIN = IncBCD(RTCMIN, Index); break;
+  default: break;
+  }
+}
+
+static unsigned char IncBCD(unsigned char Rtc, unsigned char Index)
+{
+  Rtc = ToBin(Rtc) + 1;
+  
+  if (Rtc > MaxRtc[Index])
+    Rtc = (Index == RTC_MIN || Index == RTC_DOW || Index == RTC_SEC) ? 0 : 1;
+
+  return ToBCD(Rtc);
+}
+
+unsigned char To12H(unsigned char H24)
+{
+  unsigned char HH = BCD_H(H24);
+  unsigned char HL = BCD_L(H24);
+
+  if (HH == 1 && HL > 2) {HH = 0; HL -= 2;}
+  else if (HH == 2) {HH = 0; HL += 8; if (HL > 9) {HL -= 10; HH ++;}}
+  return (HH << 4) + HL;
+}
+
+void BackupRtc(void)
+{
+  RtcYear = RTCYEAR;
+  RtcMon = RTCMON;
+  RtcDay = RTCDAY;
+  RtcDow = RTCDOW;
+  RtcHour = RTCHOUR;
+  RtcMin = RTCMIN;
+  RtcSec = RTCSEC;
 }
 
 void EnableRtcPrescaleInterruptUser(unsigned char UserMask)
@@ -158,7 +247,6 @@ void EnableRtcPrescaleInterruptUser(unsigned char UserMask)
   RtcInUseMask |= UserMask;
    
   portEXIT_CRITICAL();
-
 }
 
 void DisableRtcPrescaleInterruptUser(unsigned char UserMask)
@@ -205,7 +293,7 @@ __interrupt void RTC_ISR(void)
   case RTC_PRESCALE_ZERO_IFG:
 
     // divide by four to get 32 Hz
-    if ( DivideByFour >= 4-1 )
+    if (DivideByFour >= 4-1)
     {
       DivideByFour = 0;
            
@@ -215,13 +303,12 @@ __interrupt void RTC_ISR(void)
       {
         SetupMessage(&Msg, ButtonStateMsg, MSG_OPT_NONE);
         SendMessageToQueueFromIsr(DISPLAY_QINDEX, &Msg);
-        
         ExitLpm = 1;
       }
     }
     else
     {
-      DivideByFour++;
+      DivideByFour ++;
     }
     break;
 
@@ -231,7 +318,6 @@ __interrupt void RTC_ISR(void)
     ExitLpm |= LcdRtcUpdateHandlerIsr();
 #endif
     
-    IncrementUpTime();
     ExitLpm |= OneSecondTimerHandlerIsr();
     break;
   
@@ -241,9 +327,3 @@ __interrupt void RTC_ISR(void)
 
   if (ExitLpm) EXIT_LPM_ISR();
 }
-
-
-/******************************************************************************/
-
-
-

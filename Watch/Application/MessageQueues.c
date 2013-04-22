@@ -36,10 +36,7 @@
 
 xQueueHandle QueueHandles[TOTAL_QUEUES];
 
-static void SendMsgToQ(unsigned char Qindex, tMessage* pMsg);
-static void PrintQueueNameIsFull(unsigned char Qindex);
-
-void SetupMessage(tMessage* pMsg, unsigned char Type, unsigned char Options)
+void SetupMessage(tMessage *pMsg, unsigned char Type, unsigned char Options)
 {
   pMsg->Length = 0;
   pMsg->Type = Type;
@@ -47,7 +44,7 @@ void SetupMessage(tMessage* pMsg, unsigned char Type, unsigned char Options)
   pMsg->pBuffer = NULL;  
 }
 
-void SetupMessageWithBuffer(tMessage* pMsg, unsigned char Type, unsigned char Options)
+void SetupMessageWithBuffer(tMessage *pMsg, unsigned char Type, unsigned char Options)
 {
   pMsg->Length = 0;
   pMsg->Type = Type;
@@ -55,7 +52,7 @@ void SetupMessageWithBuffer(tMessage* pMsg, unsigned char Type, unsigned char Op
   pMsg->pBuffer = BPL_AllocMessageBuffer();
 }
 
-void SendMessage(tMessage* pMsg, unsigned char Type, unsigned char Options)
+void SendMessage(tMessage *pMsg, unsigned char Type, unsigned char Options)
 {
   SetupMessage(pMsg, Type, Options);
   RouteMsg(pMsg);
@@ -69,39 +66,23 @@ void CreateAndSendMessage(unsigned char Type, unsigned char Options)
 
 void RouteMsg(tMessage *pMsg)
 {
-  SendMsgToQ(MsgInfo[pMsg->Type].MsgQueue, pMsg);
+  if (MsgInfo[pMsg->Type].MsgQueue != FREE_QINDEX)
+  {
+    portBASE_TYPE result = xQueueSend(QueueHandles[MsgInfo[pMsg->Type].MsgQueue], pMsg, DONT_WAIT);
+    
+    if (result == errQUEUE_FULL)
+    {
+      PrintF("@ Q Full:%s", MsgInfo[pMsg->Type].MsgQueue == WRAPPER_QINDEX ? "Spp" : "Disp");
+      SendToFreeQueue(pMsg);
+    }
+  }
+  else SendToFreeQueue(pMsg);
+  
   UpdateWatchdogInfo();
 }
 
-void PrintMessageType(tMessage *pMsg)
-{
-  if (MsgInfo[pMsg->Type].Log)
-  { 
-    
-#if DONT_PRINT_MESSAGE_TYPE
-    PrintS(MsgInfo[pMsg->Type].MsgStr);
-#else
-    PrintF("%s 0x%02x", MsgInfo[pMsg->Type].MsgStr, pMsg->Type);
-#endif
-  }
-}
-
-/* if the queue is full, don't wait */
-static void SendMsgToQ(unsigned char Qindex, tMessage *pMsg)
-{
-  if (Qindex == FREE_QINDEX)
-  {
-    SendToFreeQueue(pMsg);  
-  }
-  else if (errQUEUE_FULL == xQueueSend(QueueHandles[Qindex], pMsg, DONT_WAIT))
-  {
-    PrintQueueNameIsFull(Qindex);
-    SendToFreeQueue(pMsg);
-  }
-}
-
 /* most messages do not have a buffer so there really isn't anything to free */
-void SendToFreeQueue(tMessage* pMsg)
+void SendToFreeQueue(tMessage *pMsg)
 {
   if (pMsg->pBuffer != NULL)
   {
@@ -110,73 +91,35 @@ void SendToFreeQueue(tMessage* pMsg)
   }
 }
   
-void SendToFreeQueueIsr(tMessage* pMsg)
-{
-  if (pMsg->pBuffer != NULL)
-  {
-    BPL_FreeMessageBufferFromIsr(pMsg->pBuffer);
-  }
-}
-
-static void PrintQueueNameIsFull(unsigned char Qindex)
-{
-  gAppStats.QueueOverflow = 1;
-  
-  switch(Qindex)
-  {
-  case FREE_QINDEX:        PrintS("Shoud not get here");   break;
-  case DISPLAY_QINDEX:     PrintS("Display Q is full");    break;
-  case SPP_TASK_QINDEX:    PrintS("Spp Task Q is full");   break;
-  default:                 PrintS("Unknown Q is full");    break;
-  }
-}
-
 /* send a message to a specific queue from an isr 
  * routing requires 25 us
  * putting a message into a queue (in interrupt context) requires 28 us
  * this requires 1/2 the time of using route
  */
-void SendMessageToQueueFromIsr(unsigned char Qindex, tMessage* pMsg)
+void SendMessageToQueueFromIsr(unsigned char Qindex, tMessage *pMsg)
 {
   signed portBASE_TYPE HigherPriorityTaskWoken;
   
-  if ( Qindex == FREE_QINDEX )
+  if (errQUEUE_FULL == xQueueSendFromISR(QueueHandles[Qindex], pMsg, &HigherPriorityTaskWoken))
   {
-    SendToFreeQueueIsr(pMsg);  
+    PrintF("@ Q Full:%s", Qindex == WRAPPER_QINDEX ? "Spp" : "Disp");
+    
+    if (pMsg->pBuffer != NULL)
+    {
+      BPL_FreeMessageBufferFromIsr(pMsg->pBuffer);
+    }
   }
-  else if ( errQUEUE_FULL == xQueueSendFromISR(QueueHandles[Qindex],
-                                               pMsg,
-                                               &HigherPriorityTaskWoken))
-  {
-    PrintQueueNameIsFull(Qindex);
-    SendToFreeQueueIsr(pMsg);
-  }
-  
-  
-#if 0
-  /* This is not used
-   *
-   * we don't want to task switch when in sleep mode
-   * The ISR will exit sleep mode and then the RTOS will run
-   * 
-   */
-  if ( HigherPriorityTaskWoken == pdTRUE )
-  {
-    portYIELD();
-  }
-#endif
 }
 
-#if 0
-/* this was kept for reference */
-static void SendMessageToQueueWait(unsigned char Qindex, tMessage* pMsg)
+void PrintMessageType(tMessage *pMsg)
 {
-  /* wait */
-  if ( xQueueSend(QueueHandles[Qindex], pMsg, portMAX_DELAY) == errQUEUE_FULL )
-  { 
-    PrintQueueNameIsFull(Qindex);
-    SendToFreeQueue(pMsg);
+  if (MsgInfo[pMsg->Type].Log)
+  {
+#if PRINT_MESSAGE_OPTIONS
+    PrintF("%s 0x%02x", MsgInfo[pMsg->Type].MsgStr, pMsg->Options);
+#else
+    PrintS(MsgInfo[pMsg->Type].MsgStr);
+#endif
   }
 }
-#endif
 

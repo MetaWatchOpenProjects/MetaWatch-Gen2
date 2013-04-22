@@ -50,6 +50,7 @@ typedef enum
   InitPage,
   StatusPage,
   CallPage,
+  CountdownPage,
   Menu1Page,
   Menu2Page,
   Menu3Page

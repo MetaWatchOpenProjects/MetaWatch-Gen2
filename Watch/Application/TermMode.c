@@ -28,6 +28,7 @@
 #include "TermMode.h"
 #include "LcdDisplay.h"
 #include "hal_board_type.h"
+#include "hal_boot.h"
 
 /* don't forget null character */
 #define MAX_COMMAND_LENGTH    ( 8 )

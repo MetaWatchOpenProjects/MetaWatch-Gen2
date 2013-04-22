@@ -55,6 +55,7 @@ extern const unsigned char pResetButtonIcon[BUTTON_ICON_SIZE_IN_COLUMNS * BUTTON
 extern const unsigned char pGroundIcon[BUTTON_ICON_SIZE_IN_COLUMNS * BUTTON_ICON_SIZE_IN_ROWS];
 extern const unsigned char pSbwIcon[BUTTON_ICON_SIZE_IN_COLUMNS * BUTTON_ICON_SIZE_IN_ROWS];
 extern const unsigned char pSerialIcon[BUTTON_ICON_SIZE_IN_COLUMNS * BUTTON_ICON_SIZE_IN_ROWS];
+extern const unsigned char pTestIcon[];
 
 extern const unsigned char pIconChargingEnabled[BUTTON_ICON_SIZE_IN_COLUMNS * BUTTON_ICON_SIZE_IN_ROWS];
 extern const unsigned char pIconChargingDisabled[BUTTON_ICON_SIZE_IN_COLUMNS * BUTTON_ICON_SIZE_IN_ROWS];

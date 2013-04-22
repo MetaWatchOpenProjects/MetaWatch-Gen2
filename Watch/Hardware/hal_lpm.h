@@ -41,23 +41,9 @@
  * put the processor into LPM4.  Once in LPM4 the part must be reset (attached
  * to the clip).
  */
-void MSP430_LPM_ENTER(void);
+void EnterLpm3(void);
 
 /*! set the shipping mode flag that allows the part to be placed into LPM4 */
 void EnableShippingMode(void);
-
-/*! get the state of the shipping mode flag that allows the part to be placed into LPM4 */
-unsigned char ShippingMode(void);
-
-/*! reset the micro by writing to PMMCTL0 */
-void SoftwareReset(void);
-
-/*! Configure the reset pin functionality.  This does not save the state.
- * 
- * \param Set 0 = RST, 1 = NMI
- */
-void ConfigResetPin(unsigned char Set);
-
-unsigned char ResetPin(void);
 
 #endif /* HAL_LPM_H */

@@ -85,6 +85,4 @@ void WriteBufferHandler(tMessage *pMsg);
 
 void SetWidgetList(tMessage *pMsg);
 
-void RamTestHandler(tMessage *pMsg);
-
 #endif /* SERIAL_RAM_H */

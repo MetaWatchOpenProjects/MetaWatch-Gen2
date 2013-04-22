@@ -73,7 +73,6 @@ void EnableSoftwareFll(void)
    * will interrupt on every input capture
    */
   TB0CTL = TBSSEL__SMCLK + MC__CONTINUOUS;
-    
 }
 
 void DisableSoftwareFll(void)

@@ -17,6 +17,7 @@
 
 #include "msp430.h"
 #include "hal_boot.h"
+#include "hal_rtc.h"
 
 #if __IAR_SYSTEMS_ICC__
 __no_init __root unsigned long long Signature @SIGNATURE_ADDR;
@@ -92,8 +93,15 @@ void SetMasterReset(void)
 
 void ClearResetCode(void)
 {
-  niReset = NO_RESET_CODE;
+  niReset = NORMAL_RESET_CODE;
 }
+
+void SoftwareReset(void)
+{
+  BackupRtc();
+  PMMCTL0 = PMMPW | PMMSWBOR;
+}
+
 
 
 

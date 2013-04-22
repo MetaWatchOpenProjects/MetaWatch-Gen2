@@ -25,6 +25,28 @@
 #ifndef VIBRATION_H
 #define VIBRATION_H
 
+/*! Set Vibrate Mode Payload Structure
+ *
+ * \param Enable when > 0 disabled when == 0.
+ * \param OnDuration is the duration in milliseconds
+ * \param OffDuration is the off duration in milliseconds.
+ * \param NumberOfCycles is the number of on/off cycles to perform
+ *
+ * \note when durations were changed to integers the on duration was correct
+ * but the number of cycles became first byte of checksum (packing problem)
+ */
+typedef struct
+{
+  unsigned char Enable;
+  unsigned char OnDurationLsb;
+  unsigned char OnDurationMsb;
+  unsigned char OffDurationLsb;
+  unsigned char OffDurationMsb;
+  unsigned char NumberOfCycles;
+
+} tSetVibrateModePayload;
+
+
 /*! Setup the timer that controls vibration and setup
  * the pins that control the motor
  */

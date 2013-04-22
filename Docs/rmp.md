@@ -31,7 +31,8 @@ Revision | Details | Author | Date
 2.0.1 | Add light sensor messages. | Mu Yang | March 18, 2013
 2.0.2 | Add enable auto backlight property. | Mu Yang | March 20, 2013
 2.0.3 | Add ControlFullScreen message. | Mu Yang | March 26, 2013
-
+2.0.4 | Add accelerometer message | Mu Yang | April 8, 2013
+2.0.5 | Remove Get Real Time Clock / Response | Mu Yang | April 9, 2013
 
 3 Abbreviation
 ===============
@@ -77,8 +78,6 @@ Get Version Info Response | 0x04 | Both
 Control Full Screen | 0x42 | Phone
 Set Vibrate Mode | 0x23 | Phone
 Set Real Time Clock | 0x26 | Phone
-Get Real Time Clock | 0x27 | Both
-Get Real Time Clock Response | 0x28 | Both
 Watch Property Operation | 0x30 | Phone
 Watch Property Operation Response | 0x31 | Watch
 Status Change Event | 0x33 | Watch
@@ -97,6 +96,8 @@ Get Battery Status Response | 0x57 | Watch
 Get Light Sensor Value Message | 0x58 | Phone
 Get Light Sensor Value Response | 0x59 | Watch
 Music Playing State Message | 0x18 | Phone
+Setup Accelerometer Message | 0xE1 | Phone
+Accelerometer Data Response | 0xE0 | Watch
 Write OLED Buffer | 0x10 | Phone
 Change OLED Mode | 0x12 | Phone
 Write OLED Scroll Buffer | 0x13 | Phone
@@ -191,25 +192,7 @@ Byte0 | Byte1 | Byte2 | Byte3 | Byte4 | Byte5 | Byte6 | Byte7
 :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---:
 Year (MSB) | Year (LSB) | Month (1~12) | Day of Month (1~31) | Day of Week (0~6) | Hour (0~23) | Minute (0~59) | Second (0~59)
 
-5.8 Get Real Time Clock (0x27)
--------------------------------
-
-This message can be used by the phone or the watch to request the time from the other device.
-
-**Options:** not used.
-
-**Payload:** not used.
-
-5.9 Get Real Time Clock Response (0x28)
-----------------------------------------
-
-The message format is the same as **Set Real Time Clock (0x26)**.
-
-**Options:** not used.
-
-**Payload:** not used.
-
-5.10 Watch Property Operation (0x30)
+5.8 Watch Property Operation (0x30)
 --------------------------
 
 The message is used to get and set watch properties. The properties values retain till the battery is depleted. Please note that all property bits are valid when the message is sent to the watch.
@@ -230,14 +213,14 @@ Bit | Description
 **Payload:** not used.
 
 
-5.11 Watch Property Operation Response (0x31)
+5.8 Watch Property Operation Response (0x31)
 -----------------------------------
 
 For Set Property Response, the **Options** byte contains the result code: 0 - Success; 1 - Failure.
 
 For Read Property Response, the **Options** byte contains the property value.
 
-5.12 Status Change Event (0x33)
+5.9 Status Change Event (0x33)
 -------------------------------
 
 This message is used to notify the phone about the watch's status change. The **Options** byte contains the current mode and idle page (if in idle mode) when the status change event occurs. The **Payload** data tells what kind of event it is.
@@ -267,7 +250,7 @@ Byte | Description
 * 1 - Mode switching complete
 * 2 - Mode timeout (not applicable for the Idle mode)
 
-5.13 Enable Button (0x46)
+5.10 Enable Button (0x46)
 -------------------------
 
 Each button press type (immediate, release and hold) can generate an event. In addition, each button press type can have a different event for each of the display modes (Idle, Application, Notification and Music). For example, the following **Payload** data are sent to the phone when button A  is pressed in the Notification mode: 0x2, 0x0, 0x0, 0x34, 0x00. The **Button Event Message (0x34)** will be sent to the phone once the button press has been detected (without waiting for the button to be released).
@@ -295,7 +278,7 @@ Reserved | F | E | Reserved | D | C | B | A
 **Callback Message Type** and **Callback Message Options** are 
 for messages which are sent out when the button event occurs.
 
-5.14 Disable Button (0x47)
+5.11 Disable Button (0x47)
 --------------------------
 
 The message is used to remove the association of a message with a button event.
@@ -308,7 +291,7 @@ Byte0 | Byte1 | Byte2
 :---: | :---: | :---:
 Button index | Mode | Event Type
 
-5.15 Button Event Message (0x34)
+5.12 Button Event Message (0x34)
 --------------------------------
 
 This message is sent from the watch when a button event occurs.
@@ -321,7 +304,7 @@ Byte0 | Byte1 | Byte2 | Byte3 | Byte4
 :---: | :---: | :---: | :---: | :---:
 Button index | Mode | Event Type | Callback Message Type | Callback Message Options
 
-5.16 Write LCD Buffer (0x40)
+5.13 Write LCD Buffer (0x40)
 ----------------------------
 
 This message is used to send the display data (e.g. widget data) from the phone to the corresponding mode screen (Idle, Application, Notification and Music mode) or Idle mode pages (Gen2 UI style only).
@@ -372,10 +355,10 @@ Widget ID | Row | Data
 **Data:** two adjacent widget rows of data (12 bytes).
 
 
-5.17 Update LCD Display (0x43)
+5.14 Update LCD Display (0x43)
 ------------------------------
 
-This message is used to tell the watch data of which display mode or idle mode page (if it's for idle mode) shall be drawn to the LCD display.
+This message is used to tell the watch data of which display mode or idle mode page (if in idle mode) shall be drawn to the LCD display.
 
 **Options:**
 
@@ -396,7 +379,7 @@ Byte0 | Byte1
 :---- | :---
 Start Row (0~95) | Row number (1~96)
 
-5.18 Set Widget List Message (0xA1)
+5.15 Set Widget List Message (0xA1)
 -----------------------------------
 
 The message is used to send a list of all widgets’ properties to the watch. There could be totally at most 16 1Q widgets on 4 pages of the Idle mode screen. There are two bytes of each widget’s property: first one is the widget ID and the other is the widget setting (e.g. invert color, layout type, clock widget, etc.). The payload of one message is 14 bytes which can contains 7 widgets’ properties (2 bytes for each widget). So it requires at most 3 messages for sending max 16 widgets’ properties. The order of widgets’ properties in the list shall be according to the widget IDs in ascending order.
@@ -447,7 +430,7 @@ Clock/Normal | Invert Color | Page Number | Layout | Position
 * 2 - bottom-left quad
 * 3 - bottom-right quad
 
-5.19 Load Template (0x44)
+5.16 Load Template (0x44)
 ------------------------------------
 
 Currently it's used for setting whole display white (0) or black (1).
@@ -465,7 +448,7 @@ Byte0:
 * 0 - set display white
 * 1 - set display black
 
-5.20 Set Battery Warning Level Message (0x53)
+5.17 Set Battery Warning Level Message (0x53)
 -----------------------------------------
 
 This determines at what charge level (in percentage) a warning message is sent to the phone indicating a low battery event. This message also determines at what level the Bluetooth radio will be shut off to conserve battery
@@ -479,7 +462,7 @@ Byte0 | Byte1
 :---: | :---
 Warning Level (%)| Radio Off Level (%)
 
-5.21 Low Battery Warning Message (0x54)
+5.18 Low Battery Warning Message (0x54)
 ---------------------------------------
 
 The message is sent to the phone when the battery is at warning level (see **Set Battery Warning Level Message (0x53)**).
@@ -488,7 +471,7 @@ The message is sent to the phone when the battery is at warning level (see **Set
 
 **Payload:** not used.
 
-5.22 Low Battery Bluetooth off Message (0x55)
+5.19 Low Battery Bluetooth off Message (0x55)
 ---------------------------------------------
 
 The message is sent to the phone when the battery is at Bluetooth radio off level (see **Set Battery Warning Level Message (0x53)**).
@@ -497,7 +480,7 @@ The message is sent to the phone when the battery is at Bluetooth radio off leve
 
 **Payload:** not used.
 
-5.23 Get Battery Status Message (0x56)
+5.20 Get Battery Status Message (0x56)
 ----------------------------------------
 
 The message is used to get the battery status including clip attach, charging, current charge and battery voltage (see **Get Battery Status Response (0x57)**).
@@ -506,7 +489,7 @@ The message is used to get the battery status including clip attach, charging, c
 
 **Payload:** not used.
 
-5.24 Read Battery Status Response (0x57)
+5.21 Read Battery Status Response (0x57)
 -----------------------------------------
 
 The message contains the results of the battery status. Battery voltage value is the volts times 100. For example, a value of 4100 means 4.1 volts. 
@@ -519,7 +502,7 @@ Byte0 | Byte1 | Byte2 | Byte3 | Byte4 | Byte5
 :---: | :---: | :---: | :---: | :---: | :---:
 Clip attached | Charging | Charge (%) | Reserved | Voltage (LSB) | Voltage (MSB)
 
-5.25 Get Light Sensor Value Message (0x58)
+5.22 Get Light Sensor Value Message (0x58)
 ----------------------------------------
 
 The message is used to read the light sensor value (see **Get Light Sensor Value Response (0x59)**).
@@ -528,7 +511,7 @@ The message is used to read the light sensor value (see **Get Light Sensor Value
 
 **Payload:** not used.
 
-5.26 Get Light Sensor Value Response (0x59)
+5.23 Get Light Sensor Value Response (0x59)
 -----------------------------------------
 
 The message contains the instant value of the light sensor.
@@ -541,7 +524,7 @@ Byte0 | Byte1
 :---: | :---:
 Value (LSB) | Value (MSB)
 
-5.27 Music Playing State Message (0x18)
+5.24 Music Playing State Message (0x18)
 ---------------------------------------
 
 This message is used to tell the watch about current music playing state: either “play” or “stop”.
@@ -554,7 +537,40 @@ Reserved | Music playing state (0: stopped; 1: playing)
 
 **Payload:** not used.
 
-5.28 Write OLED Buffer (0x10)
+5.25 Setup Accelerometer Message (0xE1)
+--------------------------------------
+
+This message is used for enabling, disabling and setting parameters of the accelerometer. There are two modes: Streaming and Motion Detection mode. In the Streaming mode, the data are sent from watch to phone in 25Hz continuously. In Motion Detection Mode, the data are only sent when it's over a threshold (default is 0.5g) and stopped when it's below.
+
+**Options:**
+
+* 0 - Disable accelerometer
+* 1 - Enable accelerometer
+* 2 - Set Streaming mode
+* 3 - Set Motion Detection mode
+* 4 - Select the acceleration range
+* 5 - Threshold for the Motion Detection mode
+
+**Payload:(Byte0)**
+
+* For selecting acceleration range: 0: +/- 2g; 1: +/-4g; 2: +/-8g.
+* For setting threshold of the Motion Detection mode: 0~255. Default value is 16 (0.5g in +/-8g range).
+
+
+5.26 Accelerometer Data Response (0xE0)
+--------------------------------------
+
+This message is used for sending accelerometer date to the phone.
+
+**Options:** not used.
+
+**Payload:**
+
+Byte0 | Byte1 | Byte2
+:---: | :---: | :---:
+X | Y | Z
+
+5.27 Write OLED Buffer (0x10)
 ----------------------------
 The message is used to send data to the analog watch's OLED display buffer.
 
@@ -604,7 +620,7 @@ If a page is activated and the current mode is not active then the current mode 
 
 Each display consists of two rows of 80 characters.
 
-5.29 Change OLED Mode (0x12)
+5.28 Change OLED Mode (0x12)
 ----------------------------------
 
 Change the mode of the watch. This command does not cause an update of the top or bottom OLED. It does change how the buttons are handled. When a mode other than IDLE is selected its mode timer is started.
@@ -617,7 +633,7 @@ Reserved | Mode
 
 **Payload:** not used.
 
-5.30 Write OLED Scroll Buffer (0x13)
+5.29 Write OLED Scroll Buffer (0x13)
 -----------------------------------
 
 **Options:**
@@ -650,7 +666,7 @@ The scroll state machine will send a scroll request status message each time it 
 
 When a scroll is started if the top OLED is on then it will remain on for the duration of the scroll.
 
-5.31 Advance Watch Hands (0x20)
+5.30 Advance Watch Hands (0x20)
 ------------------------------
 
 This command will advance the watch hands by the specified amount.
@@ -662,6 +678,4 @@ This command will advance the watch hands by the specified amount.
 Byte0 | Byte1 | Byte2
 :---: | :---: | :---:
 Hour (0~12) | Minute (0~59) | Second (0~59)
-
-
 

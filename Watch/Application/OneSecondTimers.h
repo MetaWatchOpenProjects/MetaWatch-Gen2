@@ -30,41 +30,33 @@
 #ifndef ONE_SECOND_TIMERS_H
 #define ONE_SECOND_TIMERS_H
 
-/*! timers are not handled using lists
- * so don't allocate more timers than are required
-*/
-#define TOTAL_TIMERS    (6)
-#define ONE_SECOND      (1)
-#define UNASSIGNED      (-1)
-
 /*! setting the repeat count to 0xFF causes a timer to repeat forever */
 #define NO_REPEAT      (0)
 #define REPEAT_FOREVER (0xFF)
 
-/*! Timer id is a signed character but is typedefed so compiler helps keep
- * track of things */
-typedef signed char tTimerId;
+typedef enum
+{
+  BatteryTimer,
+  ModeTimer,
+  ShowCallTimer,
+  BacklightTimer,
+  HfpMapTimer,
+  TunnelTimer
+} eTimerId;
 
 /*! One Second Timer handler that occurs in interrupt context */
 unsigned char OneSecondTimerHandlerIsr(void);
 
+void StartTimer(eTimerId Id);
+
 /*! Stop timer associated with TimerId */
-void StopTimer(tTimerId Id);
+void StopTimer(eTimerId Id);
 
-void ResetTimer(tTimerId Id);
-
-/*! Setup and start a timer  
+/*! Reset and start a timer
  *
  * \param Timeout in seconds
- * \param RepeatCount Number of times to count
- * \param Qindex is the index of the queue to put the message into
- * \param CallbackMsgType The type of message to send when the timer expires
- * \param MsgOptions Options to send with the message
+ * \param Repeat Number of times to count
 */
-tTimerId StartTimer(unsigned int Timeout,
-                    unsigned char RepeatCount,
-                    unsigned char Qindex,
-                    eMessageType CallbackMsgType,
-                    unsigned char MsgOptions);
+void SetTimer(eTimerId Id, unsigned int Timeout, unsigned char Repeat);
 
 #endif /* ONE_SECOND_TIMERS_H */

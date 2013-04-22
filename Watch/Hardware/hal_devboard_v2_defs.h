@@ -325,6 +325,10 @@
 // disable charging, sleep the part
 #define BATTERY_CHARGE_DISABLE()  { BAT_CHARGE_OUT |= BAT_CHARGE_ENABLE_PIN; }
 
+//RESET PIN NMI or RESET
+#define SET_RESET_PIN_NMI() {SFRRPCR &= ~SYSRSTRE; SFRRPCR |= SYSNMI;}
+#define SET_RESET_PIN_RST() {SFRRPCR |= SYSRSTRE; SFRRPCR &= ~SYSNMI;}
+#define RESET_PIN (SFRRPCR & SYSNMI) // return 1 for NMI
 
 //
 // Ambient Light Sensor

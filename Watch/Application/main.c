@@ -38,10 +38,8 @@ value is calculated and stored here by the boot loader tool.
 
 *******************************************************************************/
 #if 0
-
 #pragma location="CHECKSUM"
 __root __no_init const unsigned int __checksum;
-
 #endif
 
 /******************************************************************************
@@ -72,7 +70,6 @@ labels to see how this is accomplished.
 #pragma location="_IMAGE_END"
 __root const unsigned char EndOfImage = 0x26;
 
-
 #define IAR_TOOLS   (1)
 #define CCS_TOOLS   (2)
 #ifdef __IAR_SYSTEMS_ICC__ 
@@ -83,7 +80,6 @@ __root const unsigned char EndOfImage = 0x26;
 
 #pragma location="IMAGE_DATA"
 __root const image_data_t imageData = {&EndOfImage, __DATE__, TOOLSET, APP_VER};
-
 #endif //BOOTLOADER
 
 /******************************************************************************/

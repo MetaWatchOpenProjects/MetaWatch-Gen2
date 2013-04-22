@@ -14,26 +14,30 @@
 //  limitations under the License.
 //==============================================================================
 
-/*******************************************************************************
-*
-*! \file            bl_boot.h
-*
-*  Project:         MetaWatch Serial Bootloader
-*
-*  Description:     Serial bootloader header file
-*
+/**** MODIFICATION HISTORY *****************************************************
+*                                                                              *
+* Version mm/dd/yy  Author        Description of Modification                  *
+* ------ --------  -------   ------------------------------------------------- *
+* 0.1.1  12/10/12  Andrew.H  Initial version.                                  *
+* 0.1.2  12/17/12  Mu Yang   Add CONFIGURE_BUTTON_PINS()                       *
+* 0.1.3  12/17/12  Mu Yang   Move LED after receiving loop                     *
+* 0.1.4  12/18/12  Mu Yang   Disable button interrupt                          *
+* 0.1.5  01/10/13  Mu Yang   Fix UCS7 and 10                                   *
+* 0.1.6  01/17/13  Andrew.H  Add 100ms between enable and disable FLL          *
+* 0.1.7  04/19/13  Mu Yang   Version available to main();						           *
 *******************************************************************************/
+
+#define BOOT_VERSION_STRING "0.1.7"
 
 #include "intrinsics.h"
 #include "msp430f5438a.h"
-
 
 #define FALSE   (0)
 #define TRUE    (1)
 
 #define NO_MSG      (0)
 #define MSG_RCVD    (1)
-#define REBOOT  (2)
+#define REBOOT      (2)
 
 #define VALID_IMAGE     (1)
 #define INVALID_IMAGE   (0)
@@ -106,13 +110,13 @@ typedef struct _mem_block
   unsigned char Buf[FLASH_SEGMENT_SIZE];  // RAM buffer to store one FLASH segment for programming
 } mem_block_t;
 
-#define BUILDDATE_LEN   (12)
-#define VERSION_LEN     (8)
+#define BUILD_DATE_LEN   (12)
+#define VERSION_LEN      (8)
 
 typedef struct __image_data
 {
-    const unsigned char __data20 * const pImageEnd;
-    const unsigned char BuildDate[BUILDDATE_LEN];
+    const unsigned char __data20 *const pImageEnd;
+    const unsigned char BuildDate[BUILD_DATE_LEN];
     const unsigned char ToolSet;
     const unsigned char ApplVersion[VERSION_LEN];
 } image_data_t;

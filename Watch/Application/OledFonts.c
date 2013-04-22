@@ -86,7 +86,7 @@ void SetFont(etFontType Type)
     break;
     
   default:
-    PrintString("Undefined Font Selected\r\n");
+    PrintS("Undefined Font Selected\r\n");
     break;
   }  
 }

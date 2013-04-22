@@ -171,15 +171,27 @@
 /* 484    03/22/13  Mu Yang  v1.43: Optimise one-second-timer usage.          */
 /* 485    03/26/13  Mu Yang  v1.44: Support timestamp log.                    */
 /* 486    03/27/13  Mu Yang  v1.45: Optimise log print using vPrintF;         */
-/*                           Fix: clock-on-menu, repeat batter alarm;         */
+/*                           Fix: clock-on-menu, repeat battery alarm;        */
 /*                           Support DUO/BLE/BR.                              */
 /* 487    03/29/13  Mu Yang  v1.45: Fix time-adjust-not-update-clock;         */
-/* 488    03/29/13  Mu Yang   Fix "show 100% when volt < critical level".     */
-/* 489    03/30/13  Mu Yang   Ignore msg when msg que overflow.               */
+/* 488    03/29/13  Mu Yang  Fix "show 100% when volt < critical level".      */
+/* 489    03/30/13  Mu Yang  Ignore msg when msg que overflow.                */
+/* 490    04/02/13  Mu Yang  v1.46: Support accelerometer.                    */
+/* 491    04/03/13  Mu Yang  Fix flow control in hal_battery.                 */
+/* 492    04/05/13  Mu Yang  Fix Backlight-always-on;Disable BT_FLOW and      */
+/*                           vTaskDelay for Fll in ChargeControl().           */
+/* 493    04/07/13  Mu Yang  Change battery up/down gap limits to 10/5.       */
+/* 494    04/08/13  Mu Yang  v1.47: Enable accelerometer.                     */
+/* 495    04/09/13  Mu Yang  Fix clock-not-update when SetProperty.           */
+/* 496    04/11/13  Mu Yang  Support countdown timer.                         */
+/* 497    04/18/13  Mu Yang  v1.49: fmt chg to n.n.nd;							            */
+/*                           SrvMenu Test vibration; Rm Tout for connecting   */
+/* 498    04/19/13  Mu Yang  Mv Countdown bmp to __data20 to not break BL. 	  */
+/* 499    04/20/13  Mu Yang  Pass BootVer to App to be shown in "Ready...". 	*/
 /******************************************************************************/
 
 
-#define APP_VER     "1.45"
-#define BUILD_VER   "489.419"
+#define APP_VER     "1.4.0d"
+#define BUILD_VER   "499.421"
 
 #endif /* VERSION_H */

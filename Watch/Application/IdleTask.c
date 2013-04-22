@@ -50,12 +50,8 @@ void vApplicationIdleHook(void)
 
   /* Put the processor to sleep if the serial port indicates it is OK and
    * all of the queues are empty.
-   *
    * This will stop the OS scheduler.
    */ 
-#if 0
-  DEBUG5_HIGH();
-#endif
 
   /* enter a critical section so that the flags can be checked */
   __disable_interrupt();
@@ -67,31 +63,24 @@ void vApplicationIdleHook(void)
    */
   UpdateWatchdogInfo();
 
-  if ((WatchdogInfo.SppReadyToSleep &&
-      WatchdogInfo.TaskDelayLockCount == 0 &&
+#if SUPPORT_LPM
+  if (WatchdogInfo.SppReadyToSleep &&
       WatchdogInfo.DisplayMessagesWaiting == 0 &&
-      WatchdogInfo.SppMessagesWaiting == 0) ||
-      ShippingMode())
+      WatchdogInfo.SppMessagesWaiting == 0)
   {
     /* Call MSP430 Utility function to enable low power mode 3.     */
     /* Put OS and Processor to sleep. Will need an interrupt        */
     /* to wake us up from here.   */
-    MSP430_LPM_ENTER();
+    EnterLpm3();
 
     /* If we get here then interrupts are enabled */
-//    extern xTaskHandle IdleTaskHandle;
-//    CheckStackUsage(IdleTaskHandle,"~IdlTsk ");
+    return;
   }
-  else
-  {
-    /* we aren't going to sleep so enable interrupts */
-    __enable_interrupt();
-    __no_operation();
-  }
-
-#if 0
-  DEBUG5_LOW();
 #endif
+
+  /* we aren't going to sleep so enable interrupts */
+  __enable_interrupt();
+  __no_operation();
 }
 
 /******************************************************************************/
@@ -100,13 +89,12 @@ void vApplicationIdleHook(void)
 void UpdateWatchdogInfo(void)
 {
   WatchdogInfo.SppReadyToSleep = SerialPortReadyToSleep();
-  WatchdogInfo.TaskDelayLockCount = GetTaskDelayLockCount();
 
   WatchdogInfo.DisplayMessagesWaiting =
     QueueHandles[DISPLAY_QINDEX]->uxMessagesWaiting;
 
   WatchdogInfo.SppMessagesWaiting = 
-    QueueHandles[SPP_TASK_QINDEX]->uxMessagesWaiting;
+    QueueHandles[WRAPPER_QINDEX]->uxMessagesWaiting;
 }
 
 void ShowWatchdogInfo(void)
@@ -115,14 +103,13 @@ void ShowWatchdogInfo(void)
 
   unsigned int ResetSource = GetResetSource();
   PrintResetSource(ResetSource);
+  PrintF("SppReadyToSleep %d", WatchdogInfo.SppReadyToSleep);
+  PrintF("DisplayMsgWaiting %d", WatchdogInfo.DisplayMessagesWaiting);
+  PrintF("SppMsgWaiting %d", WatchdogInfo.SppMessagesWaiting);
 
   if (ResetSource == SYSRSTIV_WDTTO || ResetSource == SYSRSTIV_WDTKEY)
   {
     PrintF("# WDT %s", ResetSource == SYSRSTIV_WDTTO ? "Failsafe" : "Forced");
-    PrintF("SppReadyToSleep %d", WatchdogInfo.SppReadyToSleep);
-    PrintF("TaskDelayLockCount %d", WatchdogInfo.TaskDelayLockCount);
-    PrintF("DisplayMsgWaiting %d", WatchdogInfo.DisplayMessagesWaiting);
-    PrintF("SppMsgWaiting %d", WatchdogInfo.SppMessagesWaiting);
     niWdtCounter ++;
   }
   

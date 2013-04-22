@@ -39,156 +39,97 @@
 #include "Wrapper.h"
 
 /******************************************************************************/
-#define ACCELEROMETER_POWER_UP_TIME_MS (20)
+#define MSG_OPT_ACCEL_DISABLE           (0)
+#define MSG_OPT_ACCEL_ENABLE            (1)
+#define MSG_OPT_ACCEL_STREAMING         (2)
+#define MSG_OPT_ACCEL_WUF               (3)
+#define MSG_OPT_ACCEL_G_RANGE           (4)
+#define MSG_OPT_ACCEL_WUF_THRESHOLD     (5)
+#define MSG_OPT_ACCEL_DATA              (0xFF)
+
+#define MSG_OPT_ACCEL_WUF_DELAY         (7)
+#define MSG_OPT_ACCEL_READ              (8)
+
+#define ACCELEROMETER_POWER_UP_TIME_MS  (20 * portTICK_RATE_MS) //ms
 #define XYZ_DATA_LENGTH                 (6)
+#define PROOF_READ_CODE                 (0x55)
+#define RANGE_8G                        (0x10)
+#define WUF_DEFAULT_THRESHOLD           (0x08)
+#define WUF_DEFAULT_DELAY_COUNT         (5)
+#define WUF_DELAY_PER_COUNT             (40) //25Hz, 40ms/count
+#define ACCEL_RANGE_MASK                (0x18)
+#define ACCEL_RANGE_SHFT                (3)
+#define INIT_MODE                       (0)
 
-#define ACCEL_STATE_UNKNOWN             (0)
-#define ACCEL_STATE_INIT                (1)
-#define ACCEL_STATE_DISABLED            (2)
-#define ACCEL_STATE_ENABLED             (3)
+#define ACCEL_CONTROL_DEFAULT0 (RESOLUTION_8BIT | RANGE_8G | WUF_ENABLE)
+#define ACCEL_CONTROL_DEFAULT1 (RESOLUTION_8BIT | RANGE_8G | DRDYE_DATA_AVAILABLE)
 
-typedef struct
-{
-  unsigned char Addr;
-  unsigned char Size;
-  unsigned char Data;
+static unsigned char Data[6];
+static unsigned char Control = INIT_MODE;
 
-} tAccelAccessPayload;
+#define CONVERT_TO_8_BIT(_x)  ((Data[_x] >> 4) | (Data[_x + 1] << 4))
 
-static unsigned char WriteRegisterData;
-static unsigned char pReadRegisterData[16];
+#define ENTER_STANDBY_MODE() {                              \
+  Control &= ~PC1_OPERATING_MODE;                           \
+  AccelerometerWrite(KIONIX_CTRL_REG1, &Control, ONE_BYTE); \
+}
 
-/* send interrupt only or send data (Send Interrupt Data [SID]) */
-static unsigned char OperatingModeRegister;
-static unsigned char InterruptControl;
-static unsigned char SidControl;
-static unsigned char SidAddr;
-static unsigned char SidLength;
-static unsigned char AccelState;
+#define ENTER_OPERATING_MODE() {                            \
+  Control |= PC1_OPERATING_MODE;                            \
+  AccelerometerWrite(KIONIX_CTRL_REG1, &Control, ONE_BYTE); \
+}
 
 /******************************************************************************/
-
 static void InitAccelerometer(void);
 static void AccelerometerSendDataHandler(void);
-static void AccelerometerSetupHandler(tMessage* pMsg);
-static void AccelerometerAccessHandler(tMessage* pMsg);
 static void EnableAccelerometer(void);
 static void DisableAccelerometer(void);
-static void ReadInterruptReleaseRegister(void);
 
-/******************************************************************************/
-
+//  /* 180 uA; KTXI9 115 uA */
+//  *Data = PC1_OPERATING_MODE | RESOLUTION_8BIT | WUF_ENABLE;
+//
+//  /* 720 uA; KTXI9 330 uA */  
+//  *Data = PC1_OPERATING_MODE | RESOLUTION_12BIT | WUF_ENABLE;
+//
+//  /* 180 uA; KTXI9 8.7 uA */
+//  *Data = PC1_OPERATING_MODE | TILT_ENABLE_TPE;
+//
+//  /* KTXF9 300 uA; KTXI9 165 uA */
+//  *Data = PC1_OPERATING_MODE | TAP_ENABLE_TDTE;  
+  
 static void InitAccelerometer(void)
 {
   InitAccelerometerPeripheral();
 
   /* make sure accelerometer has had 20 ms to power up */
-  TaskDelayLpmDisable();
   vTaskDelay(ACCELEROMETER_POWER_UP_TIME_MS);
-  TaskDelayLpmEnable();
 
-  /*
-   * make sure part is in standby mode because some registers can only
-   * be changed when the part is not active.
-   */
-  WriteRegisterData = PC1_STANDBY_MODE;
-  AccelerometerWrite(KIONIX_CTRL_REG1, &WriteRegisterData, ONE_BYTE);
-
-  /* enable face-up and face-down detection */
-  WriteRegisterData = TILT_FDM | TILT_FUM;
-  AccelerometerWrite(KIONIX_CTRL_REG2, &WriteRegisterData, ONE_BYTE);
+  Control = ACCEL_CONTROL_DEFAULT0; // 0:wakeup; 1:streaming
+  AccelerometerWrite(KIONIX_CTRL_REG1, &Control, ONE_BYTE);
     
-  /* 
-   * the interrupt from the accelerometer can be used to get periodic data
-   * the real time clock can also be used
-   */
-  
   /* change to output data rate to 25 Hz */
-  WriteRegisterData = WUF_ODR_25HZ | TAP_ODR_400HZ;
-  AccelerometerWrite(KIONIX_CTRL_REG3, &WriteRegisterData, ONE_BYTE);
+  *Data = WUF_ODR_25HZ;
+  AccelerometerWrite(KIONIX_CTRL_REG3, Data, ONE_BYTE);
   
   /* enable interrupt and make it active high */
-  WriteRegisterData = IEN | IEA;
-  AccelerometerWrite(KIONIX_INT_CTRL_REG1, &WriteRegisterData, ONE_BYTE);
+  *Data = IEN | IEA;
+  AccelerometerWrite(KIONIX_INT_CTRL_REG1, Data, ONE_BYTE);
   
   /* enable motion detection interrupt for all three axis */
-  WriteRegisterData = ZBW;
-  AccelerometerWrite(KIONIX_INT_CTRL_REG2, &WriteRegisterData, ONE_BYTE);
+  *Data = ZBW;
+  AccelerometerWrite(KIONIX_INT_CTRL_REG2, Data, ONE_BYTE);
 
-  /* enable tap interrupt for Z-axis */
-  WriteRegisterData = TFDM;
-  AccelerometerWrite(KIONIX_INT_CTRL_REG3, &WriteRegisterData, ONE_BYTE);
-  
-  /* set TDT_TIMER to 0.2 secs*/
-  WriteRegisterData = 0x50;
-  AccelerometerWrite(KIONIX_TDT_TIMER, &WriteRegisterData, ONE_BYTE);
-  
-  /* set tap low and high thresholds (default: 26 and 182) */
-  WriteRegisterData = 40; //78;
-  AccelerometerWrite(KIONIX_TDT_L_THRESH, &WriteRegisterData, ONE_BYTE);
-  WriteRegisterData = 128;
-  AccelerometerWrite(KIONIX_TDT_H_THRESH, &WriteRegisterData, ONE_BYTE);
+  /* WUF delay = COUNT * (1/WUF_ODR_25HZ)  */
+  *Data = WUF_DEFAULT_DELAY_COUNT;
+  AccelerometerWrite(KIONIX_WUF_TIMER, Data, ONE_BYTE);
     
-  /* set WUF_TIMER counter */
-  WriteRegisterData = 10;
-  AccelerometerWrite(KIONIX_WUF_TIMER, &WriteRegisterData, ONE_BYTE);
-    
-  /* this causes data to always be sent */
-  // WriteRegisterData = 0x00;
-  WriteRegisterData = 0x08;
-  AccelerometerWrite(KIONIX_WUF_THRESH, &WriteRegisterData, ONE_BYTE);
+  /* 0.5g = 0x08 */
+  *Data = WUF_DEFAULT_THRESHOLD;
+  AccelerometerWrite(KIONIX_WUF_THRESH, Data, ONE_BYTE);
      
-  /* single byte read test */
-  AccelerometerRead(KIONIX_DCST_RESP,pReadRegisterData,1);
-  //PrintS(tringAndHex("KIONIX_DCST_RESP (0x55) = 0x",pReadRegisterData[0]);
-  
-  /* multiple byte read test */
-  AccelerometerRead(KIONIX_WHO_AM_I,pReadRegisterData,2);
-//  PrintS(tringAndHex("KIONIX_WHO_AM_I (0x01) = 0x",pReadRegisterData[0]);
-//  PrintS(tringAndHex("KIONIX_TILT_POS_CUR (0x20) = 0x",pReadRegisterData[1]);  
-    
-  /* 
-   * KIONIX_CTRL_REG3 and DATA_CTRL_REG can remain at their default values 
-   *
-   * 50 Hz
-  */
-#if 0  
-  /* KTXF9 300 uA; KTXI9 165 uA */
-  WriteRegisterData = PC1_OPERATING_MODE | TAP_ENABLE_TDTE;
-  
-  /* 180 uA; KTXI9 115 uA */
-  WriteRegisterData = PC1_OPERATING_MODE | RESOLUTION_8BIT | WUF_ENABLE;
-
-  /* 180 uA; KTXI9 8.7 uA */
-  WriteRegisterData = PC1_OPERATING_MODE | TILT_ENABLE_TPE;
-
-  /* 720 uA; KTXI9 330 uA */  
-  WriteRegisterData = PC1_OPERATING_MODE | RESOLUTION_12BIT | WUF_ENABLE;
-#endif
-  
-  /* setup the default for the AccelerometerEnable command */
-  OperatingModeRegister = PC1_OPERATING_MODE | RESOLUTION_12BIT | 
-    TAP_ENABLE_TDTE | TILT_ENABLE_TPE; // | WUF_ENABLE;
-  InterruptControl = INTERRUPT_CONTROL_DISABLE_INTERRUPT;
-  SidControl = SID_CONTROL_SEND_DATA;
-  SidAddr = KIONIX_XOUT_L;
-  SidLength = XYZ_DATA_LENGTH;  
-
-  AccelState = ACCEL_STATE_INIT;
-  PrintS("- Accel Initd");
-}
-
-static void ReadInterruptReleaseRegister(void)
-{
-#if 0
-  /* interrupts are rising edge sensitive so clear and enable interrupt
-   * before clearing it in the accelerometer 
-   */
-  ACCELEROMETER_INT_ENABLE();
-#endif
-  
-  unsigned char temp;
-  AccelerometerRead(KIONIX_INT_REL,&temp,1);
+  /* Make sure HW is functioning */
+  AccelerometerRead(KIONIX_DCST_RESP, Data, ONE_BYTE);
+  PrintF("%s Accel Initd", *Data == PROOF_READ_CODE ? OK : NOK);
 }
 
 /* Send interrupt notification to the phone or 
@@ -196,168 +137,98 @@ static void ReadInterruptReleaseRegister(void)
  */
 static void AccelerometerSendDataHandler(void)
 {
-  /* burst read */
-  AccelerometerRead(KIONIX_TDT_TIMER, pReadRegisterData, 6);
-  
-  if (pReadRegisterData[0] != 0x78 ||
-      pReadRegisterData[1] != 0xCB || /* b6 */
-      pReadRegisterData[2] != 0x1A ||
-      pReadRegisterData[3] != 0xA2 ||
-      pReadRegisterData[4] != 0x24 ||
-      pReadRegisterData[5] != 0x28)
-  {
-    // need to be checked
-    PrintS("# Invalid i2c burst read");
-  }
-          
-  /* single read */
-  AccelerometerRead(KIONIX_DCST_RESP, pReadRegisterData, 1);
-  
-  if (pReadRegisterData[0] != 0x55)
-  {
-    PrintF("Invalid i2c Read: 0x%02X", pReadRegisterData[0]);
-  }
-
-  AccelerometerRead(KIONIX_INT_SRC_REG2, pReadRegisterData, ONE_BYTE);
-
   tMessage Msg;
-  
-  if ((*pReadRegisterData & INT_TAP_SINGLE) == INT_TAP_SINGLE)
-  {
-    SendMessage(&Msg, SetBacklightMsg, LED_ON_OPTION);
-  }
-//  else if ((*pReadRegisterData & INT_TAP_DOUBLE) == INT_TAP_DOUBLE)
 
-  if (Connected(CONN_TYPE_MAIN))
+  SetupMessageWithBuffer(&Msg, AccelIndMsg, MSG_OPT_NONE);
+  if (Msg.pBuffer != NULL)
   {
-    SetupMessageWithBuffer(&Msg, AccelHostMsg, MSG_OPT_NONE);
-    if (Msg.pBuffer != NULL)
+    if (Control & WUF_ENABLE)
     {
-      Msg.Options = (SidControl == SID_CONTROL_SEND_INTERRUPT) ?
-        MSG_OPT_ACCEL_INTERRUPT : MSG_OPT_ACCEL_DATA;
-      Msg.Length = SidLength;
-      AccelerometerRead(SidAddr, Msg.pBuffer, SidLength);
-      RouteMsg(&Msg);
+      AccelerometerRead(KIONIX_XOUT_HPF_L, Data, XYZ_DATA_LENGTH);
+      AccelerometerRead(KIONIX_INT_REL, Data, ONE_BYTE); //clear int
     }
-  }
+    else AccelerometerRead(KIONIX_XOUT_L, Data, XYZ_DATA_LENGTH);
 
-  ReadInterruptReleaseRegister();
+    Msg.pBuffer[0] = CONVERT_TO_8_BIT(0);
+    Msg.pBuffer[1] = CONVERT_TO_8_BIT(2);
+    Msg.pBuffer[2] = CONVERT_TO_8_BIT(4);
+    Msg.Length = 3;
+    RouteMsg(&Msg);
+
+    PrintH(Msg.pBuffer[0]); PrintC(SPACE);
+    PrintH(Msg.pBuffer[1]); PrintC(SPACE);
+    PrintH(Msg.pBuffer[2]); PrintR();
+  }
 }
 
 static void EnableAccelerometer(void)
 {
-  /* put into the mode specified by the OperatingModeRegister */
-  AccelerometerWrite(KIONIX_CTRL_REG1, &OperatingModeRegister, ONE_BYTE);
-  
-  if (InterruptControl == INTERRUPT_CONTROL_ENABLE_INTERRUPT)
-  {
-    ReadInterruptReleaseRegister();
-  }
+  ENTER_OPERATING_MODE();
   ACCELEROMETER_INT_ENABLE();
-  AccelState = ACCEL_STATE_ENABLED;
 }
 
 static void DisableAccelerometer(void)
 {   
   /* put into low power mode */
-  WriteRegisterData = PC1_STANDBY_MODE;
-  AccelerometerWrite(KIONIX_CTRL_REG1,&WriteRegisterData,ONE_BYTE);
-
   ACCELEROMETER_INT_DISABLE();
-  AccelState = ACCEL_STATE_DISABLED;
+  ENTER_STANDBY_MODE();
 }
 
 void HandleAccelerometer(tMessage *pMsg)
 {
-  if (AccelState == ACCEL_STATE_UNKNOWN) InitAccelerometer();
+  if (Control == INIT_MODE) InitAccelerometer();
 
-  switch (pMsg->Type)
+  switch (pMsg->Options)
   {
-  case EnableAccelMsg:
-    if (AccelState == ACCEL_STATE_DISABLED) EnableAccelerometer();
-    break;
-
-  case DisableAccelMsg:
-    if (AccelState == ACCEL_STATE_ENABLED) DisableAccelerometer();
-    break;
-
-  case AccelSendDataMsg:
+  case MSG_OPT_ACCEL_DATA:
     AccelerometerSendDataHandler();
     break;
 
-  case AccelAccessMsg:
-    AccelerometerAccessHandler(pMsg);
+  case MSG_OPT_ACCEL_ENABLE:
+    if (!(Control & PC1_OPERATING_MODE)) EnableAccelerometer();
     break;
 
-  case AccelSetupMsg:
-    AccelerometerSetupHandler(pMsg);
+  case MSG_OPT_ACCEL_DISABLE:
+    if (Control & PC1_OPERATING_MODE) DisableAccelerometer();
+    break;
+
+  case MSG_OPT_ACCEL_STREAMING:
+    ENTER_STANDBY_MODE();
+    Control &= ~WUF_ENABLE;
+    Control |= DRDYE_DATA_AVAILABLE;
+    AccelerometerWrite(KIONIX_CTRL_REG1, &Control, ONE_BYTE);
+    ENTER_OPERATING_MODE();
+    break;
+
+  case MSG_OPT_ACCEL_WUF:
+    ENTER_STANDBY_MODE();
+    Control &= ~DRDYE_DATA_AVAILABLE;
+    Control |= WUF_ENABLE;
+    AccelerometerWrite(KIONIX_CTRL_REG1, &Control, ONE_BYTE);
+    ENTER_OPERATING_MODE();
+    break;
+
+  case MSG_OPT_ACCEL_WUF_THRESHOLD:
+
+    ENTER_STANDBY_MODE();
+    *Data = *pMsg->pBuffer;
+    AccelerometerWrite(KIONIX_WUF_THRESH, Data, ONE_BYTE);
+    ENTER_OPERATING_MODE();
+    break;
+
+  case MSG_OPT_ACCEL_G_RANGE:
+  
+    ENTER_STANDBY_MODE();
+    Control &= ~ACCEL_RANGE_MASK;
+    Control |= *pMsg->pBuffer << ACCEL_RANGE_SHFT;
+    AccelerometerWrite(KIONIX_CTRL_REG1, &Control, ONE_BYTE);
+    ENTER_OPERATING_MODE();
     break;
 
   default:
     break;
   }
 }
-
-/*
- * Control how the msp430 responds to an interrupt,
- * control function of EnableAccelMsg,
- * and allow enabling and disabling interrupt in msp430
- */
-static void AccelerometerSetupHandler(tMessage* pMsg)
-{  
-  switch (pMsg->Options)
-  {
-  case ACCEL_OPMODE_OPTION:
-    OperatingModeRegister = *pMsg->pBuffer;
-    break;
-
-  case ACCEL_INTERRUPT_CONTROL_OPTION:
-    InterruptControl = *pMsg->pBuffer;
-    break;
-
-  case ACCEL_SID_CONTROL_OPTION:
-    SidControl = *pMsg->pBuffer;
-    break;
-
-  case ACCEL_SID_ADDR_OPTION:
-    SidAddr = *pMsg->pBuffer;
-    break;
-
-  case ACCEL_SID_LENGTH_OPTION:
-    SidLength = *pMsg->pBuffer;
-    break;
-
-  case ACCEL_INTERRUPT_ENABLE_DISABLE_OPTION:
-    if (*pMsg->pBuffer) {ACCELEROMETER_INT_ENABLE();}
-    else {ACCELEROMETER_INT_DISABLE();}
-    break;
-    
-  default:
-    break;
-  }
-}
-
-/* Perform a read or write access of the accelerometer */
-static void AccelerometerAccessHandler(tMessage* pMsg)
-{
-  tAccelAccessPayload* pPayload = (tAccelAccessPayload *)pMsg->pBuffer;
-
-  if (pMsg->Options == MSG_OPT_ACCEL_WRITE)
-  {
-    AccelerometerWrite(pPayload->Addr, &pPayload->Data, pPayload->Size);
-  }
-  else
-  {
-    tMessage Msg;
-    SetupMessageWithBuffer(&Msg, AccelRespMsg, pPayload->Size);
-    if (Msg.pBuffer != NULL)
-    {
-      AccelerometerRead(pPayload->Addr, Msg.pBuffer, pPayload->Size);
-      RouteMsg(&Msg);
-    }
-  }
-}
-
 /* This interrupt port is used by the Bluetooth stack.
  * Do not change the name of this function because it is externed.
  */
@@ -380,6 +251,30 @@ void AccelerometerPinIsr(void)
    * occurred message
    */
   tMessage Msg;
-  SetupMessage(&Msg, AccelSendDataMsg, MSG_OPT_NONE);  
+  SetupMessage(&Msg, AccelMsg, MSG_OPT_ACCEL_DATA);  
   SendMessageToQueueFromIsr(DISPLAY_QINDEX, &Msg);
 }
+
+//
+///* Perform a read or write access of the accelerometer */
+//static void AccelerometerAccessHandler(tMessage *pMsg)
+//{
+//  tAccelAccessPayload* pPayload = (tAccelAccessPayload *)pMsg->pBuffer;
+//
+//  if (pMsg->Options == MSG_OPT_ACCEL_WRITE)
+//  {
+//    AccelerometerWrite(pPayload->Addr, &pPayload->Data, pPayload->Size);
+//  }
+//  else
+//  {
+//    tMessage Msg;
+//    SetupMessageWithBuffer(&Msg, AccelRespMsg, pPayload->Size);
+//    if (Msg.pBuffer != NULL)
+//    {
+//      AccelerometerRead(pPayload->Addr, Msg.pBuffer, pPayload->Size);
+//      RouteMsg(&Msg);
+//    }
+//  }
+//}
+
+
