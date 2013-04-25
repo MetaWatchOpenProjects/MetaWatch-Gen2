@@ -31,7 +31,7 @@
 #define ONE_SECOND_TIMERS_H
 
 /*! setting the repeat count to 0xFF causes a timer to repeat forever */
-#define NO_REPEAT      (0)
+#define TOUT_ONCE      (1)
 #define REPEAT_FOREVER (0xFF)
 
 typedef enum

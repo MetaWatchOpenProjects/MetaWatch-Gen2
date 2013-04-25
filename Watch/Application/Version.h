@@ -183,15 +183,15 @@
 /* 493    04/07/13  Mu Yang  Change battery up/down gap limits to 10/5.       */
 /* 494    04/08/13  Mu Yang  v1.47: Enable accelerometer.                     */
 /* 495    04/09/13  Mu Yang  Fix clock-not-update when SetProperty.           */
-/* 496    04/11/13  Mu Yang  Support countdown timer.                         */
 /* 497    04/18/13  Mu Yang  v1.49: fmt chg to n.n.nd;							            */
 /*                           SrvMenu Test vibration; Rm Tout for connecting   */
-/* 498    04/19/13  Mu Yang  Mv Countdown bmp to __data20 to not break BL. 	  */
 /* 499    04/20/13  Mu Yang  Pass BootVer to App to be shown in "Ready...". 	*/
+/* 500    04/23/13  Mu Yang  Fix ClearLcd in splash screen sometimes fails. 	*/
+/* 501    04/23/13  Mu Yang  Change OneSecondTimer TOUT_ONCE to be 1;         */
+/* 502    04/23/13  Mu Yang  Fix always use same timeout for all modes;       */
 /******************************************************************************/
 
-
 #define APP_VER     "1.4.0d"
-#define BUILD_VER   "499.421"
+#define BUILD_VER   "505.424"
 
 #endif /* VERSION_H */

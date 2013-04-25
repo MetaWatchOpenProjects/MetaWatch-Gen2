@@ -152,7 +152,7 @@ static void RestoreRtc(void)
   CheckResetCode();
   
   if (niReset == NORMAL_RESET_CODE &&
-      RtcYear >= 0x2013 && RtcYear <= 0x2099)
+      ToBin(RtcHour) < 24 && ToBin(RtcMin) < 60)
   {
     RTCYEAR = RtcYear;
     RTCMON = RtcMon;

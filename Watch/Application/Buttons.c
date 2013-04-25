@@ -123,11 +123,7 @@ static const tButtonAction DisconnAction[] =
 static const tButtonAction InitAction[] =
 {
   {BTN_A | INIT_PAGE | BTN_EVT_IMDT, ModifyTimeMsg, RTC_MIN},
-#if COUNTDOWN_TIMER
-  {BTN_B | INIT_PAGE | BTN_EVT_IMDT, CountDownMsg, MSG_OPT_NONE},
-#else
   {BTN_B | INIT_PAGE | BTN_EVT_IMDT, ModifyTimeMsg, RTC_DOW},
-#endif
   {BTN_C | INIT_PAGE | BTN_EVT_RELS, MenuModeMsg, Menu1Page},
   {BTN_D | INIT_PAGE | BTN_EVT_IMDT, WatchStatusMsg, 0},
   {BTN_E | INIT_PAGE | BTN_EVT_IMDT, ModifyTimeMsg, RTC_HOUR},
@@ -138,9 +134,6 @@ static const tButtonAction InitAction[] =
 
   {BTN_A | CALL_PAGE | BTN_EVT_IMDT, CallerNameMsg, SHOW_NOTIF_REJECT_CALL},
   {BTN_C | CALL_PAGE | BTN_EVT_RELS, MenuModeMsg, Menu1Page},
-// for testing Wwz
-  {BTN_B | CDT_PAGE | BTN_EVT_IMDT, IdleUpdateMsg, MSG_OPT_NONE},
-  {BTN_D | CDT_PAGE | BTN_EVT_IMDT, SetCountdownDoneMsg, MSG_OPT_NONE},
 };
 #define INIT_PAGE_ACT_NUM (sizeof(InitAction) / sizeof(tButtonAction))
 
@@ -148,7 +141,7 @@ static const tButtonAction MenuAction[] =
 {
   {BTN_A | MENU_PAGE_0 | BTN_EVT_IMDT, MenuButtonMsg, MENU_BUTTON_OPTION_TOGGLE_BLUETOOTH},
   {BTN_B | MENU_PAGE_0 | BTN_EVT_IMDT, MenuButtonMsg, MENU_BUTTON_OPTION_DISPLAY_SECONDS},
-  {BTN_C | MENU_PAGE_0 | BTN_EVT_RELS, MenuButtonMsg, MENU_BUTTON_OPTION_EXIT},
+  {BTN_C | MENU_PAGE_0 | BTN_EVT_RELS, ChangeModeMsg, IDLE_MODE | MSG_OPT_UPD_INTERNAL},
   {BTN_D | MENU_PAGE_0 | BTN_EVT_IMDT, MenuButtonMsg, MENU_BUTTON_OPTION_TOGGLE_LINK_ALARM},
   {BTN_E | MENU_PAGE_0 | BTN_EVT_IMDT, MenuButtonMsg, MENU_BUTTON_OPTION_INVERT_DISPLAY},
   
@@ -203,10 +196,8 @@ void InitButton(void)
     ButtonData[i].BtnHoldCounter = 0;
   }
 
-#ifdef DIGITAL
   // init ButtonAction[] with DisconnButtonAction[]
   for (i = 0; i < DISCONN_PAGE_ACT_NUM; ++i) ButtonAction[i] = DisconnAction[i];
-#endif
 }
 
 /*! This is the event handler for the Button Event Message that is called
@@ -366,7 +357,6 @@ static void HandleButtonEvent(unsigned char Index, unsigned char Event)
 //  PrintS(tringAndTwoDecimals("- BtnEvt i:", Index, "e:", Event);
 //  PrintS(tringAndHexByte("LstBF:0x", LastButton);
 
-#ifdef DIGITAL
   unsigned char Done = pdFALSE;
 
   if (Event == BTN_EVT_HOLD)
@@ -404,43 +394,49 @@ static void HandleButtonEvent(unsigned char Index, unsigned char Event)
   const tButtonAction *pAction;
   unsigned char ActNum, ModePage;
   
-  if (PageType == PAGE_TYPE_MENU)
+  if (PageType == PAGE_TYPE_MENU) // menu page can't be overwritten in any case
   {
     pAction = MenuAction;
     ActNum = MENU_PAGE_ACT_NUM;
     ModePage = CurrentIdlePage() - Menu1Page;
   }
-  else if (CurrentIdlePage() == DisconnectedPage)
-  {// disconnected
-    pAction = DisconnAction;
-    ActNum = DISCONN_PAGE_ACT_NUM;
-    ModePage = ButtonMode;
-  }
-  else if (CurrentIdlePage() == ConnectedPage)
+  else if (CurrentMode == IDLE_MODE)
   {
-    pAction = ButtonAction;
-    ActNum = CONN_PAGE_ACT_NUM;
-    ModePage = ButtonMode;
+    if (CurrentIdlePage() == DisconnectedPage)
+    {// disconnected
+      pAction = DisconnAction;
+      ActNum = DISCONN_PAGE_ACT_NUM;
+      ModePage = ButtonMode;
+    }
+    else if (CurrentIdlePage() == ConnectedPage)
+    {
+      pAction = ButtonAction;
+      ActNum = CONN_PAGE_ACT_NUM;
+      ModePage = ButtonMode;
+    }
+    else
+    {// InitPage, StatusPage or CallPage
+      pAction = InitAction;
+      ActNum = INIT_PAGE_ACT_NUM;
+      ModePage = CurrentIdlePage() - InitPage;
+    }
   }
   else
-  {// InitPage, StatusPage or CallPage
-    pAction = InitAction;
-    ActNum = INIT_PAGE_ACT_NUM;
-    ModePage = CurrentIdlePage() - InitPage;
+  {
+    ModePage = ButtonMode;
+    if (Connected(CONN_TYPE_MAIN))
+    {
+      pAction = ButtonAction;
+      ActNum = CONN_PAGE_ACT_NUM;
+    }
+    else
+    {
+      pAction = DisconnAction;
+      ActNum = DISCONN_PAGE_ACT_NUM;
+    }
   }
   
 //  PrintS(tringAndThreeDecimals("- CurrP:", CurrentIdlePage(), " ActNum:", ActNum, " ModePage:", ModePage);
-
-#else
-
-  const tButtonAction *pAction;
-  unsigned char ActNum, ModePage;
-
-  pAction = ButtonAction;
-  ActNum = CONN_PAGE_ACT_NUM;
-  ModePage = CurrentIdlePage();
-
-#endif
 
   unsigned char i;
   for (i = 0; i < ActNum; ++i)

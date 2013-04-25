@@ -602,16 +602,7 @@ void UpdateDisplayHandler(tMessage* pMsg)
     { // turn page
       if ((pMsg->Options & MSG_OPT_TURN_PAGE) == MSG_OPT_NXT_PAGE) CurrentPage ++;
 
-#if COUNTDOWN_TIMER
-      if (CurrentPage == IDLE_PAGE_NUM)
-      {
-        CurrentPage = 0;
-        SendMessage(&Msg, CountDownMsg, MSG_OPT_NONE);
-        return;
-      }
-#endif
-
-      if (CurrentPage > IDLE_PAGE_NUM) CurrentPage = 0;
+      if (CurrentPage == IDLE_PAGE_NUM) CurrentPage = 0;
     }
     
     // not in idle mode idle page
@@ -742,7 +733,8 @@ void UpdateDisplayHandler(tMessage* pMsg)
     if (!(pMsg->Options & MSG_OPT_UPD_INTERNAL))
     {
       signed char Result = ComparePriority(Mode);
-      
+      PrintF("- UpdDsp Priority:%d", Result);
+
       if (Result > 0) SendMessage(&Msg, ChangeModeMsg, Mode);
       else if (Result < 0) return;
       else if (CurrentMode != IDLE_MODE) ResetModeTimer();
@@ -1023,6 +1015,7 @@ void SerialRamInit(void)
 
   /* release reset and wait for SPI to initialize */
   UCA0CTL1 &= ~UCSWRST;
+
   vTaskDelay(SPI_INIT_DELAY_IN_MS);
 
   /*

@@ -46,6 +46,7 @@ void EnterLpm3(void)
 
     /* leave fll control alone SCG0 (ucs7) */
     _BIS_SR(SCG1 + CPUOFF + GIE);
+
     __no_operation();
     DEBUG1_LOW();
 

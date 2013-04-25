@@ -52,10 +52,6 @@
 #include "Fonts.h"
 #include "LcdBuffer.h"
 
-#if COUNTDOWN_TIMER
-#include "Countdown.h"
-#endif
-
 #define PAGE_TYPE_NUM                 (3)
 #define MUSIC_STATE_START_ROW         (43)
 
@@ -76,6 +72,7 @@ static eIdleModePage CurrentPage[PAGE_TYPE_NUM];
 static const tSetVibrateModePayload RingTone = {1, 0x00, 0x01, 0x00, 0x01, 2};
 static const tSetVibrateModePayload TestTone = {1, 0x80, 0x01, 0x80, 0x00, 3};
 static const tSetVibrateModePayload LnkAlmTone = {1, 0xC8, 0x00, 0xF4, 0x01, 1};
+static const unsigned int ModeTimeOut[] = {TOUT_IDLE_MODE, TOUT_APP_MODE, TOUT_NOTIF_MODE, TOUT_MUSIC_MODE};
 
 static unsigned char Splashing = pdTRUE;
 static unsigned char LedOn = 0;
@@ -181,9 +178,6 @@ void Init(void)
   if (niReset != NORMAL_RESET_CODE)
   {
     InitProperty();
-#if COUNTDOWN_TIMER
-    InitCountdown();
-#endif
   }
   
   InitBufferPool(); // message queue
@@ -352,37 +346,8 @@ static void DisplayQueueMessageHandler(tMessage* pMsg)
   case SetRtcMsg:
     SetRtc((Rtc_t *)pMsg->pBuffer);
 
-#if DIGITAL
     UpdateClock();
-#endif
     break;
-
-#if COUNTDOWN_TIMER
-  case CountDownMsg:
-    if (pMsg->Options == MSG_OPT_NONE)
-    {
-      PageType = PAGE_TYPE_INFO;
-      CurrentPage[PageType] = CountdownPage;
-    }
-    DrawCountdownScreen(pMsg->Options);
-    break;
-
-  case SetCountdownDoneMsg:
-    // for testing
-    if (pMsg->pBuffer == NULL)
-    {
-      Rtc_t Done;
-      Done.Month = 6;
-      Done.Day = 1;
-      Done.Hour = 0;
-      Done.Minute = 0;
-      SetDoneTime(&Done);
-    }
-    else SetDoneTime((Rtc_t *)pMsg->pBuffer);
-    
-    SendMessage(&Msg, CountDownMsg, MSG_OPT_NONE);
-    break;
-#endif
 
   case ServiceMenuMsg:
     ServiceMenuHandler();
@@ -522,6 +487,9 @@ static void IdleUpdateHandler(void)
 
 static void ChangeModeHandler(unsigned char Option)
 {
+  PrintF("- ChgModInd:0x%02x", Option);
+  PrintF(" PgTp %d Pg: %d", PageType, CurrentPage[PageType]);
+  
   unsigned char Mode = Option & MODE_MASK;
 
   tMessage Msg;
@@ -532,22 +500,27 @@ static void ChangeModeHandler(unsigned char Option)
     Msg.Length = 1;
     RouteMsg(&Msg);
   }
-  PrintF("- ChgModInd:0x%02x", Msg.Options);
-  
+
   if (Option & MSG_OPT_CHGMOD_IND) return; // ask for current idle page only
     
-  StopTimer(ModeTimer);
-  CurrentMode = Mode;
+//  StopTimer(ModeTimer);
 
   if (Mode == MUSIC_MODE) SendMessage(&Msg, UpdConnParamMsg, ShortInterval);
+  else if (CurrentMode == MUSIC_MODE) SendMessage(&Msg, UpdConnParamMsg, LongInterval);
 
-  if (Mode != IDLE_MODE)
+  CurrentMode = Mode;
+  
+  if (Mode == IDLE_MODE)
   {
-    PageType = PAGE_TYPE_IDLE;
-    StartTimer(ModeTimer);
+//    PageType = PAGE_TYPE_IDLE;
+      IdleUpdateHandler();
+  }
+  else
+  {
+    SetTimer(ModeTimer, ModeTimeOut[Mode], TOUT_ONCE);
+    
     if (Option & MSG_OPT_UPD_INTERNAL) SendMessage(&Msg, UpdateDisplayMsg, Option);
   }
-  else IdleUpdateHandler();
 }
 
 static void ModeTimeoutHandler()
@@ -600,15 +573,11 @@ static void BluetoothStateChangeHandler(tMessage *pMsg)
     {
       if (PageType == PAGE_TYPE_IDLE)
       {
-        if (!OnceConnected()) DrawConnectionScreen();
-        else
+        if (OnceConnected())
         {
-#if COUNTDOWN_TIMER
-          if (Connected(CONN_TYPE_MAIN)) CreateAndSendMessage(CountDownMsg, MSG_OPT_NONE);
-#else
           UpdateClock();
-#endif
         }
+        else DrawConnectionScreen();
       }
       else if (PageType == PAGE_TYPE_MENU) MenuModeHandler(0);
       else if (CurrentPage[PAGE_TYPE_INFO] == StatusPage) DrawWatchStatusScreen();
@@ -854,18 +823,6 @@ unsigned char LcdRtcUpdateHandlerIsr(void)
       lastMin = Minute;
       ExitLpm = pdTRUE;
     }
-#if COUNTDOWN_TIMER
-    else if (CurrentPage[PageType] == CountdownPage)
-    {
-      if (CountdownMode() == COUNTING && Minute != lastMin)
-      {
-        SetupMessage(&Msg, CountDownMsg, MSG_OPT_CNTDWN_TIME);
-        SendMessageToQueueFromIsr(DISPLAY_QINDEX, &Msg);
-        lastMin = Minute;
-        ExitLpm = pdTRUE;
-      }
-    }
-#endif
   }
 
   return ExitLpm;

@@ -366,14 +366,15 @@ typedef enum
 /* Timeout for OneSecondTimer */
 #define TOUT_MONITOR_BATTERY          (10) //second
 #define TOUT_BACKLIGHT                (5) //second
+#define TOUT_IDLE_MODE                (0xFFFF)
+#define TOUT_APP_MODE                 (600)
 #define TOUT_NOTIF_MODE               (30)
 #define TOUT_MUSIC_MODE               (600)
-#define TOUT_APP_MODE                 (600)
 #define TOUT_CALL_NOTIF               (10)
 #define TOUT_CONN_HFP_MAP_LONG        (10)
 #define TOUT_CONN_HFP_MAP_SHORT       (1)
 #define TOUT_TUNNEL_CONNECTING        (10)
-#define TOUT_TUNNEL_IOS               (1)
+#define TOUT_TUNNEL_LONG              (60)
 
 /* these should match the display modes for idle, application, notification,
  * and scroll modes

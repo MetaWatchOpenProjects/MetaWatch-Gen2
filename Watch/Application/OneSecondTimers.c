@@ -1,5 +1,5 @@
 //==============================================================================
-//  Copyright 2011 Meta Watch Ltd. - http://www.MetaWatch.org/
+//  Copyright 2011-2013 Meta Watch Ltd. - http://www.MetaWatch.org/
 // 
 //  Licensed under the Meta Watch License, Version 1.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -60,11 +60,11 @@ typedef struct
 static const tTimerSettings TimerSettings[] =
 {
   {TOUT_MONITOR_BATTERY, REPEAT_FOREVER, DISPLAY_QINDEX, MonitorBatteryMsg, MSG_OPT_NONE},
-  {TOUT_NOTIF_MODE, NO_REPEAT, DISPLAY_QINDEX, ModeTimeoutMsg, NOTIF_MODE},
-  {TOUT_CALL_NOTIF, NO_REPEAT, DISPLAY_QINDEX, CallerNameMsg, SHOW_NOTIF_END},
-  {TOUT_BACKLIGHT, NO_REPEAT, DISPLAY_QINDEX, SetBacklightMsg, LED_OFF_OPTION},
-  {TOUT_CONN_HFP_MAP_LONG, NO_REPEAT, WRAPPER_QINDEX, ConnTimeoutMsg, MSG_OPT_NONE},
-  {TOUT_TUNNEL_IOS, NO_REPEAT, WRAPPER_QINDEX, TunnelTimeoutMsg, MSG_OPT_NONE}
+  {TOUT_NOTIF_MODE, TOUT_ONCE, DISPLAY_QINDEX, ModeTimeoutMsg, NOTIF_MODE},
+  {TOUT_CALL_NOTIF, TOUT_ONCE, DISPLAY_QINDEX, CallerNameMsg, SHOW_NOTIF_END},
+  {TOUT_BACKLIGHT, TOUT_ONCE, DISPLAY_QINDEX, SetBacklightMsg, LED_OFF_OPTION},
+  {TOUT_CONN_HFP_MAP_LONG, TOUT_ONCE, WRAPPER_QINDEX, ConnTimeoutMsg, MSG_OPT_NONE},
+  {TOUT_TUNNEL_LONG, TOUT_ONCE, WRAPPER_QINDEX, TunnelTimeoutMsg, MSG_OPT_NONE}
 };
 #define TOTAL_TIMERS    (sizeof(TimerSettings) / sizeof(tTimerSettings))
 
@@ -81,11 +81,8 @@ void StartTimer(eTimerId Id)
     Timer[Id].MsgOpt = TimerSettings[Id].MsgOpt;
   }
 
-  if (!Timer[Id].Timeout)
-  {
-    Timer[Id].Timeout = TimerSettings[Id].Timeout;
-    Timer[Id].Repeat = TimerSettings[Id].Repeat;
-  }
+  if (!Timer[Id].Timeout) Timer[Id].Timeout = TimerSettings[Id].Timeout;
+  if (!Timer[Id].Repeat) Timer[Id].Repeat = TimerSettings[Id].Repeat;
   
   Timer[Id].DownCounter = Timer[Id].Timeout;
   Timer[Id].Running = pdTRUE;
@@ -94,14 +91,20 @@ void StartTimer(eTimerId Id)
 
 void SetTimer(eTimerId Id, unsigned int Timeout, unsigned char Repeat)
 {
-  Timer[Id].Timeout = Timeout;
-  Timer[Id].Repeat = Repeat;
-  StartTimer(Id);
+  if (!Timeout || !Repeat) StopTimer(Id);
+  else
+  {
+    Timer[Id].Timeout = Timeout;
+    Timer[Id].Repeat = Repeat;
+    StartTimer(Id);
+  }
 }
 
 void StopTimer(eTimerId Id)
 {
   Timer[Id].Running = pdFALSE;
+  Timer[Id].Timeout = TimerSettings[Id].Timeout;
+  Timer[Id].Repeat = TimerSettings[Id].Repeat;
 }
 
 /* this should be as fast as possible because it happens in interrupt context
@@ -119,15 +122,10 @@ unsigned char OneSecondTimerHandlerIsr(void)
       /* decrement the counter first, then check if the counter == 0 */
       if (--Timer[i].DownCounter == 0)
       {
-        if (Timer[i].Repeat == 0)
-        {
-          Timer[i].Running = pdFALSE;
-        }
-        else
-        {
-          Timer[i].DownCounter = Timer[i].Timeout;
-          if (Timer[i].Repeat != REPEAT_FOREVER) Timer[i].Repeat --;
-        }
+        if (Timer[i].Repeat != REPEAT_FOREVER) Timer[i].Repeat --;
+        
+        if (Timer[i].Repeat == 0) Timer[i].Running = pdFALSE;
+        else Timer[i].DownCounter = Timer[i].Timeout;
 
         tMessage Msg;
         SetupMessage(&Msg, Timer[i].MsgType, Timer[i].MsgOpt);

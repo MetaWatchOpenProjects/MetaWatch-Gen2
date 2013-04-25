@@ -14,9 +14,7 @@
 //  limitations under the License.
 //==============================================================================
 
-#include <string.h>
 #include "FreeRTOS.h"
-
 #include "hal_board_type.h"
 #include "hal_battery.h"
 #include "hal_miscellaneous.h"
@@ -34,10 +32,6 @@
 #include "LcdBuffer.h"
 #include "hal_lpm.h"
 #include "hal_rtc.h"
-
-#if COUNTDOWN_TIMER
-#include "Countdown.h"
-#endif
 
 #define SPLASH_START_ROW   (41)
 
@@ -347,10 +341,11 @@ void DrawCallScreen(char *pCallerId, char *pCallerName)
 
   // align center
   unsigned char i = 0;
-  unsigned char NameWidth = 0;
-  for (; i < strlen(pCallerName); ++i) NameWidth += GetCharacterWidth(pCallerName[i]);
-  NameWidth += GetFontSpacing() * strlen(pCallerName);
-  
+
+  while (pCallerName[i++]);
+  unsigned char NameWidth = GetFontSpacing() * i;
+  for (; i > 0; --i) NameWidth += GetCharacterWidth(pCallerName[i - 1]);
+
   gColumn = ((LCD_COL_NUM - NameWidth) >> 1) >> 3;
   gBitColumnMask = 1 << (((LCD_COL_NUM - NameWidth) >> 1) & 0x07);
 
@@ -615,19 +610,17 @@ static void WriteFontString(char const *pString)
 /*! Display the startup image or Splash Screen */
 void DrawSplashScreen(void)
 {
-  ClearLcd();
+//  ClearLcd();
   // clear LCD buffer
-  memset(pMyBuffer, 0, LCD_BUFFER_SIZE);
+  FillMyBuffer(0, LCD_ROW_NUM, 0x00);
 
-#if COUNTDOWN_TIMER
-  DrawWwzSplashScreen();
-#else
   /* draw metawatch logo */
   CopyColumnsIntoMyBuffer(pIconSplashLogo, 21, 13, 3, 6);
   CopyRowsIntoMyBuffer(pIconSplashMetaWatch, SPLASH_START_ROW, 12);
   CopyColumnsIntoMyBuffer(pIconSplashHandsFree, 58, 5, 2, 8);
-  SendMyBufferToLcd(21, 42); // 58 + 5 - 21
-#endif
+//  SendMyBufferToLcd(21, 42); // 58 + 5 - 21
+
+  SendMyBufferToLcd(0, LCD_ROW_NUM);
 }
 
 void DrawBootloaderScreen(void)

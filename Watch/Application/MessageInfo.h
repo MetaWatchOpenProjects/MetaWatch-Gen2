@@ -239,7 +239,7 @@ static const tMsgInfo MsgInfo[MAXIMUM_MESSAGE_TYPES] =
   {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0xcb */
   {"AckMsg",                      WRAPPER_QINDEX,    1 }, /* 0xcc */
   {"CntdwnMsg",                   DISPLAY_QINDEX,    1 }, /* 0xcd */
-  {"SetCtndwnMsg",                DISPLAY_QINDEX,    1 }, /* 0xce */
+  {"SetDoneMsg",                  DISPLAY_QINDEX,    1 }, /* 0xce */
   {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0xcf */
   {"QueryMemMsg",                 WRAPPER_QINDEX,    0 }, /* 0xd0 */
   {"RamTstMsg",                   DISPLAY_QINDEX,    1 }, /* 0xd1 */
@@ -257,8 +257,8 @@ static const tMsgInfo MsgInfo[MAXIMUM_MESSAGE_TYPES] =
   {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0xdd */
   {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0xde */
   {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0xdf */
-  {"AccelIndMsg",                 WRAPPER_QINDEX,    0 }, /* 0xe0 */
-  {"AccelMsg" ,                   DISPLAY_QINDEX,    0 }, /* 0xe1 */
+  {"AccelIndMsg",                 WRAPPER_QINDEX,    1 }, /* 0xe0 */
+  {"AccelMsg" ,                   DISPLAY_QINDEX,    1 }, /* 0xe1 */
   {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0xe2 */
   {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0xe3 */
   {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0xe4 */
