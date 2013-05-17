@@ -40,7 +40,7 @@ typedef enum
   ModeTimer,
   ShowCallTimer,
   BacklightTimer,
-  HfpMapTimer,
+  WrapperTimer,
   TunnelTimer
 } eTimerId;
 

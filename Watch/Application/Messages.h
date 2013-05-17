@@ -259,7 +259,7 @@ typedef enum
   SetCountdownDoneMsg = 0xce,
   
   QueryMemoryMsg = 0xd0,
-  RamTestMsg = 0xd1,
+  ConnTypeMsg = 0xd1,
   RateTestMsg = 0xd2,
   
   AccelIndMsg = 0xe0,
@@ -373,8 +373,9 @@ typedef enum
 #define TOUT_CALL_NOTIF               (10)
 #define TOUT_CONN_HFP_MAP_LONG        (10)
 #define TOUT_CONN_HFP_MAP_SHORT       (1)
+#define TOUT_DISCONNECT               (10)
 #define TOUT_TUNNEL_CONNECTING        (10)
-#define TOUT_TUNNEL_LONG              (60)
+#define TOUT_TUNNEL_LONG              (40) //60
 
 /* these should match the display modes for idle, application, notification,
  * and scroll modes

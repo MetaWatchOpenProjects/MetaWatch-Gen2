@@ -54,9 +54,9 @@ void vApplicationIdleHook(void)
    */ 
 
   /* enter a critical section so that the flags can be checked */
-  __disable_interrupt();
-  __no_operation();
-  
+//  __disable_interrupt();
+//  __no_operation();
+
   /* the watchdog is set at 16 seconds.
    * the battery interval rate is set a 10 seconds
    * each task checks in at the battery interval rate
@@ -71,8 +71,12 @@ void vApplicationIdleHook(void)
     /* Call MSP430 Utility function to enable low power mode 3.     */
     /* Put OS and Processor to sleep. Will need an interrupt        */
     /* to wake us up from here.   */
+//    DISABLE_LCD_LED();
     EnterLpm3();
+//    ENABLE_LCD_LED();
 
+  __enable_interrupt();
+  __no_operation();
     /* If we get here then interrupts are enabled */
     return;
   }

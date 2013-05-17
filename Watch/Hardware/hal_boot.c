@@ -101,7 +101,3 @@ void SoftwareReset(void)
   BackupRtc();
   PMMCTL0 = PMMPW | PMMSWBOR;
 }
-
-
-
-

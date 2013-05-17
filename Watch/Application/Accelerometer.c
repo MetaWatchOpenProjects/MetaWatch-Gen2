@@ -104,7 +104,7 @@ static void InitAccelerometer(void)
   /* make sure accelerometer has had 20 ms to power up */
   vTaskDelay(ACCELEROMETER_POWER_UP_TIME_MS);
 
-  Control = ACCEL_CONTROL_DEFAULT0; // 0:wakeup; 1:streaming
+  Control = ACCEL_CONTROL_DEFAULT1; // 0:wakeup; 1:streaming
   AccelerometerWrite(KIONIX_CTRL_REG1, &Control, ONE_BYTE);
     
   /* change to output data rate to 25 Hz */
@@ -149,9 +149,10 @@ static void AccelerometerSendDataHandler(void)
     }
     else AccelerometerRead(KIONIX_XOUT_L, Data, XYZ_DATA_LENGTH);
 
-    Msg.pBuffer[0] = CONVERT_TO_8_BIT(0);
-    Msg.pBuffer[1] = CONVERT_TO_8_BIT(2);
-    Msg.pBuffer[2] = CONVERT_TO_8_BIT(4);
+
+    Msg.pBuffer[0] = Data[1];
+    Msg.pBuffer[1] = Data[3];
+    Msg.pBuffer[2] = Data[5];
     Msg.Length = 3;
     RouteMsg(&Msg);
 
@@ -185,14 +186,17 @@ void HandleAccelerometer(tMessage *pMsg)
     break;
 
   case MSG_OPT_ACCEL_ENABLE:
-    if (!(Control & PC1_OPERATING_MODE)) EnableAccelerometer();
+    CreateAndSendMessage(UpdConnParamMsg, ShortInterval);
+    EnableAccelerometer();
     break;
 
   case MSG_OPT_ACCEL_DISABLE:
-    if (Control & PC1_OPERATING_MODE) DisableAccelerometer();
+    DisableAccelerometer();
+    CreateAndSendMessage(UpdConnParamMsg, LongInterval);
     break;
 
   case MSG_OPT_ACCEL_STREAMING:
+  
     ENTER_STANDBY_MODE();
     Control &= ~WUF_ENABLE;
     Control |= DRDYE_DATA_AVAILABLE;
@@ -201,6 +205,7 @@ void HandleAccelerometer(tMessage *pMsg)
     break;
 
   case MSG_OPT_ACCEL_WUF:
+  
     ENTER_STANDBY_MODE();
     Control &= ~DRDYE_DATA_AVAILABLE;
     Control |= WUF_ENABLE;
@@ -211,8 +216,7 @@ void HandleAccelerometer(tMessage *pMsg)
   case MSG_OPT_ACCEL_WUF_THRESHOLD:
 
     ENTER_STANDBY_MODE();
-    *Data = *pMsg->pBuffer;
-    AccelerometerWrite(KIONIX_WUF_THRESH, Data, ONE_BYTE);
+    AccelerometerWrite(KIONIX_WUF_THRESH, pMsg->pBuffer, ONE_BYTE);
     ENTER_OPERATING_MODE();
     break;
 
@@ -220,7 +224,7 @@ void HandleAccelerometer(tMessage *pMsg)
   
     ENTER_STANDBY_MODE();
     Control &= ~ACCEL_RANGE_MASK;
-    Control |= *pMsg->pBuffer << ACCEL_RANGE_SHFT;
+    Control |= (*pMsg->pBuffer & 0x03) << ACCEL_RANGE_SHFT;
     AccelerometerWrite(KIONIX_CTRL_REG1, &Control, ONE_BYTE);
     ENTER_OPERATING_MODE();
     break;

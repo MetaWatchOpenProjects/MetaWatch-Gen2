@@ -377,9 +377,11 @@ unsigned int LightSenseCycle(void)
   LIGHT_SENSOR_L_GAIN();
   ENABLE_REFERENCE();
   
+  PrintS("- LightSensing BF vTaskDelay");
   /* light sensor requires 1 ms to wake up in the dark */
   vTaskDelay(LIGHT_SENSOR_WAKEUP_DELAY_IN_MS);
-  
+  PrintS("- LightSensing AF vTaskDelay");
+
   AdcCheck();
   
   CLEAR_START_ADDR();

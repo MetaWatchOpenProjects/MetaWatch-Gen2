@@ -189,9 +189,27 @@
 /* 500    04/23/13  Mu Yang  Fix ClearLcd in splash screen sometimes fails. 	*/
 /* 501    04/23/13  Mu Yang  Change OneSecondTimer TOUT_ONCE to be 1;         */
 /* 502    04/23/13  Mu Yang  Fix always use same timeout for all modes;       */
+/* 506    04/26/13  Mu Yang  Support ACK in SPP.                              */
+/* 507    04/29/13  Mu Yang  Fix HFP/MAP auto-reconnect.                      */
+/* 508    04/30/13  Mu Yang  Fix 0am -> 12am.                                 */
+/* 512    05/01/13  Mu Yang  Set MAP connected after Notif Server registered; */
+/*                           Support Disconnect BT state for CDT.             */
+/* 513    05/01/13  Mu Yang  Fix BR auto-connect regression.                  */
+/* 515    05/01/13  Mu Yang  Add G-range mask for configuring accelerometer.  */
+/* 520    05/06/13  Mu Yang  Tell phone if ACK is supported.                  */
+/* 521    05/06/13  Mu Yang  Print CSTACK once.                               */
+/* 522    05/06/13  Mu Yang  Fix GetDevTypeMsg sent to Wrapper queue.         */
+/* 523    05/08/13  Mu Yang  Correct accel output to direct XOUT_HPF_H.       */
+/* 524    05/10/13  Mu Yang  Accel streaming no need for clearing int.        */
+/* 525    05/10/13  Mu Yang  Fix caller name not shown if it's too long.      */
+/* 526    05/11/13  Mu Yang  New call notification UI.                        */
+/* 527    05/12/13  Mu Yang  Fix Accel streaming reset by postpone long intvl.*/
+/* 528    05/13/13  Mu Yang  Fix Accel streaming long intvl timeout.          */
+/* 529    05/14/13  Mu Yang  Clear BLE adv flags: simu BR/BLE.                */
+/* 530    05/16/13  Mu Yang  Add Hanzi watch face.                            */
 /******************************************************************************/
 
 #define APP_VER     "1.4.0d"
-#define BUILD_VER   "505.424"
+#define BUILD_VER   "530.000"
 
 #endif /* VERSION_H */

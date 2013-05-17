@@ -139,8 +139,14 @@ void SetRtc(Rtc_t *pRtcData)
   RtcMin = ToBCD(pRtcData->Minute);
   RtcSec = ToBCD(pRtcData->Second);
 
-  RestoreRtc();
-  
+  RTCYEAR = RtcYear;
+  RTCMON = RtcMon;
+  RTCDAY = RtcDay;
+  RTCDOW = RtcDow;
+  RTCHOUR = RtcHour;
+  RTCMIN = RtcMin;
+  RTCSEC = RtcSec;
+
   // Enable the RTC
   RTCCTL01 &= ~RTCHOLD;
 
@@ -152,7 +158,10 @@ static void RestoreRtc(void)
   CheckResetCode();
   
   if (niReset == NORMAL_RESET_CODE &&
-      ToBin(RtcHour) < 24 && ToBin(RtcMin) < 60)
+      BCD_H(RtcHour) >= 0 && BCD_H(RtcHour) <= 2 &&
+      BCD_L(RtcHour) >= 0 && BCD_L(RtcHour) <= 9 &&
+      BCD_H(RtcMin) >= 0 && BCD_H(RtcMin) <= 6 &&
+      BCD_L(RtcMin) >= 0 && BCD_L(RtcMin) <= 9)
   {
     RTCYEAR = RtcYear;
     RTCMON = RtcMon;

@@ -36,8 +36,8 @@ static const tMsgInfo MsgInfo[MAXIMUM_MESSAGE_TYPES] =
   {"InvalidMsg",                  FREE_QINDEX,       1 }, /* 0x00 */
   {"GetDevTypeMsg",               DISPLAY_QINDEX,    1 }, /* 0x01 */
   {"GetDevTypeResp",              WRAPPER_QINDEX,    1 }, /* 0x02 */
-  {"GetInfoMsg",                  DISPLAY_QINDEX,    1 }, /* 0x03 */
-  {"GetInfoResp",                 WRAPPER_QINDEX,    1 }, /* 0x04 */
+  {"GetInfoMsg",                  DISPLAY_QINDEX,    0 }, /* 0x03 */
+  {"GetInfoResp",                 WRAPPER_QINDEX,    0 }, /* 0x04 */
   {"DiagLoopback",                WRAPPER_QINDEX,    1 }, /* 0x05 */
   {"ShippingModMsg",              WRAPPER_QINDEX,    1 }, /* 0x06 */
   {"SoftResetMsg",                DISPLAY_QINDEX,    1 }, /* 0x07 */
@@ -81,8 +81,8 @@ static const tMsgInfo MsgInfo[MAXIMUM_MESSAGE_TYPES] =
   {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0x2d */
   {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0x2e */
   {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0x2f */
-  {"NvalMsg",                     DISPLAY_QINDEX,    0 }, /* 0x30 */
-  {"NvalResp",                    WRAPPER_QINDEX,    1 }, /* 0x31 */
+  {"PropMsg",                     DISPLAY_QINDEX,    0 }, /* 0x30 */
+  {"PropResp",                    WRAPPER_QINDEX,    1 }, /* 0x31 */
   {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0x32 */
   {"ModChgIndMsg",                WRAPPER_QINDEX,    0 }, /* 0x33 */
   {"BtnEventMsg",                 WRAPPER_QINDEX,    0 }, /* 0x34 */
@@ -242,7 +242,7 @@ static const tMsgInfo MsgInfo[MAXIMUM_MESSAGE_TYPES] =
   {"SetDoneMsg",                  DISPLAY_QINDEX,    1 }, /* 0xce */
   {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0xcf */
   {"QueryMemMsg",                 WRAPPER_QINDEX,    0 }, /* 0xd0 */
-  {"RamTstMsg",                   DISPLAY_QINDEX,    1 }, /* 0xd1 */
+  {"ConnTypeMsg",                 WRAPPER_QINDEX,    1 }, /* 0xd1 */
   {"RateTstMsg",                  DISPLAY_QINDEX,    1 }, /* 0xd2 */
   {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0xd3 */
   {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0xd4 */
@@ -257,8 +257,8 @@ static const tMsgInfo MsgInfo[MAXIMUM_MESSAGE_TYPES] =
   {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0xdd */
   {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0xde */
   {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0xdf */
-  {"AccelIndMsg",                 WRAPPER_QINDEX,    1 }, /* 0xe0 */
-  {"AccelMsg" ,                   DISPLAY_QINDEX,    1 }, /* 0xe1 */
+  {"AccelIndMsg",                 WRAPPER_QINDEX,    0 }, /* 0xe0 */
+  {"AccelMsg" ,                   DISPLAY_QINDEX,    0 }, /* 0xe1 */
   {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0xe2 */
   {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0xe3 */
   {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0xe4 */

@@ -174,7 +174,7 @@ static unsigned char GetWidgetChange(unsigned char CurId, unsigned char CurOpt, 
 static void TestFaceId(WidgetList_t *pWidget);
 
 #if __IAR_SYSTEMS_ICC__
-static void WriteData20BlockToSram(unsigned char __data20* pData,unsigned int Size);
+static void WriteData20BlockToSram(const unsigned char __data20* pData,unsigned int Size);
 #endif
 
 void SetWidgetList(tMessage *pMsg)
@@ -602,6 +602,14 @@ void UpdateDisplayHandler(tMessage* pMsg)
     { // turn page
       if ((pMsg->Options & MSG_OPT_TURN_PAGE) == MSG_OPT_NXT_PAGE) CurrentPage ++;
 
+#if COUNTDOWN_TIMER
+      if (CurrentPage == IDLE_PAGE_NUM)
+      {
+        CurrentPage = 0;
+        SendMessage(&Msg, CountDownMsg, MSG_OPT_NONE);
+        return;
+      }
+#endif
       if (CurrentPage == IDLE_PAGE_NUM) CurrentPage = 0;
     }
     
@@ -824,7 +832,7 @@ static void WriteBlockToSram(const unsigned char* pData, unsigned int Size)
 }
 
 #if __IAR_SYSTEMS_ICC__
-static void WriteData20BlockToSram(unsigned char __data20* pData,unsigned int Size)
+static void WriteData20BlockToSram(const unsigned char __data20* pData,unsigned int Size)
 {
   DmaBusy = 1;
   EnableSmClkUser(SERIAL_RAM_USER);
@@ -965,7 +973,12 @@ void LoadTemplateHandler(tMessage* pMsg)
   if (pMsg->pBuffer == NULL)
   { // internal usage
     SetupCycle(Addr, SPI_WRITE);
+    
+#if __IAR_SYSTEMS_ICC__
+    WriteData20BlockToSram(pTemplate[pMsg->Options >> 4], BYTES_PER_SCREEN);
+#else
     WriteBlockToSram(pTemplate[pMsg->Options >> 4], BYTES_PER_SCREEN);
+#endif
   }
   else if (*pMsg->pBuffer <= 1)
   {
@@ -978,7 +991,7 @@ void LoadTemplateHandler(tMessage* pMsg)
     /* template zero is reserved for simple patterns */
     SetupCycle(Addr, SPI_WRITE);
     WriteData20BlockToSram(
-      (unsigned char __data20*)&pWatchFace[*pMsg->pBuffer - TEMPLATE_1][0],
+      (unsigned char __data20 *)&pWatchFace[*pMsg->pBuffer - TEMPLATE_1][0],
       BYTES_PER_SCREEN);
     
     PrintF("-Template:%d", *pMsg->pBuffer);

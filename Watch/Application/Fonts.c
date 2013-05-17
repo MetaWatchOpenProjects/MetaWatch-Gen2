@@ -25,6 +25,9 @@
 #include "Fonts.h"
 #include "DebugUart.h"
 
+#define ASCII_BEGIN    0x20
+#define ASCII_END      0x7D
+
 /* Height, Spacing, MaxWidth, WidthInBytes, Type, pWidth */
 static const tFont Font[] =
 {
@@ -76,20 +79,16 @@ const tFont *GetCurrentFont(void)
 
 static unsigned char MapCharacterToIndex(unsigned char CharIn)
 {
-  if (Font[CurrentType].Type == FONT_TYPE_TIME) return CharIn;
-  
-  if(CharIn < TOTAL_TIME_CHARACTERS)
+  if (Font[CurrentType].Type == FONT_TYPE_TIME)
   {
-    //Entered as Time or numeric character. 
-    //Need to convert to alphanumeric character
-    //CharIn was a Time ' ' character. It requires a different offset.
-    //CharIn was another Time character. It requires the
-    //ASCII offset.
-    CharIn += TIME_CHARACTER_SPACE_INDEX ? SPACE_CHAR_TO_ALPHANUM_OFFSET : NUM_TO_ALPHANUM_OFFSET;
+    if (CharIn == ':') CharIn = 10;
+    else if (CharIn == ' ') CharIn = 11;
+    else CharIn -= '0';
   }
-  // space = 0x20 and 0x7f = delete character
-  if ((CharIn >= 0x20) && (CharIn < 0x7f)) return (CharIn - 0x20);
-  return 0;
+  else if (CharIn >= ASCII_BEGIN && CharIn <= ASCII_END) CharIn -= ASCII_BEGIN;
+  else CharIn = 0;
+  
+  return CharIn;
 }
 
 void GetCharacterBitmap(unsigned char Character, unsigned int *pBitmap)
@@ -1682,7 +1681,7 @@ const unsigned int TimeTable[][19] =
   0x0000, 0x0000, 0x0000, 
 };
 
-const unsigned char TimeWidth[TOTAL_TIME_CHARACTERS] = 
+const unsigned char TimeWidth[] =
 {
 /*		width    char    hexcode */
 /*		=====    ====    ======= */
