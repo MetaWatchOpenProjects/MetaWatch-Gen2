@@ -456,7 +456,7 @@ void DrawDateTime(void)
     gColumn = DEFAULT_DOW_COL;
     gBitColumnMask = DEFAULT_DOW_COL_BIT;
     SetFont(DEFAULT_DOW_FONT);
-    DrawString((tString *)DaysOfTheWeek[LANG_EN][RTCDOW], DRAW_OPT_BITWISE_OR);
+    DrawString((tString *)DaysOfTheWeek[CURRENT_LANG][RTCDOW], DRAW_OPT_BITWISE_OR);
 
     //add year when time is in 24 hour mode
     if (GetProperty(PROP_24H_TIME_FORMAT))

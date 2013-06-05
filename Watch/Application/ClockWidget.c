@@ -377,7 +377,7 @@ static void DrawDayofWeek(DrawInfo_t *Info)
 {
   if (Overlapping(Info->Opt)) return;
   
-  const char *pDow = DaysOfTheWeek[LANG_EN][RTCDOW];
+  const char *pDow = DaysOfTheWeek[CURRENT_LANG][RTCDOW];
   DrawText(pDow, strlen(pDow), Info->X, Info->Y, Info->Id, DRAW_OPT_PROP_WIDTH, Info->Op);
 }
 
