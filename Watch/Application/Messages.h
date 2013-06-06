@@ -237,7 +237,7 @@ typedef enum
 
   /* BLE messages */
   SetHeartbeatMsg = 0xb0,
-  TunnelTimeoutMsg = 0xb1,
+  HeartbeatTimeoutMsg = 0xb1,
   UpdConnParamMsg = 0xb2,
 
   /* HFP messages */
@@ -253,6 +253,7 @@ typedef enum
   ConnChangeMsg = 0xb9,
   UpdWgtIndMsg = 0xba,
   ConnParamChgIndMsg = 0xbb,
+  TunnelTimeoutMsg = 0xbc,
 
   SppAckMsg = 0xcc,
   CountDownMsg = 0xcd,
@@ -376,6 +377,7 @@ typedef enum
 #define TOUT_DISCONNECT               (10)
 #define TOUT_TUNNEL_CONNECTING        (10)
 #define TOUT_TUNNEL_LONG              (40) //60
+#define TOUT_HEARTBEAT                (1) 
 
 /* these should match the display modes for idle, application, notification,
  * and scroll modes

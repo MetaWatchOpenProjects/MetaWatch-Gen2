@@ -207,9 +207,16 @@
 /* 528    05/13/13  Mu Yang  Fix Accel streaming long intvl timeout.          */
 /* 529    05/14/13  Mu Yang  Clear BLE adv flags: simu BR/BLE.                */
 /* 530    05/16/13  Mu Yang  Add Hanzi watch face.                            */
+/* 531    05/16/13  Mu Yang  TermMode:strcmp() -> strstr();                   */
+/*                           Detail outgoing log in wrapper.c.                */
+/* 532    06/03/13  Mu Yang  Change battery averaging to BattSenseCycle();    */
+/*                           Batt sample gap 10 -> 20; Fix interval stay      */
+/*                           short by seperating HB and interval timers.      */
+/* 533    06/04/13  Mu Yang  Enable all 4 watchfaces; Spp actv mode bf write()*/
+/* 534    06/06/13  Mu Yang  Fix block at whoami() with VERSION string.			  */
+/* 535    06/06/13  Mu Yang  Support DayOfWeek in German and Finnish.			    */
 /******************************************************************************/
 
-#define APP_VER     "1.4.0d"
-#define BUILD_VER   "530.000"
+
 
 #endif /* VERSION_H */

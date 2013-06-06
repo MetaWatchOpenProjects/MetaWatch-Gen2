@@ -195,8 +195,8 @@ void Init(void)
   PrintF("*** %s:%s ***", niReset == FLASH_RESET_CODE ? "FLASH" :
     (niReset == MASTER_RESET_CODE ? "MASTER" : "NORMAL"), niBuild);
   
-  ShowWatchdogInfo();
   WhoAmI();
+  ShowWatchdogInfo();
 
   /* timer for battery checking at a regular frequency. */
   StartTimer(BatteryTimer);

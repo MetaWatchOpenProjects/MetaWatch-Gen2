@@ -45,15 +45,18 @@
 #define TEMP_TYPE_4Q                  (0)
 #define TEMP_TYPE_2Q                  (1)
 
+extern unsigned char niLang;
+
 #define DRAW_OPT_NONE                 (0)
 #define DRAW_OPT_SEPARATOR            (':')
-#define SEPARATOR_MASK                (0x7F)
 #define DRAW_OPT_EQU_WIDTH            (0)
 #define DRAW_OPT_PROP_WIDTH           (0x80)
 #define DRAW_OPT_OVERLAP_NONE         (0)
 #define DRAW_OPT_OVERLAP_BT           (1)
 #define DRAW_OPT_OVERLAP_BATTERY      (2)
 #define DRAW_OPT_OVERLAP_SEC          (4)
+
+#define SEPARATOR_MASK                (0x7F)
 
 typedef struct
 {
@@ -105,20 +108,16 @@ static const Draw_t DrawList[][MAX_DRAW_ITEM_NUM] =
     {DrawSec, {38, 29, MetaWatch16, DRAW_OPT_OVERLAP_BATTERY, DRAW_OPT_BITWISE_OR}},
     {DrawDayofWeek, {72, 35, MetaWatch7, DRAW_OPT_OVERLAP_BT, DRAW_OPT_BITWISE_OR}}
   },
-//  { // 4Q Logo TimeBlock
-//    {DrawTemplate, {0, 0, TMPL_WGT_LOGO, DRAW_OPT_NONE, DRAW_OPT_BITWISE_OR}},
-//    {DrawHour, {1, 28, TimeBlock, DRAW_OPT_SEPARATOR, DRAW_OPT_BITWISE_OR}},
-//    {DrawMin, {51, 28, TimeBlock, DRAW_OPT_NONE, DRAW_OPT_BITWISE_OR}},
-//    {DrawAmPm, {80, 50, MetaWatch5, DRAW_OPT_NONE, DRAW_OPT_BITWISE_SET}},
-//    {DrawBluetoothState, {80, 79, ICON_SET_BLUETOOTH_SMALL, DRAW_OPT_NONE, DRAW_OPT_BITWISE_SET}},
-//    {DrawBatteryStatus, {41, 15, ICON_SET_BATTERY_H, DRAW_OPT_BITWISE_OR}},
-//    {DrawDate, {2, 12, MetaWatch16, DRAW_OPT_NONE, DRAW_OPT_BITWISE_OR}},
-//    {DrawSec, {75, 12, MetaWatch16, DRAW_OPT_NONE, DRAW_OPT_BITWISE_OR}},
-//    {DrawDayofWeek, {68, 12, MetaWatch16, DRAW_OPT_OVERLAP_SEC, DRAW_OPT_BITWISE_OR}}
-//  },
-  { //4Q-Hanzi
-    {DrawTemplate, {0, 0, TMPL_WGT_HANZI, DRAW_OPT_NONE, DRAW_OPT_BITWISE_OR}},
-    {DrawHanziClock, {0, 0, Time, DRAW_OPT_NONE, DRAW_OPT_BITWISE_DST_NOT}}
+  { // 4Q Logo TimeBlock
+    {DrawTemplate, {0, 0, TMPL_WGT_LOGO, DRAW_OPT_NONE, DRAW_OPT_BITWISE_OR}},
+    {DrawHour, {1, 28, TimeBlock, DRAW_OPT_SEPARATOR, DRAW_OPT_BITWISE_OR}},
+    {DrawMin, {51, 28, TimeBlock, DRAW_OPT_NONE, DRAW_OPT_BITWISE_OR}},
+    {DrawAmPm, {80, 50, MetaWatch5, DRAW_OPT_NONE, DRAW_OPT_BITWISE_SET}},
+    {DrawBluetoothState, {80, 79, ICON_SET_BLUETOOTH_SMALL, DRAW_OPT_NONE, DRAW_OPT_BITWISE_SET}},
+    {DrawBatteryStatus, {41, 15, ICON_SET_BATTERY_H, DRAW_OPT_BITWISE_OR}},
+    {DrawDate, {2, 12, MetaWatch16, DRAW_OPT_NONE, DRAW_OPT_BITWISE_OR}},
+    {DrawSec, {75, 12, MetaWatch16, DRAW_OPT_NONE, DRAW_OPT_BITWISE_OR}},
+    {DrawDayofWeek, {68, 12, MetaWatch16, DRAW_OPT_OVERLAP_SEC, DRAW_OPT_BITWISE_OR}}
   },
   { //4Q Big TimeK
     {DrawBlock, {0, 0, 12, 17}}, // x, w in bytes
@@ -143,6 +142,10 @@ static const Draw_t DrawList[][MAX_DRAW_ITEM_NUM] =
     {DrawSec, {58, 51, MetaWatch16, 0}},
     {DrawDayofWeek, {58, 55, MetaWatch7, DRAW_OPT_OVERLAP_SEC}}
   },
+  { //4Q-Hanzi
+    {DrawTemplate, {0, 0, TMPL_WGT_HANZI, DRAW_OPT_NONE, DRAW_OPT_BITWISE_OR}},
+    {DrawHanziClock, {0, 0, Time, DRAW_OPT_NONE, DRAW_OPT_BITWISE_DST_NOT}}
+  },
 };
 
 //#define DRAW_LIST_ITEM_NUM(_x)    (sizeof(*DrawList[_x]) / sizeof(Draw_t))
@@ -159,10 +162,10 @@ static const Widget_t ClockWidget[] =
 {
   {LAYOUT_QUAD_SCREEN, 7, DrawList[0]},
   {LAYOUT_HORI_SCREEN, 7, DrawList[1]},
-//  {LAYOUT_FULL_SCREEN, 9, DrawList[2]}, // logo
-  {LAYOUT_FULL_SCREEN, 2, DrawList[2]}, // hanzi
+  {LAYOUT_FULL_SCREEN, 9, DrawList[2]}, // logo
   {LAYOUT_FULL_SCREEN, 10, DrawList[3]}, // big
   {LAYOUT_FULL_SCREEN, 9, DrawList[4]}, // fish
+  {LAYOUT_FULL_SCREEN, 2, DrawList[5]}, // hanzi
 };
 
 #define HOME_WIDGET_NUM (sizeof(ClockWidget) / sizeof(Widget_t))
@@ -377,7 +380,7 @@ static void DrawDayofWeek(DrawInfo_t *Info)
 {
   if (Overlapping(Info->Opt)) return;
   
-  const char *pDow = DaysOfTheWeek[LANG_EN][RTCDOW];
+  const char *pDow = DaysOfTheWeek[niLang][RTCDOW];
   DrawText(pDow, strlen(pDow), Info->X, Info->Y, Info->Id, DRAW_OPT_PROP_WIDTH, Info->Op);
 }
 

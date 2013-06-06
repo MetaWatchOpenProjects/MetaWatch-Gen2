@@ -36,8 +36,8 @@ static const tMsgInfo MsgInfo[MAXIMUM_MESSAGE_TYPES] =
   {"InvalidMsg",                  FREE_QINDEX,       1 }, /* 0x00 */
   {"GetDevTypeMsg",               DISPLAY_QINDEX,    1 }, /* 0x01 */
   {"GetDevTypeResp",              WRAPPER_QINDEX,    1 }, /* 0x02 */
-  {"GetInfoMsg",                  DISPLAY_QINDEX,    0 }, /* 0x03 */
-  {"GetInfoResp",                 WRAPPER_QINDEX,    0 }, /* 0x04 */
+  {"GetInfoMsg",                  DISPLAY_QINDEX,    1 }, /* 0x03 */
+  {"GetInfoResp",                 WRAPPER_QINDEX,    1 }, /* 0x04 */
   {"DiagLoopback",                WRAPPER_QINDEX,    1 }, /* 0x05 */
   {"ShippingModMsg",              WRAPPER_QINDEX,    1 }, /* 0x06 */
   {"SoftResetMsg",                DISPLAY_QINDEX,    1 }, /* 0x07 */
@@ -210,7 +210,7 @@ static const tMsgInfo MsgInfo[MAXIMUM_MESSAGE_TYPES] =
   {"MenuBtnMsg",                  DISPLAY_QINDEX,    1 }, /* 0xae */
   {"ToggleSecMsg",                DISPLAY_QINDEX,    1 }, /* 0xaf */
   {"SetHBMsg",                    WRAPPER_QINDEX,    0 }, /* 0xb0 */
-  {"TunnelToutMsg",               WRAPPER_QINDEX,    1 }, /* 0xb1 */
+  {"HBToutMsg",                   WRAPPER_QINDEX,    1 }, /* 0xb1 */
   {"UpdConnParamMsg",             WRAPPER_QINDEX,    0 }, /* 0xb2 */
   {"CallerIdIndMsg",              WRAPPER_QINDEX,    1 }, /* 0xb3 */
   {"CallerNameMsg",               DISPLAY_QINDEX,    1 }, /* 0xb4 */
@@ -221,7 +221,7 @@ static const tMsgInfo MsgInfo[MAXIMUM_MESSAGE_TYPES] =
   {"ConnChgMsg",                  WRAPPER_QINDEX,    0 }, /* 0xb9 */
   {"UpdWgtIndMsg",                WRAPPER_QINDEX,    1 }, /* 0xba */
   {"ConnParamIndMsg",             WRAPPER_QINDEX,    0 }, /* 0xbb */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0xbc */
+  {"TunnelToutMsg",               WRAPPER_QINDEX,    0 }, /* 0xbc */
   {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0xbd */
   {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0xbe */
   {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0xbf */

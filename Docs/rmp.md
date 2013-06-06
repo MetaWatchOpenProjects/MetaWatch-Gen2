@@ -567,7 +567,7 @@ This message is used for enabling, disabling and setting parameters of the accel
 
 * 0 - Disable accelerometer
 * 1 - Enable accelerometer in Motion Detection mode with threshold (in Payload)
-* 2 - Enable accelerometer in Streaming mode
+* 2 - Enable accelerometer in Streaming mode (default)
 
 **Payload:**
 

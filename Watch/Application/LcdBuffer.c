@@ -18,7 +18,10 @@
 #include "hal_board_type.h"
 #include "hal_battery.h"
 #include "hal_miscellaneous.h"
+#include "hal_boot.h"
 #include "hal_lcd.h"
+#include "hal_lpm.h"
+#include "hal_rtc.h"
 #include "DebugUart.h"
 #include "LcdDriver.h"
 #include "Wrapper.h"
@@ -30,8 +33,6 @@
 #include "BitmapData.h"
 #include "Property.h"
 #include "LcdBuffer.h"
-#include "hal_lpm.h"
-#include "hal_rtc.h"
 
 #if COUNTDOWN_TIMER
 #include "Countdown.h"
@@ -62,6 +63,12 @@ const char MonthsOfYear[][13][7] =
   {"???","Jan","Feb","Mar","Apr","Mai","Jun",
    "Jul","Aug","Sep","Okt","Nov","Dez"}
 };
+
+#if __IAR_SYSTEMS_ICC__
+__no_init __root unsigned char niLang @ RTC_LANG_ADDR;
+#else
+extern unsigned char niLang;
+#endif
 
 extern const char BUILD[];
 extern const char VERSION[];
@@ -456,7 +463,14 @@ void DrawDateTime(void)
     gColumn = DEFAULT_DOW_COL;
     gBitColumnMask = DEFAULT_DOW_COL_BIT;
     SetFont(DEFAULT_DOW_FONT);
-    DrawString((tString *)DaysOfTheWeek[LANG_EN][RTCDOW], DRAW_OPT_BITWISE_OR);
+
+#if CURRENT_LANG
+    niLang = CURRENT_LANG;
+#else
+    niLang = LANG_EN;
+#endif
+
+    DrawString((tString *)DaysOfTheWeek[niLang][RTCDOW], DRAW_OPT_BITWISE_OR);
 
     //add year when time is in 24 hour mode
     if (GetProperty(PROP_24H_TIME_FORMAT))

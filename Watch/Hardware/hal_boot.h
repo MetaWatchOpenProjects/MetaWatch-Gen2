@@ -44,9 +44,10 @@
 #define RTC_HOUR_ADDR         (0x1C33)
 #define RTC_MIN_ADDR          (0x1C34)
 #define RTC_SEC_ADDR          (0x1C35)
+#define RTC_LANG_ADDR         (0x1C36)
 
-#define CDT_DAY_ADDR          (0x1C36)
-#define CDT_MIN_ADDR          (0x1C38)
+#define CDT_DAY_ADDR          (0x1C38)
+#define CDT_MIN_ADDR          (0x1C3A)
 
 /******************************************************************************/
 

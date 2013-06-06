@@ -33,7 +33,7 @@
 #define TMPL_MUSIC_MODE           (1)
 #define TMPL_WGT_LOGO             (2)
 #define TMPL_WGT_FISH             (3)
-#define TMPL_WGT_HANZI            (4) // 4
+#define TMPL_WGT_HANZI            (4)
 
 #define TMPL_WGT_EMPTY            (0)
 #define TMPL_WGT_LOADING          (1)
