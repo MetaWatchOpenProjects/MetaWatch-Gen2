@@ -95,22 +95,25 @@
 #define DEFAULT_DATE_DAY_FONT MetaWatch7
 #define DEFAULT_DATE_SEPARATOR_FONT MetaWatch7
 
-/*! Languages */ 
+/*! Languages */
 #define LANG_EN (0)
 #define LANG_FI (1)
 #define LANG_DE (2)
 
+#ifndef CURRENT_LANG
+#define CURRENT_LANG LANG_EN
+#endif
+
 extern const char DaysOfTheWeek[][7][4];
 extern const char MonthsOfYear[][13][7];
 
-typedef struct
-{
-  unsigned char Col;
-  unsigned char ColMask;
-  unsigned char Row;
-  etFontType Font;
-  char *pText;
-  unsigned char Length;
+typedef struct {
+	unsigned char Col;
+	unsigned char ColMask;
+	unsigned char Row;
+	etFontType Font;
+	char *pText;
+	unsigned char Length;
 } DrawLcd_t;
 
 #define DRAW_OPT_BITWISE_OR           (0)
@@ -124,7 +127,8 @@ typedef struct
 #define SPACE   ' '
 
 void HourToString(char *Hour);
-void BitOp(unsigned char *pByte, unsigned char Bit, unsigned int Set, unsigned char Op);
+void BitOp(unsigned char *pByte, unsigned char Bit, unsigned int Set,
+		unsigned char Op);
 void DrawTextToLcd(DrawLcd_t *pData);
 
 void DrawSplashScreen(void);
@@ -134,9 +138,11 @@ void DrawMenu(eIdleModePage Page);
 void DrawWatchStatusScreen(void);
 void DrawBootloaderScreen(void);
 void DrawCallScreen(char *pCallerId, char *pCallerName);
-void CopyRowsIntoMyBuffer(unsigned char const *pImage, unsigned char StartRow, unsigned char RowNum);
+void CopyRowsIntoMyBuffer(unsigned char const *pImage, unsigned char StartRow,
+		unsigned char RowNum);
 void SendMyBufferToLcd(unsigned char StartRow, unsigned char RowNum);
-void FillMyBuffer(unsigned char StartRow, unsigned char RowNum, unsigned char Value);
+void FillMyBuffer(unsigned char StartRow, unsigned char RowNum,
+		unsigned char Value);
 
 const unsigned char *GetBatteryIcon(unsigned char Id);
 void *GetDrawBuffer(void);
