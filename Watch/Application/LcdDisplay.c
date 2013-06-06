@@ -127,7 +127,7 @@ void CreateDisplayTask(void)
   if (QueueHandles[DISPLAY_QINDEX] == 0) SoftwareReset();
 
   // task function, task name, stack len, task params, priority, task handle
-  xTaskCreate(DisplayTask, "DISPLAY", DISPLAY_TASK_STACK_SIZE, NULL, DISPLAY_TASK_PRIORITY, &DisplayHandle);
+  xTaskCreate(DisplayTask, (signed char *)"DISPLAY", DISPLAY_TASK_STACK_SIZE, NULL, DISPLAY_TASK_PRIORITY, &DisplayHandle);
 }
 
 /*! LCD Task Main Loop */
