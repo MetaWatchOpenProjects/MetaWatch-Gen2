@@ -34,20 +34,20 @@
 <option id="com.ti.ccstudio.buildDefinitions.MSP430_3.3.compilerID.INCLUDE_PATH.1899034094" superClass="com.ti.ccstudio.buildDefinitions.MSP430_3.3.compilerID.INCLUDE_PATH" valueType="includePath">
 <listOptionValue builtIn="false" value="&quot;${CCS_INSTALL_ROOT}/msp430/include&quot;"/>
 <listOptionValue builtIn="false" value="&quot;${CG_TOOL_ROOT}/include&quot;"/>
-<listOptionValue builtIn="false" value="&quot;${PROJECT_ROOT}\..\..\FreeRTOS/include&quot;"/>
-<listOptionValue builtIn="false" value="&quot;${PROJECT_ROOT}\..\..\FreeRTOS\portable\MSP430F5438&quot;"/>
-<listOptionValue builtIn="false" value="&quot;${PROJECT_ROOT}\..\..\OSAL&quot;"/>
-<listOptionValue builtIn="false" value="&quot;${PROJECT_ROOT}\..\..\Stack\Api&quot;"/>
-<listOptionValue builtIn="false" value="&quot;${PROJECT_ROOT}\..\Hardware&quot;"/>
-<listOptionValue builtIn="false" value="&quot;${PROJECT_ROOT}\..\Hardware\F5XX_F6XX_Core_Lib&quot;"/>
-<listOptionValue builtIn="false" value="&quot;${PROJECT_ROOT}\..\Application&quot;"/>
+<listOptionValue builtIn="false" value="&quot;${PROJECT_ROOT}/../../FreeRTOS/include&quot;"/>
+<listOptionValue builtIn="false" value="&quot;${PROJECT_ROOT}/../../FreeRTOS/portable/MSP430F5438&quot;"/>
+<listOptionValue builtIn="false" value="&quot;${PROJECT_ROOT}/../../OSAL&quot;"/>
+<listOptionValue builtIn="false" value="&quot;${PROJECT_ROOT}/../../Stack/Api&quot;"/>
+<listOptionValue builtIn="false" value="&quot;${PROJECT_ROOT}/../Hardware&quot;"/>
+<listOptionValue builtIn="false" value="&quot;${PROJECT_ROOT}/../Hardware/F5XX_F6XX_Core_Lib&quot;"/>
+<listOptionValue builtIn="false" value="&quot;${PROJECT_ROOT}/../Application&quot;"/>
 </option>
 <option id="com.ti.ccstudio.buildDefinitions.MSP430_3.3.compilerID.CODE_MODEL.135584219" superClass="com.ti.ccstudio.buildDefinitions.MSP430_3.3.compilerID.CODE_MODEL" value="com.ti.ccstudio.buildDefinitions.MSP430_3.3.compilerID.CODE_MODEL.large" valueType="enumerated"/>
 <option id="com.ti.ccstudio.buildDefinitions.MSP430_3.3.compilerID.DATA_MODEL.1268427593" superClass="com.ti.ccstudio.buildDefinitions.MSP430_3.3.compilerID.DATA_MODEL" value="com.ti.ccstudio.buildDefinitions.MSP430_3.3.compilerID.DATA_MODEL.small" valueType="enumerated"/>
 <option id="com.ti.ccstudio.buildDefinitions.MSP430_3.3.compilerID.SILICON_ERRATA.CPU15.179051306" superClass="com.ti.ccstudio.buildDefinitions.MSP430_3.3.compilerID.SILICON_ERRATA.CPU15" value="true" valueType="boolean"/>
 <option id="com.ti.ccstudio.buildDefinitions.MSP430_3.3.compilerID.SILICON_ERRATA.CPU18.968925884" superClass="com.ti.ccstudio.buildDefinitions.MSP430_3.3.compilerID.SILICON_ERRATA.CPU18" value="true" valueType="boolean"/>
 <option id="com.ti.ccstudio.buildDefinitions.MSP430_3.3.compilerID.PREINCLUDE.1553142732" superClass="com.ti.ccstudio.buildDefinitions.MSP430_3.3.compilerID.PREINCLUDE" valueType="stringList">
-<listOptionValue builtIn="false" value="&quot;${PROJECT_ROOT}\..\Application\PreInclude.h&quot;"/>
+<listOptionValue builtIn="false" value="&quot;${PROJECT_ROOT}/../Application/PreInclude.h&quot;"/>
 </option>
 </tool>
 <tool id="com.ti.ccstudio.buildDefinitions.MSP430_3.3.exe.linkerDebug.979245295" name="MSP430 Linker" superClass="com.ti.ccstudio.buildDefinitions.MSP430_3.3.exe.linkerDebug">
@@ -57,8 +57,8 @@
 <option id="com.ti.ccstudio.buildDefinitions.MSP430_3.3.linkerID.OUTPUT_FILE.377528841" superClass="com.ti.ccstudio.buildDefinitions.MSP430_3.3.linkerID.OUTPUT_FILE" value="&quot;DigitalDevboard.out&quot;" valueType="string"/>
 <option id="com.ti.ccstudio.buildDefinitions.MSP430_3.3.linkerID.MAP_FILE.1777620069" superClass="com.ti.ccstudio.buildDefinitions.MSP430_3.3.linkerID.MAP_FILE" value="&quot;MetaWatch.map&quot;" valueType="string"/>
 <option id="com.ti.ccstudio.buildDefinitions.MSP430_3.3.linkerID.LIBRARY.1031160170" superClass="com.ti.ccstudio.buildDefinitions.MSP430_3.3.linkerID.LIBRARY" valueType="libs">
-<listOptionValue builtIn="false" value="&quot;${PROJECT_ROOT}\..\..\Stack\Api\CCS\Wrapper.lib&quot;"/>
-<listOptionValue builtIn="false" value="&quot;${PROJECT_ROOT}\..\..\Stack\Api\CCS\Stack2.lib&quot;"/>
+<listOptionValue builtIn="false" value="&quot;${PROJECT_ROOT}/../../Stack/Api/CCS/Wrapper.lib&quot;"/>
+<listOptionValue builtIn="false" value="&quot;${PROJECT_ROOT}/../../Stack/Api/CCS/Stack2.lib&quot;"/>
 </option>
 <option id="com.ti.ccstudio.buildDefinitions.MSP430_3.3.linkerID.SEARCH_PATH.1602938592" superClass="com.ti.ccstudio.buildDefinitions.MSP430_3.3.linkerID.SEARCH_PATH" valueType="stringList">
 <listOptionValue builtIn="false" value="&quot;${CCS_INSTALL_ROOT}/msp430/include&quot;"/>
@@ -129,20 +129,20 @@
 <option id="com.ti.ccstudio.buildDefinitions.MSP430_3.3.compilerID.INCLUDE_PATH.357228591" name="Add dir to #include search path (--include_path, -I)" superClass="com.ti.ccstudio.buildDefinitions.MSP430_3.3.compilerID.INCLUDE_PATH" valueType="includePath">
 <listOptionValue builtIn="false" value="&quot;${CCS_INSTALL_ROOT}/msp430/include&quot;"/>
 <listOptionValue builtIn="false" value="&quot;${CG_TOOL_ROOT}/include&quot;"/>
-<listOptionValue builtIn="false" value="&quot;${PROJECT_ROOT}\..\..\FreeRTOS/include&quot;"/>
-<listOptionValue builtIn="false" value="&quot;${PROJECT_ROOT}\..\..\FreeRTOS\portable\MSP430F5438&quot;"/>
-<listOptionValue builtIn="false" value="&quot;${PROJECT_ROOT}\..\..\OSAL&quot;"/>
-<listOptionValue builtIn="false" value="&quot;${PROJECT_ROOT}\..\..\Stack\Api&quot;"/>
-<listOptionValue builtIn="false" value="&quot;${PROJECT_ROOT}\..\Hardware&quot;"/>
-<listOptionValue builtIn="false" value="&quot;${PROJECT_ROOT}\..\Hardware\F5XX_F6XX_Core_Lib&quot;"/>
-<listOptionValue builtIn="false" value="&quot;${PROJECT_ROOT}\..\Application&quot;"/>
+<listOptionValue builtIn="false" value="&quot;${PROJECT_ROOT}/../../FreeRTOS/include&quot;"/>
+<listOptionValue builtIn="false" value="&quot;${PROJECT_ROOT}/../../FreeRTOS/portable/MSP430F5438&quot;"/>
+<listOptionValue builtIn="false" value="&quot;${PROJECT_ROOT}/../../OSAL&quot;"/>
+<listOptionValue builtIn="false" value="&quot;${PROJECT_ROOT}/../../Stack/Api&quot;"/>
+<listOptionValue builtIn="false" value="&quot;${PROJECT_ROOT}/../Hardware&quot;"/>
+<listOptionValue builtIn="false" value="&quot;${PROJECT_ROOT}/../Hardware/F5XX_F6XX_Core_Lib&quot;"/>
+<listOptionValue builtIn="false" value="&quot;${PROJECT_ROOT}/../Application&quot;"/>
 </option>
 <option id="com.ti.ccstudio.buildDefinitions.MSP430_3.3.compilerID.CODE_MODEL.1567676698" name="Specify the code memory model. (--code_model)" superClass="com.ti.ccstudio.buildDefinitions.MSP430_3.3.compilerID.CODE_MODEL" value="com.ti.ccstudio.buildDefinitions.MSP430_3.3.compilerID.CODE_MODEL.large" valueType="enumerated"/>
 <option id="com.ti.ccstudio.buildDefinitions.MSP430_3.3.compilerID.DATA_MODEL.1071613791" name="Specify the data memory model. (--data_model)" superClass="com.ti.ccstudio.buildDefinitions.MSP430_3.3.compilerID.DATA_MODEL" value="com.ti.ccstudio.buildDefinitions.MSP430_3.3.compilerID.DATA_MODEL.small" valueType="enumerated"/>
 <option id="com.ti.ccstudio.buildDefinitions.MSP430_3.3.compilerID.SILICON_ERRATA.CPU15.1715534712" name="Workaround specified silicon errata (--silicon_errata) [CPU15]" superClass="com.ti.ccstudio.buildDefinitions.MSP430_3.3.compilerID.SILICON_ERRATA.CPU15" value="true" valueType="boolean"/>
 <option id="com.ti.ccstudio.buildDefinitions.MSP430_3.3.compilerID.SILICON_ERRATA.CPU18.1396404928" name="Workaround specified silicon errata (--silicon_errata) [CPU18]" superClass="com.ti.ccstudio.buildDefinitions.MSP430_3.3.compilerID.SILICON_ERRATA.CPU18" value="true" valueType="boolean"/>
 <option id="com.ti.ccstudio.buildDefinitions.MSP430_3.3.compilerID.PREINCLUDE.792374717" superClass="com.ti.ccstudio.buildDefinitions.MSP430_3.3.compilerID.PREINCLUDE" valueType="stringList">
-<listOptionValue builtIn="false" value="&quot;${PROJECT_ROOT}\..\Application\PreInclude.h&quot;"/>
+<listOptionValue builtIn="false" value="&quot;${PROJECT_ROOT}/../Application/PreInclude.h&quot;"/>
 </option>
 </tool>
 <tool id="com.ti.ccstudio.buildDefinitions.MSP430_3.3.exe.linkerDebug.1269397198" name="MSP430 Linker" superClass="com.ti.ccstudio.buildDefinitions.MSP430_3.3.exe.linkerDebug">
@@ -152,8 +152,8 @@
 <option id="com.ti.ccstudio.buildDefinitions.MSP430_3.3.linkerID.OUTPUT_FILE.126818682" name="Specify output file name (--output_file, -o)" superClass="com.ti.ccstudio.buildDefinitions.MSP430_3.3.linkerID.OUTPUT_FILE" value="&quot;Digital.out&quot;" valueType="string"/>
 <option id="com.ti.ccstudio.buildDefinitions.MSP430_3.3.linkerID.MAP_FILE.2003076706" name="Input and output sections listed into &lt;file&gt; (--map_file, -m)" superClass="com.ti.ccstudio.buildDefinitions.MSP430_3.3.linkerID.MAP_FILE" value="&quot;MetaWatch.map&quot;" valueType="string"/>
 <option id="com.ti.ccstudio.buildDefinitions.MSP430_3.3.linkerID.LIBRARY.1959282410" name="Include library file or command file as input (--library, -l)" superClass="com.ti.ccstudio.buildDefinitions.MSP430_3.3.linkerID.LIBRARY" valueType="libs">
-<listOptionValue builtIn="false" value="&quot;${PROJECT_ROOT}\..\..\Stack\Api\CCS\Stack2.lib&quot;"/>
-<listOptionValue builtIn="false" value="&quot;${PROJECT_ROOT}\..\..\Stack\Api\CCS\Wrapper.lib&quot;"/>
+<listOptionValue builtIn="false" value="&quot;${PROJECT_ROOT}/../../Stack/Api/CCS/Stack2.lib&quot;"/>
+<listOptionValue builtIn="false" value="&quot;${PROJECT_ROOT}/../../Stack/Api/CCS/Wrapper.lib&quot;"/>
 </option>
 <option id="com.ti.ccstudio.buildDefinitions.MSP430_3.3.linkerID.SEARCH_PATH.1775825985" name="Add &lt;dir&gt; to library search path (--search_path, -i)" superClass="com.ti.ccstudio.buildDefinitions.MSP430_3.3.linkerID.SEARCH_PATH" valueType="stringList">
 <listOptionValue builtIn="false" value="&quot;${CCS_INSTALL_ROOT}/msp430/include&quot;"/>
@@ -219,20 +219,20 @@
 <option id="com.ti.ccstudio.buildDefinitions.MSP430_3.3.compilerID.INCLUDE_PATH.679448738" name="Add dir to #include search path (--include_path, -I)" superClass="com.ti.ccstudio.buildDefinitions.MSP430_3.3.compilerID.INCLUDE_PATH" valueType="includePath">
 <listOptionValue builtIn="false" value="&quot;${CCS_INSTALL_ROOT}/msp430/include&quot;"/>
 <listOptionValue builtIn="false" value="&quot;${CG_TOOL_ROOT}/include&quot;"/>
-<listOptionValue builtIn="false" value="&quot;${PROJECT_ROOT}\..\..\FreeRTOS/include&quot;"/>
-<listOptionValue builtIn="false" value="&quot;${PROJECT_ROOT}\..\..\FreeRTOS\portable\MSP430F5438&quot;"/>
-<listOptionValue builtIn="false" value="&quot;${PROJECT_ROOT}\..\..\OSAL&quot;"/>
-<listOptionValue builtIn="false" value="&quot;${PROJECT_ROOT}\..\..\Stack\Api&quot;"/>
-<listOptionValue builtIn="false" value="&quot;${PROJECT_ROOT}\..\Hardware&quot;"/>
-<listOptionValue builtIn="false" value="&quot;${PROJECT_ROOT}\..\Hardware\F5XX_F6XX_Core_Lib&quot;"/>
-<listOptionValue builtIn="false" value="&quot;${PROJECT_ROOT}\..\Application&quot;"/>
+<listOptionValue builtIn="false" value="&quot;${PROJECT_ROOT}/../../FreeRTOS/include&quot;"/>
+<listOptionValue builtIn="false" value="&quot;${PROJECT_ROOT}/../../FreeRTOS/portable/MSP430F5438&quot;"/>
+<listOptionValue builtIn="false" value="&quot;${PROJECT_ROOT}/../../OSAL&quot;"/>
+<listOptionValue builtIn="false" value="&quot;${PROJECT_ROOT}/../../Stack/Api&quot;"/>
+<listOptionValue builtIn="false" value="&quot;${PROJECT_ROOT}/../Hardware&quot;"/>
+<listOptionValue builtIn="false" value="&quot;${PROJECT_ROOT}/../Hardware/F5XX_F6XX_Core_Lib&quot;"/>
+<listOptionValue builtIn="false" value="&quot;${PROJECT_ROOT}/../Application&quot;"/>
 </option>
 <option id="com.ti.ccstudio.buildDefinitions.MSP430_3.3.compilerID.CODE_MODEL.647664794" name="Specify the code memory model. (--code_model)" superClass="com.ti.ccstudio.buildDefinitions.MSP430_3.3.compilerID.CODE_MODEL" value="com.ti.ccstudio.buildDefinitions.MSP430_3.3.compilerID.CODE_MODEL.large" valueType="enumerated"/>
 <option id="com.ti.ccstudio.buildDefinitions.MSP430_3.3.compilerID.DATA_MODEL.597404798" name="Specify the data memory model. (--data_model)" superClass="com.ti.ccstudio.buildDefinitions.MSP430_3.3.compilerID.DATA_MODEL" value="com.ti.ccstudio.buildDefinitions.MSP430_3.3.compilerID.DATA_MODEL.small" valueType="enumerated"/>
 <option id="com.ti.ccstudio.buildDefinitions.MSP430_3.3.compilerID.SILICON_ERRATA.CPU15.605428103" name="Workaround specified silicon errata (--silicon_errata) [CPU15]" superClass="com.ti.ccstudio.buildDefinitions.MSP430_3.3.compilerID.SILICON_ERRATA.CPU15" value="true" valueType="boolean"/>
 <option id="com.ti.ccstudio.buildDefinitions.MSP430_3.3.compilerID.SILICON_ERRATA.CPU18.1178163928" name="Workaround specified silicon errata (--silicon_errata) [CPU18]" superClass="com.ti.ccstudio.buildDefinitions.MSP430_3.3.compilerID.SILICON_ERRATA.CPU18" value="true" valueType="boolean"/>
 <option id="com.ti.ccstudio.buildDefinitions.MSP430_3.3.compilerID.PREINCLUDE.480172888" superClass="com.ti.ccstudio.buildDefinitions.MSP430_3.3.compilerID.PREINCLUDE" valueType="stringList">
-<listOptionValue builtIn="false" value="&quot;${PROJECT_ROOT}\..\Application\PreInclude.h&quot;"/>
+<listOptionValue builtIn="false" value="&quot;${PROJECT_ROOT}/../Application/PreInclude.h&quot;"/>
 </option>
 </tool>
 <tool id="com.ti.ccstudio.buildDefinitions.MSP430_3.3.exe.linkerDebug.1120029964" name="MSP430 Linker" superClass="com.ti.ccstudio.buildDefinitions.MSP430_3.3.exe.linkerDebug">
@@ -242,8 +242,8 @@
 <option id="com.ti.ccstudio.buildDefinitions.MSP430_3.3.linkerID.OUTPUT_FILE.520448367" name="Specify output file name (--output_file, -o)" superClass="com.ti.ccstudio.buildDefinitions.MSP430_3.3.linkerID.OUTPUT_FILE" value="&quot;Watch.out&quot;" valueType="string"/>
 <option id="com.ti.ccstudio.buildDefinitions.MSP430_3.3.linkerID.MAP_FILE.1891948886" name="Input and output sections listed into &lt;file&gt; (--map_file, -m)" superClass="com.ti.ccstudio.buildDefinitions.MSP430_3.3.linkerID.MAP_FILE" value="&quot;MetaWatch.map&quot;" valueType="string"/>
 <option id="com.ti.ccstudio.buildDefinitions.MSP430_3.3.linkerID.LIBRARY.36010576" name="Include library file or command file as input (--library, -l)" superClass="com.ti.ccstudio.buildDefinitions.MSP430_3.3.linkerID.LIBRARY" valueType="libs">
-<listOptionValue builtIn="false" value="&quot;${PROJECT_ROOT}\..\..\Stack\Api\CCS\Stack2.lib&quot;"/>
-<listOptionValue builtIn="false" value="&quot;${PROJECT_ROOT}\..\..\Stack\Api\CCS\Wrapper.lib&quot;"/>
+<listOptionValue builtIn="false" value="&quot;${PROJECT_ROOT}/../../Stack/Api/CCS/Stack2.lib&quot;"/>
+<listOptionValue builtIn="false" value="&quot;${PROJECT_ROOT}/../../Stack/Api/CCS/Wrapper.lib&quot;"/>
 </option>
 <option id="com.ti.ccstudio.buildDefinitions.MSP430_3.3.linkerID.SEARCH_PATH.1390881839" name="Add &lt;dir&gt; to library search path (--search_path, -i)" superClass="com.ti.ccstudio.buildDefinitions.MSP430_3.3.linkerID.SEARCH_PATH" valueType="stringList">
 <listOptionValue builtIn="false" value="&quot;${CCS_INSTALL_ROOT}/msp430/include&quot;"/>
@@ -321,20 +321,20 @@
 <option id="com.ti.ccstudio.buildDefinitions.MSP430_3.3.compilerID.INCLUDE_PATH.708039329" name="Add dir to #include search path (--include_path, -I)" superClass="com.ti.ccstudio.buildDefinitions.MSP430_3.3.compilerID.INCLUDE_PATH" valueType="includePath">
 <listOptionValue builtIn="false" value="&quot;${CCS_INSTALL_ROOT}/msp430/include&quot;"/>
 <listOptionValue builtIn="false" value="&quot;${CG_TOOL_ROOT}/include&quot;"/>
-<listOptionValue builtIn="false" value="&quot;${PROJECT_ROOT}\..\..\FreeRTOS/include&quot;"/>
-<listOptionValue builtIn="false" value="&quot;${PROJECT_ROOT}\..\..\FreeRTOS\portable\MSP430F5438&quot;"/>
-<listOptionValue builtIn="false" value="&quot;${PROJECT_ROOT}\..\..\OSAL&quot;"/>
-<listOptionValue builtIn="false" value="&quot;${PROJECT_ROOT}\..\..\Stack\Api&quot;"/>
-<listOptionValue builtIn="false" value="&quot;${PROJECT_ROOT}\..\Hardware&quot;"/>
-<listOptionValue builtIn="false" value="&quot;${PROJECT_ROOT}\..\Hardware\F5XX_F6XX_Core_Lib&quot;"/>
-<listOptionValue builtIn="false" value="&quot;${PROJECT_ROOT}\..\Application&quot;"/>
+<listOptionValue builtIn="false" value="&quot;${PROJECT_ROOT}/../../FreeRTOS/include&quot;"/>
+<listOptionValue builtIn="false" value="&quot;${PROJECT_ROOT}/../../FreeRTOS/portable/MSP430F5438&quot;"/>
+<listOptionValue builtIn="false" value="&quot;${PROJECT_ROOT}/../../OSAL&quot;"/>
+<listOptionValue builtIn="false" value="&quot;${PROJECT_ROOT}/../../Stack/Api&quot;"/>
+<listOptionValue builtIn="false" value="&quot;${PROJECT_ROOT}/../Hardware&quot;"/>
+<listOptionValue builtIn="false" value="&quot;${PROJECT_ROOT}/../Hardware/F5XX_F6XX_Core_Lib&quot;"/>
+<listOptionValue builtIn="false" value="&quot;${PROJECT_ROOT}/../Application&quot;"/>
 </option>
 <option id="com.ti.ccstudio.buildDefinitions.MSP430_3.3.compilerID.CODE_MODEL.417643309" name="Specify the code memory model. (--code_model)" superClass="com.ti.ccstudio.buildDefinitions.MSP430_3.3.compilerID.CODE_MODEL" value="com.ti.ccstudio.buildDefinitions.MSP430_3.3.compilerID.CODE_MODEL.large" valueType="enumerated"/>
 <option id="com.ti.ccstudio.buildDefinitions.MSP430_3.3.compilerID.DATA_MODEL.1568889397" name="Specify the data memory model. (--data_model)" superClass="com.ti.ccstudio.buildDefinitions.MSP430_3.3.compilerID.DATA_MODEL" value="com.ti.ccstudio.buildDefinitions.MSP430_3.3.compilerID.DATA_MODEL.small" valueType="enumerated"/>
 <option id="com.ti.ccstudio.buildDefinitions.MSP430_3.3.compilerID.SILICON_ERRATA.CPU15.53851837" name="Workaround specified silicon errata (--silicon_errata) [CPU15]" superClass="com.ti.ccstudio.buildDefinitions.MSP430_3.3.compilerID.SILICON_ERRATA.CPU15" value="true" valueType="boolean"/>
 <option id="com.ti.ccstudio.buildDefinitions.MSP430_3.3.compilerID.SILICON_ERRATA.CPU18.1356280277" name="Workaround specified silicon errata (--silicon_errata) [CPU18]" superClass="com.ti.ccstudio.buildDefinitions.MSP430_3.3.compilerID.SILICON_ERRATA.CPU18" value="true" valueType="boolean"/>
 <option id="com.ti.ccstudio.buildDefinitions.MSP430_3.3.compilerID.PREINCLUDE.1625673031" superClass="com.ti.ccstudio.buildDefinitions.MSP430_3.3.compilerID.PREINCLUDE" valueType="stringList">
-<listOptionValue builtIn="false" value="&quot;${PROJECT_ROOT}\..\Application\PreInclude.h&quot;"/>
+<listOptionValue builtIn="false" value="&quot;${PROJECT_ROOT}/../Application/PreInclude.h&quot;"/>
 </option>
 </tool>
 <tool id="com.ti.ccstudio.buildDefinitions.MSP430_3.3.exe.linkerDebug.1133824778" name="MSP430 Linker" superClass="com.ti.ccstudio.buildDefinitions.MSP430_3.3.exe.linkerDebug">
@@ -344,8 +344,8 @@
 <option id="com.ti.ccstudio.buildDefinitions.MSP430_3.3.linkerID.OUTPUT_FILE.382371327" name="Specify output file name (--output_file, -o)" superClass="com.ti.ccstudio.buildDefinitions.MSP430_3.3.linkerID.OUTPUT_FILE" value="&quot;Analog.out&quot;" valueType="string"/>
 <option id="com.ti.ccstudio.buildDefinitions.MSP430_3.3.linkerID.MAP_FILE.1621192737" name="Input and output sections listed into &lt;file&gt; (--map_file, -m)" superClass="com.ti.ccstudio.buildDefinitions.MSP430_3.3.linkerID.MAP_FILE" value="&quot;MetaWatch.map&quot;" valueType="string"/>
 <option id="com.ti.ccstudio.buildDefinitions.MSP430_3.3.linkerID.LIBRARY.1746931090" name="Include library file or command file as input (--library, -l)" superClass="com.ti.ccstudio.buildDefinitions.MSP430_3.3.linkerID.LIBRARY" valueType="libs">
-<listOptionValue builtIn="false" value="&quot;${PROJECT_ROOT}\..\..\Stack\Api\CCS\Stack2.lib&quot;"/>
-<listOptionValue builtIn="false" value="&quot;${PROJECT_ROOT}\..\..\Stack\Api\CCS\Wrapper.lib&quot;"/>
+<listOptionValue builtIn="false" value="&quot;${PROJECT_ROOT}/../../Stack/Api/CCS/Stack2.lib&quot;"/>
+<listOptionValue builtIn="false" value="&quot;${PROJECT_ROOT}/../../Stack/Api/CCS/Wrapper.lib&quot;"/>
 </option>
 <option id="com.ti.ccstudio.buildDefinitions.MSP430_3.3.linkerID.SEARCH_PATH.1983081233" name="Add &lt;dir&gt; to library search path (--search_path, -i)" superClass="com.ti.ccstudio.buildDefinitions.MSP430_3.3.linkerID.SEARCH_PATH" valueType="stringList">
 <listOptionValue builtIn="false" value="&quot;${CCS_INSTALL_ROOT}/msp430/include&quot;"/>
