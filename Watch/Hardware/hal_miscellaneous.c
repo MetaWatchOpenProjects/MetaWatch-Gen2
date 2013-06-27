@@ -45,7 +45,10 @@ unsigned char GetMsp430HardwareRevision(void)
 
 unsigned char Errata(void)
 {
-  return GetMsp430HardwareRevision() < 'F';
+  unsigned char revision = GetMsp430HardwareRevision();
+  if (revision == 'G')
+    revision = 'E';
+  return revision < 'F';
 }
 
 /******************************************************************************/
@@ -234,5 +237,6 @@ static void SetRadioControlPinsToInputs(void)
   /* BT_RST */
   P10OUT &= ~BIT3;
 }
+
 #endif
 
