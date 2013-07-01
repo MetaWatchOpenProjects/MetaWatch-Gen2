@@ -927,9 +927,11 @@ void LoadTemplateHandler(tMessage* pMsg)
   }
   else
   {
+#if __IAR_SYSTEMS_ICC__
     /* template zero is reserved for simple patterns */
     Write((unsigned long)&pWatchFace[*pMsg->pBuffer - TEMPLATE_1][0], BYTES_PER_SCREEN, DMA_COPY);
     PrintF("-Template:%d", *pMsg->pBuffer);
+#endif
   }
 }
 
