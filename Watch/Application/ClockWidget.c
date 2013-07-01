@@ -24,7 +24,7 @@
 #include "MessageQueues.h"
 
 #include "Adc.h"
-#include "hal_Battery.h"
+#include "hal_battery.h"
 #include "hal_lpm.h"
 #include "hal_miscellaneous.h"
 #include "hal_rtc.h"
