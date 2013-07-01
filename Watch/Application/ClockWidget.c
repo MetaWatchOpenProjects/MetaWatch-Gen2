@@ -272,7 +272,7 @@ static void DrawText(const char *pText, unsigned char Len, unsigned char X, unsi
   const tFont *pFont = GetCurrentFont();
   unsigned char i;
   
-  for (i = 0; i < Len && pText[i] != NUL; ++i)
+  for (i = 0; i < Len && pText[i] != NULL; ++i)
   {
 //    if (pFont->Type == FONT_TYPE_TIME) pText[i] -= ZERO;
 

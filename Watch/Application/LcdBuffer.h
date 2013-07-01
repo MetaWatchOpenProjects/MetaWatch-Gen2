@@ -117,11 +117,7 @@ typedef struct
 #define DRAW_OPT_BITWISE_NOT          (1)
 #define DRAW_OPT_BITWISE_SET          (2)
 #define DRAW_OPT_BITWISE_DST_NOT      (3)
-
-#define NUL     '\0'
-#define ZERO    '0'
-#define COLON   ':'
-#define SPACE   ' '
+#define DRAW_OPT_BITWISE_MASK         (0x0F)
 
 void HourToString(char *Hour);
 void BitOp(unsigned char *pByte, unsigned char Bit, unsigned int Set, unsigned char Op);

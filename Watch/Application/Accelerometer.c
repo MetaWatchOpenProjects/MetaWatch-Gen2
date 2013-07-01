@@ -197,7 +197,13 @@ void HandleAccelerometer(tMessage *pMsg)
     break;
 
   case MSG_OPT_ACCEL_ENABLE:
-    CreateAndSendMessage(UpdConnParamMsg, ShortInterval);
+
+    if (Connected(CONN_TYPE_BLE))
+      CreateAndSendMessage(UpdConnParamMsg, ShortInterval);
+
+    else if (Connected(CONN_TYPE_SPP))
+      CreateAndSendMessage(SniffControlMsg, MSG_OPT_EXIT_SNIFF);
+
     EnableAccelerometer();
     break;
 

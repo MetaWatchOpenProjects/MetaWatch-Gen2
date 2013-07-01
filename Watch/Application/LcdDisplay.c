@@ -264,14 +264,14 @@ static void DisplayQueueMessageHandler(tMessage* pMsg)
     break;
 
   case CallerIdMsg:
-    pMsg->pBuffer[pMsg->Length] = NUL;
+    pMsg->pBuffer[pMsg->Length] = NULL;
     ShowCall((char *)pMsg->pBuffer, pMsg->Options);
     break;
     
   case CallerNameMsg:
     if (pMsg->Length)
     {
-      pMsg->pBuffer[pMsg->Length] = NUL;
+      pMsg->pBuffer[pMsg->Length] = NULL;
       ShowCall((char *)pMsg->pBuffer, SHOW_NOTIF_CALLER_NAME);
 
       if (GetProperty(PROP_AUTO_BACKLIGHT)) SendMessage(&Msg, AutoBacklightMsg, MSG_OPT_NONE);

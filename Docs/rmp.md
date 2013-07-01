@@ -37,6 +37,7 @@ Revision | Details | Author | Date
 2.0.7 | Update the Accelerometer messages | Mu Yang | May 1, 2013
 2.0.8 | Use GetDeviceType to tell watch the phone type info. | Mu Yang | May 6, 2013
 2.0.9 | Update GetVersionInfo. | Mu Yang | May 8, 2013
+2.1.0 | Support "clear widgets" in Set Widget List message. | Mu Yang | June 16, 2013
 
 3 Abbreviation
 ===============
@@ -403,7 +404,8 @@ Start Row (0~95) | Row number (1~96)
 5.15 Set Widget List Message (0xA1)
 -----------------------------------
 
-The message is used to send a list of all widgets’ properties to the watch. There could be totally at most 16 1Q widgets on 4 pages of the Idle mode screen. There are two bytes of each widget’s property: first one is the widget ID and the other is the widget setting (e.g. invert color, layout type, clock widget, etc.). The payload of one message is 14 bytes which can contains 7 widgets’ properties (2 bytes for each widget). So it requires at most 3 messages for sending max 16 widgets’ properties. The order of widgets’ properties in the list shall be according to the widget IDs in ascending order.
+The message is used to send a list of widgets’ properties to configure up to 4 pages of idle mode screen. There could be totally at most 16 1Q widgets on 4 pages of the Idle mode screen. There are two bytes of each widget’s property: first one is the widget ID and the other is the widget setting (e.g. invert color, layout type, clock widget, etc.). The payload of one message is 14 bytes which can contains 7 widgets’ properties (2 bytes for each widget). So it requires at most 3 messages for sending max 16 widgets’ properties. The order of widgets’ properties in the list shall be according to the widget IDs in ascending order.
+Note that if the message contains only one widget property with the invalid widget ID (0xFF), all previously configured widgets would be removed from the watch.
 
 **Options:**
 

@@ -61,21 +61,6 @@ extern const unsigned char pIconChargingEnabled[BUTTON_ICON_SIZE_IN_COLUMNS * BU
 extern const unsigned char pIconChargingDisabled[BUTTON_ICON_SIZE_IN_COLUMNS * BUTTON_ICON_SIZE_IN_ROWS];
 extern const unsigned char pBootloaderIcon[BUTTON_ICON_SIZE_IN_COLUMNS * BUTTON_ICON_SIZE_IN_ROWS];
 
-//extern const unsigned char pGndOffClipIcon[BUTTON_ICON_SIZE_IN_COLUMNS * BUTTON_ICON_SIZE_IN_ROWS];
-//extern const unsigned char pSbwOffClipIcon[BUTTON_ICON_SIZE_IN_COLUMNS * BUTTON_ICON_SIZE_IN_ROWS];
-//extern const unsigned char pSerialOffClipIcon[BUTTON_ICON_SIZE_IN_COLUMNS * BUTTON_ICON_SIZE_IN_ROWS];
-//extern const unsigned char pDeletePairingIcon[BUTTON_ICON_SIZE_IN_COLUMNS * BUTTON_ICON_SIZE_IN_ROWS];
-//extern const unsigned char pShippingModeIcon[BUTTON_ICON_SIZE_IN_COLUMNS * BUTTON_ICON_SIZE_IN_ROWS];
-//
-//extern const unsigned char pUnpairableIcon[BUTTON_ICON_SIZE_IN_COLUMNS * BUTTON_ICON_SIZE_IN_ROWS];
-//extern const unsigned char pPairableInitIcon[BUTTON_ICON_SIZE_IN_COLUMNS * BUTTON_ICON_SIZE_IN_ROWS];
-//extern const unsigned char pPairableIcon[BUTTON_ICON_SIZE_IN_COLUMNS * BUTTON_ICON_SIZE_IN_ROWS];
-//extern const unsigned char pSspInitIcon[BUTTON_ICON_SIZE_IN_COLUMNS * BUTTON_ICON_SIZE_IN_ROWS];
-//extern const unsigned char pSspEnabledIcon[BUTTON_ICON_SIZE_IN_COLUMNS * BUTTON_ICON_SIZE_IN_ROWS]; 
-//extern const unsigned char pSspDisabledIcon[BUTTON_ICON_SIZE_IN_COLUMNS * BUTTON_ICON_SIZE_IN_ROWS];
-//extern const unsigned char pEnableAccelMenuIcon[BUTTON_ICON_SIZE_IN_COLUMNS * BUTTON_ICON_SIZE_IN_ROWS];
-//extern const unsigned char pDisableAccelMenuIcon[BUTTON_ICON_SIZE_IN_COLUMNS * BUTTON_ICON_SIZE_IN_ROWS];
-
 extern const unsigned char pIconMusicState[][ICON_MUSIC_WIDTH * ICON_MUSIC_HEIGHT];
 
 extern const unsigned char pBootPageBluetoothOffSwash[32*12];

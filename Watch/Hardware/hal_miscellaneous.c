@@ -45,7 +45,8 @@ unsigned char GetMsp430HardwareRevision(void)
 
 unsigned char Errata(void)
 {
-  return GetMsp430HardwareRevision() < 'F';
+  unsigned char Revision = GetMsp430HardwareRevision();
+  return (Revision < 'F' || Revision == 'G');
 }
 
 /******************************************************************************/

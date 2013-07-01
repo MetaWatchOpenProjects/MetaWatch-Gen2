@@ -215,6 +215,15 @@
 /* 533    06/04/13  Mu Yang  Enable all 4 watchfaces; Spp actv mode bf write()*/
 /* 534    06/06/13  Mu Yang  Fix block at whoami() with VERSION string.			  */
 /* 535    06/06/13  Mu Yang  Support DayOfWeek in German and Finnish.			    */
+/* 536		06/07/13  Mu Yang  Merge with fix for reducing CCS build warning.   */
+/* 537		06/10/13  Mu Yang  Spp try more times if part of msg is read;				*/
+/*													 Change watch faces' order for backward compatible*/
+/* 538		06/10/13  Mu Yang  Send current page indication to phone;						*/
+/* 539		06/12/13  Mu Yang  Fix not-change-to-conn-state if not SetCliConfig.*/
+/* 540    06/13/13  Mu Yang  Fix 'BLE' not shown in status screen for Android.*/
+/* 541    06/18/13  Mu Yang  Fix Accel data only out via BLE.                 */
+/* 542    06/27/13  Mu Yang  Refactor SerialRam.c; Bypass CRC.	              */
+/* 543    06/28/13  Mu Yang  Set adv flags to support both BR/BLE.            */
 /******************************************************************************/
 
 

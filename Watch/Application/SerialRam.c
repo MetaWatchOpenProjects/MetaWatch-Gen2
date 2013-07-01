@@ -46,13 +46,13 @@
 
 /******************************************************************************/
 
-#define SPI_READ  ( 0x03 )
-#define SPI_WRITE ( 0x02 )
+#define SPI_READ                (0x03)
+#define SPI_WRITE               (0x02)
 /* write and read status register */
-#define SPI_RDSR  ( 0x05 )
-#define SPI_WRSR  ( 0x01 )
-#define SPI_OVERHEAD ( 3 )
-#define SPI_INIT_DELAY_IN_MS (10 * portTICK_RATE_MS)
+#define SPI_RDSR                (0x05)
+#define SPI_WRSR                (0x01)
+#define SPI_OVERHEAD            (3)
+#define SPI_INIT_DELAY_IN_MS    (10 * portTICK_RATE_MS)
 
 /* the 256Kbit part does not have a 1 in bit position 1 */
 #define DEFAULT_SR_VALUE        (0x02)
@@ -96,8 +96,15 @@
 #define WRITE_BUFFER_TWO_LINES     (0x00)
 #define MSG_OPT_WRTBUF_BPL_MASK    (0x38)
 
+#define DMA_FILL                   (1)
+#define DMA_COPY                   (0)
+
+
 /* errata - DMA variables cannot be function scope */
 static const unsigned char DummyData = 0x00;
+static const unsigned char FILL_BLACK = 0x00;
+static const unsigned char FILL_WHITE = 0xFF;
+
 static unsigned char ReadData = 0x00;
 static unsigned char DmaBusy  = 0;
 
@@ -158,11 +165,10 @@ static const unsigned char ModePriority[] = {NOTIF_MODE, APP_MODE, IDLE_MODE, MU
 #define WGTLST_TOTAL(_x) ((_x & WGTLST_PARTS_MASK) >> WGTLST_PARTS_SHFT)
 
 /******************************************************************************/
-static void SetupCycle(unsigned int Address,unsigned char CycleType);
-static void WriteBlockToSram(const unsigned char* pData,unsigned int Size);
+static void SetAddr(unsigned int Addr);
+static void Write(const unsigned long pData, unsigned int Length, unsigned char Op);
 static void ReadBlock(unsigned char* pWriteData,unsigned char* pReadData);
-static void LoadBuffer(unsigned char i, const unsigned char *pTemp);
-static void ClearSram(unsigned int Address, unsigned char Data, unsigned int Size);
+static void LoadBuffer(unsigned char i, unsigned char const *pTemp);
 
 static void AssignWidgetBuffer(Widget_t *pWidget);
 static void FreeWidgetBuffer(Widget_t *pWidget);
@@ -172,10 +178,6 @@ static void WriteClockWidget(unsigned char *pBuffer);
 static signed char ComparePriority(unsigned char Mode);
 static unsigned char GetWidgetChange(unsigned char CurId, unsigned char CurOpt, unsigned char MsgId, unsigned char MsgOpt);
 static void TestFaceId(WidgetList_t *pWidget);
-
-#if __IAR_SYSTEMS_ICC__
-static void WriteData20BlockToSram(const unsigned char __data20* pData,unsigned int Size);
-#endif
 
 void SetWidgetList(tMessage *pMsg)
 {
@@ -413,7 +415,7 @@ void WriteBufferHandler(tMessage* pMsg)
       pBuffer[1] = Addr >> 8;
       pBuffer[2] = Addr;
 
-      WriteBlockToSram(pBuffer, SRAM_DATA_LEN);
+      Write((unsigned long)pBuffer, SRAM_DATA_LEN, DMA_COPY);
     }
   }
   else
@@ -434,7 +436,7 @@ void WriteBufferHandler(tMessage* pMsg)
       pBuffer[0] = SPI_WRITE;
       pBuffer[1] = Addr >> 8;
       pBuffer[2] = Addr;
-      WriteBlockToSram(pBuffer, SRAM_HEADER_LEN + BytesPerLine);
+      Write((unsigned long)pBuffer, SRAM_HEADER_LEN + BytesPerLine, DMA_COPY);
 
       Addr += BYTES_PER_LINE;
       pBuffer += BytesPerLine + (BytesPerLine == BYTES_PER_LINE);
@@ -509,7 +511,7 @@ static void WriteClockWidget(unsigned char *pBuffer)
           pBuf[1] = Addr >> 8;
           pBuf[2] = Addr;
           
-          WriteBlockToSram(pBuf, SRAM_HEADER_LEN + BYTES_PER_QUAD);
+          Write((unsigned long)pBuf, SRAM_HEADER_LEN + BYTES_PER_QUAD, DMA_COPY);
         }
 
         pCurrWidgetList[i].Outdated = pdFALSE;
@@ -611,6 +613,7 @@ void UpdateDisplayHandler(tMessage* pMsg)
       }
 #endif
       if (CurrentPage == IDLE_PAGE_NUM) CurrentPage = 0;
+      SendMessage(&Msg, ChangeModeMsg, MSG_OPT_CHGMOD_IND); // report curr page|mode
     }
     
     // not in idle mode idle page
@@ -802,90 +805,7 @@ static signed char ComparePriority(unsigned char Mode)
   return -1;
 }
 
-/* use DMA to write a block of data to the serial ram */
-static void WriteBlockToSram(const unsigned char* pData, unsigned int Size)
-{
-  EnableSmClkUser(SERIAL_RAM_USER);
-  DmaBusy = 1;
-  SRAM_CSN_ASSERT();
-
-  /* USCIA0 TXIFG is the DMA trigger */
-  DMACTL0 = DMA0TSEL_17;
-
-  __data16_write_addr((unsigned short) &DMA0SA,(unsigned long) pData);
-  __data16_write_addr((unsigned short) &DMA0DA,(unsigned long) &UCA0TXBUF);
-
-  DMA0SZ = Size;
-
-  /*
-   * single transfer, increment source address, source byte and dest byte,
-   * level sensitive, enable interrupt, clear interrupt flag
-   */
-  DMA0CTL = DMADT_0 + DMASRCINCR_3 + DMASBDB + DMALEVEL + DMAIE;
-
-  /* start the transfer */
-  DMA0CTL |= DMAEN;
-
-  while(DmaBusy);
-  SRAM_CSN_DEASSERT();
-  DisableSmClkUser(SERIAL_RAM_USER);
-}
-
-#if __IAR_SYSTEMS_ICC__
-static void WriteData20BlockToSram(const unsigned char __data20* pData,unsigned int Size)
-{
-  DmaBusy = 1;
-  EnableSmClkUser(SERIAL_RAM_USER);
-  SRAM_CSN_ASSERT();
-
-  /* USCIA0 TXIFG is the DMA trigger */
-  DMACTL0 = DMA0TSEL_17;
-
-  __data16_write_addr((unsigned short) &DMA0SA,(unsigned long) pData);
-  __data16_write_addr((unsigned short) &DMA0DA,(unsigned long) &UCA0TXBUF);
-
-  DMA0SZ = Size;
-
-  /*
-   * single transfer, increment source address, source byte and dest byte,
-   * level sensitive, enable interrupt, clear interrupt flag
-   */
-  DMA0CTL = DMADT_0 + DMASRCINCR_3 + DMASBDB + DMALEVEL + DMAIE;
-
-  /* start the transfer */
-  DMA0CTL |= DMAEN;
-
-  while(DmaBusy);
-  SRAM_CSN_DEASSERT();
-  DisableSmClkUser(SERIAL_RAM_USER);
-}
-#endif
-
-static void SetupCycle(unsigned int Address,unsigned char CycleType)
-{
-  SRAM_CSN_ASSERT();
-  UCA0TXBUF = CycleType;
-  while (!(UCA0IFG&UCTXIFG));
-  while (!(UCA0IFG&UCRXIFG));
-  ReadData = UCA0RXBUF;
-
-  /* write 16 bit address (only 13 bits are used) */
-  UCA0TXBUF = (unsigned char)(Address >> 8);
-  while (!(UCA0IFG&UCTXIFG));
-  while (!(UCA0IFG&UCRXIFG));
-  ReadData = UCA0RXBUF;
-
-  /*
-   * wait until read is done (transmit must be done)
-   * then clear read flag so it is ready for the DMA
-  */
-  UCA0TXBUF = (unsigned char)Address;
-  while (!(UCA0IFG&UCTXIFG));
-  while (!(UCA0IFG&UCRXIFG));
-  ReadData = UCA0RXBUF;
-}
-
-static void ReadBlock(unsigned char* pWriteData,unsigned char* pReadData)
+static void ReadBlock(unsigned char *pWriteData, unsigned char *pReadData)
 {
   DmaBusy = 1;
   SRAM_CSN_ASSERT();
@@ -927,36 +847,60 @@ static void ReadBlock(unsigned char* pWriteData,unsigned char* pReadData)
   DMA1CTL |= DMAEN;
   DMA0CTL |= DMAEN;
 
-  while(DmaBusy);
+  while (DmaBusy);
   SRAM_CSN_DEASSERT();
 }
 
-static void ClearSram(unsigned int Address, unsigned char Data, unsigned int Size)
+/* use DMA to write a block of data to the serial ram */
+static void Write(const unsigned long pData, unsigned int Length, unsigned char Op)
 {
-  DmaBusy = 1;
   EnableSmClkUser(SERIAL_RAM_USER);
-  SetupCycle(Address, SPI_WRITE);
+  DmaBusy = 1;
+  SRAM_CSN_ASSERT();
 
   /* USCIA0 TXIFG is the DMA trigger */
   DMACTL0 = DMA0TSEL_17;
 
-  __data16_write_addr((unsigned short) &DMA0SA,(unsigned long) &Data);
-  __data16_write_addr((unsigned short) &DMA0DA,(unsigned long) &UCA0TXBUF);
+  __data16_write_addr((unsigned short) &DMA0SA, pData);
+  __data16_write_addr((unsigned short) &DMA0DA, (unsigned long)&UCA0TXBUF);
 
-  DMA0SZ = Size;
+  DMA0SZ = Length;
 
   /*
-   * single transfer, DON'T increment source address, source byte and dest byte,
+   * single transfer, source byte and dest byte,
    * level sensitive, enable interrupt, clear interrupt flag
    */
   DMA0CTL = DMADT_0 + DMASBDB + DMALEVEL + DMAIE;
 
+  /*  increment source addres */
+  if (Op == DMA_COPY) DMA0CTL += DMASRCINCR_3;
+
   /* start the transfer */
   DMA0CTL |= DMAEN;
+  while (DmaBusy);
 
-  while(DmaBusy);
   SRAM_CSN_DEASSERT();
   DisableSmClkUser(SERIAL_RAM_USER);
+}
+
+static void SetAddr(unsigned int Addr)
+{
+  SRAM_CSN_ASSERT();
+  unsigned char Data[3];
+
+  Data[0] = SPI_WRITE;
+  Data[1] = Addr >> 8;
+  Data[2] = Addr;
+
+  unsigned char i;
+
+  for (i = 0; i < 3; ++i)
+  {
+    UCA0TXBUF = Data[i];
+    while (!(UCA0IFG&UCTXIFG));
+    while (!(UCA0IFG&UCRXIFG));
+    Data[i] = UCA0RXBUF;
+  }
 }
 
 /* Load a template from flash into a draw buffer (ram)
@@ -964,7 +908,8 @@ static void ClearSram(unsigned int Address, unsigned char Data, unsigned int Siz
  */
 void LoadTemplateHandler(tMessage* pMsg)
 {
-  unsigned int Addr = (pMsg->Options & MODE_MASK) * BYTES_PER_SCREEN + MODE_BUF_START_ADDR;
+  SetAddr((pMsg->Options & MODE_MASK) * BYTES_PER_SCREEN + MODE_BUF_START_ADDR);
+
   /*
    * templates don't have extra space in them for additional 3 bytes of
    * cmd and address
@@ -972,37 +917,26 @@ void LoadTemplateHandler(tMessage* pMsg)
 
   if (pMsg->pBuffer == NULL)
   { // internal usage
-    SetupCycle(Addr, SPI_WRITE);
-    
-#if __IAR_SYSTEMS_ICC__
-    WriteData20BlockToSram(pTemplate[pMsg->Options >> 4], BYTES_PER_SCREEN);
-#else
-    WriteBlockToSram(pTemplate[pMsg->Options >> 4], BYTES_PER_SCREEN);
-#endif
+
+    Write((unsigned long)&pTemplate[pMsg->Options >> 4], BYTES_PER_SCREEN, DMA_COPY);
   }
   else if (*pMsg->pBuffer <= 1)
   {
     /* clear or fill the screen */
-    ClearSram(Addr, *pMsg->pBuffer ? 0xFF : 0x00, BYTES_PER_SCREEN);
+    Write((unsigned long)(*pMsg->pBuffer ? &FILL_WHITE : &FILL_BLACK), BYTES_PER_SCREEN, DMA_FILL);
   }
   else
   {
-#if __IAR_SYSTEMS_ICC__
     /* template zero is reserved for simple patterns */
-    SetupCycle(Addr, SPI_WRITE);
-    WriteData20BlockToSram(
-      (unsigned char __data20 *)&pWatchFace[*pMsg->pBuffer - TEMPLATE_1][0],
-      BYTES_PER_SCREEN);
-    
+    Write((unsigned long)&pWatchFace[*pMsg->pBuffer - TEMPLATE_1][0], BYTES_PER_SCREEN, DMA_COPY);
     PrintF("-Template:%d", *pMsg->pBuffer);
-#endif
   }
 }
 
-static void LoadBuffer(unsigned char i, const unsigned char *pTemp)
+static void LoadBuffer(unsigned char i, unsigned char const *pTemp)
 {
-  SetupCycle(i * BYTES_PER_QUAD + WGT_BUF_START_ADDR, SPI_WRITE);
-  WriteBlockToSram(pTemp, BYTES_PER_QUAD);
+  SetAddr(i * BYTES_PER_QUAD + WGT_BUF_START_ADDR);
+  Write((unsigned long)pTemp, BYTES_PER_QUAD, DMA_COPY);
 }
 
 /* configure the MSP430 SPI peripheral */
@@ -1085,7 +1019,8 @@ void SerialRamInit(void)
   SRAM_CSN_DEASSERT();
 
   /* now use the DMA to clear the serial ram */
-  ClearSram(MODE_BUF_START_ADDR, DummyData, MODE_BUFFER_SIZE);
+  SetAddr(MODE_BUF_START_ADDR);
+  Write((unsigned long)&DummyData, MODE_BUFFER_SIZE, DMA_FILL);
 
   unsigned char i;
   for (i = 0; i < MAX_WIDGET_NUM + MAX_WIDGET_NUM; ++i)

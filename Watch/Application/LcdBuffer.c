@@ -359,8 +359,8 @@ void DrawCallScreen(char *pCallerId, char *pCallerName)
   gBitColumnMask = BIT6;
 
   unsigned char i = 0;
-  while (pCallerName[i] != NUL && pCallerName[i] != SPACE) i ++;
-  if (pCallerName[i] == SPACE) pCallerName[i] = NUL;
+  while (pCallerName[i] != NULL && pCallerName[i] != SPACE) i ++;
+  if (pCallerName[i] == SPACE) pCallerName[i] = NULL;
   else i = 0;
 
   DrawString(pCallerName, DRAW_OPT_BITWISE_OR);
@@ -464,11 +464,7 @@ void DrawDateTime(void)
     gBitColumnMask = DEFAULT_DOW_COL_BIT;
     SetFont(DEFAULT_DOW_FONT);
 
-#if CURRENT_LANG
     niLang = CURRENT_LANG;
-#else
-    niLang = LANG_EN;
-#endif
 
     DrawString((tString *)DaysOfTheWeek[niLang][RTCDOW], DRAW_OPT_BITWISE_OR);
 
@@ -542,7 +538,7 @@ static void DrawHours(unsigned char Op)
   char Hour[4];
   HourToString(Hour);
   Hour[2] = COLON;
-  Hour[3] = NUL;
+  Hour[3] = NULL;
   DrawString(Hour, Op);
 }
 
@@ -551,7 +547,7 @@ static void DrawMins(unsigned char Op)
   char Min[3];
   Min[0] = BCD_H(RTCMIN) + ZERO;
   Min[1] = BCD_L(RTCMIN) + ZERO;
-  Min[2] = NUL;
+  Min[2] = NULL;
   DrawString(Min, Op);
 }
 
@@ -567,7 +563,7 @@ static void DrawSecs(void)
   Sec[0] = COLON;
   Sec[1] = BCD_H(RTCSEC) + ZERO;
   Sec[2] = BCD_L(RTCSEC) + ZERO;
-  Sec[3] = NUL;
+  Sec[3] = NULL;
   DrawString(Sec, DRAW_OPT_BITWISE_OR);
 }
 
