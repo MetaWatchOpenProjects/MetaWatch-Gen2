@@ -18,7 +18,10 @@
 #include "hal_board_type.h"
 #include "hal_battery.h"
 #include "hal_miscellaneous.h"
+#include "hal_boot.h"
 #include "hal_lcd.h"
+#include "hal_lpm.h"
+#include "hal_rtc.h"
 #include "DebugUart.h"
 #include "LcdDriver.h"
 #include "Wrapper.h"
@@ -30,8 +33,10 @@
 #include "BitmapData.h"
 #include "Property.h"
 #include "LcdBuffer.h"
-#include "hal_lpm.h"
-#include "hal_rtc.h"
+
+#if COUNTDOWN_TIMER
+#include "Countdown.h"
+#endif
 
 #define SPLASH_START_ROW   (41)
 
@@ -59,6 +64,12 @@ const char MonthsOfYear[][13][7] =
    "Jul","Aug","Sep","Okt","Nov","Dez"}
 };
 
+#if __IAR_SYSTEMS_ICC__
+__no_init __root unsigned char niLang @ RTC_LANG_ADDR;
+#else
+extern unsigned char niLang;
+#endif
+
 extern const char BUILD[];
 extern const char VERSION[];
 
@@ -84,11 +95,11 @@ static void DrawMenu2(void);
 static void DrawMenu3(void);
 static void DrawCommonMenuIcons(void);
 
+static void DrawHours(unsigned char Op);
+static void DrawMins(unsigned char Op);
 static void DrawSecs(void);
-static void DrawMins(void);
-static void DrawHours(void);
-static void WriteFontCharacter(unsigned char Character);
-static void WriteFontString(char const *pString);
+static void DrawChar(char Char, unsigned char Op);
+static void DrawString(const char *pString, unsigned char Op);
 static void DrawLocalAddress(unsigned char Col, unsigned Row);
 static void DrawBatteryOnIdleScreen(unsigned char Row, unsigned char Col, etFontType Font);
 
@@ -242,8 +253,8 @@ void DrawConnectionScreen(void)
   gColumn = 4;
   gBitColumnMask = BIT0;
   SetFont(MetaWatch5);
-  WriteFontString("V ");
-  WriteFontString((char *)VERSION);
+  DrawString("V ", DRAW_OPT_BITWISE_OR);
+  DrawString((char *)VERSION, DRAW_OPT_BITWISE_OR);
 
   DrawLocalAddress(1, 80);
   
@@ -272,10 +283,10 @@ void DrawWatchStatusScreen(void)
 
   if (PairedDeviceType() == DEVICE_TYPE_BLE)
   {
-    if (Connected(CONN_TYPE_HFP) && Connected(CONN_TYPE_MAP)) WriteFontString("DUO");
-    else WriteFontString("BLE");
+    if (Connected(CONN_TYPE_HFP) && Connected(CONN_TYPE_MAP)) DrawString("DUO", DRAW_OPT_BITWISE_OR);
+    else DrawString("BLE", DRAW_OPT_BITWISE_OR);
   }
-  else if (PairedDeviceType() == DEVICE_TYPE_SPP) WriteFontString("BR");
+  else if (PairedDeviceType() == DEVICE_TYPE_SPP) DrawString("BR", DRAW_OPT_BITWISE_OR);
 
   DrawBatteryOnIdleScreen(6, 9, MetaWatch7);
 
@@ -288,19 +299,19 @@ void DrawWatchStatusScreen(void)
   gColumn = 2;
   gRow = 56;
   gBitColumnMask = BIT2;
-  WriteFontString("SW: ");
-  WriteFontString((char *)VERSION);
-  WriteFontString(" (");
-  WriteFontCharacter(BUILD[0]);
-  WriteFontCharacter(BUILD[1]);
-  WriteFontCharacter(BUILD[2]);
-  WriteFontCharacter(')');
+  DrawString("SW: ", DRAW_OPT_BITWISE_OR);
+  DrawString((char *)VERSION, DRAW_OPT_BITWISE_OR);
+  DrawString(" (", DRAW_OPT_BITWISE_OR);
+  DrawChar(BUILD[0], DRAW_OPT_BITWISE_OR);
+  DrawChar(BUILD[1], DRAW_OPT_BITWISE_OR);
+  DrawChar(BUILD[2], DRAW_OPT_BITWISE_OR);
+  DrawChar(')', DRAW_OPT_BITWISE_OR);
   
   gColumn = 2;
   gRow = 65;
   gBitColumnMask = BIT2;
-  WriteFontString("HW: REV ");
-  WriteFontCharacter(GetMsp430HardwareRevision());
+  DrawString("HW: REV ", DRAW_OPT_BITWISE_OR);
+  DrawChar(GetMsp430HardwareRevision(), DRAW_OPT_BITWISE_OR);
 
   DrawLocalAddress(1, 80);
   
@@ -320,8 +331,8 @@ static void DrawLocalAddress(unsigned char Col, unsigned Row)
   unsigned char i;
   for (i = 2; i < 14; ++i)
   {
-    WriteFontCharacter(pAddr[i]);
-    if ((i & 0x03) == 1 && i != 13) WriteFontCharacter('-');
+    DrawChar(pAddr[i], DRAW_OPT_BITWISE_OR);
+    if ((i & 0x03) == 1 && i != 13) DrawChar('-', DRAW_OPT_BITWISE_OR);
   }
 }
 
@@ -330,26 +341,47 @@ void DrawCallScreen(char *pCallerId, char *pCallerName)
   FillMyBuffer(STARTING_ROW, LCD_ROW_NUM, 0x00);
   CopyRowsIntoMyBuffer(pCallNotif, CALL_NOTIF_START_ROW, CALL_NOTIF_ROWS);
 
-  gRow = 70;
-  gColumn = 1;
-  SetFont(MetaWatch7);
-  gBitColumnMask = BIT4;
-  WriteFontString(pCallerId);
-
-  gRow = 48;
   SetFont(MetaWatch16);
+  gRow = 5;
+  gColumn = 0;
+  gBitColumnMask = BIT6;
+  DrawString("Call from:", DRAW_OPT_BITWISE_OR);
 
-  // align center
+  SetFont(MetaWatch7);
+  gRow = 58;
+  gColumn = 0;
+  gBitColumnMask = BIT6;
+  DrawString(pCallerId, DRAW_OPT_BITWISE_OR);
+
+  SetFont(MetaWatch16);
+  gRow = 24;
+  gColumn = 0;
+  gBitColumnMask = BIT6;
+
   unsigned char i = 0;
+  while (pCallerName[i] != NULL && pCallerName[i] != SPACE) i ++;
+  if (pCallerName[i] == SPACE) pCallerName[i] = NULL;
+  else i = 0;
 
-  while (pCallerName[i++]);
-  unsigned char NameWidth = GetFontSpacing() * i;
-  for (; i > 0; --i) NameWidth += GetCharacterWidth(pCallerName[i - 1]);
+  DrawString(pCallerName, DRAW_OPT_BITWISE_OR);
 
-  gColumn = ((LCD_COL_NUM - NameWidth) >> 1) >> 3;
-  gBitColumnMask = 1 << (((LCD_COL_NUM - NameWidth) >> 1) & 0x07);
+  if (i)
+  {
+    gRow = 40;
+    gColumn = 0;
+    gBitColumnMask = BIT6;
+    DrawString(&pCallerName[i + 1], DRAW_OPT_BITWISE_OR);
+  }
 
-  WriteFontString(pCallerName);
+  // write timestamp
+  SetFont(MetaWatch5);
+  gRow = 86;
+  gColumn = 7;
+  gBitColumnMask = BIT6;
+  DrawHours(DRAW_OPT_BITWISE_NOT);
+  DrawMins(DRAW_OPT_BITWISE_NOT);
+  if (!GetProperty(PROP_24H_TIME_FORMAT)) DrawString((RTCHOUR > 11) ? "PM" : "AM", DRAW_OPT_BITWISE_NOT);
+
   SendMyBufferToLcd(STARTING_ROW, LCD_ROW_NUM);    
 }
 
@@ -369,12 +401,12 @@ static void DrawBatteryOnIdleScreen(unsigned char Row, unsigned char Col, etFont
   if (BattVal < 100)
   {
     BattVal = ToBCD(BattVal);
-    WriteFontCharacter(BattVal > 9 ? BCD_H(BattVal) +'0' : ' ');
-    WriteFontCharacter(BCD_L(BattVal) +'0');
+    DrawChar(BattVal > 9 ? BCD_H(BattVal) +ZERO : SPACE, DRAW_OPT_BITWISE_OR);
+    DrawChar(BCD_L(BattVal) +ZERO, DRAW_OPT_BITWISE_OR);
   }
-  else WriteFontString("100");
+  else DrawString("100", DRAW_OPT_BITWISE_OR);
 
-  WriteFontCharacter('%');
+  DrawChar('%', DRAW_OPT_BITWISE_OR);
 }
 
 const unsigned char *GetBatteryIcon(unsigned char Id)
@@ -403,14 +435,18 @@ void DrawDateTime(void)
   // clean date&time area
   FillMyBuffer(STARTING_ROW, WATCH_DRAW_SCREEN_ROW_NUM, 0x00);
 
-  DrawHours();
-  DrawMins();
+  SetFont(DEFAULT_HOURS_FONT);  
+  gRow = DEFAULT_HOURS_ROW;
+  gColumn = DEFAULT_HOURS_COL;
+  gBitColumnMask = DEFAULT_HOURS_COL_BIT;
+  DrawHours(DRAW_OPT_BITWISE_OR);
+
+  gRow = DEFAULT_MINS_ROW;
+  gColumn = DEFAULT_MINS_COL;
+  gBitColumnMask = DEFAULT_MINS_COL_BIT;
+  DrawMins(DRAW_OPT_BITWISE_OR);
   
-  if (GetProperty(PROP_TIME_SECOND))
-  {
-    WriteFontCharacter(TIME_CHARACTER_COLON_INDEX);
-    DrawSecs();
-  }
+  if (GetProperty(PROP_TIME_SECOND)) DrawSecs();
   else if (Charging()) DrawBatteryOnIdleScreen(3, 9, MetaWatch5);
   else
   {
@@ -420,14 +456,17 @@ void DrawDateTime(void)
       gColumn = DEFAULT_AM_PM_COL;
       gBitColumnMask = DEFAULT_AM_PM_COL_BIT;
       SetFont(DEFAULT_AM_PM_FONT);
-      WriteFontString((RTCHOUR >= 12) ? "PM" : "AM");
+      DrawString((RTCHOUR > 11) ? "PM" : "AM", DRAW_OPT_BITWISE_OR);
     }
 
     gRow = GetProperty(PROP_24H_TIME_FORMAT) ? DEFAULT_DOW_24HR_ROW : DEFAULT_DOW_12HR_ROW;
     gColumn = DEFAULT_DOW_COL;
     gBitColumnMask = DEFAULT_DOW_COL_BIT;
     SetFont(DEFAULT_DOW_FONT);
-    WriteFontString((tString *)DaysOfTheWeek[LANG_EN][RTCDOW]);
+
+    niLang = CURRENT_LANG;
+
+    DrawString((tString *)DaysOfTheWeek[niLang][RTCDOW], DRAW_OPT_BITWISE_OR);
 
     //add year when time is in 24 hour mode
     if (GetProperty(PROP_24H_TIME_FORMAT))
@@ -438,17 +477,17 @@ void DrawDateTime(void)
       SetFont(DEFAULT_DATE_YEAR_FONT);
 
       unsigned char Year = RTCYEARH;
-      WriteFontCharacter(BCD_H(Year) +'0');
-      WriteFontCharacter(BCD_L(Year) +'0');
+      DrawChar(BCD_H(Year) + ZERO, DRAW_OPT_BITWISE_OR);
+      DrawChar(BCD_L(Year) + ZERO, DRAW_OPT_BITWISE_OR);
       Year = RTCYEARL;
-      WriteFontCharacter(BCD_H(Year) +'0');
-      WriteFontCharacter(BCD_L(Year) +'0');
+      DrawChar(BCD_H(Year) + ZERO, DRAW_OPT_BITWISE_OR);
+      DrawChar(BCD_L(Year) + ZERO, DRAW_OPT_BITWISE_OR);
     }
 
     //Display month and day
     //Watch controls time - use default date position
     unsigned char DayFirst = GetProperty(PROP_DDMM_DATE_FORMAT);
-    unsigned char Rtc[2];
+    char Rtc[2];
     Rtc[DayFirst ? 0 : 1] = RTCDAY;
     Rtc[DayFirst ? 1 : 0] = RTCMON;
 
@@ -457,12 +496,12 @@ void DrawDateTime(void)
     gBitColumnMask = DEFAULT_DATE_FIRST_COL_BIT;
     SetFont(DEFAULT_DATE_MONTH_FONT);
     
-    WriteFontCharacter(BCD_H(Rtc[0]) + '0');
-    WriteFontCharacter(BCD_L(Rtc[0]) + '0');
+    DrawChar(BCD_H(Rtc[0]) + ZERO, DRAW_OPT_BITWISE_OR);
+    DrawChar(BCD_L(Rtc[0]) + ZERO, DRAW_OPT_BITWISE_OR);
     
     //Display separator
     SetFont(DEFAULT_DATE_SEPARATOR_FONT);
-    WriteFontCharacter(DayFirst ? '.' : '/');
+    DrawChar(DayFirst ? '.' : '/', DRAW_OPT_BITWISE_OR);
     
     //Display day second
     gRow = DEFAULT_DATE_SECOND_ROW;
@@ -470,58 +509,46 @@ void DrawDateTime(void)
     gBitColumnMask = DEFAULT_DATE_SECOND_COL_BIT;
     SetFont(DEFAULT_DATE_DAY_FONT);
     
-    WriteFontCharacter(BCD_H(Rtc[1]) + '0');
-    WriteFontCharacter(BCD_L(Rtc[1]) + '0');
+    DrawChar(BCD_H(Rtc[1]) + ZERO, DRAW_OPT_BITWISE_OR);
+    DrawChar(BCD_L(Rtc[1]) + ZERO, DRAW_OPT_BITWISE_OR);
   }
   
   SendMyBufferToLcd(STARTING_ROW, WATCH_DRAW_SCREEN_ROW_NUM);
 }
 
-static void DrawHours(void)
+void HourToString(char *Hour)
 {
-  unsigned char HL = RTCHOUR;
-  unsigned char HH = BCD_H(HL);
-  HL = BCD_L(HL);
-
-  /* if required convert to twelve hour format */
+  Hour[0] = RTCHOUR;
+  
   if (!GetProperty(PROP_24H_TIME_FORMAT))
   {
-    if (HH == 1 && HL > 2) {HH = 0; HL -= 2;}
-    else if (HH == 2) {HH = 0; HL += 8; if (HL > 9) {HL -= 10; HH ++;}}
+    Hour[0] = To12H(Hour[0]);
+    if (Hour[0] == 0) Hour[0] = 0x12; // 0am -> 12am
   }
-  
-  //Watch controls time - use default position
-  gRow = DEFAULT_HOURS_ROW;
-  gColumn = DEFAULT_HOURS_COL;
-  gBitColumnMask = DEFAULT_HOURS_COL_BIT;
-  SetFont(DEFAULT_HOURS_FONT);
-  
-  /* if first digit is zero then leave location blank */
-  if (HH == 0 && !GetProperty(PROP_24H_TIME_FORMAT))
-    WriteFontCharacter(TIME_CHARACTER_SPACE_INDEX);
-  else WriteFontCharacter(HH);
 
-  WriteFontCharacter(HL);
-  
-  //Draw colon char to separate HH and MM (uses same font has HH, but 
-  //can have different position
-  //Watch controls time - use current position (location after
-  //writing HH, which updates gRow and gColumn and gColumnBitMask)
-  SetFont(DEFAULT_TIME_SEPARATOR_FONT);
-  WriteFontCharacter(TIME_CHARACTER_COLON_INDEX);
+  Hour[1] = BCD_L(Hour[0]) + ZERO;
+
+  Hour[0] = BCD_H(Hour[0]);
+  if(!Hour[0]) Hour[0] = SPACE;
+  else Hour[0] += ZERO;
 }
 
-static void DrawMins(void)
+static void DrawHours(unsigned char Op)
+{
+  char Hour[4];
+  HourToString(Hour);
+  Hour[2] = COLON;
+  Hour[3] = NULL;
+  DrawString(Hour, Op);
+}
+
+static void DrawMins(unsigned char Op)
 {  
-  //Watch controls time - use default position
-  gRow = DEFAULT_MINS_ROW;
-  gColumn = DEFAULT_MINS_COL;
-  gBitColumnMask = DEFAULT_MINS_COL_BIT;
-  SetFont(DEFAULT_MINS_FONT);
-  
-  unsigned char Minute = RTCMIN;
-  WriteFontCharacter(BCD_H(Minute));
-  WriteFontCharacter(BCD_L(Minute));
+  char Min[3];
+  Min[0] = BCD_H(RTCMIN) + ZERO;
+  Min[1] = BCD_L(RTCMIN) + ZERO;
+  Min[2] = NULL;
+  DrawString(Min, Op);
 }
 
 static void DrawSecs(void)
@@ -532,11 +559,12 @@ static void DrawSecs(void)
   gBitColumnMask = DEFAULT_SECS_COL_BIT;
   SetFont(DEFAULT_SECS_FONT);
   
-  //Draw colon separator - only needed when seconds are displayed
-  WriteFontCharacter(TIME_CHARACTER_COLON_INDEX);
-  unsigned char Second = RTCSEC;
-  WriteFontCharacter(BCD_H(Second));
-  WriteFontCharacter(BCD_L(Second));
+  char Sec[4];
+  Sec[0] = COLON;
+  Sec[1] = BCD_H(RTCSEC) + ZERO;
+  Sec[2] = BCD_L(RTCSEC) + ZERO;
+  Sec[3] = NULL;
+  DrawString(Sec, DRAW_OPT_BITWISE_OR);
 }
 
 void DrawTextToLcd(DrawLcd_t *pData)
@@ -547,29 +575,29 @@ void DrawTextToLcd(DrawLcd_t *pData)
   SetFont(pData->Font);
 
   unsigned char i;
-  for (i = 0; i < pData->Length; ++i) WriteFontCharacter(pData->pText[i]);
+  for (i = 0; i < pData->Length; ++i) DrawChar(pData->pText[i], DRAW_OPT_BITWISE_OR);
 }
 
 /* fonts can be up to 16 bits wide */
-static void WriteFontCharacter(unsigned char Character)
+static void DrawChar(char Char, unsigned char Op)
 {
   unsigned int MaskBit = BIT0; //src
-  unsigned char CharacterRows = GetCurrentFontHeight();
-  unsigned char CharacterWidth = GetCharacterWidth(Character);
+  unsigned char Rows = GetCurrentFontHeight();
+  unsigned char CharWidth = GetCharacterWidth(Char);
   unsigned int bitmap[MAX_FONT_ROWS];
 
-  GetCharacterBitmap(Character, (unsigned int*)&bitmap);
+  GetCharacterBitmap(Char, (unsigned int *)&bitmap);
 
   /* do things bit by bit */
   unsigned char i;
   unsigned char row;
 
-  for (i = 0; i < CharacterWidth && gColumn < BYTES_PER_LINE; i++)
+  for (i = 0; i < CharWidth && gColumn < BYTES_PER_LINE; i++)
   {
-  	for (row = 0; row < CharacterRows; row++)
+  	for (row = 0; row < Rows; row++)
     {
-      if ((MaskBit & bitmap[row])) pMyBuffer[gRow+row].Data[gColumn] |= gBitColumnMask;
-//      else pMyBuffer[gRow+row].Data[gColumn] &= ~gBitColumnMask;
+//      if ((MaskBit & bitmap[row])) pMyBuffer[gRow+row].Data[gColumn] |= gBitColumnMask;
+      BitOp(&pMyBuffer[gRow+row].Data[gColumn], gBitColumnMask, MaskBit & bitmap[row], Op);
     }
 
     /* the shift direction seems backwards... */
@@ -599,11 +627,39 @@ static void WriteFontCharacter(unsigned char Character)
   }
 }
 
-static void WriteFontString(char const *pString)
+// Bit: 00010000; Set/Clear: 1/0; Op: OR, SET, NOT
+void BitOp(unsigned char *pByte, unsigned char Bit, unsigned int Set, unsigned char Op)
+{
+  switch (Op)
+  {
+  case DRAW_OPT_BITWISE_OR:
+    if (Set) *pByte |= Bit;
+    break;
+
+  case DRAW_OPT_BITWISE_SET: //Set
+    if (Set) *pByte |= Bit;
+    else *pByte &= ~Bit;
+    break;
+    
+  case DRAW_OPT_BITWISE_NOT: //~src set dst
+    if (Set) *pByte &= ~Bit;
+    else *pByte |= Bit;
+    break;
+    
+  case DRAW_OPT_BITWISE_DST_NOT: //~dst
+    if (*pByte & Bit) *pByte &= ~Bit;
+    else *pByte |= Bit;
+    break;
+
+  default: break;
+  }
+}
+
+static void DrawString(const char *pString, unsigned char Op)
 {
   while (*pString && gColumn < BYTES_PER_LINE)
   {
-    WriteFontCharacter(*pString++);
+    DrawChar(*pString++, Op);
   }
 }
 
@@ -614,11 +670,15 @@ void DrawSplashScreen(void)
   // clear LCD buffer
   FillMyBuffer(0, LCD_ROW_NUM, 0x00);
 
+#if COUNTDOWN_TIMER
+  DrawWwzSplashScreen();
+#else
   /* draw metawatch logo */
   CopyColumnsIntoMyBuffer(pIconSplashLogo, 21, 13, 3, 6);
   CopyRowsIntoMyBuffer(pIconSplashMetaWatch, SPLASH_START_ROW, 12);
   CopyColumnsIntoMyBuffer(pIconSplashHandsFree, 58, 5, 2, 8);
 //  SendMyBufferToLcd(21, 42); // 58 + 5 - 21
+#endif
 
   SendMyBufferToLcd(0, LCD_ROW_NUM);
 }
@@ -634,8 +694,8 @@ void DrawBootloaderScreen(void)
   gRow = 61;
   gColumn = 4;
   gBitColumnMask = BIT3;
-  WriteFontString("V ");
-  WriteFontString((char const *)VERSION);
+  DrawString("V ", DRAW_OPT_BITWISE_OR);
+  DrawString((char const *)VERSION, DRAW_OPT_BITWISE_OR);
 
   unsigned char i = 0;
   char const *pBootVer = BootVersion;
@@ -646,7 +706,7 @@ void DrawBootloaderScreen(void)
 
   while (*pBootVer && i++ < 8)
   {
-    if ((*pBootVer < '0' || *pBootVer > '9') && *pBootVer != '.') break;
+    if ((*pBootVer < ZERO || *pBootVer > '9') && *pBootVer != '.') break;
     pBootVer ++;
   }
   
@@ -655,8 +715,8 @@ void DrawBootloaderScreen(void)
     gRow += 7;
     gColumn = 4;
     gBitColumnMask = BIT3;
-    WriteFontString("B ");
-    WriteFontString(BootVersion);
+    DrawString("B ", DRAW_OPT_BITWISE_OR);
+    DrawString(BootVersion, DRAW_OPT_BITWISE_OR);
   }
 
   DrawLocalAddress(1, 80);

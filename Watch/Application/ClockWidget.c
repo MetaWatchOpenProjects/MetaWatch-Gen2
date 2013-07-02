@@ -24,7 +24,7 @@
 #include "MessageQueues.h"
 
 #include "Adc.h"
-#include "hal_Battery.h"
+#include "hal_battery.h"
 #include "hal_lpm.h"
 #include "hal_miscellaneous.h"
 #include "hal_rtc.h"
@@ -45,9 +45,10 @@
 #define TEMP_TYPE_4Q                  (0)
 #define TEMP_TYPE_2Q                  (1)
 
+extern unsigned char niLang;
+
 #define DRAW_OPT_NONE                 (0)
 #define DRAW_OPT_SEPARATOR            (':')
-#define SEPARATOR_MASK                (0x7F)
 #define DRAW_OPT_EQU_WIDTH            (0)
 #define DRAW_OPT_PROP_WIDTH           (0x80)
 #define DRAW_OPT_OVERLAP_NONE         (0)
@@ -55,9 +56,7 @@
 #define DRAW_OPT_OVERLAP_BATTERY      (2)
 #define DRAW_OPT_OVERLAP_SEC          (4)
 
-#define DRAW_OPT_BITWISE_OR           (0)
-#define DRAW_OPT_BITWISE_NOT          (1)
-#define DRAW_OPT_BITWISE_SET          (2)
+#define SEPARATOR_MASK                (0x7F)
 
 typedef struct
 {
@@ -86,18 +85,19 @@ static void DrawBatteryStatus(DrawInfo_t *Info);
 static void DrawTemplate(DrawInfo_t *Info);
 static void DrawBlock(DrawInfo_t *Info);
 static unsigned char Overlapping(unsigned char Option);
+static void DrawHanziClock(DrawInfo_t *Info);
 
 /* widget is a list of Draw_t, the order is the WatchFaceId (0 - 14) */
 static const Draw_t DrawList[][MAX_DRAW_ITEM_NUM] =
 {
   { //1Q
-    {DrawHour, {1, 2, Time, DRAW_OPT_SEPARATOR, DRAW_OPT_BITWISE_OR}},
-    {DrawMin, {1, 23, Time, DRAW_OPT_NONE, DRAW_OPT_BITWISE_OR}},
-    {DrawBluetoothState, {30, 27, ICON_SET_BLUETOOTH_SMALL, DRAW_OPT_BITWISE_OR}},
-    {DrawBatteryStatus, {35, 2, ICON_SET_BATTERY_V, DRAW_OPT_BITWISE_OR}},
-    {DrawDate, {25, 25, MetaWatch7, DRAW_OPT_OVERLAP_BT, DRAW_OPT_BITWISE_OR}},
-    {DrawSec, {29, 31, MetaWatch16, DRAW_OPT_OVERLAP_BT, DRAW_OPT_BITWISE_OR}},
-    {DrawDayofWeek, {25, 35, MetaWatch7, DRAW_OPT_OVERLAP_BT | DRAW_OPT_OVERLAP_SEC, DRAW_OPT_BITWISE_OR}}
+    {DrawHour, {1, 3, Time, DRAW_OPT_SEPARATOR, DRAW_OPT_BITWISE_OR}},
+    {DrawMin, {1, 24, Time, DRAW_OPT_NONE, DRAW_OPT_BITWISE_OR}},
+    {DrawBluetoothState, {30, 28, ICON_SET_BLUETOOTH_SMALL, DRAW_OPT_BITWISE_OR}},
+    {DrawBatteryStatus, {35, 3, ICON_SET_BATTERY_V, DRAW_OPT_BITWISE_OR}},
+    {DrawDate, {25, 26, MetaWatch7, DRAW_OPT_OVERLAP_BT, DRAW_OPT_BITWISE_OR}},
+    {DrawSec, {29, 32, MetaWatch16, DRAW_OPT_OVERLAP_BT, DRAW_OPT_BITWISE_OR}},
+    {DrawDayofWeek, {25, 36, MetaWatch7, DRAW_OPT_OVERLAP_BT | DRAW_OPT_OVERLAP_SEC, DRAW_OPT_BITWISE_OR}}
   },
   { //2Q-TimeG
     {DrawHour, {7, 2, TimeG, DRAW_OPT_SEPARATOR, DRAW_OPT_BITWISE_OR}},
@@ -142,6 +142,10 @@ static const Draw_t DrawList[][MAX_DRAW_ITEM_NUM] =
     {DrawSec, {58, 51, MetaWatch16, 0}},
     {DrawDayofWeek, {58, 55, MetaWatch7, DRAW_OPT_OVERLAP_SEC}}
   },
+  { //4Q-Hanzi
+    {DrawTemplate, {0, 0, TMPL_WGT_HANZI, DRAW_OPT_NONE, DRAW_OPT_BITWISE_OR}},
+    {DrawHanziClock, {0, 0, Time, DRAW_OPT_NONE, DRAW_OPT_BITWISE_DST_NOT}}
+  },
 };
 
 //#define DRAW_LIST_ITEM_NUM(_x)    (sizeof(*DrawList[_x]) / sizeof(Draw_t))
@@ -158,18 +162,37 @@ static const Widget_t ClockWidget[] =
 {
   {LAYOUT_QUAD_SCREEN, 7, DrawList[0]},
   {LAYOUT_HORI_SCREEN, 7, DrawList[1]},
-  {LAYOUT_FULL_SCREEN, 9, DrawList[2]},
-  {LAYOUT_FULL_SCREEN, 10, DrawList[3]},
-  {LAYOUT_FULL_SCREEN, 9, DrawList[4]}
+  {LAYOUT_FULL_SCREEN, 9, DrawList[2]}, // logo
+  {LAYOUT_FULL_SCREEN, 10, DrawList[3]}, // big
+  {LAYOUT_FULL_SCREEN, 9, DrawList[4]}, // fish
+  {LAYOUT_FULL_SCREEN, 2, DrawList[5]}, // hanzi
 };
 
 #define HOME_WIDGET_NUM (sizeof(ClockWidget) / sizeof(Widget_t))
 
 static unsigned char *pDrawBuffer;
 
-static void DrawText(unsigned char *pText, unsigned char Len, unsigned char X, unsigned char Y, unsigned char Font, unsigned char EqualWidth, unsigned char Op);
+static void DrawText(const char *pText, unsigned char Len, unsigned char X, unsigned char Y, unsigned char Font, unsigned char EqualWidth, unsigned char Op);
 static void DrawBitmap(const unsigned char *pBitmap, unsigned char X, unsigned char Y, unsigned char W, unsigned char H, unsigned char BmpWidthInBytes, unsigned char Op);
-static void BitOp(unsigned char *pByte, unsigned char Bit, unsigned char Set, unsigned char Op);
+
+#define CN_CLK_DIAN     12
+#define CN_CLK_ZHENG    13
+#define CN_CLK_FEN      29
+
+#define CN_CLK_HOURH    0
+#define CN_CLK_HOUR_SHI 1
+#define CN_CLK_HOURL    2
+
+#define CN_CLK_MINH     12
+#define CN_CLK_MIN_SHI  18
+#define CN_CLK_MINL     19
+
+#define CN_CLK_ZI_WIDTH     15
+#define CN_CLK_ZI_WIDTH_IN_BYTES  ((CN_CLK_ZI_WIDTH >> 3) + 1)
+#define CN_CLK_ZI_HEIGHT    18
+#define CN_CLK_ZI_PER_LINE  6
+
+static void InvertHanzi(unsigned char Index);
 
 /******************************************************************************/
 
@@ -242,40 +265,17 @@ static void DrawBitmap(const unsigned char *pBitmap, unsigned char X, unsigned c
   }
 }
 
-// Bit: 00010000; Set/Clear: 1/0; Op: OR, SET, NOT
-static void BitOp(unsigned char *pByte, unsigned char Bit, unsigned char Set, unsigned char Op)
-{
-  switch (Op)
-  {
-  case DRAW_OPT_BITWISE_OR:
-    if (Set) *pByte |= Bit;
-    break;
-
-  case DRAW_OPT_BITWISE_SET: //Set
-    if (Set) *pByte |= Bit;
-    else *pByte &= ~Bit;
-    break;
-    
-  case DRAW_OPT_BITWISE_NOT: //~src set dst
-    if (Set) *pByte &= ~Bit;
-    else *pByte |= Bit;
-    break;
-    
-  default: break;
-  }
-}
-
-static void DrawText(unsigned char *pText, unsigned char Len, unsigned char X, unsigned char Y,
+static void DrawText(const char *pText, unsigned char Len, unsigned char X, unsigned char Y,
                      unsigned char Font, unsigned char EqualWidth, unsigned char Op)
 {
   SetFont((etFontType)Font);
   const tFont *pFont = GetCurrentFont();
   unsigned char i;
   
-  for (i = 0; i < Len && pText[i] != '\0'; ++i)
+  for (i = 0; i < Len && pText[i] != NULL; ++i)
   {
-    if (pFont->Type == FONT_TYPE_TIME) pText[i] -= '0';
-    
+//    if (pFont->Type == FONT_TYPE_TIME) pText[i] -= ZERO;
+
     unsigned char *pBitmap = GetCharacterBitmapPointer(pText[i]);
     unsigned char CharWidth = GetCharacterWidth(pText[i]);
     
@@ -286,18 +286,43 @@ static void DrawText(unsigned char *pText, unsigned char Len, unsigned char X, u
 
 static void DrawHour(DrawInfo_t *Info)
 {
-  unsigned char Hour[3];
-  *Hour = RTCHOUR;
-  
-  if (!GetProperty(PROP_24H_TIME_FORMAT)) *Hour = To12H(*Hour);
-
-  Hour[1] = BCD_L(Hour[0]) + '0';
-  Hour[0] = BCD_H(Hour[0]);
-  if(!Hour[0]) Hour[0] = TIME_CHARACTER_SPACE_INDEX;
-  Hour[0] += '0';
+  char Hour[3];
+  HourToString(Hour);
   Hour[2] = Info->Opt & SEPARATOR_MASK; // separator
   
   DrawText(Hour, Info->Opt ? 3 : 2, Info->X, Info->Y, Info->Id, Info->Opt & DRAW_OPT_PROP_WIDTH, Info->Op);
+}
+
+static void DrawHanziClock(DrawInfo_t *Info)
+{
+  unsigned char Time = RTCHOUR;
+  if (!GetProperty(PROP_24H_TIME_FORMAT)) Time = To12H(Time);
+
+  if (Time >= 0x20) InvertHanzi(CN_CLK_HOURH);
+  if (Time >= 0x10) InvertHanzi(CN_CLK_HOUR_SHI);
+
+  if (Time != 0x20 && Time != 0x10) InvertHanzi(CN_CLK_HOURL + BCD_L(Time));
+
+  Time = RTCMIN;
+  if (Time)
+  {
+    if (Time >= 0x20) InvertHanzi(CN_CLK_MINH + BCD_H(Time));
+    if (Time >= 0x10) InvertHanzi(CN_CLK_MIN_SHI);
+    else InvertHanzi(CN_CLK_MINL); // 0
+    
+    if (BCD_L(Time)) InvertHanzi(CN_CLK_MINL + BCD_L(Time));
+    InvertHanzi(CN_CLK_FEN);
+  }
+  else  InvertHanzi(CN_CLK_ZHENG);
+}
+
+static void InvertHanzi(unsigned char Index)
+{
+  unsigned char X = Index % CN_CLK_ZI_PER_LINE * (CN_CLK_ZI_WIDTH + 1);
+  unsigned char Y = Index / CN_CLK_ZI_PER_LINE * (CN_CLK_ZI_HEIGHT + 1) + 1;
+
+  DrawBitmap(pDrawBuffer, X, Y, CN_CLK_ZI_WIDTH, CN_CLK_ZI_HEIGHT,
+    CN_CLK_ZI_WIDTH_IN_BYTES, DRAW_OPT_BITWISE_DST_NOT);
 }
 
 static void DrawAmPm(DrawInfo_t *Info)
@@ -308,9 +333,9 @@ static void DrawAmPm(DrawInfo_t *Info)
 
 static void DrawMin(DrawInfo_t *Info)
 {
-  unsigned char Min[2];
-  Min[0] = BCD_H(RTCMIN) + '0';
-  Min[1] = BCD_L(RTCMIN) + '0';
+  char Min[2];
+  Min[0] = BCD_H(RTCMIN) + ZERO;
+  Min[1] = BCD_L(RTCMIN) + ZERO;
   DrawText(Min, 2, Info->X, Info->Y, Info->Id, Info->Opt & DRAW_OPT_PROP_WIDTH, Info->Op);
 }
 
@@ -318,10 +343,10 @@ static void DrawSec(DrawInfo_t *Info)
 {
   if (!GetProperty(PROP_TIME_SECOND) || Overlapping(Info->Opt)) return;
 
-  unsigned char Sec[3];
+  char Sec[3];
   Sec[0] = DRAW_OPT_SEPARATOR;
-  Sec[1] = BCD_H(RTCSEC) + '0';
-  Sec[2] = BCD_L(RTCSEC) + '0';
+  Sec[1] = BCD_H(RTCSEC) + ZERO;
+  Sec[2] = BCD_L(RTCSEC) + ZERO;
   DrawText(Sec, 3, Info->X, Info->Y, Info->Id, DRAW_OPT_PROP_WIDTH, Info->Op);
 }
 
@@ -329,24 +354,24 @@ static void DrawDate(DrawInfo_t *Info)
 {
   if (Overlapping(Info->Opt)) return;
   
-  unsigned char Date[5];
-  unsigned char *pDate = Date;
+  char Date[5];
+  char *pDate = Date;
   unsigned char DayFirst = GetProperty(PROP_DDMM_DATE_FORMAT);
 
   memset(pDate, 0, 5); // clear Date[]
 
-  unsigned char Rtc[2];
+  char Rtc[2];
   Rtc[DayFirst ? 0 : 1] = RTCDAY;
   Rtc[DayFirst ? 1 : 0] = RTCMON;
 
   *pDate = BCD_H(Rtc[0]);
-  if (*pDate) *pDate++ += '0';
-  *pDate++ = BCD_L(Rtc[0]) + '0';
+  if (*pDate) *pDate++ += ZERO;
+  *pDate++ = BCD_L(Rtc[0]) + ZERO;
   *pDate++ = '/';
 
   *pDate = BCD_H(Rtc[1]);
-  if (*pDate) *pDate++ += '0';
-  *pDate = BCD_L(Rtc[1]) + '0';
+  if (*pDate) *pDate++ += ZERO;
+  *pDate = BCD_L(Rtc[1]) + ZERO;
 
   DrawText(Date, 5, Info->X, Info->Y, Info->Id, DRAW_OPT_PROP_WIDTH, Info->Op);
 }
@@ -355,8 +380,8 @@ static void DrawDayofWeek(DrawInfo_t *Info)
 {
   if (Overlapping(Info->Opt)) return;
   
-  const char *pDow = DaysOfTheWeek[LANG_EN][RTCDOW];
-  DrawText((unsigned char *)pDow, strlen(pDow), Info->X, Info->Y, Info->Id, DRAW_OPT_PROP_WIDTH, Info->Op);
+  const char *pDow = DaysOfTheWeek[niLang][RTCDOW];
+  DrawText(pDow, strlen(pDow), Info->X, Info->Y, Info->Id, DRAW_OPT_PROP_WIDTH, Info->Op);
 }
 
 static unsigned char Overlapping(unsigned char Option)
@@ -418,15 +443,26 @@ static void DrawTemplate(DrawInfo_t *Info)
   }
   else
   {
-    const unsigned char *pTemp =  (Info->Opt == TEMP_TYPE_4Q) ? pTemplate[TempId] : pTemplate2Q[TempId];
+#if __IAR_SYSTEMS_ICC__
+    const unsigned char __data20 *pTemp;
+#else
+    const unsigned char *pTemp;
+#endif
+
+    pTemp =  (Info->Opt == TEMP_TYPE_4Q) ? pTemplate[TempId] : pTemplate2Q[TempId];
     unsigned char RowNum = (Info->Opt == TEMP_TYPE_4Q) ? LCD_ROW_NUM : HALF_SCREEN_ROWS;
+    
+    unsigned char k;
 
     for (i = 0; i < RowNum; ++i)
     {
       if (i == HALF_SCREEN_ROWS) pByte += BYTES_PER_QUAD;
 
-      memcpy(pByte, pTemp, BYTES_PER_QUAD_LINE);
-      memcpy(pByte + BYTES_PER_QUAD, pTemp + BYTES_PER_QUAD_LINE, BYTES_PER_QUAD_LINE);
+//      memcpy(pByte, pTemp, BYTES_PER_QUAD_LINE);
+//      memcpy(pByte + BYTES_PER_QUAD, pTemp + BYTES_PER_QUAD_LINE, BYTES_PER_QUAD_LINE);
+      for (k = 0; k < BYTES_PER_QUAD_LINE; ++k) pByte[k] = pTemp[k];
+      for (k = 0; k < BYTES_PER_QUAD_LINE; ++k) pByte[k + BYTES_PER_QUAD] = pTemp[k + BYTES_PER_QUAD_LINE];
+
       pByte += BYTES_PER_QUAD_LINE;
       pTemp += BYTES_PER_LINE;
     }

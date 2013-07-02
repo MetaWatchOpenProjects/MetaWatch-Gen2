@@ -47,21 +47,21 @@
 #define RTC_USER_MASK     (RTC_TIMER_VIBRATION | RTC_TIMER_BUTTON)
 
 #if __IAR_SYSTEMS_ICC__
-__no_init __root unsigned int RtcYear @RTC_YEAR_ADDR;
-__no_init __root unsigned char RtcMon @RTC_MON_ADDR;
-__no_init __root unsigned char RtcDay @RTC_DAY_ADDR;
-__no_init __root unsigned char RtcDow @RTC_DOW_ADDR;
-__no_init __root unsigned char RtcHour @RTC_HOUR_ADDR;
-__no_init __root unsigned char RtcMin @RTC_MIN_ADDR;
-__no_init __root unsigned char RtcSec @RTC_SEC_ADDR;
+__no_init __root unsigned int niRtcYear @RTC_YEAR_ADDR;
+__no_init __root unsigned char niRtcMon @RTC_MON_ADDR;
+__no_init __root unsigned char niRtcDay @RTC_DAY_ADDR;
+__no_init __root unsigned char niRtcDow @RTC_DOW_ADDR;
+__no_init __root unsigned char niRtcHour @RTC_HOUR_ADDR;
+__no_init __root unsigned char niRtcMin @RTC_MIN_ADDR;
+__no_init __root unsigned char niRtcSec @RTC_SEC_ADDR;
 #else
-extern unsigned int RtcYear;
-extern unsigned char RtcMon;
-extern unsigned char RtcDay;
-extern unsigned char RtcDow;
-extern unsigned char RtcHour;
-extern unsigned char RtcMin;
-extern unsigned char RtcSec;
+extern unsigned int niRtcYear;
+extern unsigned char niRtcMon;
+extern unsigned char niRtcDay;
+extern unsigned char niRtcDow;
+extern unsigned char niRtcHour;
+extern unsigned char niRtcMin;
+extern unsigned char niRtcSec;
 #endif
 
 extern unsigned int niReset;
@@ -129,18 +129,24 @@ void SetRtc(Rtc_t *pRtcData)
   // These calls are to asm level patch functions provided by TI for the MSP430F5438
   unsigned int Year = (pRtcData->YearMsb << 8) + pRtcData->YearLsb;
   PrintF(">SetRtc Year: %d", Year);
-  RtcYear = (ToBCD(Year / 100) << 8) + ToBCD(Year % 100);
-  PrintF(" %04X", RtcYear);
+  niRtcYear = (ToBCD(Year / 100) << 8) + ToBCD(Year % 100);
+  PrintF(" %04X", niRtcYear);
   
-  RtcMon = ToBCD(pRtcData->Month);
-  RtcDay = ToBCD(pRtcData->Day);
-  RtcDow = ToBCD(pRtcData->DayOfWeek);
-  RtcHour = ToBCD(pRtcData->Hour);
-  RtcMin = ToBCD(pRtcData->Minute);
-  RtcSec = ToBCD(pRtcData->Second);
+  niRtcMon = ToBCD(pRtcData->Month);
+  niRtcDay = ToBCD(pRtcData->Day);
+  niRtcDow = ToBCD(pRtcData->DayOfWeek);
+  niRtcHour = ToBCD(pRtcData->Hour);
+  niRtcMin = ToBCD(pRtcData->Minute);
+  niRtcSec = ToBCD(pRtcData->Second);
 
-  RestoreRtc();
-  
+  RTCYEAR = niRtcYear;
+  RTCMON = niRtcMon;
+  RTCDAY = niRtcDay;
+  RTCDOW = niRtcDow;
+  RTCHOUR = niRtcHour;
+  RTCMIN = niRtcMin;
+  RTCSEC = niRtcSec;
+
   // Enable the RTC
   RTCCTL01 &= ~RTCHOLD;
 
@@ -152,15 +158,18 @@ static void RestoreRtc(void)
   CheckResetCode();
   
   if (niReset == NORMAL_RESET_CODE &&
-      ToBin(RtcHour) < 24 && ToBin(RtcMin) < 60)
+      BCD_H(niRtcHour) >= 0 && BCD_H(niRtcHour) <= 2 &&
+      BCD_L(niRtcHour) >= 0 && BCD_L(niRtcHour) <= 9 &&
+      BCD_H(niRtcMin) >= 0 && BCD_H(niRtcMin) <= 6 &&
+      BCD_L(niRtcMin) >= 0 && BCD_L(niRtcMin) <= 9)
   {
-    RTCYEAR = RtcYear;
-    RTCMON = RtcMon;
-    RTCDAY = RtcDay;
-    RTCDOW = RtcDow;
-    RTCHOUR = RtcHour;
-    RTCMIN = RtcMin;
-    RTCSEC = RtcSec;
+    RTCYEAR = niRtcYear;
+    RTCMON = niRtcMon;
+    RTCDAY = niRtcDay;
+    RTCDOW = niRtcDow;
+    RTCHOUR = niRtcHour;
+    RTCMIN = niRtcMin;
+    RTCSEC = niRtcSec;
   }
   else
   {
@@ -171,8 +180,8 @@ static void RestoreRtc(void)
     RTCDOW = 0x05;
     RTCHOUR = 0x11;
     RTCMIN = 0x58;
-    RTCSEC = 0x0;
-  }  
+    RTCSEC = 0x0;    
+  }
 }
 
 unsigned char ToBCD(unsigned char Bin)
@@ -225,13 +234,13 @@ unsigned char To12H(unsigned char H24)
 
 void BackupRtc(void)
 {
-  RtcYear = RTCYEAR;
-  RtcMon = RTCMON;
-  RtcDay = RTCDAY;
-  RtcDow = RTCDOW;
-  RtcHour = RTCHOUR;
-  RtcMin = RTCMIN;
-  RtcSec = RTCSEC;
+  niRtcYear = RTCYEAR;
+  niRtcMon = RTCMON;
+  niRtcDay = RTCDAY;
+  niRtcDow = RTCDOW;
+  niRtcHour = RTCHOUR;
+  niRtcMin = RTCMIN;
+  niRtcSec = RTCSEC;
 }
 
 void EnableRtcPrescaleInterruptUser(unsigned char UserMask)

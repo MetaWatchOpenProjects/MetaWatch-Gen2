@@ -40,8 +40,9 @@ typedef enum
   ModeTimer,
   ShowCallTimer,
   BacklightTimer,
-  HfpMapTimer,
-  TunnelTimer
+  WrapperTimer,
+  TunnelTimer,
+  HeartbeatTimer
 } eTimerId;
 
 /*! One Second Timer handler that occurs in interrupt context */

@@ -89,4 +89,7 @@
 /*! use debug signals to time the software FLL circuit */
 #define DEBUG_SOFTWARE_FLL ( 1 )
 
+/* Language for DayOfWeek, 0: English; 1: Finnish; 2: German */
+#define CURRENT_LANG  (0)
+
 #endif /* PRE_INCLUDE_H */

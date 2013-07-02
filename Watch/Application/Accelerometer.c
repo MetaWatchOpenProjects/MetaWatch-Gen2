@@ -61,13 +61,13 @@
 #define ACCEL_RANGE_SHFT                (3)
 #define INIT_MODE                       (0)
 
-#define ACCEL_CONTROL_DEFAULT0 (RESOLUTION_8BIT | RANGE_8G | WUF_ENABLE)
-#define ACCEL_CONTROL_DEFAULT1 (RESOLUTION_8BIT | RANGE_8G | DRDYE_DATA_AVAILABLE)
+#define ACCEL_CONTROL_DEFAULT_BASE (RESOLUTION_8BIT | RANGE_8G)
+#define ACCEL_CONTROL_DEFAULT_WUF (ACCEL_CONTROL_DEFAULT_BASE | WUF_ENABLE)
+#define ACCEL_CONTROL_DEFAULT_DRDYE (ACCEL_CONTROL_DEFAULT_BASE | DRDYE_DATA_AVAILABLE)
+#define ACCEL_CONTROL_DEFAULT_TPE (ACCEL_CONTROL_DEFAULT_BASE | TILT_ENABLE_TPE)
 
 static unsigned char Data[6];
 static unsigned char Control = INIT_MODE;
-
-#define CONVERT_TO_8_BIT(_x)  ((Data[_x] >> 4) | (Data[_x + 1] << 4))
 
 #define ENTER_STANDBY_MODE() {                              \
   Control &= ~PC1_OPERATING_MODE;                           \
@@ -104,7 +104,7 @@ static void InitAccelerometer(void)
   /* make sure accelerometer has had 20 ms to power up */
   vTaskDelay(ACCELEROMETER_POWER_UP_TIME_MS);
 
-  Control = ACCEL_CONTROL_DEFAULT0; // 0:wakeup; 1:streaming
+  Control = ACCEL_CONTROL_DEFAULT_TPE;
   AccelerometerWrite(KIONIX_CTRL_REG1, &Control, ONE_BYTE);
     
   /* change to output data rate to 25 Hz */
@@ -115,6 +115,10 @@ static void InitAccelerometer(void)
   *Data = IEN | IEA;
   AccelerometerWrite(KIONIX_INT_CTRL_REG1, Data, ONE_BYTE);
   
+  /* enable motion detection interrupt for all three axis */
+  *Data = ZBW;
+  AccelerometerWrite(KIONIX_INT_CTRL_REG2, Data, ONE_BYTE);
+
   /* enable motion detection interrupt for all three axis */
   *Data = ZBW;
   AccelerometerWrite(KIONIX_INT_CTRL_REG2, Data, ONE_BYTE);
@@ -142,22 +146,30 @@ static void AccelerometerSendDataHandler(void)
   SetupMessageWithBuffer(&Msg, AccelIndMsg, MSG_OPT_NONE);
   if (Msg.pBuffer != NULL)
   {
-    if (Control & WUF_ENABLE)
+    if (Control & DRDYE_DATA_AVAILABLE || Control & WUF_ENABLE)
     {
-      AccelerometerRead(KIONIX_XOUT_HPF_L, Data, XYZ_DATA_LENGTH);
-      AccelerometerRead(KIONIX_INT_REL, Data, ONE_BYTE); //clear int
+      AccelerometerRead(Control & DRDYE_DATA_AVAILABLE ? KIONIX_XOUT_L : KIONIX_XOUT_HPF_L,
+        Data, XYZ_DATA_LENGTH);
+
+      Msg.pBuffer[0] = Data[1];
+      Msg.pBuffer[1] = Data[3];
+      Msg.pBuffer[2] = Data[5];
+      Msg.Length = 3;
+      RouteMsg(&Msg);
+
+      PrintH(Msg.pBuffer[0]); PrintC(SPACE);
+      PrintH(Msg.pBuffer[1]); PrintC(SPACE);
+      PrintH(Msg.pBuffer[2]); PrintR();
     }
-    else AccelerometerRead(KIONIX_XOUT_L, Data, XYZ_DATA_LENGTH);
+    else if (Control & TILT_ENABLE_TPE)
+    {
+      AccelerometerRead(KIONIX_TILT_POS_CUR, Msg.pBuffer, ONE_BYTE);
+      Msg.Length = 1;
+      RouteMsg(&Msg);
+      PrintH(*Msg.pBuffer); PrintR();
+    }
 
-    Msg.pBuffer[0] = CONVERT_TO_8_BIT(0);
-    Msg.pBuffer[1] = CONVERT_TO_8_BIT(2);
-    Msg.pBuffer[2] = CONVERT_TO_8_BIT(4);
-    Msg.Length = 3;
-    RouteMsg(&Msg);
-
-    PrintH(Msg.pBuffer[0]); PrintC(SPACE);
-    PrintH(Msg.pBuffer[1]); PrintC(SPACE);
-    PrintH(Msg.pBuffer[2]); PrintR();
+    AccelerometerRead(KIONIX_INT_REL, Data, ONE_BYTE); //clear int
   }
 }
 
@@ -185,14 +197,23 @@ void HandleAccelerometer(tMessage *pMsg)
     break;
 
   case MSG_OPT_ACCEL_ENABLE:
-    if (!(Control & PC1_OPERATING_MODE)) EnableAccelerometer();
+
+    if (Connected(CONN_TYPE_BLE))
+      CreateAndSendMessage(UpdConnParamMsg, ShortInterval);
+
+    else if (Connected(CONN_TYPE_SPP))
+      CreateAndSendMessage(SniffControlMsg, MSG_OPT_EXIT_SNIFF);
+
+    EnableAccelerometer();
     break;
 
   case MSG_OPT_ACCEL_DISABLE:
-    if (Control & PC1_OPERATING_MODE) DisableAccelerometer();
+    DisableAccelerometer();
+    CreateAndSendMessage(UpdConnParamMsg, LongInterval);
     break;
 
   case MSG_OPT_ACCEL_STREAMING:
+  
     ENTER_STANDBY_MODE();
     Control &= ~WUF_ENABLE;
     Control |= DRDYE_DATA_AVAILABLE;
@@ -201,6 +222,7 @@ void HandleAccelerometer(tMessage *pMsg)
     break;
 
   case MSG_OPT_ACCEL_WUF:
+  
     ENTER_STANDBY_MODE();
     Control &= ~DRDYE_DATA_AVAILABLE;
     Control |= WUF_ENABLE;
@@ -211,8 +233,7 @@ void HandleAccelerometer(tMessage *pMsg)
   case MSG_OPT_ACCEL_WUF_THRESHOLD:
 
     ENTER_STANDBY_MODE();
-    *Data = *pMsg->pBuffer;
-    AccelerometerWrite(KIONIX_WUF_THRESH, Data, ONE_BYTE);
+    AccelerometerWrite(KIONIX_WUF_THRESH, pMsg->pBuffer, ONE_BYTE);
     ENTER_OPERATING_MODE();
     break;
 
@@ -220,7 +241,7 @@ void HandleAccelerometer(tMessage *pMsg)
   
     ENTER_STANDBY_MODE();
     Control &= ~ACCEL_RANGE_MASK;
-    Control |= *pMsg->pBuffer << ACCEL_RANGE_SHFT;
+    Control |= (*pMsg->pBuffer & 0x03) << ACCEL_RANGE_SHFT;
     AccelerometerWrite(KIONIX_CTRL_REG1, &Control, ONE_BYTE);
     ENTER_OPERATING_MODE();
     break;
@@ -239,42 +260,7 @@ void HandleAccelerometer(tMessage *pMsg)
  */
 void AccelerometerPinIsr(void)
 {
-#if 0
-  /* disabling the interrupt is the easiest way to make sure that
-   * the stack does not get blasted with
-   * data when it is in sleep mode
-   */
-  ACCELEROMETER_INT_DISABLE();
-#endif
-  
-  /* can't allocate buffer here so we must go to task to send interrupt
-   * occurred message
-   */
   tMessage Msg;
   SetupMessage(&Msg, AccelMsg, MSG_OPT_ACCEL_DATA);  
   SendMessageToQueueFromIsr(DISPLAY_QINDEX, &Msg);
 }
-
-//
-///* Perform a read or write access of the accelerometer */
-//static void AccelerometerAccessHandler(tMessage *pMsg)
-//{
-//  tAccelAccessPayload* pPayload = (tAccelAccessPayload *)pMsg->pBuffer;
-//
-//  if (pMsg->Options == MSG_OPT_ACCEL_WRITE)
-//  {
-//    AccelerometerWrite(pPayload->Addr, &pPayload->Data, pPayload->Size);
-//  }
-//  else
-//  {
-//    tMessage Msg;
-//    SetupMessageWithBuffer(&Msg, AccelRespMsg, pPayload->Size);
-//    if (Msg.pBuffer != NULL)
-//    {
-//      AccelerometerRead(pPayload->Addr, Msg.pBuffer, pPayload->Size);
-//      RouteMsg(&Msg);
-//    }
-//  }
-//}
-
-

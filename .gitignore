@@ -12,12 +12,16 @@ Watch/Hardware/*-?.*
 Watch/Project/.DS_Store
 Watch/Project/Devboard/
 Watch/Project/Digital/
-Watch/Project/Gen1
+Watch/Project/Gen1/*
 Watch/Project/*/Obj/
 Watch/Project/*/List/
+Watch/ProjectCCS/Gen1/*
+Watch/ProjectCCS/Gen2/*
 Watch/ProjectCCS/.cdtbuild_initial
 Watch/ProjectCCS/.project_initial
 Watch/ProjectCCS/.settings/
+Watch/ProjectCCS/.metadata/
+meta.xcodeproj
 *-bk.*
 *-p.*
 *-w.*
@@ -29,4 +33,5 @@ Back*.*
 *copy.*
 *new.*
 *Reduced.*
+.metadata
 

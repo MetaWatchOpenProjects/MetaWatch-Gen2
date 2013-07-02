@@ -27,10 +27,16 @@
 #ifndef DEBUG_UART_H
 #define DEBUG_UART_H
 
-extern const char OK[];
-extern const char NOK[];
-extern const char SPACE;
-extern const char ZERO;
+extern char const OK[];
+extern char const NOK[];
+extern char const SPACE;
+extern char const ZERO;
+extern char const COLON;
+extern char const HASH;
+extern char const DOLLAR;
+extern char const TILDE;
+extern char const DOT;
+extern char const PERCENT;
 
 void EnableDebugUart(unsigned char Enable);
 void EnableTimeStamp(void);
@@ -41,7 +47,7 @@ void EnableTimeStamp(void);
 void PrintC(char Char);
 void PrintR(void);
 void PrintH(unsigned char Value);
-void PrintS(const char *pString);
-void PrintF(const char *pFormat, ...);
+void PrintS(char const *pString);
+void PrintF(char const *pFormat, ...);
 
 #endif

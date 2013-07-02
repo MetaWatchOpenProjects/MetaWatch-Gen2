@@ -35,6 +35,7 @@
 #define RTC_HOUR_ADDR           0x1C33;
 #define RTC_MIN_ADDR            0x1C34;
 #define RTC_SEC_ADDR            0x1C35;
+#define RTC_LANG_ADDR		0x1C36;
 
 /****************************************************************************/
 
@@ -49,13 +50,14 @@ niDisconnects = 0x1C12;
 niAuth = 0x1C14;
 niProperty = 0x1C2C;
 
-RtcYear = 0x1C2E;
-RtcMon = 0x1C30;
-RtcDay = 0x1C31;
-RtcDow = 0x1C32;
-RtcHour = 0x1C33;
-RtcMin = 0x1C34;
-RtcSec = 0x1C35;
+niRtcYear = 0x1C2E;
+niRtcMon = 0x1C30;
+niRtcDay = 0x1C31;
+niRtcDow = 0x1C32;
+niRtcHour = 0x1C33;
+niRtcMin = 0x1C34;
+niRtcSec = 0x1C35;
+niLang = 0x1C36;
 
 MEMORY
 {

@@ -113,6 +113,14 @@ typedef struct
   unsigned char Length;
 } DrawLcd_t;
 
+#define DRAW_OPT_BITWISE_OR           (0)
+#define DRAW_OPT_BITWISE_NOT          (1)
+#define DRAW_OPT_BITWISE_SET          (2)
+#define DRAW_OPT_BITWISE_DST_NOT      (3)
+#define DRAW_OPT_BITWISE_MASK         (0x0F)
+
+void HourToString(char *Hour);
+void BitOp(unsigned char *pByte, unsigned char Bit, unsigned int Set, unsigned char Op);
 void DrawTextToLcd(DrawLcd_t *pData);
 
 void DrawSplashScreen(void);

@@ -52,6 +52,10 @@
 #include "Fonts.h"
 #include "LcdBuffer.h"
 
+#if COUNTDOWN_TIMER
+#include "Countdown.h"
+#endif
+
 #define PAGE_TYPE_NUM                 (3)
 #define MUSIC_STATE_START_ROW         (43)
 
@@ -123,7 +127,7 @@ void CreateDisplayTask(void)
   if (QueueHandles[DISPLAY_QINDEX] == 0) SoftwareReset();
 
   // task function, task name, stack len, task params, priority, task handle
-  xTaskCreate(DisplayTask, "DISPLAY", DISPLAY_TASK_STACK_SIZE, NULL, DISPLAY_TASK_PRIORITY, &DisplayHandle);
+  xTaskCreate(DisplayTask, (signed char *)"DISPLAY", DISPLAY_TASK_STACK_SIZE, NULL, DISPLAY_TASK_PRIORITY, &DisplayHandle);
 }
 
 /*! LCD Task Main Loop */
@@ -178,6 +182,9 @@ void Init(void)
   if (niReset != NORMAL_RESET_CODE)
   {
     InitProperty();
+#if COUNTDOWN_TIMER
+    InitCountdown();
+#endif
   }
   
   InitBufferPool(); // message queue
@@ -185,11 +192,11 @@ void Init(void)
   InitBattery();
   CheckClip();
 
-  PrintF("*** %s:%s", niReset == FLASH_RESET_CODE ? "FLASH" :
+  PrintF("*** %s:%s ***", niReset == FLASH_RESET_CODE ? "FLASH" :
     (niReset == MASTER_RESET_CODE ? "MASTER" : "NORMAL"), niBuild);
   
-  ShowWatchdogInfo();
   WhoAmI();
+  ShowWatchdogInfo();
 
   /* timer for battery checking at a regular frequency. */
   StartTimer(BatteryTimer);
@@ -301,22 +308,27 @@ static void DisplayQueueMessageHandler(tMessage* pMsg)
     break;
 
   case DevTypeMsg:
+
     SetupMessageWithBuffer(&Msg, DevTypeRespMsg, BOARD_TYPE); //default G2
     if (Msg.pBuffer != NULL)
     {
       Msg.pBuffer[0] = BOARD_TYPE; // backward compatible
+      Msg.Length = 1;
 
-#ifdef WATCH
       if (GetMsp430HardwareRevision() < 'F')
       {
         Msg.Options = DIGITAL_WATCH_TYPE_G1;
         Msg.pBuffer[0] = DIGITAL_WATCH_TYPE_G1; // backward compatible
       }
-#endif
-      Msg.Length = 1;
+
+      Msg.Options |= pMsg->Options & 0x80; // support ACK
       RouteMsg(&Msg);
     }
-    PrintF("- DevTypeResp:%d", Msg.pBuffer[0]);
+
+    PrintF("- DevTypeResp:%d", Msg.Options);
+
+    // set ACK bit
+    SendMessage(&Msg, ConnTypeMsg, pMsg->Options);
     break;
 
   case VerInfoMsg:
@@ -346,8 +358,36 @@ static void DisplayQueueMessageHandler(tMessage* pMsg)
   case SetRtcMsg:
     SetRtc((Rtc_t *)pMsg->pBuffer);
 
+#if COUNTDOWN_TIMER
+    if (CurrentPage[PageType] == CountdownPage && CountdownMode() == COUNTING)
+      SendMessage(&Msg, CountDownMsg, MSG_OPT_CNTDWN_TIME);
+#endif
     UpdateClock();
     break;
+    
+#if COUNTDOWN_TIMER
+  case CountDownMsg:
+    if (pMsg->Options == MSG_OPT_NONE)
+    {
+      PageType = PAGE_TYPE_INFO;
+      CurrentPage[PageType] = CountdownPage;
+    }
+    DrawCountdownScreen(pMsg->Options);
+    break;
+
+  case SetCountdownDoneMsg:
+    // for testing
+//    Rtc_t Done;
+//    Done.Month = 5;
+//    Done.Day = 1;
+//    Done.Hour = 0;
+//    Done.Minute = 0;
+//    SetDoneTime(&Done);
+
+    // Valid only DoneTime is different
+    if (SetDoneTime((Rtc_t *)pMsg->pBuffer)) SendMessage(&Msg, CountDownMsg, MSG_OPT_NONE);
+    break;
+#endif
 
   case ServiceMenuMsg:
     ServiceMenuHandler();
@@ -512,8 +552,14 @@ static void ChangeModeHandler(unsigned char Option)
   
   if (Mode == IDLE_MODE)
   {
+#if COUNTDOWN_TIMER
+    if (CurrentPage[PageType] == CountdownPage) SendMessage(&Msg, CountDownMsg, MSG_OPT_NONE);
+    else
+#endif
+    {
 //    PageType = PAGE_TYPE_IDLE;
       IdleUpdateHandler();
+    }
   }
   else
   {
@@ -575,6 +621,9 @@ static void BluetoothStateChangeHandler(tMessage *pMsg)
       {
         if (OnceConnected())
         {
+//#if COUNTDOWN_TIMER
+//          if (Connected(CONN_TYPE_MAIN)) CreateAndSendMessage(CountDownMsg, MSG_OPT_NONE);
+//#endif
           UpdateClock();
         }
         else DrawConnectionScreen();
@@ -633,9 +682,6 @@ static void MenuButtonHandler(unsigned char MsgOptions)
     MenuModeHandler(0);
     break;
 
-  case MENU_BUTTON_OPTION_MENU1:
-    break;
-  
   case MENU_BUTTON_OPTION_TOGGLE_RST_NMI_PIN:
     if (RESET_PIN) {SET_RESET_PIN_RST();}
     else {SET_RESET_PIN_NMI();}
@@ -649,6 +695,7 @@ static void MenuButtonHandler(unsigned char MsgOptions)
     
   case MENU_BUTTON_OPTION_TOGGLE_ENABLE_CHARGING:
     ToggleCharging();
+//    SendMessage(&Msg, AccelMsg, 0); //test accel
     MenuModeHandler(0);
     break;
     
@@ -657,12 +704,15 @@ static void MenuButtonHandler(unsigned char MsgOptions)
     break;
 
   case MENU_BUTTON_OPTION_TEST:
+  
     SetupMessageWithBuffer(&Msg, SetVibrateMode, MSG_OPT_NONE);
     if (Msg.pBuffer != NULL)
     {
       *(tSetVibrateModePayload *)Msg.pBuffer = TestTone;
       RouteMsg(&Msg);
     }
+    // test accelemeter MSG_OPT_ACCEL_ENABLE
+//    SendMessage(&Msg, AccelMsg, 1);
     break;
 
   default:
@@ -823,6 +873,18 @@ unsigned char LcdRtcUpdateHandlerIsr(void)
       lastMin = Minute;
       ExitLpm = pdTRUE;
     }
+#if COUNTDOWN_TIMER
+    else if (CurrentPage[PageType] == CountdownPage)
+    {
+      if (CountdownMode() == COUNTING && Minute != lastMin)
+      {
+        SetupMessage(&Msg, CountDownMsg, MSG_OPT_CNTDWN_TIME);
+        SendMessageToQueueFromIsr(DISPLAY_QINDEX, &Msg);
+        lastMin = Minute;
+        ExitLpm = pdTRUE;
+      }
+    }
+#endif
   }
 
   return ExitLpm;
@@ -1011,16 +1073,17 @@ void EnterBootloader(void)
  */
 static void MonitorBattery(void)
 {
-  static unsigned char LastPercent = 101;
+  static unsigned char LastPercent = BATTERY_PERCENT_UNKNOWN;
 
 #if CHECK_CSTACK
-  if (LastPercent == 101) CheckCStack();
+  if (LastPercent == BATTERY_PERCENT_UNKNOWN) CheckCStack();
 #endif
 
   unsigned char ClipChanged = CheckClip();
   CheckBattery();
   
-  if (ClipChanged || Charging() || CurrentPage[PageType] == StatusPage)
+  if (ClipChanged || Charging() || CurrentPage[PageType] == StatusPage ||
+      LastPercent == BATTERY_PERCENT_UNKNOWN)
   {
     unsigned char CurrPercent = BatteryPercentage();
 
