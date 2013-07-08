@@ -72,7 +72,7 @@ void RouteMsg(tMessage *pMsg)
     
     if (result == errQUEUE_FULL)
     {
-      PrintF("@ Q Full:%s", MsgInfo[pMsg->Type].MsgQueue == WRAPPER_QINDEX ? "Spp" : "Disp");
+      PrintF("@ Q Full:%s", MsgInfo[pMsg->Type].MsgQueue == WRAPPER_QINDEX ? "Wrp" : "Disp");
       SendToFreeQueue(pMsg);
     }
   }
@@ -102,7 +102,7 @@ void SendMessageToQueueFromIsr(unsigned char Qindex, tMessage *pMsg)
   
   if (errQUEUE_FULL == xQueueSendFromISR(QueueHandles[Qindex], pMsg, &HigherPriorityTaskWoken))
   {
-    PrintF("@ Q Full:%s", Qindex == WRAPPER_QINDEX ? "Spp" : "Disp");
+    PrintF("@ Q Full Isr:%s", Qindex == WRAPPER_QINDEX ? "Wrp" : "Disp");
     
     if (pMsg->pBuffer != NULL)
     {

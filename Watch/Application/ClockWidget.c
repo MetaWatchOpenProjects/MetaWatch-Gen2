@@ -429,8 +429,6 @@ static void DrawTemplate(DrawInfo_t *Info)
   
   if (Info->Id & FLASH_TEMPLATE_BIT)
   {
-//    const unsigned char __data20 *pTemp20 = pWatchFace[TempId];
-    
     for (i = 0; i < LCD_ROW_NUM; ++i)
     {
       if (i == HALF_SCREEN_ROWS) pByte += BYTES_PER_QUAD;

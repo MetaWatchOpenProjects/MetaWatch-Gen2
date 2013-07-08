@@ -59,6 +59,8 @@
 #define PAGE_TYPE_NUM                 (3)
 #define MUSIC_STATE_START_ROW         (43)
 
+#define DEV_TYPE_EN_ACK               (0x80)
+
 extern const char BUILD[];
 extern const char VERSION[];
 extern unsigned int niReset;
@@ -321,13 +323,13 @@ static void DisplayQueueMessageHandler(tMessage* pMsg)
         Msg.pBuffer[0] = DIGITAL_WATCH_TYPE_G1; // backward compatible
       }
 
-      Msg.Options |= pMsg->Options & 0x80; // support ACK
+      Msg.Options |= DEV_TYPE_EN_ACK; // support ACK
       RouteMsg(&Msg);
     }
 
     PrintF("- DevTypeResp:%d", Msg.Options);
 
-    // set ACK bit
+    // set ACK and HFP/MAP bits
     SendMessage(&Msg, ConnTypeMsg, pMsg->Options);
     break;
 
@@ -543,13 +545,10 @@ static void ChangeModeHandler(unsigned char Option)
 
   if (Option & MSG_OPT_CHGMOD_IND) return; // ask for current idle page only
     
-//  StopTimer(ModeTimer);
-
   if (Mode == MUSIC_MODE) SendMessage(&Msg, UpdConnParamMsg, ShortInterval);
-  else if (CurrentMode == MUSIC_MODE) SendMessage(&Msg, UpdConnParamMsg, LongInterval);
 
   CurrentMode = Mode;
-  
+
   if (Mode == IDLE_MODE)
   {
 #if COUNTDOWN_TIMER
@@ -557,7 +556,9 @@ static void ChangeModeHandler(unsigned char Option)
     else
 #endif
     {
-//    PageType = PAGE_TYPE_IDLE;
+      StopTimer(ModeTimer);
+      // assume short interval in other-than-idle modes
+      SendMessage(&Msg, UpdConnParamMsg, LongInterval);
       IdleUpdateHandler();
     }
   }

@@ -375,7 +375,7 @@ typedef enum
 #define TOUT_CONN_HFP_MAP_LONG        (10)
 #define TOUT_CONN_HFP_MAP_SHORT       (1)
 #define TOUT_DISCONNECT               (10)
-#define TOUT_TUNNEL_CONNECTING        (10)
+#define TOUT_TUNNEL_CONNECTING        (5)
 #define TOUT_TUNNEL_LONG              (40) //60
 #define TOUT_HEARTBEAT                (1) 
 

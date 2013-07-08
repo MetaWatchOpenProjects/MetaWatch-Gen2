@@ -224,7 +224,9 @@
 /* 541    06/18/13  Mu Yang  Fix Accel data only out via BLE.                 */
 /* 542    06/27/13  Mu Yang  Refactor SerialRam.c; Bypass CRC.	              */
 /* 543    06/28/13  Mu Yang  Set adv flags to support both BR/BLE.            */
-/* 544    07/01/13  Mu Yang  Apply errata 1 to revision F as well.            */
+/* 544    07/01/13  Mu Yang  Apply errata 1 to revision G as well.            */
+/* 550    07/03/13  Mu Yang  Support ConnType in GetDeviceType msg.           */
+/* 551    07/07/13  Mu Yang  fixes #92: Mode timer not stop when mode exits.  */
 /******************************************************************************/
 
 

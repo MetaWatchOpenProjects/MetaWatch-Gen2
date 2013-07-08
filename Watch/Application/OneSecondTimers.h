@@ -42,7 +42,7 @@ typedef enum
   BacklightTimer,
   WrapperTimer,
   TunnelTimer,
-  HeartbeatTimer
+  HeartbeatTimer,
 } eTimerId;
 
 /*! One Second Timer handler that occurs in interrupt context */

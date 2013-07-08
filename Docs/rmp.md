@@ -38,6 +38,7 @@ Revision | Details | Author | Date
 2.0.8 | Use GetDeviceType to tell watch the phone type info. | Mu Yang | May 6, 2013
 2.0.9 | Update GetVersionInfo. | Mu Yang | May 8, 2013
 2.1.0 | Support "clear widgets" in Set Widget List message. | Mu Yang | June 16, 2013
+2.1.1 | Update GetDeviceType. | Mu Yang | July 3, 2013
 
 3 Abbreviation
 ===============
@@ -77,7 +78,7 @@ The phone must generate the CRC that matches the MSP430. It uses CRC-CCITT with 
 =====================
 
 Message Type | Code | Source
-:--- | :---: | :---:
+:---: | :---: | :---
 Get Device Type | 0x01 | Phone
 Get Device Type Response | 0x02 | Watch
 Get Version Info | 0x03 | Both
@@ -120,7 +121,7 @@ This message is used to query the type of watch that is connected.
 Bit | Description
 :---: | :---
 0 ~ 5 | Reserved.
-6 | HFP/MAP Connected needed.
+6 | HFP/MAP connections NOT needed.
 7 | Support ACK for SPP connection.
 
 **Payload:** not used.

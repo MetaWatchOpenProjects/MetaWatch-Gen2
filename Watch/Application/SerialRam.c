@@ -414,8 +414,7 @@ void WriteBufferHandler(tMessage* pMsg)
       pBuffer[0] = SPI_WRITE;
       pBuffer[1] = Addr >> 8;
       pBuffer[2] = Addr;
-
-      Write((unsigned long)pBuffer, SRAM_DATA_LEN, DMA_COPY);
+      Write((unsigned long)pBuffer, pMsg->Length - WIDGET_HEADER_LEN, DMA_COPY);
     }
   }
   else
@@ -436,7 +435,7 @@ void WriteBufferHandler(tMessage* pMsg)
       pBuffer[0] = SPI_WRITE;
       pBuffer[1] = Addr >> 8;
       pBuffer[2] = Addr;
-      Write((unsigned long)pBuffer, SRAM_HEADER_LEN + BytesPerLine, DMA_COPY);
+      Write((unsigned long)pBuffer, BytesPerLine, DMA_COPY);
 
       Addr += BYTES_PER_LINE;
       pBuffer += BytesPerLine + (BytesPerLine == BYTES_PER_LINE);
@@ -492,6 +491,7 @@ static void WriteClockWidget(unsigned char *pBuffer)
   unsigned char Id = FACE_ID(*pBuffer);
   unsigned char ClockId = INVALID_ID;
   unsigned char i, k;
+  unsigned char Found = pdFALSE;
 
   for (i = 0; pCurrWidgetList[i].Id != INVALID_ID && i < MAX_WIDGET_NUM; ++i)
   {
@@ -501,6 +501,7 @@ static void WriteClockWidget(unsigned char *pBuffer)
     {
       if (FACE_ID(pCurrWidgetList[i].Id) == Id)
       {
+        Found = pdTRUE;
         unsigned char LayoutType = LAYOUT_TYPE(pCurrWidgetList[i].Layout);
         
         for (k = 0; k < Layout[LayoutType].QuadNum; ++k)
@@ -511,15 +512,17 @@ static void WriteClockWidget(unsigned char *pBuffer)
           pBuf[1] = Addr >> 8;
           pBuf[2] = Addr;
           
-          Write((unsigned long)pBuf, SRAM_HEADER_LEN + BYTES_PER_QUAD, DMA_COPY);
+          Write((unsigned long)pBuf, BYTES_PER_QUAD, DMA_COPY);
         }
 
         pCurrWidgetList[i].Outdated = pdFALSE;
       }
       else if (ClockId == INVALID_ID && pCurrWidgetList[i].Outdated)
-        ClockId = pCurrWidgetList[i].Id;
+        ClockId = pCurrWidgetList[i].Id; // get next outdated clk on the page
     }
   }
+
+  if (!Found) {PrintS("# WrtClk: invalid Id"); return;}
   // update next outdated clock widget of the current page
   if (ClockId == INVALID_ID) CreateAndSendMessage(UpdateDisplayMsg,
     IDLE_MODE | MSG_OPT_NEWUI | MSG_OPT_UPD_INTERNAL | MSG_OPT_UPD_HWGT);
@@ -864,7 +867,7 @@ static void Write(const unsigned long pData, unsigned int Length, unsigned char 
   __data16_write_addr((unsigned short) &DMA0SA, pData);
   __data16_write_addr((unsigned short) &DMA0DA, (unsigned long)&UCA0TXBUF);
 
-  DMA0SZ = Length;
+  DMA0SZ = Length + SRAM_HEADER_LEN;
 
   /*
    * single transfer, source byte and dest byte,
@@ -918,18 +921,18 @@ void LoadTemplateHandler(tMessage* pMsg)
   if (pMsg->pBuffer == NULL)
   { // internal usage
 
-    Write((unsigned long)&pTemplate[pMsg->Options >> 4], BYTES_PER_SCREEN, DMA_COPY);
+    Write((unsigned long)&pTemplate[pMsg->Options >> 4], BYTES_PER_SCREEN - SRAM_HEADER_LEN, DMA_COPY);
   }
   else if (*pMsg->pBuffer <= 1)
   {
     /* clear or fill the screen */
-    Write((unsigned long)(*pMsg->pBuffer ? &FILL_WHITE : &FILL_BLACK), BYTES_PER_SCREEN, DMA_FILL);
+    Write((unsigned long)(*pMsg->pBuffer ? &FILL_WHITE : &FILL_BLACK), BYTES_PER_SCREEN - SRAM_HEADER_LEN, DMA_FILL);
   }
   else
   {
 #if __IAR_SYSTEMS_ICC__
     /* template zero is reserved for simple patterns */
-    Write((unsigned long)&pWatchFace[*pMsg->pBuffer - TEMPLATE_1][0], BYTES_PER_SCREEN, DMA_COPY);
+    Write((unsigned long)&pWatchFace[*pMsg->pBuffer - TEMPLATE_1][0], BYTES_PER_SCREEN - SRAM_HEADER_LEN, DMA_COPY);
     PrintF("-Template:%d", *pMsg->pBuffer);
 #endif
   }
@@ -938,7 +941,7 @@ void LoadTemplateHandler(tMessage* pMsg)
 static void LoadBuffer(unsigned char i, unsigned char const *pTemp)
 {
   SetAddr(i * BYTES_PER_QUAD + WGT_BUF_START_ADDR);
-  Write((unsigned long)pTemp, BYTES_PER_QUAD, DMA_COPY);
+  Write((unsigned long)pTemp, BYTES_PER_QUAD - SRAM_HEADER_LEN, DMA_COPY);
 }
 
 /* configure the MSP430 SPI peripheral */
@@ -1022,7 +1025,7 @@ void SerialRamInit(void)
 
   /* now use the DMA to clear the serial ram */
   SetAddr(MODE_BUF_START_ADDR);
-  Write((unsigned long)&DummyData, MODE_BUFFER_SIZE, DMA_FILL);
+  Write((unsigned long)&DummyData, MODE_BUFFER_SIZE - SRAM_HEADER_LEN, DMA_FILL);
 
   unsigned char i;
   for (i = 0; i < MAX_WIDGET_NUM + MAX_WIDGET_NUM; ++i)
