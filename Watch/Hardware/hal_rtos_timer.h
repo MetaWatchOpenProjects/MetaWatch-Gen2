@@ -26,7 +26,7 @@
 #define HAL_RTOS_TIMER_H
 
 /*! Macro for setting the RTOS tick interrupt flag */
-#define RTOS_TICK_SET_IFG() { TA0CCR0 |= CCIFG; }
+#define RTOS_TICK_SET_IFG() { TA0CCTL0 |= CCIFG; }
 
 /*! Enable the RTOS tick (and the RTOS) */
 void EnableRtosTick(void);
