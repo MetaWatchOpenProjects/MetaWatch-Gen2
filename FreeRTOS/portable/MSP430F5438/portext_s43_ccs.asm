@@ -170,7 +170,9 @@ vTickISRCheck:  tst.b &RtosTickEnabled
 
 vTickISR:
                 portSAVE_CONTEXT
-  				      movx.w &TA0CCR0,&TA0R
+;  				      /* movx.w &TA0CCR0,&TA0R */
+;  				      /* do not overwrite TA0R as it can caus missing TIMER0_A1_VECTOR interrupts */
+                movx.w &TA0R,&TA0CCR0
                 add.w &RtosTickCount,&TA0CCR0
                 calla    #vTaskIncrementTick
                 calla    #vTaskSwitchContext 
