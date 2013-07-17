@@ -92,12 +92,13 @@ extern unsigned char BoardType;
 static xSemaphoreHandle AdcMutex = 0;
 
 #define MAX_SAMPLES          (8)
-#define GAP_BIG              (10)
-#define GAP_SMALL            (5)
+#define GAP_BIG              (20) //10
+#define GAP_SMALL            (10) //5
 #define GAP_BIG_NEGATIVE     (0 - GAP_BIG)
 #define GAP_SMALL_NEGATIVE   (0 - GAP_SMALL)
 
-static unsigned int Sample[2][MAX_SAMPLES];
+static unsigned int Sample[MAX_SAMPLES];
+static unsigned int BattAver = 0;
 
 #define DEFAULT_WARNING_LEVEL         (3468) //20% * (4140 - 3300) + 3300
 #define DEFAULT_RADIO_OFF_LEVEL       (BATTERY_CRITICAL_LEVEL)
@@ -235,9 +236,9 @@ void BatterySenseCycle(void)
 
   /* smoothing algorithm: cut extreme values (gap > 20) */
   unsigned char Prev = (Index == 0) ? MAX_SAMPLES - 1: Index - 1;
-  if (Sample[BATTERY][Prev])
+  if (Sample[Prev])
   {
-    int Gap = Value - Sample[BATTERY][Prev];
+    int Gap = Value - Sample[Prev];
     if (Charging())
     {
       if (Gap > GAP_BIG) Gap = GAP_BIG;
@@ -249,9 +250,25 @@ void BatterySenseCycle(void)
       else if (Gap < GAP_BIG_NEGATIVE) Gap = GAP_BIG_NEGATIVE;
     }
     
-    Sample[BATTERY][Index] = Sample[BATTERY][Prev] + Gap;
+    Sample[Index] = Sample[Prev] + Gap;
   }
-  else Sample[BATTERY][Index] = Value;
+  else Sample[Index] = Value;
+
+  // calculate the average
+  
+  unsigned long Sum = 0;
+  unsigned char i = Index;
+  unsigned char k = 0;
+  
+  do
+  {
+    Sum += Sample[i--];
+    if (i > MAX_SAMPLES) i = MAX_SAMPLES - 1;
+    k ++;
+  } while (i != Index && Sample[i]);
+
+  BattAver = (k < MAX_SAMPLES) ? Sum / k : Sum >> 3; // devided by MAX_SAMPLES
+//  PrintF("-BattCyc k:%d", k);
 
   if (++Index >= MAX_SAMPLES) Index = 0;
   
@@ -261,14 +278,7 @@ void BatterySenseCycle(void)
 
 unsigned int Read(unsigned char Sensor)
 {
-  unsigned long Result = 0;
-  unsigned char i = 0;
-
-  /* moving average */
-  while (i < MAX_SAMPLES && Sample[Sensor][i])
-    Result += Sample[Sensor][i++];
-
-  return (i < MAX_SAMPLES) ? Result / i : Result >> 3; // devided by MAX_SAMPLES
+  return BattAver;
 }
 
 unsigned char BatteryPercentage(void)
@@ -370,16 +380,18 @@ static void EndAdcCycle(void)
 
 unsigned int LightSenseCycle(void)
 {
-  static unsigned char Index = 0;
+//  static unsigned char Index = 0;
 
   xSemaphoreTake(AdcMutex, portMAX_DELAY);
 
   LIGHT_SENSOR_L_GAIN();
   ENABLE_REFERENCE();
   
+  PrintS("- LightSensing BF vTaskDelay");
   /* light sensor requires 1 ms to wake up in the dark */
   vTaskDelay(LIGHT_SENSOR_WAKEUP_DELAY_IN_MS);
-  
+  PrintS("- LightSensing AF vTaskDelay");
+
   AdcCheck();
   
   CLEAR_START_ADDR();
@@ -395,8 +407,8 @@ unsigned int LightSenseCycle(void)
   LightSense = (unsigned int)(CONVERSION_FACTOR * (double)ADC12MEM2);
   PrintF("L:%d", LightSense);
 
-  Sample[LIGHT_SENSOR][Index++] = LightSense;
-  if (Index >= MAX_SAMPLES) Index = 0;
+//  Sample[LIGHT_SENSOR][Index++] = LightSense;
+//  if (Index >= MAX_SAMPLES) Index = 0;
 
   LIGHT_SENSOR_SHUTDOWN();
   EndAdcCycle();
@@ -407,7 +419,7 @@ unsigned int LightSenseCycle(void)
 void ReadLightSensorHandler(void)
 {
   /* start cycle and wait for it to finish */
-  LightSenseCycle();
+//  LightSenseCycle();
 
   /* send message to the host */
   tMessage Msg;
@@ -415,7 +427,7 @@ void ReadLightSensorHandler(void)
   if (Msg.pBuffer != NULL)
   {
     /* instantaneous value */
-    unsigned int lv = LightSense;
+    unsigned int lv = LightSenseCycle();
     Msg.pBuffer[0] = lv & 0xFF;
     Msg.pBuffer[1] = (lv >> 8 ) & 0xFF;
     Msg.Length = 2;

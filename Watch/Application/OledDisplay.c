@@ -818,7 +818,7 @@ static void ScrollHandler(void)
     
     SetupTimer(ScreenTimerId,
                         ONE_SECOND*2,
-                        NO_REPEAT,
+                        TOUT_ONCE,
                         DISPLAY_QINDEX,
                         WatchDrawnScreenTimeout,
                         MSG_OPT_NONE);
@@ -1111,7 +1111,7 @@ static void TurnDisplayOn(tImageBuffer* pBuffer)
   
   SetupTimer(ScreenTimerId,
                       DisplayTimeoutInSeconds,
-                      NO_REPEAT,
+                      TOUT_ONCE,
                       DISPLAY_QINDEX,
                       WatchDrawnScreenTimeout,
                       MSG_OPT_NONE);
@@ -2090,7 +2090,7 @@ static void InitializeDisplayTimers(void)
   
   SetupTimer(ScreenTimerId,
                       ONE_SECOND*2,
-                      NO_REPEAT,
+                      TOUT_ONCE,
                       DISPLAY_QINDEX,
                       WatchDrawnScreenTimeout,
                       MSG_OPT_NONE);
@@ -2201,7 +2201,7 @@ static void ChangeModeHandler(unsigned char Mode)
     PrintS("Changing mode to Application\r\n");
     
     ModeTimerId = StartTimer(QueryModeTimeout(APP_MODE),
-                        NO_REPEAT,
+                        TOUT_ONCE,
                         DISPLAY_QINDEX,
                         ModeTimeoutMsg,
                         APP_MODE);
@@ -2215,7 +2215,7 @@ static void ChangeModeHandler(unsigned char Mode)
     StopOneSecondTimer(ModeTimerId);
     
     ModeTimerId = StartTimer(QueryModeTimeout(NOTIF_MODE),
-                        NO_REPEAT,
+                        TOUT_ONCE,
                         DISPLAY_QINDEX,
                         ModeTimeoutMsg,
                         NOTIF_MODE);

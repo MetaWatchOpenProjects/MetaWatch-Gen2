@@ -40,7 +40,8 @@
 #define BATTERY_LEVEL_NUMBER      (7)
 #define BATTERY_LEVEL_INTERVAL    (BATTERY_LEVEL_RANGE / BATTERY_LEVEL_NUMBER)
 
-#define DARK_LEVEL      (3)
+#define DARK_LEVEL              (3)
+#define BATTERY_PERCENT_UNKNOWN (101)
 
 void InitAdc(void);
 

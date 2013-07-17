@@ -23,6 +23,12 @@
 #include "LcdDisplay.h"
 #include "IdleTask.h"
 
+#define APP_VER     "1.4.0"
+#define BUILD_VER   "543.000"
+
+char const VERSION[] = APP_VER;
+char const BUILD[] = BUILD_VER;
+
 /******************************************************************************/
 
 #ifdef BOOTLOADER
@@ -83,8 +89,6 @@ __root const image_data_t imageData = {&EndOfImage, __DATE__, TOOLSET, APP_VER};
 #endif //BOOTLOADER
 
 /******************************************************************************/
-const char VERSION[] = APP_VER;
-const char BUILD[] = BUILD_VER;
 
 void main(void)
 {

@@ -81,8 +81,8 @@ static const tMsgInfo MsgInfo[MAXIMUM_MESSAGE_TYPES] =
   {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0x2d */
   {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0x2e */
   {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0x2f */
-  {"NvalMsg",                     DISPLAY_QINDEX,    0 }, /* 0x30 */
-  {"NvalResp",                    WRAPPER_QINDEX,    1 }, /* 0x31 */
+  {"PropMsg",                     DISPLAY_QINDEX,    0 }, /* 0x30 */
+  {"PropResp",                    WRAPPER_QINDEX,    1 }, /* 0x31 */
   {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0x32 */
   {"ModChgIndMsg",                WRAPPER_QINDEX,    0 }, /* 0x33 */
   {"BtnEventMsg",                 WRAPPER_QINDEX,    0 }, /* 0x34 */
@@ -210,7 +210,7 @@ static const tMsgInfo MsgInfo[MAXIMUM_MESSAGE_TYPES] =
   {"MenuBtnMsg",                  DISPLAY_QINDEX,    1 }, /* 0xae */
   {"ToggleSecMsg",                DISPLAY_QINDEX,    1 }, /* 0xaf */
   {"SetHBMsg",                    WRAPPER_QINDEX,    0 }, /* 0xb0 */
-  {"TunnelToutMsg",               WRAPPER_QINDEX,    1 }, /* 0xb1 */
+  {"HBToutMsg",                   WRAPPER_QINDEX,    1 }, /* 0xb1 */
   {"UpdConnParamMsg",             WRAPPER_QINDEX,    0 }, /* 0xb2 */
   {"CallerIdIndMsg",              WRAPPER_QINDEX,    1 }, /* 0xb3 */
   {"CallerNameMsg",               DISPLAY_QINDEX,    1 }, /* 0xb4 */
@@ -221,7 +221,7 @@ static const tMsgInfo MsgInfo[MAXIMUM_MESSAGE_TYPES] =
   {"ConnChgMsg",                  WRAPPER_QINDEX,    0 }, /* 0xb9 */
   {"UpdWgtIndMsg",                WRAPPER_QINDEX,    1 }, /* 0xba */
   {"ConnParamIndMsg",             WRAPPER_QINDEX,    0 }, /* 0xbb */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0xbc */
+  {"TunnelToutMsg",               WRAPPER_QINDEX,    0 }, /* 0xbc */
   {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0xbd */
   {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0xbe */
   {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0xbf */
@@ -242,7 +242,7 @@ static const tMsgInfo MsgInfo[MAXIMUM_MESSAGE_TYPES] =
   {"SetDoneMsg",                  DISPLAY_QINDEX,    1 }, /* 0xce */
   {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0xcf */
   {"QueryMemMsg",                 WRAPPER_QINDEX,    0 }, /* 0xd0 */
-  {"RamTstMsg",                   DISPLAY_QINDEX,    1 }, /* 0xd1 */
+  {"ConnTypeMsg",                 WRAPPER_QINDEX,    1 }, /* 0xd1 */
   {"RateTstMsg",                  DISPLAY_QINDEX,    1 }, /* 0xd2 */
   {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0xd3 */
   {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0xd4 */
@@ -257,8 +257,8 @@ static const tMsgInfo MsgInfo[MAXIMUM_MESSAGE_TYPES] =
   {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0xdd */
   {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0xde */
   {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0xdf */
-  {"AccelIndMsg",                 WRAPPER_QINDEX,    1 }, /* 0xe0 */
-  {"AccelMsg" ,                   DISPLAY_QINDEX,    1 }, /* 0xe1 */
+  {"AccelIndMsg",                 WRAPPER_QINDEX,    0 }, /* 0xe0 */
+  {"AccelMsg" ,                   DISPLAY_QINDEX,    0 }, /* 0xe1 */
   {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0xe2 */
   {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0xe3 */
   {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0xe4 */

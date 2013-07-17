@@ -189,9 +189,44 @@
 /* 500    04/23/13  Mu Yang  Fix ClearLcd in splash screen sometimes fails. 	*/
 /* 501    04/23/13  Mu Yang  Change OneSecondTimer TOUT_ONCE to be 1;         */
 /* 502    04/23/13  Mu Yang  Fix always use same timeout for all modes;       */
+/* 506    04/26/13  Mu Yang  Support ACK in SPP.                              */
+/* 507    04/29/13  Mu Yang  Fix HFP/MAP auto-reconnect.                      */
+/* 508    04/30/13  Mu Yang  Fix 0am -> 12am.                                 */
+/* 512    05/01/13  Mu Yang  Set MAP connected after Notif Server registered; */
+/*                           Support Disconnect BT state for CDT.             */
+/* 513    05/01/13  Mu Yang  Fix BR auto-connect regression.                  */
+/* 515    05/01/13  Mu Yang  Add G-range mask for configuring accelerometer.  */
+/* 520    05/06/13  Mu Yang  Tell phone if ACK is supported.                  */
+/* 521    05/06/13  Mu Yang  Print CSTACK once.                               */
+/* 522    05/06/13  Mu Yang  Fix GetDevTypeMsg sent to Wrapper queue.         */
+/* 523    05/08/13  Mu Yang  Correct accel output to direct XOUT_HPF_H.       */
+/* 524    05/10/13  Mu Yang  Accel streaming no need for clearing int.        */
+/* 525    05/10/13  Mu Yang  Fix caller name not shown if it's too long.      */
+/* 526    05/11/13  Mu Yang  New call notification UI.                        */
+/* 527    05/12/13  Mu Yang  Fix Accel streaming reset by postpone long intvl.*/
+/* 528    05/13/13  Mu Yang  Fix Accel streaming long intvl timeout.          */
+/* 529    05/14/13  Mu Yang  Clear BLE adv flags: simu BR/BLE.                */
+/* 530    05/16/13  Mu Yang  Add Hanzi watch face.                            */
+/* 531    05/16/13  Mu Yang  TermMode:strcmp() -> strstr();                   */
+/*                           Detail outgoing log in wrapper.c.                */
+/* 532    06/03/13  Mu Yang  Change battery averaging to BattSenseCycle();    */
+/*                           Batt sample gap 10 -> 20; Fix interval stay      */
+/*                           short by seperating HB and interval timers.      */
+/* 533    06/04/13  Mu Yang  Enable all 4 watchfaces; Spp actv mode bf write()*/
+/* 534    06/06/13  Mu Yang  Fix block at whoami() with VERSION string.			  */
+/* 535    06/06/13  Mu Yang  Support DayOfWeek in German and Finnish.			    */
+/* 536		06/07/13  Mu Yang  Merge with fix for reducing CCS build warning.   */
+/* 537		06/10/13  Mu Yang  Spp try more times if part of msg is read;				*/
+/*													 Change watch faces' order for backward compatible*/
+/* 538		06/10/13  Mu Yang  Send current page indication to phone;						*/
+/* 539		06/12/13  Mu Yang  Fix not-change-to-conn-state if not SetCliConfig.*/
+/* 540    06/13/13  Mu Yang  Fix 'BLE' not shown in status screen for Android.*/
+/* 541    06/18/13  Mu Yang  Fix Accel data only out via BLE.                 */
+/* 542    06/27/13  Mu Yang  Refactor SerialRam.c; Bypass CRC.	              */
+/* 543    06/28/13  Mu Yang  Set adv flags to support both BR/BLE.            */
+/* 544    07/01/13  Mu Yang  Apply errata 1 to revision F as well.            */
 /******************************************************************************/
 
-#define APP_VER     "1.4.0d"
-#define BUILD_VER   "505.424"
+
 
 #endif /* VERSION_H */

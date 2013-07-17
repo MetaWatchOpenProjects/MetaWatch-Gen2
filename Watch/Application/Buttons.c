@@ -123,6 +123,11 @@ static const tButtonAction DisconnAction[] =
 static const tButtonAction InitAction[] =
 {
   {BTN_A | INIT_PAGE | BTN_EVT_IMDT, ModifyTimeMsg, RTC_MIN},
+//#if COUNTDOWN_TIMER
+//  {BTN_B | INIT_PAGE | BTN_EVT_IMDT, CountDownMsg, MSG_OPT_NONE},
+//#else
+//  {BTN_B | INIT_PAGE | BTN_EVT_IMDT, ModifyTimeMsg, RTC_DOW},
+//#endif
   {BTN_B | INIT_PAGE | BTN_EVT_IMDT, ModifyTimeMsg, RTC_DOW},
   {BTN_C | INIT_PAGE | BTN_EVT_RELS, MenuModeMsg, Menu1Page},
   {BTN_D | INIT_PAGE | BTN_EVT_IMDT, WatchStatusMsg, 0},
@@ -134,6 +139,14 @@ static const tButtonAction InitAction[] =
 
   {BTN_A | CALL_PAGE | BTN_EVT_IMDT, CallerNameMsg, SHOW_NOTIF_REJECT_CALL},
   {BTN_C | CALL_PAGE | BTN_EVT_RELS, MenuModeMsg, Menu1Page},
+#if COUNTDOWN_TIMER
+  {BTN_A | CDT_PAGE | BTN_EVT_IMDT, ChangeModeMsg, NOTIF_MODE | MSG_OPT_UPD_INTERNAL},
+  {BTN_B | CDT_PAGE | BTN_EVT_IMDT, IdleUpdateMsg, MSG_OPT_NONE},
+  {BTN_C | CDT_PAGE | BTN_EVT_RELS, MenuModeMsg, Menu1Page},
+  {BTN_D | CDT_PAGE | BTN_EVT_IMDT, WatchStatusMsg, MSG_OPT_NONE},
+//  {BTN_D | CDT_PAGE | BTN_EVT_IMDT, SetCountdownDoneMsg, MSG_OPT_NONE},
+  {BTN_E | CDT_PAGE | BTN_EVT_IMDT, ChangeModeMsg, MUSIC_MODE | MSG_OPT_UPD_INTERNAL},
+#endif
 };
 #define INIT_PAGE_ACT_NUM (sizeof(InitAction) / sizeof(tButtonAction))
 

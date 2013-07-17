@@ -33,6 +33,11 @@ Revision | Details | Author | Date
 2.0.3 | Add ControlFullScreen message. | Mu Yang | March 26, 2013
 2.0.4 | Add accelerometer message | Mu Yang | April 8, 2013
 2.0.5 | Remove Get Real Time Clock / Response | Mu Yang | April 9, 2013
+2.0.6 | Update the Accelerometer messages | Mu Yang | April 23, 2013
+2.0.7 | Update the Accelerometer messages | Mu Yang | May 1, 2013
+2.0.8 | Use GetDeviceType to tell watch the phone type info. | Mu Yang | May 6, 2013
+2.0.9 | Update GetVersionInfo. | Mu Yang | May 8, 2013
+2.1.0 | Support "clear widgets" in Set Widget List message. | Mu Yang | June 16, 2013
 
 3 Abbreviation
 ===============
@@ -42,7 +47,9 @@ BLE | Bluetooth Low Energy
 BR | Bluetooth Basic Rate
 CRC | Cyclic Redundancy Check
 GATT | Generic Attribute Profile
+HFP | Hands-free Profile
 LSB | Less Significant Bit/Byte
+MAP | Messaging Access Profile
 MSB | Most Significant Bit/Byte
 RTC | Real-time Clock
 SPP | Serial Port Profile
@@ -108,7 +115,13 @@ Advance Watch Hands | 0x20 | Phone
 
 This message is used to query the type of watch that is connected.
 
-**Options:** not used.
+**Options:**
+
+Bit | Description
+:---: | :---
+0 ~ 5 | Reserved.
+6 | HFP/MAP Connected needed.
+7 | Support ACK for SPP connection.
 
 **Payload:** not used.
 
@@ -118,6 +131,14 @@ This message is used to query the type of watch that is connected.
 This is the response for the message "Get Device Type" from the watch to the phone.
 
 **Options:** Device type of the connected watch
+
+Bit | Description
+:---: | :---
+0 ~ 3 | Device Type
+4 ~ 6 | Reserved
+7 | Support ACK for SPP connection
+
+**Device Type:**
 
 * 0 - Reserved
 * 1 - Analog watch
@@ -150,7 +171,8 @@ This is the response to the message **Get Version Info** from the watch to the p
 
 Byte | Value | Description
 :---: | :---: | :---
-0 ~ 5 | '0' ~ '9' | 6 digits for app and stack build number (3 each)
+0 ~ 2 | '0' ~ '9' | 3 digits of general firmware build number (one digit per byte)
+3 ~ 5 | '0' ~ '9' | 3 digits of custom build number starting from 001 
 6 ~ 8 | 0 ~ 255 | 3 bytes for major, minor and patch version (1 byte each)
 
 5.5 Control Full Screen (0x42)
@@ -382,7 +404,8 @@ Start Row (0~95) | Row number (1~96)
 5.15 Set Widget List Message (0xA1)
 -----------------------------------
 
-The message is used to send a list of all widgets’ properties to the watch. There could be totally at most 16 1Q widgets on 4 pages of the Idle mode screen. There are two bytes of each widget’s property: first one is the widget ID and the other is the widget setting (e.g. invert color, layout type, clock widget, etc.). The payload of one message is 14 bytes which can contains 7 widgets’ properties (2 bytes for each widget). So it requires at most 3 messages for sending max 16 widgets’ properties. The order of widgets’ properties in the list shall be according to the widget IDs in ascending order.
+The message is used to send a list of widgets’ properties to configure up to 4 pages of idle mode screen. There could be totally at most 16 1Q widgets on 4 pages of the Idle mode screen. There are two bytes of each widget’s property: first one is the widget ID and the other is the widget setting (e.g. invert color, layout type, clock widget, etc.). The payload of one message is 14 bytes which can contains 7 widgets’ properties (2 bytes for each widget). So it requires at most 3 messages for sending max 16 widgets’ properties. The order of widgets’ properties in the list shall be according to the widget IDs in ascending order.
+Note that if the message contains only one widget property with the invalid widget ID (0xFF), all previously configured widgets would be removed from the watch.
 
 **Options:**
 
@@ -545,16 +568,24 @@ This message is used for enabling, disabling and setting parameters of the accel
 **Options:**
 
 * 0 - Disable accelerometer
-* 1 - Enable accelerometer
-* 2 - Set Streaming mode
-* 3 - Set Motion Detection mode
-* 4 - Select the acceleration range
-* 5 - Threshold for the Motion Detection mode
+* 1 - Enable accelerometer in Motion Detection mode with threshold (in Payload)
+* 2 - Enable accelerometer in Streaming mode (default)
 
-**Payload:(Byte0)**
+**Payload:**
 
-* For selecting acceleration range: 0: +/- 2g; 1: +/-4g; 2: +/-8g.
-* For setting threshold of the Motion Detection mode: 0~255. Default value is 16 (0.5g in +/-8g range).
+Byte0 | Byte1|
+:---: | :---:
+Range | Threshold
+
+**Range:**
+
+* 0 - +/- 2g
+* 1 - +/-4g
+* 2 - +/-8g (default)
+
+**Threshold (Motion Detection mode):** 
+
+* 0~255. Default value is 16 (0.5g in +/-8g range).
 
 
 5.26 Accelerometer Data Response (0xE0)

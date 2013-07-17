@@ -42,15 +42,19 @@
 extern const char BUILD[];
 extern const char VERSION[];
 
-const char OK[] = "- ";
-const char NOK[] = "# ";
-const char CR = '\r';
-const char LN = '\n';
-const char SPACE = ' ';
-const char ZERO = '0';
-const char COLON = ':';
-const char DOT = '.';
-const char STAR = '*';
+char const OK[] = "- ";
+char const NOK[] = "# ";
+char const CR = '\r';
+char const LN = '\n';
+char const SPACE = ' ';
+char const ZERO = '0';
+char const COLON = ':';
+char const DOT = '.';
+char const STAR = '*';
+char const HASH = '#';
+char const DOLLAR = '$';
+char const TILDE = '~';
+char const PERCENT = '%';
 
 static char Buffer[32];
 static unsigned char DebugEnabled;
@@ -224,7 +228,6 @@ void vApplicationMallocFailedHook(size_t xWantedSize)
 
 void WhoAmI(void)
 {
-  PrintF("Firmware Ver:%s Build:%s", VERSION, BUILD);
   PrintS(BR_DEVICE_NAME);
   PrintF("Msp430 Rev:%c HwVer:%d", GetMsp430HardwareRevision(), HardwareVersion());
   PrintF("BoardConfig: %d", GetBoardConfiguration());

@@ -53,7 +53,7 @@ static const tCommand COMMAND_TABLE[] =
   {"whoami", WhoAmI},
   {"reset", SoftwareReset},
   {"ship", EnableShippingMode},
-  {{0x01,0x10,0x03,0x3f,0x3f,0x3f,0x30}, EnterBootloader} // Metaboot
+  {{0x01,0x10,0x03,'?','?','?', 0x30}, EnterBootloader} // Metaboot
 };
 #define NUMBER_OF_COMMANDS (sizeof(COMMAND_TABLE)/sizeof(tCommand))
 
@@ -74,7 +74,7 @@ void EnableTermMode(unsigned char Enable)
     DisableSmClkUser(TERM_MODE_USER);
   }
 
-  PrintF("- TermMode:%d", Enable);
+  PrintF("%sEnTermMode", Enable ? OK : NOK);
 }
 
 /******************************************************************************/

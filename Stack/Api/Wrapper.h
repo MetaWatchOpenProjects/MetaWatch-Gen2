@@ -67,18 +67,18 @@ unsigned char PairedDeviceType(void);
 
 /*! The current state of the bluetooth serial port.
 *
-* Radio on also means that the stack is up.  Radio Off also means that the stack 
-* is closed. As do RadioOffLowBattery and ShippingMode.
+* On: Radio on, stack up or Disconnected timeout;
+* Connect: BLE/SPP connected; Disconnect: BLE/SPP Disconnected and not timeout;
+* Off: Radio and stack are closed.
 */
 typedef enum
 {
   Unknown = 0,
   Initializing,
-  ServerFailure,
   On,
   Connect,
+  Disconnect,
   Off,
-  RadioOffLowBattery,
   Shipping  
 } eBluetoothState;
 
@@ -87,7 +87,9 @@ typedef enum
 {
   DefaultInterval,
   LongInterval,
+  LongToShort,
   ShortInterval,
+  ShortToLong,
   MidiumInterval
 } IntervalType_t;
 

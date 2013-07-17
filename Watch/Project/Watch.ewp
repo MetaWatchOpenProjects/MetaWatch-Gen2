@@ -1888,7 +1888,7 @@
         </option>
         <option>
           <name>XExtraOptions</name>
-          <state>-C $PROJ_DIR$\..\..\Stack\Api\IAR\wrapper-spp.r43</state>
+          <state>-C $PROJ_DIR$\..\..\Stack\Api\IAR\wrapper1.r43</state>
           <state>-C $PROJ_DIR$\..\..\Stack\Api\IAR\stack.a</state>
         </option>
         <option>
