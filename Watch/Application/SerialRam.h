@@ -84,5 +84,5 @@ void LoadTemplateHandler(tMessage *pMsg);
 void WriteBufferHandler(tMessage *pMsg);
 
 void SetWidgetList(tMessage *pMsg);
-
+void WriteClockWidget(unsigned char FaceId, unsigned char *pBuffer);
 #endif /* SERIAL_RAM_H */

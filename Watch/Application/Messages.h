@@ -192,7 +192,6 @@ typedef enum
   WriteToTemplateMsg = 0x4c,
   SetClockWidgetSettingsMsg = 0x4d,
   DrawClockWidgetMsg = 0x4e,
-  WriteClockWidgetDoneMsg = 0x4f,
 
   SetExtWidgetMsg = 0x50,
   UpdateClockMsg = 0x51,

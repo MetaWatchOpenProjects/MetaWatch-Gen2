@@ -82,6 +82,7 @@ typedef struct
  * The display task will finish initializing the buttons
  */
 void InitButton(void);
+void ResetButtonAction(void);
 
 /*! Button State Machine */
 void ButtonStateHandler(void);

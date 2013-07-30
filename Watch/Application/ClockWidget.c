@@ -196,26 +196,24 @@ static void InvertHanzi(unsigned char Index);
 
 /******************************************************************************/
 
-void DrawClockWidget(unsigned char Id)
+void DrawClockWidget(unsigned char ClockId)
 {
+  PrintF("- DrwCkWgt: x%02X", ClockId);
   pDrawBuffer = (unsigned char *)GetDrawBuffer();
-  *pDrawBuffer = Id; // save the ClockId for later usage in WrtClkWgt()
 
-  Id = FACE_ID(Id);
-  unsigned int BufSize = Layout[ClockWidget[Id].LayoutType].QuadNum * BYTES_PER_QUAD + SRAM_HEADER_LEN;
-  
-  unsigned int i;
-  for (i = 1; i < BufSize; ++i) pDrawBuffer[i] = 0; // Clear the buffer starting from [1]
+  unsigned char FaceId = FACE_ID(ClockId);
+  unsigned int BufSize = Layout[ClockWidget[FaceId].LayoutType].QuadNum * BYTES_PER_QUAD + SRAM_HEADER_LEN;
+  memset(pDrawBuffer, 0, BufSize);
 
-  for (i = 0; i < ClockWidget[Id].ItemNum; ++i)
+  *pDrawBuffer = FaceId; // pass FaceId to DrwBmp
+
+  unsigned char i;
+  for (i = 0; i < ClockWidget[FaceId].ItemNum; ++i)
   {
-    ClockWidget[Id].pDrawList[i].Draw((DrawInfo_t *)&ClockWidget[Id].pDrawList[i].Info);
+    ClockWidget[FaceId].pDrawList[i].Draw((DrawInfo_t *)&ClockWidget[FaceId].pDrawList[i].Info);
   }
-  
-  tMessage Msg;
-  SetupMessage(&Msg, WriteBufferMsg, IDLE_MODE | MSG_OPT_NEWUI | MSG_OPT_HOME_WGT);
-  Msg.pBuffer = pDrawBuffer;
-  RouteMsg(&Msg);
+
+  WriteClockWidget(FaceId, pDrawBuffer);
 }
 
 static void DrawBitmap(const unsigned char *pBitmap, unsigned char X, unsigned char Y,
@@ -240,7 +238,7 @@ static void DrawBitmap(const unsigned char *pBitmap, unsigned char X, unsigned c
     for(y = 0; y < H; ++y)
     {
       Set = *(pBitmap + y * BmpWidthInBytes) & MaskBit;
-      Delta = (ClockWidget[FACE_ID(*pDrawBuffer)].LayoutType == LAYOUT_FULL_SCREEN) &&
+      Delta = (ClockWidget[*pDrawBuffer].LayoutType == LAYOUT_FULL_SCREEN) &&
               (Y < HALF_SCREEN_ROWS && (Y + y) >= HALF_SCREEN_ROWS) ?
               BYTES_PER_QUAD : 0;
       
@@ -328,7 +326,7 @@ static void InvertHanzi(unsigned char Index)
 static void DrawAmPm(DrawInfo_t *Info)
 {
   if (GetProperty(PROP_24H_TIME_FORMAT)) return;
-  DrawText(RTCHOUR > 11 ? "pm" : "am", 2, Info->X, Info->Y, Info->Id, DRAW_OPT_PROP_WIDTH, Info->Op);
+  DrawText(RTCHOUR > 0x11 ? "pm" : "am", 2, Info->X, Info->Y, Info->Id, DRAW_OPT_PROP_WIDTH, Info->Op);
 }
 
 static void DrawMin(DrawInfo_t *Info)

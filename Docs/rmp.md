@@ -39,6 +39,7 @@ Revision | Details | Author | Date
 2.0.9 | Update GetVersionInfo. | Mu Yang | May 8, 2013
 2.1.0 | Support "clear widgets" in Set Widget List message. | Mu Yang | June 16, 2013
 2.1.1 | Update GetDeviceType. | Mu Yang | July 3, 2013
+2.1.2 | Update Accelerometer message with more details of usage. | Mu Yang | July 30, 2013
 
 3 Abbreviation
 ===============
@@ -566,17 +567,23 @@ Reserved | Music playing state (0: stopped; 1: playing)
 
 This message is used for enabling, disabling and setting parameters of the accelerometer. There are two modes: Streaming and Motion Detection mode. In the Streaming mode, the data are sent from watch to phone in 25Hz continuously. In Motion Detection Mode, the data are only sent when it's over a threshold (default is 0.5g) and stopped when it's below.
 
+The steps of using the message:
+
+* Set Mode (Motion Detection or Streaming). For setting the Motion Detection mode, you can optionally give **Threshold** in the payload.
+* Enable Accelerometer. You can specify the **Range** in the payload if you don't like the default value. 
+
 **Options:**
 
 * 0 - Disable accelerometer
-* 1 - Enable accelerometer in Motion Detection mode with threshold (in Payload)
-* 2 - Enable accelerometer in Streaming mode (default)
+* 1 - Enable accelerometer (with range optionally)
+* 2 - Set Streaming mode
+* 3 - Set Motion Detection mode (with threshold optionally)
 
 **Payload:**
 
-Byte0 | Byte1|
-:---: | :---:
-Range | Threshold
+Byte0 | 
+:---: |
+Range / Threshold | 
 
 **Range:**
 

@@ -233,24 +233,26 @@ static void DisplayQueueMessageHandler(tMessage* pMsg)
     break;
   
   case UpdateDisplayMsg:
+  
     if ((!(pMsg->Options & MSG_OPT_UPD_INTERNAL) &&
-          (pMsg->Options & MODE_MASK) == NOTIF_MODE) &&
+        (pMsg->Options & MODE_MASK) == NOTIF_MODE) &&
         GetProperty(PROP_AUTO_BACKLIGHT))
       SendMessage(&Msg, AutoBacklightMsg, MSG_OPT_NONE);
 
     UpdateDisplayHandler(pMsg);
     break;
-    
+
+  case MonitorBatteryMsg:
+    MonitorBattery();
+    break;
+
+
   case UpdateClockMsg:
     UpdateClock();
     break;
     
   case DrawClockWidgetMsg:
     DrawClockWidget(pMsg->Options);
-    break;
-
-  case MonitorBatteryMsg:
-    MonitorBattery();
     break;
 
   case BluetoothStateChangeMsg:
@@ -613,6 +615,8 @@ static void BluetoothStateChangeHandler(tMessage *pMsg)
   }
   else
   {
+    if (BluetoothState() == Disconnect) ResetButtonAction();
+    
     //decide which idle page to be
     DetermineIdlePage();
     
@@ -620,13 +624,7 @@ static void BluetoothStateChangeHandler(tMessage *pMsg)
     {
       if (PageType == PAGE_TYPE_IDLE)
       {
-        if (OnceConnected())
-        {
-//#if COUNTDOWN_TIMER
-//          if (Connected(CONN_TYPE_MAIN)) CreateAndSendMessage(CountDownMsg, MSG_OPT_NONE);
-//#endif
-          UpdateClock();
-        }
+        if (OnceConnected()) UpdateClock();
         else DrawConnectionScreen();
       }
       else if (PageType == PAGE_TYPE_MENU) MenuModeHandler(0);

@@ -208,9 +208,23 @@ void InitButton(void)
     ButtonData[i].State = BUTTON_STATE_OFF;
     ButtonData[i].BtnHoldCounter = 0;
   }
+  
+  ResetButtonAction();
+}
 
-  // init ButtonAction[] with DisconnButtonAction[]
+/* init ButtonAction[] with DisconnButtonAction[] */
+void ResetButtonAction(void)
+{
+  PrintS("-ResBtn");
+  unsigned char i;
   for (i = 0; i < DISCONN_PAGE_ACT_NUM; ++i) ButtonAction[i] = DisconnAction[i];
+
+  for (; i < CONN_PAGE_ACT_NUM; ++i)
+  {
+    ButtonAction[i].Info = 0;
+    ButtonAction[i].MsgType = 0;
+    ButtonAction[i].MsgOpt = 0;
+  }
 }
 
 /*! This is the event handler for the Button Event Message that is called
@@ -498,11 +512,10 @@ void EnableButtonMsgHandler(tMessage* pMsg)
   tButtonActionPayload *pAction = (tButtonActionPayload*)pMsg->pBuffer;
   if (pAction->ButtonIndex > SW_UNUSED_INDEX) pAction->ButtonIndex --;
 
-//  PrintS(tringAndThreeDecimals("-M:", pAction->DisplayMode, " i:", pAction->ButtonIndex,
-//                              "E:", pAction->ButtonEvent);
-//  PrintS(tringAndTwoHexBytes(" M O:0x", pAction->CallbackMsgType, pAction->CallbackMsgOptions);
-//
-  /* redefine backlight key is not allowed */
+  PrintF(">EnBtn Mod:%d i:%d T:x%02X O:x%02X", pAction->DisplayMode, pAction->ButtonIndex,
+    pAction->CallbackMsgType, pAction->CallbackMsgOptions);
+
+  /* redefine backlight key and assign to idle mode keys are not allowed */
   if (pAction->ButtonIndex == BTN_INDEX_F) return;
 
   unsigned char BtnInfo = pAction->DisplayMode << BTN_MODE_PAGE_SHFT |
@@ -537,6 +550,11 @@ void DisableButtonMsgHandler(tMessage* pMsg)
 {
   tButtonActionPayload *pAction = (tButtonActionPayload*)pMsg->pBuffer;
   if (pAction->ButtonIndex > SW_UNUSED_INDEX) pAction->ButtonIndex --;
+
+  PrintF(">DisBtn Mod:%d i:%d T:x%02X O:x%02X", pAction->DisplayMode, pAction->ButtonIndex,
+    pAction->CallbackMsgType, pAction->CallbackMsgOptions);
+
+  if (pAction->ButtonIndex == BTN_INDEX_F) return;
 
   unsigned char BtnInfo = pAction->DisplayMode << BTN_MODE_PAGE_SHFT |
                           pAction->ButtonIndex << BTN_NO_SHFT |

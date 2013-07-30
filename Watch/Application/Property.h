@@ -24,15 +24,15 @@
 #define PROP_WIDGET_GRID        (0x08)
 #define PROP_AUTO_BACKLIGHT     (0x10)
 
-#define PROP_VALID              (0x01F)
-#define PROP_DEFAULT            (PROP_WIDGET_GRID | PROP_AUTO_BACKLIGHT)
-
-#define PROPERTY_READ           (0x80)
-
 /* internal usage */
 #define PROP_PHONE_DRAW_TOP     (0x20)
 #define PROP_INVERT_DISPLAY     (0x40)
 //#define PROP_DISABLE_LINK_ALARM (0x80)
+
+#define PROP_VALID              (0x01F)
+#define PROP_DEFAULT            (PROP_WIDGET_GRID | PROP_AUTO_BACKLIGHT | PROP_PHONE_DRAW_TOP)
+
+#define PROPERTY_READ           (0x80)
 
 void InitProperty(void);
 unsigned char GetProperty(unsigned char Bits);

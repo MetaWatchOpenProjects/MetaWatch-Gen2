@@ -24,7 +24,7 @@
 #include "IdleTask.h"
 
 #define APP_VER     "1.4.0"
-#define BUILD_VER   "551.000"
+#define BUILD_VER   "561.000"
 
 char const VERSION[] = APP_VER;
 char const BUILD[] = BUILD_VER;

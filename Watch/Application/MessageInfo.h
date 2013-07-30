@@ -111,8 +111,8 @@ static const tMsgInfo MsgInfo[MAXIMUM_MESSAGE_TYPES] =
   {"EraseTmplMsg",                DISPLAY_QINDEX,    1 }, /* 0x4b */
   {"WrtTmplMsg",                  DISPLAY_QINDEX,    1 }, /* 0x4c */
   {"SetClkWgtMsg",                DISPLAY_QINDEX,    1 }, /* 0x4d */
-  {"UpdClkWgtMsg",                DISPLAY_QINDEX,    0 }, /* 0x4e */
-  {"WrtClkWgtDoneMsg",            DISPLAY_QINDEX,    1 }, /* 0x4f */
+  {"DrwClkWgtMsg",                DISPLAY_QINDEX,    0 }, /* 0x4e */
+  {UnusedMsg,                     DISPLAY_QINDEX,    0 }, /* 0x4f */
   {"SetExtWgtMsg",                WRAPPER_QINDEX,    1 }, /* 0x50 */
   {"UpdClkWgt",                   DISPLAY_QINDEX,    0 }, /* 0x51 */
   {"BattChrgCtrlMsg",             DISPLAY_QINDEX,    0 }, /* 0x52 */

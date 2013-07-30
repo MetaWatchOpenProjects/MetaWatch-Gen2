@@ -84,11 +84,14 @@
 #define INVERT_BIT              (BIT6)
 #define CLOCK_WIDGET_BIT        (BIT7)
 #define CLOCK_WIDGET_BIT_SHFT   (7)
+
 #define WGT_CHG_REMOVE          (0)
 #define WGT_CHG_ADD             (1)
 #define WGT_CHG_CLK_ADD         (2)
-#define WGT_CHG_CLK_FACE        (3)
-#define WGT_CHG_SETTING         (4)
+#define WGT_CHG_CLK             (3)
+#define WGT_EQU_CLK             (4)
+#define WGT_CHG_SETTING         (5)
+#define WGT_EQU_SETTING         (6)
 
 #define BOARDER_PATTERN_ROW     (0x66)
 #define BOARDER_PATTERN_COL     (4)
@@ -98,7 +101,6 @@
 
 #define DMA_FILL                   (1)
 #define DMA_COPY                   (0)
-
 
 /* errata - DMA variables cannot be function scope */
 static const unsigned char DummyData = 0x00;
@@ -174,7 +176,6 @@ static void AssignWidgetBuffer(Widget_t *pWidget);
 static void FreeWidgetBuffer(Widget_t *pWidget);
 static unsigned int GetAddr(WidgetHeader_t *pData);
 static void GetQuadAddr(QuadAddr_t *pAddr);
-static void WriteClockWidget(unsigned char *pBuffer);
 static signed char ComparePriority(unsigned char Mode);
 static unsigned char GetWidgetChange(unsigned char CurId, unsigned char CurOpt, unsigned char MsgId, unsigned char MsgOpt);
 static void TestFaceId(WidgetList_t *pWidget);
@@ -183,7 +184,7 @@ void SetWidgetList(tMessage *pMsg)
 {
   static Widget_t *pCurrWidget = NULL; // point to Widget in current Widget[]
   static Widget_t *pNextWidget = NULL; // point to Widget in new Widget[]
-  static unsigned char ChangedClockWidget = INVALID_ID;
+  static unsigned char ClockId = INVALID_ID;
 
   xSemaphoreTake(SramMutex, portMAX_DELAY);
 
@@ -219,13 +220,22 @@ void SetWidgetList(tMessage *pMsg)
     
     switch (Change)
     {
-    case WGT_CHG_CLK_FACE:
-      PrintS("Chg ClkFce");
-      if (ON_CURRENT_PAGE(pMsgWgtLst->Layout)) ChangedClockWidget = pMsgWgtLst->Id;
-      
+    case WGT_EQU_CLK:
+    case WGT_EQU_SETTING:
+      PrintF("=%02X", pCurrWidget->Id);
+      *pNextWidget++ = *pCurrWidget++;
+      pMsgWgtLst ++;
+      WidgetNum --;
+      break;
+
+    case WGT_CHG_CLK:
+      PrintS("*Clk");
+      pCurrWidget->Outdated = pdTRUE;
+      if (ON_CURRENT_PAGE(pMsgWgtLst->Layout)) ClockId = pMsgWgtLst->Id;
+
     case WGT_CHG_SETTING:
      //cpy layout to curr; cpy curr to next; msg, curr, next ++
-      PrintF("=%02X", pCurrWidget->Id);
+      PrintF("*%02X", pCurrWidget->Id);
       pCurrWidget->Id = pMsgWgtLst->Id;
       pCurrWidget->Layout = pMsgWgtLst->Layout;
       *pNextWidget++ = *pCurrWidget++;
@@ -235,7 +245,8 @@ void SetWidgetList(tMessage *pMsg)
 
     case WGT_CHG_CLK_ADD:
       PrintS("+Clk");
-      if (ON_CURRENT_PAGE(pMsgWgtLst->Layout)) ChangedClockWidget = pMsgWgtLst->Id;
+      pNextWidget->Outdated = pdTRUE;
+      if (ON_CURRENT_PAGE(pMsgWgtLst->Layout)) ClockId = pMsgWgtLst->Id;
 
     case WGT_CHG_ADD: //pCurrWidget->Id > pMsgWgtLst->Id)
      // add new widget: cpy msg to next; msg and next ++; curr stays
@@ -293,10 +304,11 @@ void SetWidgetList(tMessage *pMsg)
 //    PrintR();
     PrintF("Tg:%04X", BufTag);
 
-    if (ChangedClockWidget != INVALID_ID)
+    if (ClockId != INVALID_ID)
     {
-      CreateAndSendMessage(DrawClockWidgetMsg, ChangedClockWidget);
-      ChangedClockWidget = INVALID_ID;
+      PrintS("------ SetWLst UdCk");
+      CreateAndSendMessage(DrawClockWidgetMsg, ClockId);
+      ClockId = INVALID_ID;
     }
   }
   xSemaphoreGive(SramMutex);
@@ -312,21 +324,15 @@ static unsigned char GetWidgetChange(unsigned char CurId, unsigned char CurOpt,
   if (IS_CLOCK_WIDGET(CurOpt)) CurId = CurId & 0x0F;
   if (IS_CLOCK_WIDGET(MsgOpt)) MsgId = MsgId & 0x0F;
 
-//  if (IS_CLOCK_WIDGET(MsgOpt))
-//  {
-//    unsigned char CurrWgtId = CurrId & 0x0F;
-//    unsigned char MsgWgtId = MsgId & 0x0F;
-//
-//    if (CurrWgtId < MsgWgtId) return WGT_CHG_REMOVE;
-//    if (CurrWgtId > MsgWgtId) return WGT_CHG_CLK_ADD;
-//    if (CurrWgtId == MsgWgtId && FACE_ID(CurrId) != FACE_ID(MsgId))
-//      return WGT_CHG_CLK_FACE;
-//  }
-
   if (CurId == MsgId)
   {
-    Change = IS_CLOCK_WIDGET(CurOpt) && CurFaceId != MsgFaceId ?
-      WGT_CHG_CLK_FACE : WGT_CHG_SETTING;
+//    Change = IS_CLOCK_WIDGET(CurOpt) && CurFaceId != MsgFaceId ?
+//      WGT_CHG_CLK_FACE : WGT_CHG_SETTING;
+    if (IS_CLOCK_WIDGET(CurOpt))
+      Change = (CurFaceId != MsgFaceId || CurOpt != MsgOpt) ?
+                WGT_CHG_CLK : WGT_EQU_CLK;
+    else
+      Change = (CurOpt != MsgOpt) ? WGT_CHG_SETTING : WGT_EQU_SETTING;
   }
   else if (CurId < MsgId) Change = WGT_CHG_REMOVE;
   else Change = IS_CLOCK_WIDGET(MsgOpt) ? WGT_CHG_CLK_ADD : WGT_CHG_ADD;
@@ -402,20 +408,13 @@ void WriteBufferHandler(tMessage* pMsg)
 {
   if (pMsg->Options & MSG_OPT_NEWUI)
   {
-    if (pMsg->Options & MSG_OPT_HOME_WGT)
-    {
-      WriteClockWidget(pMsg->pBuffer);
-      pMsg->pBuffer = NULL; // the pBuffer here is not allocated in message queue
-    }
-    else
-    {
-      unsigned int Addr = GetAddr((WidgetHeader_t *)(pMsg->pBuffer));
-      unsigned char *pBuffer = pMsg->pBuffer + WIDGET_HEADER_LEN - SRAM_HEADER_LEN;
-      pBuffer[0] = SPI_WRITE;
-      pBuffer[1] = Addr >> 8;
-      pBuffer[2] = Addr;
-      Write((unsigned long)pBuffer, pMsg->Length - WIDGET_HEADER_LEN, DMA_COPY);
-    }
+    unsigned int Addr = GetAddr((WidgetHeader_t *)(pMsg->pBuffer));
+    unsigned char *pBuffer = pMsg->pBuffer + WIDGET_HEADER_LEN - SRAM_HEADER_LEN;
+    pBuffer[0] = SPI_WRITE;
+    pBuffer[1] = Addr >> 8;
+    pBuffer[2] = Addr;
+
+    Write((unsigned long)pBuffer, pMsg->Length - WIDGET_HEADER_LEN, DMA_COPY);
   }
   else
   {
@@ -450,21 +449,80 @@ void UpdateClockWidgets(void)
   unsigned char i;
   unsigned char NotUpdate = pdTRUE;
 
-  xSemaphoreTake(SramMutex, portMAX_DELAY);
+//  xSemaphoreTake(SramMutex, portMAX_DELAY);
 
   for (i = 0; pCurrWidgetList[i].Id != INVALID_ID && i < MAX_WIDGET_NUM; ++i)
   {
     if (!IS_CLOCK_WIDGET(pCurrWidgetList[i].Layout)) continue;
 
     pCurrWidgetList[i].Outdated = pdTRUE;
+    
     if (NotUpdate && ON_CURRENT_PAGE(pCurrWidgetList[i].Layout))
     {
+//      PrintF("-UdCkW Id:%02X", pCurrWidgetList[i].Id);
       CreateAndSendMessage(DrawClockWidgetMsg, pCurrWidgetList[i].Id);
       NotUpdate = pdFALSE;
     }
   }
 
-  xSemaphoreGive(SramMutex);
+//  xSemaphoreGive(SramMutex);
+}
+
+void WriteClockWidget(unsigned char FaceId, unsigned char *pBuffer)
+{
+//  unsigned char FaceId = FACE_ID(pMsg->Options);
+  unsigned char ClockId = INVALID_ID;
+  unsigned char i, k;
+  unsigned char Found = pdFALSE;
+
+  for (i = 0; pCurrWidgetList[i].Id != INVALID_ID && i < MAX_WIDGET_NUM; ++i)
+  {
+    if (!IS_CLOCK_WIDGET(pCurrWidgetList[i].Layout)) continue;
+    
+    if (ON_CURRENT_PAGE(pCurrWidgetList[i].Layout))
+    {
+      if (FACE_ID(pCurrWidgetList[i].Id) == FaceId)
+      {
+        Found = pdTRUE;
+        unsigned char LayoutType = LAYOUT_TYPE(pCurrWidgetList[i].Layout);
+
+//        PrintF("-WtCkW i:%d F:%02X", i, FaceId);
+
+        for (k = 0; k < Layout[LayoutType].QuadNum; ++k)
+        {
+          unsigned int Addr = pCurrWidgetList[i].Buffers[k] * BYTES_PER_QUAD + WGT_BUF_START_ADDR;
+          unsigned char *pBuf = pBuffer + k * BYTES_PER_QUAD;
+          pBuf[0] = SPI_WRITE;
+          pBuf[1] = Addr >> 8;
+          pBuf[2] = Addr;
+          
+          Write((unsigned long)pBuf, BYTES_PER_QUAD, DMA_COPY);
+        }
+
+        pCurrWidgetList[i].Outdated = pdFALSE;
+      }
+      else if (ClockId == INVALID_ID && pCurrWidgetList[i].Outdated)
+      {
+        ClockId = pCurrWidgetList[i].Id; // get next outdated clk on the page
+//        PrintF("- nxt: %02X", ClockId);
+      }
+    }    
+  }
+
+//  pMsg->pBuffer = NULL; // the pBuffer here is not allocated in message queue
+
+  if (!Found) {PrintS("# WrtClk: invalid Id"); return;}
+
+  if (ClockId == INVALID_ID)
+  { // all outdated clock on current page are updated
+    CreateAndSendMessage(UpdateDisplayMsg, MSG_OPT_NEWUI | MSG_OPT_UPD_INTERNAL | IDLE_MODE);
+  }
+  else
+  { // draw next outdated clock widget of the current page
+//    PrintF("-WtCkW nxt Id:%02X", ClockId);
+    CreateAndSendMessage(DrawClockWidgetMsg, ClockId);
+  }
+//  PrintS("<<<<");
 }
 
 /* get widget ID of the next outdated clock widget of current page */
@@ -484,49 +542,6 @@ static unsigned char GetNextOutdatedClockWidget(void)
 unsigned char CurrentIdleScreen(void)
 {
   return CurrentPage;
-}
-
-static void WriteClockWidget(unsigned char *pBuffer)
-{
-  unsigned char Id = FACE_ID(*pBuffer);
-  unsigned char ClockId = INVALID_ID;
-  unsigned char i, k;
-  unsigned char Found = pdFALSE;
-
-  for (i = 0; pCurrWidgetList[i].Id != INVALID_ID && i < MAX_WIDGET_NUM; ++i)
-  {
-    if (!IS_CLOCK_WIDGET(pCurrWidgetList[i].Layout)) continue;
-    
-    if (ON_CURRENT_PAGE(pCurrWidgetList[i].Layout))
-    {
-      if (FACE_ID(pCurrWidgetList[i].Id) == Id)
-      {
-        Found = pdTRUE;
-        unsigned char LayoutType = LAYOUT_TYPE(pCurrWidgetList[i].Layout);
-        
-        for (k = 0; k < Layout[LayoutType].QuadNum; ++k)
-        {
-          unsigned int Addr = pCurrWidgetList[i].Buffers[k] * BYTES_PER_QUAD + WGT_BUF_START_ADDR;
-          unsigned char *pBuf = pBuffer + k * BYTES_PER_QUAD;
-          pBuf[0] = SPI_WRITE;
-          pBuf[1] = Addr >> 8;
-          pBuf[2] = Addr;
-          
-          Write((unsigned long)pBuf, BYTES_PER_QUAD, DMA_COPY);
-        }
-
-        pCurrWidgetList[i].Outdated = pdFALSE;
-      }
-      else if (ClockId == INVALID_ID && pCurrWidgetList[i].Outdated)
-        ClockId = pCurrWidgetList[i].Id; // get next outdated clk on the page
-    }
-  }
-
-  if (!Found) {PrintS("# WrtClk: invalid Id"); return;}
-  // update next outdated clock widget of the current page
-  if (ClockId == INVALID_ID) CreateAndSendMessage(UpdateDisplayMsg,
-    IDLE_MODE | MSG_OPT_NEWUI | MSG_OPT_UPD_INTERNAL | MSG_OPT_UPD_HWGT);
-  else CreateAndSendMessage(DrawClockWidgetMsg, ClockId);
 }
 
 static unsigned int GetAddr(WidgetHeader_t *pData)
@@ -618,21 +633,23 @@ void UpdateDisplayHandler(tMessage* pMsg)
       if (CurrentPage == IDLE_PAGE_NUM) CurrentPage = 0;
       SendMessage(&Msg, ChangeModeMsg, MSG_OPT_CHGMOD_IND); // report curr page|mode
     }
-    
+
     // not in idle mode idle page
     if (CurrentMode != IDLE_MODE || PageType != PAGE_TYPE_IDLE) return;
 
-    unsigned char OutdatedClkWgt = GetNextOutdatedClockWidget();
+    unsigned char OutdatedClkId = GetNextOutdatedClockWidget();
 
-    if (!(pMsg->Options & MSG_OPT_UPD_INTERNAL && pMsg->Options & MSG_OPT_UPD_HWGT) &&
-        OutdatedClkWgt != INVALID_ID)
+//    if (!(pMsg->Options & MSG_OPT_UPD_INTERNAL && pMsg->Options & MSG_OPT_UPD_HWGT) &&
+//        OutdatedClkWgt != INVALID_ID)
+//    if (!(pMsg->Options & MSG_OPT_UPD_INTERNAL) && OutdatedClkWgt != INVALID_ID)
+    if (OutdatedClkId != INVALID_ID)
     { //ask for drawing clock widget from external
-      PrintF("- UpdDsp OtdClk:0x%02X", OutdatedClkWgt);
-      SendMessage(&Msg, DrawClockWidgetMsg, OutdatedClkWgt);
+      PrintF("- UpdDsp OtdClk:0x%02X", OutdatedClkId);
+      SendMessage(&Msg, DrawClockWidgetMsg, OutdatedClkId);
       return; // will get back internal upddisp when updhomewgt done
     }
-    
-//    PrintC('U');
+
+//    PrintC('U'); PrintCR();
     xSemaphoreTake(SramMutex, portMAX_DELAY);
 
     QuadAddr_t QuadAddr;
@@ -906,10 +923,8 @@ static void SetAddr(unsigned int Addr)
   }
 }
 
-/* Load a template from flash into a draw buffer (ram)
- * This can be used by the phone or the watch application to save drawing time
- */
-void LoadTemplateHandler(tMessage* pMsg)
+/* Load a template from flash into mode SRAM */
+void LoadTemplateHandler(tMessage *pMsg)
 {
   SetAddr((pMsg->Options & MODE_MASK) * BYTES_PER_SCREEN + MODE_BUF_START_ADDR);
 
@@ -1036,6 +1051,7 @@ void SerialRamInit(void)
   
   SramMutex = xSemaphoreCreateMutex();
   xSemaphoreGive(SramMutex);
+
   DisableSmClkUser(SERIAL_RAM_USER);
 }
 

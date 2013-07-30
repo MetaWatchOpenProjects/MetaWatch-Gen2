@@ -160,7 +160,7 @@ void InitAdc(void)
   ADC12MCTL2 = LIGHT_SENSE_INPUT_CHANNEL + ADC12EOS;
 
   /* init to 0 */
-  memset(Sample, 0, MAX_SAMPLES << 2);
+  memset(Sample, 0, MAX_SAMPLES << 1);
   
   /* control access to adc peripheral */
   AdcMutex = xSemaphoreCreateMutex();

@@ -82,8 +82,6 @@ static unsigned char Control = INIT_MODE;
 /******************************************************************************/
 static void InitAccelerometer(void);
 static void AccelerometerSendDataHandler(void);
-static void EnableAccelerometer(void);
-static void DisableAccelerometer(void);
 
 //  /* 180 uA; KTXI9 115 uA */
 //  *Data = PC1_OPERATING_MODE | RESOLUTION_8BIT | WUF_ENABLE;
@@ -115,10 +113,6 @@ static void InitAccelerometer(void)
   *Data = IEN | IEA;
   AccelerometerWrite(KIONIX_INT_CTRL_REG1, Data, ONE_BYTE);
   
-  /* enable motion detection interrupt for all three axis */
-  *Data = ZBW;
-  AccelerometerWrite(KIONIX_INT_CTRL_REG2, Data, ONE_BYTE);
-
   /* enable motion detection interrupt for all three axis */
   *Data = ZBW;
   AccelerometerWrite(KIONIX_INT_CTRL_REG2, Data, ONE_BYTE);
@@ -173,19 +167,6 @@ static void AccelerometerSendDataHandler(void)
   }
 }
 
-static void EnableAccelerometer(void)
-{
-  ENTER_OPERATING_MODE();
-  ACCELEROMETER_INT_ENABLE();
-}
-
-static void DisableAccelerometer(void)
-{   
-  /* put into low power mode */
-  ACCELEROMETER_INT_DISABLE();
-  ENTER_STANDBY_MODE();
-}
-
 void HandleAccelerometer(tMessage *pMsg)
 {
   if (Control == INIT_MODE) InitAccelerometer();
@@ -204,11 +185,23 @@ void HandleAccelerometer(tMessage *pMsg)
     else if (Connected(CONN_TYPE_SPP))
       CreateAndSendMessage(SniffControlMsg, MSG_OPT_EXIT_SNIFF);
 
-    EnableAccelerometer();
+    if (pMsg->Length)
+    {
+      ENTER_STANDBY_MODE();
+      Control &= ~ACCEL_RANGE_MASK;
+      Control |= (*pMsg->pBuffer & 0x03) << ACCEL_RANGE_SHFT;
+      AccelerometerWrite(KIONIX_CTRL_REG1, &Control, ONE_BYTE);
+    }
+
+    /* enable accelerometer */
+    ENTER_OPERATING_MODE();
+    ACCELEROMETER_INT_ENABLE();
     break;
 
   case MSG_OPT_ACCEL_DISABLE:
-    DisableAccelerometer();
+    /* put into low power mode */
+    ACCELEROMETER_INT_DISABLE();
+    ENTER_STANDBY_MODE();
     CreateAndSendMessage(UpdConnParamMsg, LongInterval);
     break;
 
@@ -224,24 +217,11 @@ void HandleAccelerometer(tMessage *pMsg)
   case MSG_OPT_ACCEL_WUF:
   
     ENTER_STANDBY_MODE();
+
+    if (pMsg->Length) AccelerometerWrite(KIONIX_WUF_THRESH, pMsg->pBuffer, ONE_BYTE);
+
     Control &= ~DRDYE_DATA_AVAILABLE;
     Control |= WUF_ENABLE;
-    AccelerometerWrite(KIONIX_CTRL_REG1, &Control, ONE_BYTE);
-    ENTER_OPERATING_MODE();
-    break;
-
-  case MSG_OPT_ACCEL_WUF_THRESHOLD:
-
-    ENTER_STANDBY_MODE();
-    AccelerometerWrite(KIONIX_WUF_THRESH, pMsg->pBuffer, ONE_BYTE);
-    ENTER_OPERATING_MODE();
-    break;
-
-  case MSG_OPT_ACCEL_G_RANGE:
-  
-    ENTER_STANDBY_MODE();
-    Control &= ~ACCEL_RANGE_MASK;
-    Control |= (*pMsg->pBuffer & 0x03) << ACCEL_RANGE_SHFT;
     AccelerometerWrite(KIONIX_CTRL_REG1, &Control, ONE_BYTE);
     ENTER_OPERATING_MODE();
     break;
