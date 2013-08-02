@@ -26,7 +26,7 @@
  */
 #define SIGNATURE_ADDR ( 0x5B80 )
 
-/* this is at the start of ram and space is reserved in the linker file */
+/* this (1C00 - 1C3F, 64 bytes) is reserved in the linker file */
 #define RESET_REASON_ADDR     (0x1C00)
 #define WATCHDOG_INFO_ADDR    (0x1C02) // 6
 #define WATCHDOG_COUNTER_ADDR (0x1C08)
@@ -44,10 +44,11 @@
 #define RTC_HOUR_ADDR         (0x1C33)
 #define RTC_MIN_ADDR          (0x1C34)
 #define RTC_SEC_ADDR          (0x1C35)
-#define RTC_LANG_ADDR         (0x1C36)
+//#define RTC_LANG_ADDR         (0x1C36)
 
-#define CDT_DAY_ADDR          (0x1C38)
-#define CDT_MIN_ADDR          (0x1C3A)
+#define CDT_DAY_ADDR          (0x1C36)
+#define CDT_MIN_ADDR          (0x1C38)
+
 
 /******************************************************************************/
 

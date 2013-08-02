@@ -64,11 +64,12 @@ const char MonthsOfYear[][13][7] =
    "Jul","Aug","Sep","Okt","Nov","Dez"}
 };
 
-#if __IAR_SYSTEMS_ICC__
-__no_init __root unsigned char niLang @ RTC_LANG_ADDR;
-#else
-extern unsigned char niLang;
-#endif
+//#if __IAR_SYSTEMS_ICC__
+//__no_init __root unsigned char niLang @ RTC_LANG_ADDR;
+//#else
+//extern unsigned char niLang;
+//#endif
+unsigned char const niLang = CURRENT_LANG;
 
 extern const char BUILD[];
 extern const char VERSION[];
@@ -98,8 +99,8 @@ static void DrawCommonMenuIcons(void);
 static void DrawHours(unsigned char Op);
 static void DrawMins(unsigned char Op);
 static void DrawSecs(void);
-static void DrawChar(char Char, unsigned char Op);
-static void DrawString(const char *pString, unsigned char Op);
+static void DrawChar(char const Char, unsigned char Op);
+static void DrawString(char const *pString, unsigned char Op);
 static void DrawLocalAddress(unsigned char Col, unsigned Row);
 static void DrawBatteryOnIdleScreen(unsigned char Row, unsigned char Col, etFontType Font);
 
@@ -464,8 +465,6 @@ void DrawDateTime(void)
     gBitColumnMask = DEFAULT_DOW_COL_BIT;
     SetFont(DEFAULT_DOW_FONT);
 
-    niLang = CURRENT_LANG;
-
     DrawString((tString *)DaysOfTheWeek[niLang][RTCDOW], DRAW_OPT_BITWISE_OR);
 
     //add year when time is in 24 hour mode
@@ -579,7 +578,7 @@ void DrawTextToLcd(DrawLcd_t *pData)
 }
 
 /* fonts can be up to 16 bits wide */
-static void DrawChar(char Char, unsigned char Op)
+static void DrawChar(char const Char, unsigned char Op)
 {
   unsigned int MaskBit = BIT0; //src
   unsigned char Rows = GetCurrentFontHeight();
@@ -655,7 +654,7 @@ void BitOp(unsigned char *pByte, unsigned char Bit, unsigned int Set, unsigned c
   }
 }
 
-static void DrawString(const char *pString, unsigned char Op)
+static void DrawString(char const *pString, unsigned char Op)
 {
   while (*pString && gColumn < BYTES_PER_LINE)
   {

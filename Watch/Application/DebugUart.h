@@ -45,9 +45,26 @@ void EnableTimeStamp(void);
 
 /*! Print a  character */
 void PrintC(char Char);
+
+/*! Print CR */
 void PrintR(void);
+
+/*! Print a HEX */
 void PrintH(unsigned char Value);
+
+/*! Print String with CR */
 void PrintS(char const *pString);
+
+/*! Print String */
+void PrintW(const char *pString);
+
+/*! Print Formated string without CR */
+void PrintE(char const *pFormat, ...);
+
+/*! Print Formated string with CR */
 void PrintF(char const *pFormat, ...);
+
+/*! Print HEX sequence with CR */
+void PrintQ(unsigned char const *pHex, unsigned char const Len);
 
 #endif

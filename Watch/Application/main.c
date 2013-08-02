@@ -23,8 +23,8 @@
 #include "LcdDisplay.h"
 #include "IdleTask.h"
 
-#define APP_VER     "1.4.0"
-#define BUILD_VER   "561.000"
+#define APP_VER     "1.4.1"
+#define BUILD_VER   "562.000"
 
 char const VERSION[] = APP_VER;
 char const BUILD[] = BUILD_VER;

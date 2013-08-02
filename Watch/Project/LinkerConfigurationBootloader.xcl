@@ -247,7 +247,7 @@
 // Constant data
 //
 
--Z(CONST)DATA20_C,DATA20_ID,_IMAGE_END=APPL_SEG_BEG-0xF1FF,0xFA00-0xFDFF,0x10000-0x45BFF
+-Z(CONST)DATA20_C,DATA20_ID,_IMAGE_END=APPL_SEG_BEG-0xF1FF,0xFA00-0xFDFF,0x10000-APPL_SEG_END
 
 // -------------------------------------
 // Interrupt vectors
@@ -282,4 +282,4 @@
 // STEP 2
 // If you set a breakpoint in main and it isn't reached then you probably 
 // forgot step 2. Or you are stuck in bootloader mode.
--J2,crc16,,,,2=APPL_SEG_BEG-0xF1FF,0xFA00-0xFDFF,0x10000-0x41B46
+-J2,crc16,,,,2=APPL_SEG_BEG-0xF1FF,0xFA00-0xFDFF,0x10000-0x41592

@@ -83,18 +83,6 @@ static unsigned char Control = INIT_MODE;
 static void InitAccelerometer(void);
 static void AccelerometerSendDataHandler(void);
 
-//  /* 180 uA; KTXI9 115 uA */
-//  *Data = PC1_OPERATING_MODE | RESOLUTION_8BIT | WUF_ENABLE;
-//
-//  /* 720 uA; KTXI9 330 uA */  
-//  *Data = PC1_OPERATING_MODE | RESOLUTION_12BIT | WUF_ENABLE;
-//
-//  /* 180 uA; KTXI9 8.7 uA */
-//  *Data = PC1_OPERATING_MODE | TILT_ENABLE_TPE;
-//
-//  /* KTXF9 300 uA; KTXI9 165 uA */
-//  *Data = PC1_OPERATING_MODE | TAP_ENABLE_TDTE;  
-  
 static void InitAccelerometer(void)
 {
   InitAccelerometerPeripheral();

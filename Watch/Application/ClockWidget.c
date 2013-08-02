@@ -45,7 +45,7 @@
 #define TEMP_TYPE_4Q                  (0)
 #define TEMP_TYPE_2Q                  (1)
 
-extern unsigned char niLang;
+extern unsigned char const niLang;
 
 #define DRAW_OPT_NONE                 (0)
 #define DRAW_OPT_SEPARATOR            (':')

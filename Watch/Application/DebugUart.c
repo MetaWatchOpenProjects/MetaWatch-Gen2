@@ -38,10 +38,6 @@
 #include "TermMode.h"
 #include "Wrapper.h"
 
-/******************************************************************************/
-extern const char BUILD[];
-extern const char VERSION[];
-
 char const OK[] = "- ";
 char const NOK[] = "# ";
 char const CR = '\r';
@@ -203,6 +199,21 @@ void PrintS(const char *pString)
   GIVE_MUTEX();
 }
 
+void PrintW(const char *pString)
+{
+  GIE_CHECK();
+  GET_MUTEX();
+  WriteTxBuffer(pString);
+  GIVE_MUTEX();
+}
+
+void PrintQ(unsigned char const *pHex, unsigned char const Len)
+{
+  unsigned char i;
+  for (i = 0; i < Len; ++i) PrintH(*pHex++);
+  PrintR();
+}
+
 void PrintF(const char *pFormat, ...)
 {
   va_list args;
@@ -214,7 +225,18 @@ void PrintF(const char *pFormat, ...)
   PrintS(Buffer);
 }
 
-/* callback from FreeRTOS 
+void PrintE(const char *pFormat, ...)
+{
+  va_list args;
+
+  va_start(args, pFormat);
+  vSprintF(Buffer, pFormat, args);
+  va_end(args);
+
+  PrintW(Buffer);
+}
+
+/* callback from FreeRTOS
  *
  * if the bt stack is open and closed enough then memory becomes fragmented
  * enough so that a failure occurs
