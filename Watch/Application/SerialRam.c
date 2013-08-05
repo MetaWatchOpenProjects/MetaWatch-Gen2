@@ -33,6 +33,7 @@
 #include "Messages.h"
 #include "MessageQueues.h"
 #include "DebugUart.h"
+#include "ClockWidget.h"
 #include "SerialRam.h"
 #include "LcdDriver.h"
 #include "LcdDisplay.h"
@@ -69,6 +70,8 @@
 
 #define MODE_BUF_START_ADDR     (0x0E00) // 1152x3 = 3456
 #define MODE_BUFFER_SIZE        (0x1200) // 1152x4
+#define APP_MODE_START_ADDR     (APP_MODE * BYTES_PER_SCREEN + MODE_BUF_START_ADDR)
+#define NOTIF_MODE_START_ADDR   (NOTIF_MODE * BYTES_PER_SCREEN + MODE_BUF_START_ADDR)
 #define WGT_BUF_START_ADDR      (0x80) //(1024x8-1152x7=128 (0x1B00) // 96x12x(4 + 2) = 6912
 
 #define WRITE_DATA_LEN          (BYTES_PER_QUAD_LINE + BYTES_PER_QUAD_LINE)
@@ -169,7 +172,7 @@ static const unsigned char ModePriority[] = {NOTIF_MODE, APP_MODE, IDLE_MODE, MU
 /******************************************************************************/
 static void SetAddr(unsigned int Addr);
 static void Write(const unsigned long pData, unsigned int Length, unsigned char Op);
-static void ReadBlock(unsigned char* pWriteData,unsigned char* pReadData);
+static void ReadBlock(unsigned char *pWriteData, unsigned char *pReadData, unsigned int Length);
 static void LoadBuffer(unsigned char i, unsigned char const *pTemp);
 
 static void AssignWidgetBuffer(Widget_t *pWidget);
@@ -306,7 +309,7 @@ void SetWidgetList(tMessage *pMsg)
 
     if (ClockId != INVALID_ID)
     {
-      PrintS("------ SetWLst UdCk");
+//      PrintS("------ SetWLst UdCk");
       CreateAndSendMessage(DrawClockWidgetMsg, ClockId);
       ClockId = INVALID_ID;
     }
@@ -644,7 +647,7 @@ void UpdateDisplayHandler(tMessage* pMsg)
 //    if (!(pMsg->Options & MSG_OPT_UPD_INTERNAL) && OutdatedClkWgt != INVALID_ID)
     if (OutdatedClkId != INVALID_ID)
     { //ask for drawing clock widget from external
-      PrintF("- UpdDsp OtdClk:0x%02X", OutdatedClkId);
+//      PrintF("- UpdDsp OtdClk:0x%02X", OutdatedClkId);
       SendMessage(&Msg, DrawClockWidgetMsg, OutdatedClkId);
       return; // will get back internal upddisp when updhomewgt done
     }
@@ -683,11 +686,11 @@ void UpdateDisplayHandler(tMessage* pMsg)
       {
         Addr = QuadAddr.Addr[i+k] + (Row % HALF_SCREEN_ROWS) * BYTES_PER_QUAD_LINE;
         
-        SramBuf[0] = MSG_OPT_NEWUI; // tell ReadBlock to use shorter line
+        SramBuf[0] = SPI_READ;
         SramBuf[1] = Addr >> 8;
         SramBuf[2] = Addr;
 
-        ReadBlock(SramBuf, (unsigned char *)&LcdData + BYTES_PER_QUAD_LINE * k);
+        ReadBlock(SramBuf, (unsigned char *)&LcdData + BYTES_PER_QUAD_LINE * k, BYTES_PER_QUAD_LINE);
 
         unsigned char c; // Column byte number
         
@@ -794,7 +797,7 @@ void UpdateDisplayHandler(tMessage* pMsg)
       /* one buffer is used for writing and another is used for reading
        * the incoming message can't be used because it doesn't have a buffer
        */
-      SramBuf[0] = 0; // tell ReadBlock to read 12 bytes
+      SramBuf[0] = SPI_READ;
       SramBuf[1] = (unsigned char)(Addr >> 8);
       SramBuf[2] = (unsigned char) Addr;
 
@@ -803,7 +806,7 @@ void UpdateDisplayHandler(tMessage* pMsg)
        * 3+1 spots to starting location of data from dma read
        * (room for bytes read in when cmd and address are sent)
        */
-      ReadBlock(SramBuf, (unsigned char *)&LcdData);
+      ReadBlock(SramBuf, (unsigned char *)&LcdData, BYTES_PER_LINE);
 
       /* now add the row number */
       LcdData.RowNumber = StartRow ++;
@@ -825,14 +828,10 @@ static signed char ComparePriority(unsigned char Mode)
   return -1;
 }
 
-static void ReadBlock(unsigned char *pWriteData, unsigned char *pReadData)
+static void ReadBlock(unsigned char *pWriteData, unsigned char *pReadData, unsigned int Length)
 {
   DmaBusy = 1;
   SRAM_CSN_ASSERT();
-
-  unsigned char DataLen = (*pWriteData == MSG_OPT_NEWUI) ?
-      SRAM_HEADER_LEN + BYTES_PER_QUAD_LINE + 1 : SRAM_HEADER_LEN + BYTES_PER_LINE + 1;
-  *pWriteData = SPI_READ;
 
   /*
    * SPI has to write bytes to receive bytes so
@@ -849,7 +848,8 @@ static void ReadBlock(unsigned char *pWriteData, unsigned char *pReadData)
   DMACTL0 = DMA1TSEL_16 | DMA0TSEL_17;
   __data16_write_addr((unsigned short) &DMA0SA,(unsigned long) pWriteData);
   __data16_write_addr((unsigned short) &DMA0DA,(unsigned long) &UCA0TXBUF);
-  DMA0SZ = DataLen;
+  DMA0SZ = Length + SRAM_HEADER_LEN + 1;
+
   /* don't enable interrupt for transmit dma done(channel 0)
    * increment the source address because the message contains the address
    * the other bytes are don't care
@@ -859,15 +859,16 @@ static void ReadBlock(unsigned char *pWriteData, unsigned char *pReadData)
   /* receive data is source for dma 1 */
   __data16_write_addr((unsigned short) &DMA1SA,(unsigned long) &UCA0RXBUF);
   __data16_write_addr((unsigned short) &DMA1DA,(unsigned long) pReadData);
-  DMA1SZ = DataLen;
+  DMA1SZ = Length + SRAM_HEADER_LEN + 1;
+
   /* increment destination address */
   DMA1CTL = DMADT_0 + DMADSTINCR_3 + DMASBDB + DMALEVEL + DMAIE;
 
   /* start the transfer */
   DMA1CTL |= DMAEN;
   DMA0CTL |= DMAEN;
-
   while (DmaBusy);
+  
   SRAM_CSN_DEASSERT();
 }
 
@@ -928,14 +929,8 @@ void LoadTemplateHandler(tMessage *pMsg)
 {
   SetAddr((pMsg->Options & MODE_MASK) * BYTES_PER_SCREEN + MODE_BUF_START_ADDR);
 
-  /*
-   * templates don't have extra space in them for additional 3 bytes of
-   * cmd and address
-   */
-
   if (pMsg->pBuffer == NULL)
-  { // internal usage
-
+  { // internal usage: high 4-bit is TmpID
     Write((unsigned long)&pTemplate[pMsg->Options >> 4], BYTES_PER_SCREEN - SRAM_HEADER_LEN, DMA_COPY);
   }
   else if (*pMsg->pBuffer <= 1)
@@ -943,14 +938,14 @@ void LoadTemplateHandler(tMessage *pMsg)
     /* clear or fill the screen */
     Write((unsigned long)(*pMsg->pBuffer ? &FILL_WHITE : &FILL_BLACK), BYTES_PER_SCREEN - SRAM_HEADER_LEN, DMA_FILL);
   }
+#if __IAR_SYSTEMS_ICC__
   else
   {
-#if __IAR_SYSTEMS_ICC__
     /* template zero is reserved for simple patterns */
     Write((unsigned long)&pWatchFace[*pMsg->pBuffer - TEMPLATE_1][0], BYTES_PER_SCREEN - SRAM_HEADER_LEN, DMA_COPY);
     PrintF("-Template:%d", *pMsg->pBuffer);
-#endif
   }
+#endif
 }
 
 static void LoadBuffer(unsigned char i, unsigned char const *pTemp)

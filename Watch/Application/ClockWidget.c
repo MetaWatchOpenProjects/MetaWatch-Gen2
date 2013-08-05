@@ -266,16 +266,13 @@ static void DrawBitmap(const unsigned char *pBitmap, unsigned char X, unsigned c
 static void DrawText(const char *pText, unsigned char Len, unsigned char X, unsigned char Y,
                      unsigned char Font, unsigned char EqualWidth, unsigned char Op)
 {
-  SetFont((etFontType)Font);
-  const tFont *pFont = GetCurrentFont();
+  const tFont *pFont = GetFontPointer((etFontType)Font);
   unsigned char i;
   
   for (i = 0; i < Len && pText[i] != NULL; ++i)
   {
-//    if (pFont->Type == FONT_TYPE_TIME) pText[i] -= ZERO;
-
-    unsigned char *pBitmap = GetCharacterBitmapPointer(pText[i]);
-    unsigned char CharWidth = GetCharacterWidth(pText[i]);
+    unsigned char const *pBitmap = GetFontBitmapPointer(pText[i], (etFontType)Font);
+    unsigned char CharWidth = GetCharWidth(pText[i], (etFontType)Font);
     
     DrawBitmap(pBitmap, X, Y, CharWidth, pFont->Height, pFont->WidthInBytes, Op);
     X += EqualWidth ? CharWidth + 1 : pFont->MaxWidth + 1; // add 1 pixel space

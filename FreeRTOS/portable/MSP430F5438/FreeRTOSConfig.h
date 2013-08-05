@@ -119,7 +119,7 @@ occurs.
 #ifdef ANALOG
 #define configTOTAL_HEAP_SIZE               ((size_t)12044)
 #else
-#define configTOTAL_HEAP_SIZE               ((size_t)12340) //12364 12492 12486, 12526, 12424, 12290, 12334, 12000, 12328, 13500
+#define configTOTAL_HEAP_SIZE               ((size_t)12320) //12000 12290 12328 13334 12364 12424 12486, 12492, 12526 13500
 #endif
 
 #define configMAX_TASK_NAME_LEN             (16)

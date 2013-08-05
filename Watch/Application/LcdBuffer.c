@@ -699,9 +699,7 @@ void DrawBootloaderScreen(void)
   unsigned char i = 0;
   char const *pBootVer = BootVersion;
 
-  PrintF("BL_VER addr:%04X", pBootVer);
-  for (; i < 8; ++i) {PrintH(pBootVer[i]); PrintC(SPACE);}
-  i = 0;
+  PrintF("BL_VER addr:%04X %s", pBootVer, BootVersion);
 
   while (*pBootVer && i++ < 8)
   {

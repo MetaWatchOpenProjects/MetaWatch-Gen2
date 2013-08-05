@@ -155,8 +155,6 @@ void SetRtc(Rtc_t *pRtcData)
 
 static void RestoreRtc(void)
 {
-  CheckResetCode();
-  
   if (niReset == NORMAL_RESET_CODE &&
       BCD_H(niRtcHour) >= 0 && BCD_H(niRtcHour) <= 2 &&
       BCD_L(niRtcHour) >= 0 && BCD_L(niRtcHour) <= 9 &&

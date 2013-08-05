@@ -143,6 +143,9 @@ typedef enum
 
   /* Music Play State */
   MusicPlayStateMsg = 0x18,
+
+  /* draw text/bitmap */
+  DrawMsg = 0x19,
   
   /*
    * Status and control
@@ -213,15 +216,10 @@ typedef enum
    * User Reserved 0x60-0x70-0x80-0x90
    *
    ****************************************************************************/
-
-  /*****************************************************************************
-   *
-   * Watch/Internal Use Only
-   *
-   ****************************************************************************/
   IdleUpdateMsg = 0xa0,
   SetWidgetListMsg = 0xa1, // for new UI
   WatchDrawnScreenTimeout = 0xa2,
+  AncsMsg = 0xa3,
 
   ChangeModeMsg = 0xa6,
   ModeTimeoutMsg = 0xa7,
@@ -252,7 +250,7 @@ typedef enum
   ConnChangeMsg = 0xb9,
   UpdWgtIndMsg = 0xba,
   ConnParamChgIndMsg = 0xbb,
-  TunnelTimeoutMsg = 0xbc,
+  IntervalTimeoutMsg = 0xbc,
 
   SppAckMsg = 0xcc,
   CountDownMsg = 0xcd,
@@ -375,7 +373,7 @@ typedef enum
 #define TOUT_CONN_HFP_MAP_SHORT       (1)
 #define TOUT_DISCONNECT               (10)
 #define TOUT_TUNNEL_CONNECTING        (5)
-#define TOUT_TUNNEL_LONG              (40) //60
+#define TOUT_INTERVAL_LONG            (40) //60
 #define TOUT_HEARTBEAT                (1) 
 
 /* these should match the display modes for idle, application, notification,

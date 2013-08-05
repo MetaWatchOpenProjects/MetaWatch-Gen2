@@ -38,14 +38,17 @@
 #include "TermMode.h"
 #include "Wrapper.h"
 
-char const OK[] = "- ";
-char const NOK[] = "# ";
+char const OK = '-';
+char const NOK = '#';
+char const RCV = '>';
+char const SND = '<';
 char const CR = '\r';
 char const LN = '\n';
 char const SPACE = ' ';
 char const ZERO = '0';
 char const COLON = ':';
 char const DOT = '.';
+char const COMMA = ',';
 char const STAR = '*';
 char const HASH = '#';
 char const DOLLAR = '$';

@@ -29,8 +29,8 @@
 #define ASCII_END      0x7D
 
 /* Height, Spacing, MaxWidth, WidthInBytes, Type, pWidth */
-static const tFont Font[] =
-{
+static tFont const Font[] =
+{// height, space, maxwidth, widthinbyte, type, pWidth
   {5, 1, 5, 1, 0, MetaWatch5width},
   {7, 1, 7, 1, 0, MetaWatch7width},
   {16, 1, 12, 2, 0, MetaWatch16width},
@@ -43,7 +43,7 @@ static const tFont Font[] =
 
 static etFontType CurrentType;
 
-static unsigned char MapCharacterToIndex(unsigned char CharIn);
+static unsigned char CharToIndex(char const Char, etFontType Type);
 
 
 void SetFont(etFontType Type)
@@ -51,10 +51,15 @@ void SetFont(etFontType Type)
   CurrentType = Type;
 }
 
-unsigned char GetCharacterWidth(unsigned char Character)
+unsigned char GetCharacterWidth(char const Char)
+{
+  return GetCharWidth(Char, CurrentType);
+}
+
+unsigned char GetCharWidth(char const Char, etFontType Type)
 { 
-  unsigned char index = MapCharacterToIndex(Character);
-  return Font[CurrentType].pWidth[index];
+  unsigned char index = CharToIndex(Char, Type);
+  return Font[Type].pWidth[index];
 }
 
 unsigned char GetFontHeight(etFontType Type)
@@ -72,28 +77,35 @@ unsigned char GetFontSpacing(void)
   return Font[CurrentType].Spacing;  
 }
 
-const tFont *GetCurrentFont(void)
+tFont const *GetCurrentFont(void)
 {
   return &Font[CurrentType];
 }
 
-static unsigned char MapCharacterToIndex(unsigned char CharIn)
+tFont const *GetFontPointer(etFontType Type)
 {
-  if (Font[CurrentType].Type == FONT_TYPE_TIME)
-  {
-    if (CharIn == COLON) CharIn = 10;
-    else if (CharIn == SPACE) CharIn = 11;
-    else CharIn -= '0';
-  }
-  else if (CharIn >= ASCII_BEGIN && CharIn <= ASCII_END) CharIn -= ASCII_BEGIN;
-  else CharIn = 0;
-  
-  return CharIn;
+  return &Font[Type];
 }
 
-void GetCharacterBitmap(unsigned char Character, unsigned int *pBitmap)
+static unsigned char CharToIndex(char const Char, etFontType Type)
 {
-  unsigned char index = MapCharacterToIndex(Character);
+  unsigned char index;
+
+  if (Font[Type].Type == FONT_TYPE_TIME)
+  {
+    if (Char == COLON) index = 10;
+    else if (Char == SPACE) index = 11;
+    else index = Char - '0';
+  }
+  else if (Char >= ASCII_BEGIN && Char <= ASCII_END) index = Char - ASCII_BEGIN;
+  else index = 0;
+  
+  return index;
+}
+
+void GetCharacterBitmap(char Char, unsigned int *pBitmap)
+{
+  unsigned char index = CharToIndex(Char, CurrentType);
 
   unsigned char row;
   for (row = 0; row < Font[CurrentType].Height; row++)
@@ -134,12 +146,12 @@ void GetCharacterBitmap(unsigned char Character, unsigned int *pBitmap)
   }
 }
 
-unsigned char *GetCharacterBitmapPointer(unsigned char Char)
+unsigned char const *GetFontBitmapPointer(char const Char, etFontType Type)
 {
-  unsigned char i = MapCharacterToIndex(Char);
+  unsigned char i = CharToIndex(Char, Type);
   unsigned char *pCharBmp = (unsigned char *)&MetaWatch5table[i];
   
-  switch (CurrentType)
+  switch (Type)
   {
   case MetaWatch5: pCharBmp = (unsigned char *)MetaWatch5table[i]; break;
   case MetaWatch7: pCharBmp = (unsigned char *)MetaWatch7table[i]; break;

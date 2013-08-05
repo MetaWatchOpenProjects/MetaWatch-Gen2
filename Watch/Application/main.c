@@ -14,7 +14,6 @@
 //  limitations under the License.
 //==============================================================================
 
-#include "Version.h"
 #include "FreeRTOS.h"
 #include "task.h"
 #include "hal_boot.h"
@@ -23,8 +22,8 @@
 #include "LcdDisplay.h"
 #include "IdleTask.h"
 
-#define APP_VER     "1.4.1"
-#define BUILD_VER   "562.000"
+#define APP_VER     "1.4.2"
+#define BUILD_VER   "563.000"
 
 char const VERSION[] = APP_VER;
 char const BUILD[] = BUILD_VER;

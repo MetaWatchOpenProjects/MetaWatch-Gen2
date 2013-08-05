@@ -41,7 +41,7 @@ typedef enum
   ShowCallTimer,
   BacklightTimer,
   WrapperTimer,
-  TunnelTimer,
+  ConnIntvTimer,
   HeartbeatTimer,
 } eTimerId;
 

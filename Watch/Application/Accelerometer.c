@@ -115,7 +115,7 @@ static void InitAccelerometer(void)
      
   /* Make sure HW is functioning */
   AccelerometerRead(KIONIX_DCST_RESP, Data, ONE_BYTE);
-  PrintF("%s Accel Initd", *Data == PROOF_READ_CODE ? OK : NOK);
+  PrintF("%c Accel Initd", *Data == PROOF_READ_CODE ? OK : NOK);
 }
 
 /* Send interrupt notification to the phone or 
@@ -167,8 +167,7 @@ void HandleAccelerometer(tMessage *pMsg)
 
   case MSG_OPT_ACCEL_ENABLE:
 
-    if (Connected(CONN_TYPE_BLE))
-      CreateAndSendMessage(UpdConnParamMsg, ShortInterval);
+    if (Connected(CONN_TYPE_RMP)) CreateAndSendMessage(UpdConnParamMsg, SHORT);
 
     else if (Connected(CONN_TYPE_SPP))
       CreateAndSendMessage(SniffControlMsg, MSG_OPT_EXIT_SNIFF);
@@ -190,7 +189,7 @@ void HandleAccelerometer(tMessage *pMsg)
     /* put into low power mode */
     ACCELEROMETER_INT_DISABLE();
     ENTER_STANDBY_MODE();
-    CreateAndSendMessage(UpdConnParamMsg, LongInterval);
+    CreateAndSendMessage(UpdConnParamMsg, LONG);
     break;
 
   case MSG_OPT_ACCEL_STREAMING:

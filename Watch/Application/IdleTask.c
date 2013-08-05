@@ -103,7 +103,7 @@ void UpdateWatchdogInfo(void)
 
 void ShowWatchdogInfo(void)
 {
-  if (niReset == FLASH_RESET_CODE) niWdtCounter = 0;
+  if (niReset != NORMAL_RESET_CODE) niWdtCounter = 0;
 
   unsigned int ResetSource = GetResetSource();
   PrintResetSource(ResetSource);

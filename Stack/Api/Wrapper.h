@@ -26,24 +26,28 @@
 #include <stdarg.h>
 
 #define CONN_TYPE_NULL  (0x00)
-#define CONN_TYPE_BLE   (0x01)
+#define CONN_TYPE_RMP   (0x01)
 #define CONN_TYPE_SPP   (0x02)
 #define CONN_TYPE_HFP   (0x04)
 #define CONN_TYPE_MAP   (0x08)
 
 #define CONN_TYPE_ANY   (0x0F)
-#define CONN_TYPE_MAIN  (CONN_TYPE_BLE | CONN_TYPE_SPP)
+#define CONN_TYPE_MAIN  (CONN_TYPE_RMP | CONN_TYPE_SPP)
 #define CONN_TYPE_BR    (CONN_TYPE_SPP | CONN_TYPE_HFP | CONN_TYPE_MAP)
 
 #define DEVICE_TYPE_BLE     (0x01)
 #define DEVICE_TYPE_SPP     (0x02)
 
-//IND means connection change is indicated by stack callback
-// 0x80 means CONN
+/* IND means connection change is indicated by stack callback
+*  0x80 means CONN */
 #define CONN_CHG_IND            (0x40)
 #define CONN_CHG_IND_CONN       (0xC0)
 #define CONN_CHG_IND_DSCONN     (0x40)
 #define CONN_CHG_DSCONN         (0x00)
+
+/* BLE connection interval parameter */
+#define LONG                0
+#define SHORT               1
 
 /*! Initaliaze the serial port profile task.  This should be called from main.
 *
@@ -81,17 +85,6 @@ typedef enum
   Off,
   Shipping  
 } eBluetoothState;
-
-/*! BLE connection parameter set */
-typedef enum
-{
-  DefaultInterval,
-  LongInterval,
-  LongToShort,
-  ShortInterval,
-  ShortToLong,
-  MidiumInterval
-} IntervalType_t;
 
 /*! Determine if the bluetooth link is in the connected state.  
 * When the phone and watch are connected then data can be sent.

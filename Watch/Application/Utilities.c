@@ -50,7 +50,7 @@ unsigned char UTL_RegisterFreeRtosTask(void * TaskHandle,
   
   if(TaskIndex >= MAX_NUM_TASK_LOG_ENTRIES)
   {
-    PrintS("Task Log is Full");
+    PrintS("# Task Log is Full");
     retValue = 0;  
   }
   else

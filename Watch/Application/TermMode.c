@@ -74,7 +74,7 @@ void EnableTermMode(unsigned char Enable)
     DisableSmClkUser(TERM_MODE_USER);
   }
 
-  PrintF("%sEnTermMode", Enable ? OK : NOK);
+  PrintF("%c EnTermMode", Enable ? OK : NOK);
 }
 
 /******************************************************************************/

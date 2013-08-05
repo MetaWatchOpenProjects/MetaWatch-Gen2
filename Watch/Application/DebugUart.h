@@ -27,11 +27,14 @@
 #ifndef DEBUG_UART_H
 #define DEBUG_UART_H
 
-extern char const OK[];
-extern char const NOK[];
+extern char const OK;
+extern char const NOK;
+extern char const RCV;
+extern char const SND;
 extern char const SPACE;
 extern char const ZERO;
 extern char const COLON;
+extern char const COMMA;
 extern char const HASH;
 extern char const DOLLAR;
 extern char const TILDE;

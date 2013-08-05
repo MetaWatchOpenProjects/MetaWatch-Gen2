@@ -32,7 +32,7 @@
 #include "MessageQueues.h"
 #include "DebugUart.h"
 #include "Utilities.h"
-
+#include "Wrapper.h"
 #include "OneSecondTimers.h"
 
 /*! One Second Timer Structure */
@@ -63,7 +63,7 @@ static const tTimerSettings TimerSettings[] =
   {TOUT_CALL_NOTIF, TOUT_ONCE, DISPLAY_QINDEX, CallerNameMsg, SHOW_NOTIF_END},
   {TOUT_BACKLIGHT, TOUT_ONCE, DISPLAY_QINDEX, SetBacklightMsg, LED_OFF_OPTION},
   {TOUT_CONN_HFP_MAP_SHORT, TOUT_ONCE, WRAPPER_QINDEX, ConnTimeoutMsg, MSG_OPT_NONE},
-  {TOUT_TUNNEL_LONG, TOUT_ONCE, WRAPPER_QINDEX, TunnelTimeoutMsg, MSG_OPT_NONE},
+  {TOUT_INTERVAL_LONG, TOUT_ONCE, WRAPPER_QINDEX, UpdConnParamMsg, LONG},
   {TOUT_HEARTBEAT, TOUT_ONCE, WRAPPER_QINDEX, HeartbeatTimeoutMsg, MSG_OPT_NONE},
 };
 #define TOTAL_TIMERS    (sizeof(TimerSettings) / sizeof(tTimerSettings))

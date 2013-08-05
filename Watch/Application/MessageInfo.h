@@ -48,7 +48,7 @@ static const tMsgInfo MsgInfo[MAXIMUM_MESSAGE_TYPES] =
   {"PairCtrlMsg",                 WRAPPER_QINDEX,    0 }, /* 0x0c */
   {"ReadRssiResp",                WRAPPER_QINDEX,    1 }, /* 0x0d */
   {"SniffCtrlMsg",                WRAPPER_QINDEX,    1 }, /* 0x0e */
-  {"LnkAlmMsg",                   DISPLAY_QINDEX,    1 }, /* 0x0f */
+  {"LnkAlmMsg",                   DISPLAY_QINDEX,    0 }, /* 0x0f */
   {"OledWrtBufMsg",               DISPLAY_QINDEX,    0 }, /* 0x10 */
   {"OleConfModMsg",               DISPLAY_QINDEX,    0 }, /* 0x11 */
   {"OleChgModMsg",                DISPLAY_QINDEX,    0 }, /* 0x12 */
@@ -58,7 +58,7 @@ static const tMsgInfo MsgInfo[MAXIMUM_MESSAGE_TYPES] =
   {"OleCrwnMenuMsg",              DISPLAY_QINDEX,    0 }, /* 0x16 */
   {"OleCrwnMenuBtnMsg",           DISPLAY_QINDEX,    0 }, /* 0x17 */
   {"MusicStateMsg",               DISPLAY_QINDEX,    1 }, /* 0x18 */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0x19 */
+  {"DrwMsg",                      DISPLAY_QINDEX,    1 }, /* 0x19 */
   {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0x1a */
   {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0x1b */
   {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0x1c */
@@ -82,7 +82,7 @@ static const tMsgInfo MsgInfo[MAXIMUM_MESSAGE_TYPES] =
   {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0x2e */
   {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0x2f */
   {"PropMsg",                     DISPLAY_QINDEX,    0 }, /* 0x30 */
-  {"PropResp",                    WRAPPER_QINDEX,    1 }, /* 0x31 */
+  {"PropResp",                    WRAPPER_QINDEX,    0 }, /* 0x31 */
   {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0x32 */
   {"ModChgIndMsg",                WRAPPER_QINDEX,    0 }, /* 0x33 */
   {"BtnEventMsg",                 WRAPPER_QINDEX,    0 }, /* 0x34 */
@@ -104,13 +104,13 @@ static const tMsgInfo MsgInfo[MAXIMUM_MESSAGE_TYPES] =
   {"LdTmplMsg",                   DISPLAY_QINDEX,    1 }, /* 0x44 */
   {"ExtAppMsg",                   WRAPPER_QINDEX,    1 }, /* 0x45 */
   {"EnBtnMsg",                    DISPLAY_QINDEX,    0 }, /* 0x46 */
-  {"DisBtnMsg",                   DISPLAY_QINDEX,    1 }, /* 0x47 */
-  {"RdBtnConfMsg",                DISPLAY_QINDEX,    1 }, /* 0x48 */
-  {"RdBtnConfResp",               WRAPPER_QINDEX,    1 }, /* 0x49 */
+  {"DisBtnMsg",                   DISPLAY_QINDEX,    0 }, /* 0x47 */
+  {"RdBtnConfMsg",                DISPLAY_QINDEX,    0 }, /* 0x48 */
+  {"RdBtnConfResp",               WRAPPER_QINDEX,    0 }, /* 0x49 */
   {"ExtAppIndMsg",                WRAPPER_QINDEX,    1 }, /* 0x4a */
   {"EraseTmplMsg",                DISPLAY_QINDEX,    1 }, /* 0x4b */
   {"WrtTmplMsg",                  DISPLAY_QINDEX,    1 }, /* 0x4c */
-  {"SetClkWgtMsg",                DISPLAY_QINDEX,    1 }, /* 0x4d */
+  {"SetClkWgtMsg",                DISPLAY_QINDEX,    0 }, /* 0x4d */
   {"DrwClkWgtMsg",                DISPLAY_QINDEX,    0 }, /* 0x4e */
   {UnusedMsg,                     DISPLAY_QINDEX,    0 }, /* 0x4f */
   {"SetExtWgtMsg",                WRAPPER_QINDEX,    1 }, /* 0x50 */
@@ -196,7 +196,7 @@ static const tMsgInfo MsgInfo[MAXIMUM_MESSAGE_TYPES] =
   {"IdleUpdMsg",                  DISPLAY_QINDEX,    0 }, /* 0xa0 */
   {"SetWgtListMsg",               DISPLAY_QINDEX,    0 }, /* 0xa1 */
   {"WatchDrawnTout",              DISPLAY_QINDEX,    0 }, /* 0xa2 */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0xa3 */
+  {"AncsMsg",                     WRAPPER_QINDEX,    0 }, /* 0xa3 */
   {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0xa4 */
   {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0xa5 */
   {"ChgModMsg",                   DISPLAY_QINDEX,    0 }, /* 0xa6 */
@@ -206,9 +206,9 @@ static const tMsgInfo MsgInfo[MAXIMUM_MESSAGE_TYPES] =
   {"TrigSrvMenuMsg",              DISPLAY_QINDEX,    1 }, /* 0xaa */
   {"LstPairedDevMsg",             DISPLAY_QINDEX,    0 }, /* 0xab */
   {"BTStateChgMsg",               DISPLAY_QINDEX,    0 }, /* 0xac */
-  {"ModifyTimeMsg",               DISPLAY_QINDEX,    1 }, /* 0xad */
-  {"MenuBtnMsg",                  DISPLAY_QINDEX,    1 }, /* 0xae */
-  {"ToggleSecMsg",                DISPLAY_QINDEX,    1 }, /* 0xaf */
+  {"ModifyTimeMsg",               DISPLAY_QINDEX,    0 }, /* 0xad */
+  {"MenuBtnMsg",                  DISPLAY_QINDEX,    0 }, /* 0xae */
+  {"ToggleSecMsg",                DISPLAY_QINDEX,    0 }, /* 0xaf */
   {"SetHBMsg",                    WRAPPER_QINDEX,    0 }, /* 0xb0 */
   {"HBToutMsg",                   WRAPPER_QINDEX,    1 }, /* 0xb1 */
   {"UpdConnParamMsg",             WRAPPER_QINDEX,    0 }, /* 0xb2 */
@@ -217,9 +217,9 @@ static const tMsgInfo MsgInfo[MAXIMUM_MESSAGE_TYPES] =
   {"CallerIdMsg",                 DISPLAY_QINDEX,    1 }, /* 0xb5 */
   {"HfpMsg",                      WRAPPER_QINDEX,    0 }, /* 0xb6 */
   {"MapMsg",                      WRAPPER_QINDEX,    0 }, /* 0xb7 */
-  {"MapIndMsg",                   WRAPPER_QINDEX,    1 }, /* 0xb8 */
+  {"MapIndMsg",                   WRAPPER_QINDEX,    0 }, /* 0xb8 */
   {"ConnChgMsg",                  WRAPPER_QINDEX,    0 }, /* 0xb9 */
-  {"UpdWgtIndMsg",                WRAPPER_QINDEX,    1 }, /* 0xba */
+  {"UpdWgtIndMsg",                WRAPPER_QINDEX,    0 }, /* 0xba */
   {"ConnParamIndMsg",             WRAPPER_QINDEX,    0 }, /* 0xbb */
   {"TunnelToutMsg",               WRAPPER_QINDEX,    0 }, /* 0xbc */
   {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0xbd */
@@ -238,8 +238,8 @@ static const tMsgInfo MsgInfo[MAXIMUM_MESSAGE_TYPES] =
   {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0xca */
   {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0xcb */
   {"AckMsg",                      WRAPPER_QINDEX,    1 }, /* 0xcc */
-  {"CntdwnMsg",                   DISPLAY_QINDEX,    1 }, /* 0xcd */
-  {"SetDoneMsg",                  DISPLAY_QINDEX,    1 }, /* 0xce */
+  {"CntdwnMsg",                   DISPLAY_QINDEX,    0 }, /* 0xcd */
+  {"SetDoneMsg",                  DISPLAY_QINDEX,    0 }, /* 0xce */
   {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0xcf */
   {"QueryMemMsg",                 WRAPPER_QINDEX,    0 }, /* 0xd0 */
   {"ConnTypeMsg",                 WRAPPER_QINDEX,    1 }, /* 0xd1 */

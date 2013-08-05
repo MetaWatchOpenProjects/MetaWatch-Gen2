@@ -96,7 +96,7 @@ extern const unsigned char TimeKWidth[];
 
 /*! Get the bitmap for the specified character
  *
- * \param Character is the desired character
+ * \param Char is the desired character
  * \param pBitmap pointer to an array of integers that holds the bitmap
  *
  * \note pBitmap must point to an object large enough to hold the largest bitmap
@@ -107,7 +107,7 @@ extern const unsigned char TimeKWidth[];
  * The function works with ints so that it is generic for both types
  *
  */
-void GetCharacterBitmap(unsigned char Character,unsigned int * pBitmap);
+void GetCharacterBitmap(char const Char, unsigned int *pBitmap);
 
 /*! Get the width for a specified character *
  *
@@ -115,17 +115,18 @@ void GetCharacterBitmap(unsigned char Character,unsigned int * pBitmap);
  * \return Width of character in columns
  */
 
-unsigned char *GetCharacterBitmapPointer(unsigned char Char);
+unsigned char const *GetFontBitmapPointer(char const Char, etFontType Type);
 
-unsigned char GetCharacterWidth(unsigned char Character);
+unsigned char GetCharacterWidth(char const Char);
+unsigned char GetCharWidth(char const Char, etFontType Type);
 
 /*! Set the font type used for future Get operations *
  *
  * \param Type of font
  */
 void SetFont(etFontType Type);
-
-const tFont *GetCurrentFont(void);
+tFont const *GetCurrentFont(void);
+tFont const *GetFontPointer(etFontType Type);
 
 /*! Set the font spacing for the current font*
  *

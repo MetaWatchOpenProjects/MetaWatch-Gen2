@@ -187,6 +187,7 @@ void Init(void)
 #if COUNTDOWN_TIMER
     InitCountdown();
 #endif
+    niReset = MASTER_RESET_CODE;
   }
   
   InitBufferPool(); // message queue
@@ -547,7 +548,7 @@ static void ChangeModeHandler(unsigned char Option)
 
   if (Option & MSG_OPT_CHGMOD_IND) return; // ask for current idle page only
     
-  if (Mode == MUSIC_MODE) SendMessage(&Msg, UpdConnParamMsg, ShortInterval);
+  if (Mode == MUSIC_MODE) SendMessage(&Msg, UpdConnParamMsg, SHORT);
 
   CurrentMode = Mode;
 
@@ -560,7 +561,7 @@ static void ChangeModeHandler(unsigned char Option)
     {
       StopTimer(ModeTimer);
       // assume short interval in other-than-idle modes
-      SendMessage(&Msg, UpdConnParamMsg, LongInterval);
+      SendMessage(&Msg, UpdConnParamMsg, LONG);
       IdleUpdateHandler();
     }
   }
