@@ -282,12 +282,26 @@ void DrawWatchStatusScreen(void)
   gBitColumnMask = BIT4;
   SetFont(MetaWatch5);
 
-  if (PairedDeviceType() == DEVICE_TYPE_BLE)
+//  if (PairedDeviceType() == DEVICE_TYPE_BLE)
+//  {
+//    if (Connected(CONN_TYPE_HFP) && Connected(CONN_TYPE_MAP)) DrawString("DUO", DRAW_OPT_BITWISE_OR);
+//    else DrawString("BLE", DRAW_OPT_BITWISE_OR);
+//  }
+//  else if (PairedDeviceType() == DEVICE_TYPE_SPP) DrawString("BR", DRAW_OPT_BITWISE_OR);
+
+  if (PairedDeviceType() == DEVICE_TYPE_SPP)
   {
-    if (Connected(CONN_TYPE_HFP) && Connected(CONN_TYPE_MAP)) DrawString("DUO", DRAW_OPT_BITWISE_OR);
-    else DrawString("BLE", DRAW_OPT_BITWISE_OR);
+    DrawString(Connected(CONN_TYPE_SPP) && QuerySniffState() == Active ? "ACT" : "BR",
+      DRAW_OPT_BITWISE_OR);
   }
-  else if (PairedDeviceType() == DEVICE_TYPE_SPP) DrawString("BR", DRAW_OPT_BITWISE_OR);
+#if SUPPORT_BLE
+  else if (PairedDeviceType() == DEVICE_TYPE_BLE)
+  {
+    DrawString(Connected(CONN_TYPE_BLE) && CurrentInterval(INTERVAL_STATE) == SHORT ? "ACT" :
+      (Connected(CONN_TYPE_HFP) && Connected(CONN_TYPE_MAP) ? "DUO" : "BLE"),
+      DRAW_OPT_BITWISE_OR);
+  }
+#endif
 
   DrawBatteryOnIdleScreen(6, 9, MetaWatch7);
 
@@ -607,21 +621,6 @@ static void DrawChar(char const Char, unsigned char Op)
     {
       gBitColumnMask = BIT0;
       gColumn++;
-    }
-  }
-
-  /* add spacing between characters */
-  if (gColumn < BYTES_PER_LINE)
-  {
-    unsigned char FontSpacing = GetFontSpacing();
-    for(i = 0; i < FontSpacing; i++)
-    {
-      gBitColumnMask = gBitColumnMask << 1;
-      if (gBitColumnMask == 0)
-      {
-        gBitColumnMask = BIT0;
-        gColumn++;
-      }
     }
   }
 }

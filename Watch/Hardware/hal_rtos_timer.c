@@ -106,12 +106,16 @@ void SetupRtosTimer(void)
  */
 void EnableRtosTick(void)
 {
+  if (RtosTickEnabled) return;
+
   RtosTickEnabled = 1;
   AddUser(TIMER0_RTOS_USER,RTOS_TICK_COUNT);
 }
 
 void DisableRtosTick(void)
 {
+  if (!RtosTickEnabled) return;
+  
   RtosTickEnabled = 0;
   RemoveUser(TIMER0_RTOS_USER);
 }

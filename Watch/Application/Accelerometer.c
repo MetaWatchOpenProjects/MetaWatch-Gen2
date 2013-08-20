@@ -167,7 +167,7 @@ void HandleAccelerometer(tMessage *pMsg)
 
   case MSG_OPT_ACCEL_ENABLE:
 
-    if (Connected(CONN_TYPE_RMP)) CreateAndSendMessage(UpdConnParamMsg, SHORT);
+    if (Connected(CONN_TYPE_BLE)) CreateAndSendMessage(UpdConnParamMsg, SHORT);
 
     else if (Connected(CONN_TYPE_SPP))
       CreateAndSendMessage(SniffControlMsg, MSG_OPT_EXIT_SNIFF);
@@ -189,7 +189,7 @@ void HandleAccelerometer(tMessage *pMsg)
     /* put into low power mode */
     ACCELEROMETER_INT_DISABLE();
     ENTER_STANDBY_MODE();
-    CreateAndSendMessage(UpdConnParamMsg, LONG);
+    if (Connected(CONN_TYPE_BLE)) CreateAndSendMessage(UpdConnParamMsg, LONG);
     break;
 
   case MSG_OPT_ACCEL_STREAMING:

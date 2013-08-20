@@ -25,25 +25,27 @@
 
 #include <stdarg.h>
 
-#define CONN_TYPE_NULL  (0x00)
-#define CONN_TYPE_RMP   (0x01)
-#define CONN_TYPE_SPP   (0x02)
-#define CONN_TYPE_HFP   (0x04)
-#define CONN_TYPE_MAP   (0x08)
+#define CONN_TYPE_NULL      (0x00)
+#define CONN_TYPE_TUNNEL    (0x01)
+#define CONN_TYPE_SPP       (0x02)
+#define CONN_TYPE_HFP       (0x04)
+#define CONN_TYPE_MAP       (0x08)
+#define CONN_TYPE_MWM       (0x10)
+#define CONN_TYPE_ANY       (0x1F)
 
-#define CONN_TYPE_ANY   (0x0F)
-#define CONN_TYPE_MAIN  (CONN_TYPE_RMP | CONN_TYPE_SPP)
-#define CONN_TYPE_BR    (CONN_TYPE_SPP | CONN_TYPE_HFP | CONN_TYPE_MAP)
+#define CONN_TYPE_BLE       (CONN_TYPE_TUNNEL | CONN_TYPE_MWM)
+#define CONN_TYPE_MAIN      (CONN_TYPE_BLE | CONN_TYPE_SPP)
+#define CONN_TYPE_BR        (CONN_TYPE_SPP | CONN_TYPE_HFP | CONN_TYPE_MAP)
+
+#define CONN_CHG_CONN       (0x80)
+#define CONN_CHG_DSCONN     (0x00)
+
+/* send current conn state to remote */
+#define CONN_IND            (0x00)
+
 
 #define DEVICE_TYPE_BLE     (0x01)
 #define DEVICE_TYPE_SPP     (0x02)
-
-/* IND means connection change is indicated by stack callback
-*  0x80 means CONN */
-#define CONN_CHG_IND            (0x40)
-#define CONN_CHG_IND_CONN       (0xC0)
-#define CONN_CHG_IND_DSCONN     (0x40)
-#define CONN_CHG_DSCONN         (0x00)
 
 /* BLE connection interval parameter */
 #define LONG                0
@@ -155,6 +157,11 @@ typedef struct
   unsigned char Connectable;
 } tAdvertisingPayload;
 
+#define INTERVAL_VALUE        0
+#define INTERVAL_STATE        1
+
+unsigned int CurrentInterval(unsigned char Prop);
+
 /******************************************************************************/
 
 /*! 
@@ -202,7 +209,6 @@ typedef enum
   MinInterval = 1,
   Attempt = 2,
   AttemptTimeout = 3
-
 } eSniffSlotType;
 
 /*! Allow access to the 4 sniff parameters

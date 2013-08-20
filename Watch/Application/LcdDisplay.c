@@ -194,7 +194,8 @@ void Init(void)
 
   InitBattery();
   CheckClip();
-
+  __enable_interrupt();
+  
   PrintF("*** %s:%s ***", niReset == FLASH_RESET_CODE ? "FLASH" :
     (niReset == MASTER_RESET_CODE ? "MASTER" : "NORMAL"), niBuild);
   
@@ -353,7 +354,7 @@ static void DisplayQueueMessageHandler(tMessage* pMsg)
       
       RouteMsg(&Msg);
     }
-    PrintS("-Ver:"); for (i = 6; i < Msg.Length; ++i) PrintH(Msg.pBuffer[i]);
+    PrintW("-Ver:"); PrintQ(&Msg.pBuffer[6], Msg.Length);
     break;
     
   case SetVibrateMode:
@@ -532,9 +533,9 @@ static void IdleUpdateHandler(void)
 
 static void ChangeModeHandler(unsigned char Option)
 {
-  PrintF("- ChgModInd:0x%02x", Option);
-  PrintF(" PgTp %d Pg: %d", PageType, CurrentPage[PageType]);
-  
+//  PrintF("- ChgModInd:0x%02x", Option);
+//  PrintF(" PgTp %d Pg: %d", PageType, CurrentPage[PageType]);
+
   unsigned char Mode = Option & MODE_MASK;
 
   tMessage Msg;

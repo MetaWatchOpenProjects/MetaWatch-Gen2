@@ -28,13 +28,13 @@
 *******************************************************************************/
 #include "hal_lcd.h"
 
-#define MSG_BUFFER_LENGTH  ( 32 )
-#define MSG_HEADER_LENGTH  ( 4 )
-#define MSG_CRC_LENGTH     ( 2 )
-#define MSG_OVERHEAD_LENTH ( 6 )
-#define MSG_PAYLOAD_LENTH  (14)
-#define MSG_FRM_START      (0x01)
-#define FRAME_HEADER_LEN   (2) // Flag + frame length
+#define MSG_BUFFER_LENGTH     ( 32 )
+#define MSG_HEADER_LENGTH     ( 4 )
+#define MSG_CRC_LENGTH        ( 2 )
+#define MSG_OVERHEAD_LENGTH   ( 6 )
+#define MSG_PAYLOAD_LENGTH    (MSG_BUFFER_LENGTH - MSG_OVERHEAD_LENGTH)
+#define MSG_FRM_START         (0x01)
+#define FRAME_HEADER_LEN      (2) // Flag + frame length
 
 // see BufferPool.c
 #define MSG_RELATIVE_INDEX_FLG  (-4)
@@ -146,6 +146,8 @@ typedef enum
 
   /* draw text/bitmap */
   DrawMsg = 0x19,
+
+  SetCliCfgMsg = 0x1a,
   
   /*
    * Status and control
@@ -249,7 +251,7 @@ typedef enum
 
   ConnChangeMsg = 0xb9,
   UpdWgtIndMsg = 0xba,
-  ConnParamChgIndMsg = 0xbb,
+  IntervalChgdMsg = 0xbb,
   IntervalTimeoutMsg = 0xbc,
 
   SppAckMsg = 0xcc,

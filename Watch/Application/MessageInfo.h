@@ -211,7 +211,7 @@ static const tMsgInfo MsgInfo[MAXIMUM_MESSAGE_TYPES] =
   {"ToggleSecMsg",                DISPLAY_QINDEX,    0 }, /* 0xaf */
   {"SetHBMsg",                    WRAPPER_QINDEX,    0 }, /* 0xb0 */
   {"HBToutMsg",                   WRAPPER_QINDEX,    1 }, /* 0xb1 */
-  {"UpdConnParamMsg",             WRAPPER_QINDEX,    0 }, /* 0xb2 */
+  {"UpdIntvMsg",                  WRAPPER_QINDEX,    0 }, /* 0xb2 */
   {"CallerIdIndMsg",              WRAPPER_QINDEX,    1 }, /* 0xb3 */
   {"CallerNameMsg",               DISPLAY_QINDEX,    1 }, /* 0xb4 */
   {"CallerIdMsg",                 DISPLAY_QINDEX,    1 }, /* 0xb5 */
@@ -220,7 +220,7 @@ static const tMsgInfo MsgInfo[MAXIMUM_MESSAGE_TYPES] =
   {"MapIndMsg",                   WRAPPER_QINDEX,    0 }, /* 0xb8 */
   {"ConnChgMsg",                  WRAPPER_QINDEX,    0 }, /* 0xb9 */
   {"UpdWgtIndMsg",                WRAPPER_QINDEX,    0 }, /* 0xba */
-  {"ConnParamIndMsg",             WRAPPER_QINDEX,    0 }, /* 0xbb */
+  {"IntvChgIndMsg",               WRAPPER_QINDEX,    1 }, /* 0xbb */
   {"TunnelToutMsg",               WRAPPER_QINDEX,    0 }, /* 0xbc */
   {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0xbd */
   {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0xbe */

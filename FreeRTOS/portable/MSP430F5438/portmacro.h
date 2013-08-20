@@ -92,15 +92,27 @@ typedef char tString;
 #define portENTER_CRITICAL()                                                  \
 {                                                                             \
    extern volatile unsigned portSHORT usCriticalNesting;                      \
-   __disable_interrupt();                                                     \
-   __no_operation();                                                          \
                                                                               \
-   /* Now interrupts are disabled usCriticalNesting can be accessed      */   \
-   /* directly.  Increment ulCriticalNesting to keep a count of how many */   \
-   /* times portENTER_CRITICAL() has been called.                        */   \
-   usCriticalNesting++;                                                       \
+   /* If this is the first call and the interrupts are disabled,              \
+    * the code is called from an ISR. In this case do not enter               \
+    * a critical section. Otherwise, interrupts can get enabled if            \
+    * portEXT_CRITICAL is called. This would enable interrupts while          \
+    * the ISR is active. But FreeRTOS requires that some of its               \
+    * "fromISR" functions are called with interrupts disabled.                \
+    */                                                                        \
+   if (( usCriticalNesting != portNO_CRITICAL_SECTION_NESTING ) ||            \
+       ((__get_interrupt_state() & GIE))) {                                   \
+                                                                              \
+     __disable_interrupt();                                                   \
+     __no_operation();                                                        \
+                                                                              \
+     /* Now interrupts are disabled usCriticalNesting can be accessed      */ \
+     /* directly.  Increment ulCriticalNesting to keep a count of how many */ \
+     /* times portENTER_CRITICAL() has been called.                        */ \
+     usCriticalNesting++;                                                     \
+   }                                                                          \
 }
-   
+
 #define portEXIT_CRITICAL()                                                   \
 {                                                                             \
    extern volatile unsigned portSHORT usCriticalNesting;                      \

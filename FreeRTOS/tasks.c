@@ -2330,8 +2330,16 @@ void vTaskExitCritical( void )
 }
 
 #endif
+
 /*-----------------------------------------------------------*/
 
+signed portBASE_TYPE xTaskTickRequired( void )
+{
+  if( !listLIST_IS_EMPTY( pxDelayedTaskList ) ) return pdTRUE;
+  if( !listLIST_IS_EMPTY( pxOverflowDelayedTaskList ) ) return pdTRUE;
+
+  return pdFALSE;
+}
 
 
 

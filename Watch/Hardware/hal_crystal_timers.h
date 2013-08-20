@@ -30,7 +30,7 @@
 #ifndef HAL_CRYSTAL_TIMERS
 #define HAL_CRYSTAL_TIMERS
 
-/*! Crystal timer 1 is used by the serial port profile */
+/*! Crystal timer 1 is used for the sniff mode */
 #define CRYSTAL_TIMER_ID1 ( 1 )
 
 /*! Crystal timer 2 is used by the OLED display task */
@@ -39,7 +39,7 @@
 /*! Unused */
 #define CRYSTAL_TIMER_ID3 ( 3 )
 
-/*! Crystal timer 4 is used by HFP */
+/*! Crystal timer 4 is used for service discovery */
 #define CRYSTAL_TIMER_ID4 ( 4 )
 
 /*! Start a timer that will expire in the specified number of ticks 

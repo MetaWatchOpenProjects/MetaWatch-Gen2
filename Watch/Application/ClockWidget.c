@@ -275,7 +275,7 @@ static void DrawText(const char *pText, unsigned char Len, unsigned char X, unsi
     unsigned char CharWidth = GetCharWidth(pText[i], (etFontType)Font);
     
     DrawBitmap(pBitmap, X, Y, CharWidth, pFont->Height, pFont->WidthInBytes, Op);
-    X += EqualWidth ? CharWidth + 1 : pFont->MaxWidth + 1; // add 1 pixel space
+    X += EqualWidth ? CharWidth : pFont->MaxWidth; // add 1 pixel space
   }
 }
 

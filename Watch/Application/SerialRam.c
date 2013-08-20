@@ -514,7 +514,7 @@ void WriteClockWidget(unsigned char FaceId, unsigned char *pBuffer)
 
 //  pMsg->pBuffer = NULL; // the pBuffer here is not allocated in message queue
 
-  if (!Found) {PrintS("# WrtClk: invalid Id"); return;}
+  if (!Found) {PrintF("# WrtClk invld FId:x%02X", FaceId); return;}
 
   if (ClockId == INVALID_ID)
   { // all outdated clock on current page are updated
