@@ -32,7 +32,7 @@
 #include "Buttons.h"
 #include "DebugUart.h"
 #include "Wrapper.h"
-#include "Utilities.h"
+
 #include "MessageQueues.h"
 #include "OneSecondTimers.h"
 #include "LcdDisplay.h"
@@ -133,12 +133,13 @@ static const tButtonAction InitAction[] =
   {BTN_D | INIT_PAGE | BTN_EVT_IMDT, WatchStatusMsg, 0},
   {BTN_E | INIT_PAGE | BTN_EVT_IMDT, ModifyTimeMsg, RTC_HOUR},
 
-  {BTN_A | INFO_PAGE | BTN_EVT_IMDT, IdleUpdateMsg, 0},
-//  {BTN_C | INFO_PAGE | BTN_EVT_RELS, MenuModeMsg, Menu1Page},
-  {BTN_D | INFO_PAGE | BTN_EVT_IMDT, IdleUpdateMsg, 0},
+  {BTN_A | INFO_PAGE | BTN_EVT_IMDT, FieldTestMsg, FIELD_TEST_BUTTON_A},
+  {BTN_B | INFO_PAGE | BTN_EVT_IMDT, FieldTestMsg, FIELD_TEST_BUTTON_B},
+  {BTN_C | INFO_PAGE | BTN_EVT_IMDT, FieldTestMsg, FIELD_TEST_BUTTON_C},
+  {BTN_D | INFO_PAGE | BTN_EVT_IMDT, FieldTestMsg, FIELD_TEST_EXIT},
 
-  {BTN_A | CALL_PAGE | BTN_EVT_IMDT, CallerNameMsg, SHOW_NOTIF_REJECT_CALL},
-  {BTN_C | CALL_PAGE | BTN_EVT_RELS, MenuModeMsg, Menu1Page},
+//  {BTN_A | CALL_PAGE | BTN_EVT_IMDT, ShowCallMsg, SHOW_NOTIF_REJECT_CALL},
+//  {BTN_C | CALL_PAGE | BTN_EVT_RELS, MenuModeMsg, Menu1Page},
 #if COUNTDOWN_TIMER
   {BTN_A | CDT_PAGE | BTN_EVT_IMDT, ChangeModeMsg, NOTIF_MODE | MSG_OPT_UPD_INTERNAL},
   {BTN_B | CDT_PAGE | BTN_EVT_IMDT, IdleUpdateMsg, MSG_OPT_NONE},
@@ -154,7 +155,7 @@ static const tButtonAction MenuAction[] =
 {
   {BTN_A | MENU_PAGE_0 | BTN_EVT_IMDT, MenuButtonMsg, MENU_BUTTON_OPTION_TOGGLE_BLUETOOTH},
   {BTN_B | MENU_PAGE_0 | BTN_EVT_IMDT, MenuButtonMsg, MENU_BUTTON_OPTION_DISPLAY_SECONDS},
-  {BTN_C | MENU_PAGE_0 | BTN_EVT_RELS, ChangeModeMsg, IDLE_MODE | MSG_OPT_UPD_INTERNAL},
+  {BTN_C | MENU_PAGE_0 | BTN_EVT_RELS, IdleUpdateMsg, MSG_OPT_NONE}, //ChangeModeMsg, IDLE_MODE | MSG_OPT_UPD_INTERNAL},
   {BTN_D | MENU_PAGE_0 | BTN_EVT_IMDT, MenuButtonMsg, MENU_BUTTON_OPTION_TOGGLE_LINK_ALARM},
   {BTN_E | MENU_PAGE_0 | BTN_EVT_IMDT, MenuButtonMsg, MENU_BUTTON_OPTION_INVERT_DISPLAY},
   
@@ -384,30 +385,39 @@ static void HandleButtonEvent(unsigned char Index, unsigned char Event)
 //  PrintS(tringAndTwoDecimals("- BtnEvt i:", Index, "e:", Event);
 //  PrintS(tringAndHexByte("LstBF:0x", LastButton);
 
-  unsigned char Done = pdFALSE;
+  unsigned char Done = FALSE;
 
   if (Event == BTN_EVT_HOLD)
   {
-    if (Index == BTN_INDEX_C && LastButton == (BTN_INDEX_F << BTN_NO_SHFT | BTN_EVT_RELS) &&
-        CurrentIdlePage() == Menu1Page && BackLightOn())
+    if ((Index == BTN_INDEX_C || Index == BTN_INDEX_E) &&
+        LastButton == (BTN_INDEX_F << BTN_NO_SHFT | BTN_EVT_RELS) &&
+        BackLightOn())
     {
-      SendMessage(&Msg, ServiceMenuMsg, MSG_OPT_NONE);
-      Done = pdTRUE;
+      if (CurrentIdlePage() == Menu1Page)
+      {
+        if (Index == BTN_INDEX_C) SendMessage(&Msg, ServiceMenuMsg, MSG_OPT_NONE);
+      }
+      else if (CurrentIdlePage() == StatusPage)
+      {
+        if (Index == BTN_INDEX_C) SendMessage(&Msg, FieldTestMsg, FIELD_TEST_ENTER);
+        else if (Index == BTN_INDEX_E) SendMessage(&Msg, ShippingModeMsg, MSG_OPT_NONE);
+      }
+      Done = TRUE;
     }
     else if (Index == BTN_INDEX_B && LastButton == (BTN_INDEX_E << BTN_NO_SHFT | BTN_EVT_HOLD) ||
              Index == BTN_INDEX_E && LastButton == (BTN_INDEX_B << BTN_NO_SHFT | BTN_EVT_HOLD) ||
              Index == BTN_INDEX_F)
     {
       SendMessage(&Msg, ResetMsg, Index == BTN_INDEX_F ? MSG_OPT_NONE : MASTER_RESET_OPTION);
-      Done = pdTRUE;
+      Done = TRUE;
     }
   }
   else if (Event == BTN_EVT_RELS)
   {
     if (BackLightOn() || Index == BTN_INDEX_F)
     {
-      SendMessage(&Msg, SetBacklightMsg, LED_ON_OPTION);
-      if (Index == BTN_INDEX_F) Done = pdTRUE;
+      SendMessage(&Msg, SetBacklightMsg, Index == BTN_INDEX_F ? LED_TOGGLE : LED_ON);
+      if (Index == BTN_INDEX_F) Done = TRUE;
     }
   }
     
@@ -512,8 +522,8 @@ void EnableButtonMsgHandler(tMessage* pMsg)
   tButtonActionPayload *pAction = (tButtonActionPayload*)pMsg->pBuffer;
   if (pAction->ButtonIndex > SW_UNUSED_INDEX) pAction->ButtonIndex --;
 
-  PrintF(">EnBtn Mod:%d i:%d T:x%02X O:x%02X", pAction->DisplayMode, pAction->ButtonIndex,
-    pAction->CallbackMsgType, pAction->CallbackMsgOptions);
+//  PrintF(">EnBtn Mod:%d i:%d T:x%02X O:x%02X", pAction->DisplayMode, pAction->ButtonIndex,
+//    pAction->CallbackMsgType, pAction->CallbackMsgOptions);
 
   /* redefine backlight key and assign to idle mode keys are not allowed */
   if (pAction->ButtonIndex == BTN_INDEX_F) return;

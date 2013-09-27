@@ -74,77 +74,12 @@ typedef struct
 #define NUM_TO_ALPHANUM_OFFSET (0x30)
 #define PRINTABLE_CHARACTERS (94)
 
-/*! The number of printable characters in the font tables
-    [CharNum][WidthInBytes * Height] */
+/*! Get the bitmap for the specified character */
+unsigned char const *GetFontBitmap(char const Char, etFontType Type);
 
-extern const unsigned char MetaWatch5table[][5];
-extern const unsigned char MetaWatch7table[][7];
-extern const unsigned int MetaWatch16table[][16];
-extern const unsigned int TimeTable[][19];
-extern const unsigned char TimeBlockTable[][60];
-extern const unsigned char TimeGTable[][3*28];
-extern const unsigned char TimeKTable[][3*56];
-
-extern const unsigned char MetaWatch5width[];
-extern const unsigned char MetaWatch7width[];
-extern const unsigned char MetaWatch16width[];
-extern const unsigned char TimeWidth[];
-extern const unsigned char TimeBlockWidth[];
-extern const unsigned char TimeGWidth[];
-extern const unsigned char TimeKWidth[];
-
-
-/*! Get the bitmap for the specified character
- *
- * \param Char is the desired character
- * \param pBitmap pointer to an array of integers that holds the bitmap
- *
- * \note pBitmap must point to an object large enough to hold the largest bitmap
- *
- * \note For the LCD bitmaps the font height is the same as number of rows.
- * If the width is less than 8 then each row is a byte.
- * If the width is less than 16 but > 8 then each row is a word.
- * The function works with ints so that it is generic for both types
- *
- */
-void GetCharacterBitmap(char const Char, unsigned int *pBitmap);
-
-/*! Get the width for a specified character *
- *
- * \param Character is the desired character
- * \return Width of character in columns
- */
-
-unsigned char const *GetFontBitmapPointer(char const Char, etFontType Type);
-
-unsigned char GetCharacterWidth(char const Char);
 unsigned char GetCharWidth(char const Char, etFontType Type);
 
-/*! Set the font type used for future Get operations *
- *
- * \param Type of font
- */
-void SetFont(etFontType Type);
-tFont const *GetCurrentFont(void);
-tFont const *GetFontPointer(etFontType Type);
-
-/*! Set the font spacing for the current font*
- *
- * \param Spacing is the number of columns between characters
- *
- * \note The characters do not have any 'natural' spacing between them
- */
-//void SetFontSpacing(unsigned char Spacing);
-
-/*!
- * \return The font spacing in columns
- */
-unsigned char GetFontSpacing(void);
-
-/*!
- * \return The font height in rows
- */
-unsigned char GetFontHeight(etFontType Type);
-unsigned char GetCurrentFontHeight(void);
+/*! Set the font type used for future Get operations */
+tFont const *GetFont(etFontType Type);
 
 #endif /*FONTS_H*/

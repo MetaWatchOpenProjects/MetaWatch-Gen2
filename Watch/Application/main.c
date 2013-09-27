@@ -21,9 +21,7 @@
 #include "Wrapper.h"
 #include "LcdDisplay.h"
 #include "IdleTask.h"
-
-#define APP_VER     "1.4.1"
-#define BUILD_VER   "569.000"
+#include "Version.h"
 
 char const VERSION[] = APP_VER;
 char const BUILD[] = BUILD_VER;

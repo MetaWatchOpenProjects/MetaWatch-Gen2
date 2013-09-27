@@ -31,9 +31,10 @@
 #include "Messages.h"
 #include "MessageQueues.h"
 #include "DebugUart.h"
-#include "Utilities.h"
+
 #include "Wrapper.h"
 #include "OneSecondTimers.h"
+#include "Vibration.h"
 
 /*! One Second Timer Structure */
 typedef struct
@@ -42,8 +43,8 @@ typedef struct
   unsigned int DownCounter;
   unsigned char Running;
   unsigned char Repeat;
-  unsigned char Qindex;
-  eMessageType MsgType;
+  unsigned char Que;
+  unsigned char MsgType;
   unsigned char MsgOpt;
 } tOneSecondTimer;
 
@@ -51,20 +52,22 @@ typedef struct
 {
   unsigned int Timeout;
   unsigned char Repeat;
-  unsigned char Qindex;
-  eMessageType MsgType;
+  unsigned char Que;
+  unsigned char MsgType;
   unsigned char MsgOpt;
 } tTimerSettings;
 
-static const tTimerSettings TimerSettings[] =
+static tTimerSettings const TimerSettings[] =
 {
   {TOUT_MONITOR_BATTERY, REPEAT_FOREVER, DISPLAY_QINDEX, MonitorBatteryMsg, MSG_OPT_NONE},
   {TOUT_NOTIF_MODE, TOUT_ONCE, DISPLAY_QINDEX, ModeTimeoutMsg, NOTIF_MODE},
-  {TOUT_CALL_NOTIF, TOUT_ONCE, DISPLAY_QINDEX, CallerNameMsg, SHOW_NOTIF_END},
-  {TOUT_BACKLIGHT, TOUT_ONCE, DISPLAY_QINDEX, SetBacklightMsg, LED_OFF_OPTION},
+  {TOUT_BACKLIGHT, TOUT_ONCE, DISPLAY_QINDEX, SetBacklightMsg, LED_OFF},
   {TOUT_CONN_HFP_MAP_SHORT, TOUT_ONCE, WRAPPER_QINDEX, ConnTimeoutMsg, MSG_OPT_NONE},
   {TOUT_INTERVAL_LONG, TOUT_ONCE, WRAPPER_QINDEX, UpdConnParamMsg, LONG},
-  {TOUT_HEARTBEAT, TOUT_ONCE, WRAPPER_QINDEX, HeartbeatTimeoutMsg, MSG_OPT_NONE},
+  {TOUT_HEARTBEAT, TOUT_ONCE, WRAPPER_QINDEX, HeartbeatMsg, MSG_OPT_NONE},
+//  {TOUT_FIELD_TEST, REPEAT_FOREVER, DISPLAY_QINDEX, FieldTestMsg, FIELD_TEST_TIMEOUT},
+  {TOUT_RING, REPEAT_FOREVER, DISPLAY_QINDEX, VibrateMsg, VIBRA_PATTERN_RING},
+  {TOUT_TO_SNIFF, TOUT_ONCE, WRAPPER_QINDEX, SniffControlMsg, MSG_OPT_ENTER_SNIFF},
 };
 #define TOTAL_TIMERS    (sizeof(TimerSettings) / sizeof(tTimerSettings))
 
@@ -76,7 +79,7 @@ void StartTimer(eTimerId Id)
   portENTER_CRITICAL();
   if (!Timer[Id].MsgType)
   {
-    Timer[Id].Qindex = TimerSettings[Id].Qindex;
+    Timer[Id].Que = TimerSettings[Id].Que;
     Timer[Id].MsgType = TimerSettings[Id].MsgType;
     Timer[Id].MsgOpt = TimerSettings[Id].MsgOpt;
   }
@@ -85,26 +88,36 @@ void StartTimer(eTimerId Id)
   if (!Timer[Id].Repeat) Timer[Id].Repeat = TimerSettings[Id].Repeat;
   
   Timer[Id].DownCounter = Timer[Id].Timeout;
-  Timer[Id].Running = pdTRUE;
+  Timer[Id].Running = TRUE;
   portEXIT_CRITICAL();
 }
 
-void SetTimer(eTimerId Id, unsigned int Timeout, unsigned char Repeat)
+void ResetTimer(eTimerId Id, unsigned int Timeout, unsigned char Repeat)
 {
-  if (!Timeout || !Repeat) StopTimer(Id);
-  else
+  SetTimer(Id, Timeout, Repeat, Timer[Id].Que, Timer[Id].MsgType, Timer[Id].MsgOpt);
+}
+
+void SetTimer(eTimerId Id, unsigned int Timeout, unsigned char Repeat,
+              unsigned char Que, unsigned char Msg, unsigned char Option)
+{
+  if (Timeout && Repeat)
   {
     Timer[Id].Timeout = Timeout;
     Timer[Id].Repeat = Repeat;
+    Timer[Id].Que = Que;
+    Timer[Id].MsgType = Msg;
+    Timer[Id].MsgOpt = Option;
     StartTimer(Id);
   }
+  else StopTimer(Id);
 }
 
 void StopTimer(eTimerId Id)
 {
-  Timer[Id].Running = pdFALSE;
-  Timer[Id].Timeout = TimerSettings[Id].Timeout;
-  Timer[Id].Repeat = TimerSettings[Id].Repeat;
+  Timer[Id].Running = FALSE;
+  Timer[Id].MsgType = 0;
+  Timer[Id].Timeout = 0;
+  Timer[Id].Repeat = 0;
 }
 
 /* this should be as fast as possible because it happens in interrupt context
@@ -124,12 +137,12 @@ unsigned char OneSecondTimerHandlerIsr(void)
       {
         if (Timer[i].Repeat != REPEAT_FOREVER) Timer[i].Repeat --;
         
-        if (Timer[i].Repeat == 0) Timer[i].Running = pdFALSE;
+        if (Timer[i].Repeat == 0) Timer[i].Running = FALSE;
         else Timer[i].DownCounter = Timer[i].Timeout;
 
         tMessage Msg;
         SetupMessage(&Msg, Timer[i].MsgType, Timer[i].MsgOpt);
-        SendMessageToQueueFromIsr(Timer[i].Qindex, &Msg);
+        SendMessageToQueueFromIsr(Timer[i].Que, &Msg);
         ExitLpm = 1;
       }
     }

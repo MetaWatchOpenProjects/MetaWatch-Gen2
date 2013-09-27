@@ -38,7 +38,7 @@
 #include "Buttons-a.h"
 #include "OledDriver.h"
 #include "DebugUart.h"
-#include "Utilities.h"
+
 #include "Adc.h"
 #include "Wrapper.h"
 #include "OneSecondTimers.h"
@@ -175,7 +175,7 @@ static void WatchDrawnScreenTimeoutHandler(tMessage* pMsg);
 static void WriteBufferHandler(tMessage* pMsg);
 static void WriteScrollBufferHandler(tMessage* pMsg);
 static void ScrollHandler(void);
-static void ChangeModeHandler(unsigned char Mode);
+static void ChangeMode(unsigned char Mode);
 static void ModeTimeoutHandler(unsigned char CurrentMode);
 static void MenuModeHandler(unsigned char MsgOptions);
 static void MenuButtonHandler(unsigned char MsgOptions);
@@ -389,7 +389,7 @@ static void DisplayQueueMessageHandler(tMessage* pMsg)
     break;
     
   case OledChangeModeMsg:
-    ChangeModeHandler(pMsg->Options & MODE_MASK);
+    ChangeMode(pMsg->Options & MODE_MASK);
     break;
    
   case OledWriteScrollBufferMsg:
@@ -1675,7 +1675,7 @@ static void DisplayBluetoothStatusBottomOled(void)
 
 static void DisplayBatteryStatusFace(void)
 {
-  unsigned int BatteryVoltage = Read(BATTERY);
+  unsigned int BatteryVoltage = BatteryPercentage();
  
   StartBuildingOledScreen(TopOled);
   
@@ -1800,7 +1800,7 @@ static void DisplayLowBatteryIconAndVoltageOnTopOled(void)
   
   /* display the voltage in volts and drop the last digit */
   BuildColumn = 40;
-  DisplayBatteryVoltage(Read(BATTERY));
+  DisplayBatteryVoltage(BatteryPercentage());
   BuildOledScreenSendToDisplay();  
 }
 
@@ -2171,7 +2171,7 @@ void InitializeDisplayTimeouts(void)
  
 }
 
-static void ChangeModeHandler(unsigned char Mode)
+static void ChangeMode(unsigned char Mode)
 {
   LastMode = CurrentMode;
   CurrentMode = Mode;
@@ -2237,18 +2237,18 @@ static void ModeTimeoutHandler(unsigned char CurrentMode)
     break;
   
   case APP_MODE:
-    ChangeModeHandler(IDLE_MODE);
+    ChangeMode(IDLE_MODE);
     break;
     
   case NOTIF_MODE:
     if ( ReturnToApplicationMode )
     {
       ReturnToApplicationMode = 0;
-      ChangeModeHandler(APP_MODE);
+      ChangeMode(APP_MODE);
     }
     else
     {
-      ChangeModeHandler(IDLE_MODE);  
+      ChangeMode(IDLE_MODE);  
     }
     break;
 

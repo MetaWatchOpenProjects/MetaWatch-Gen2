@@ -35,7 +35,11 @@
 #define RTC_HOUR_ADDR           0x1C33;
 #define RTC_MIN_ADDR            0x1C34;
 #define RTC_SEC_ADDR            0x1C35;
-#define RTC_LANG_ADDR		0x1C36;
+#define GATT_HANDLE_ADDR	0x1C3A;
+#define ANCS_HANDLE_ADDR      	0x1C3A;
+#define MWM_HANDLE_ADDR       	0x1C3F;
+#define SERVICE_CHANGED_ADDR  	0x1C13;
+
 
 /****************************************************************************/
 
@@ -57,7 +61,9 @@ niRtcDow = 0x1C32;
 niRtcHour = 0x1C33;
 niRtcMin = 0x1C34;
 niRtcSec = 0x1C35;
-niLang = 0x1C36;
+niCtrlHandle = 0x1C3A;
+niMwmHandle = 0x1C3F;
+niSrvChgdHandle = 0x1C13;
 
 MEMORY
 {

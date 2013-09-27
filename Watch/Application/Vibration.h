@@ -25,6 +25,13 @@
 #ifndef VIBRATION_H
 #define VIBRATION_H
 
+#define VIBRA_PATTERN_RING      0
+#define VIBRA_PATTERN_TEST      1
+#define VIBRA_PATTERN_LNKALM    2
+#define VIBRA_PATTERN_LOW_BATT  3
+#define VIBRA_PATTERN_BT_OFF    4
+#define VIBRA_PATTERN_FTM       5
+
 /*! Set Vibrate Mode Payload Structure
  *
  * \param Enable when > 0 disabled when == 0.
@@ -43,7 +50,6 @@ typedef struct
   unsigned char OffDurationLsb;
   unsigned char OffDurationMsb;
   unsigned char NumberOfCycles;
-
 } tSetVibrateModePayload;
 
 

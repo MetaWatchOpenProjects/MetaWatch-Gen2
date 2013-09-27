@@ -82,7 +82,7 @@ void CheckResetCode(void)
   { // it's a flash reset
     for (i = 0; i < BUILD_SIZE; ++i) niBuild[i] = BUILD[i];
     niBuild[i] = '\0';
-    niReset = FLASH_RESET_CODE;
+    niReset = MASTER_RESET_CODE; //FLASH_RESET_CODE;
   }
 }
 

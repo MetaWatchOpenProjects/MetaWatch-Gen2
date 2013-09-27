@@ -57,17 +57,17 @@ static const tMsgInfo MsgInfo[MAXIMUM_MESSAGE_TYPES] =
   {"OleShowIdleBufMsg",           DISPLAY_QINDEX,    0 }, /* 0x15 */
   {"OleCrwnMenuMsg",              DISPLAY_QINDEX,    0 }, /* 0x16 */
   {"OleCrwnMenuBtnMsg",           DISPLAY_QINDEX,    0 }, /* 0x17 */
-  {"MusicStateMsg",               DISPLAY_QINDEX,    1 }, /* 0x18 */
+  {"MusCtlMsg",                   DISPLAY_QINDEX,    1 }, /* 0x18 */
   {"DrwMsg",                      DISPLAY_QINDEX,    1 }, /* 0x19 */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0x1a */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0x1b */
+  {"SetCliCfgMsg",                WRAPPER_QINDEX,    0 }, /* 0x1a */
+  {"HidMsg",                      WRAPPER_QINDEX,    1 }, /* 0x1b */
   {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0x1c */
   {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0x1d */
   {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0x1e */
   {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0x1f */
   {"WatchHandMsg",                DISPLAY_QINDEX,    0 }, /* 0x20 */
   {"TermModMsg",                  DISPLAY_QINDEX,    1 }, /* 0x21 */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0x22 */
+  {"FtmMsg",                      DISPLAY_QINDEX,    1 }, /* 0x22 */
   {"SetVbrMsg",                   DISPLAY_QINDEX,    0 }, /* 0x23 */
   {"BtnStateMsg",                 DISPLAY_QINDEX,    0 }, /* 0x24 */
   {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0x25 */
@@ -196,8 +196,8 @@ static const tMsgInfo MsgInfo[MAXIMUM_MESSAGE_TYPES] =
   {"IdleUpdMsg",                  DISPLAY_QINDEX,    0 }, /* 0xa0 */
   {"SetWgtListMsg",               DISPLAY_QINDEX,    0 }, /* 0xa1 */
   {"WatchDrawnTout",              DISPLAY_QINDEX,    0 }, /* 0xa2 */
-  {"AncsMsg",                     WRAPPER_QINDEX,    0 }, /* 0xa3 */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0xa4 */
+  {"AncsNtfMsg",                  WRAPPER_QINDEX,    0 }, /* 0xa3 */
+  {"AncsGetAttrMsg",              WRAPPER_QINDEX,    1 }, /* 0xa4 */
   {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0xa5 */
   {"ChgModMsg",                   DISPLAY_QINDEX,    0 }, /* 0xa6 */
   {"ModeTimeoutMsg",              DISPLAY_QINDEX,    0 }, /* 0xa7 */
@@ -209,11 +209,11 @@ static const tMsgInfo MsgInfo[MAXIMUM_MESSAGE_TYPES] =
   {"ModifyTimeMsg",               DISPLAY_QINDEX,    0 }, /* 0xad */
   {"MenuBtnMsg",                  DISPLAY_QINDEX,    0 }, /* 0xae */
   {"ToggleSecMsg",                DISPLAY_QINDEX,    0 }, /* 0xaf */
-  {"SetHBMsg",                    WRAPPER_QINDEX,    0 }, /* 0xb0 */
+  {"HBMsg",                       WRAPPER_QINDEX,    0 }, /* 0xb0 */
   {"HBToutMsg",                   WRAPPER_QINDEX,    1 }, /* 0xb1 */
-  {"UpdIntvMsg",                  WRAPPER_QINDEX,    0 }, /* 0xb2 */
+  {"UpdIntvMsg",                  WRAPPER_QINDEX,    1 }, /* 0xb2 */
   {"CallerIdIndMsg",              WRAPPER_QINDEX,    1 }, /* 0xb3 */
-  {"CallerNameMsg",               DISPLAY_QINDEX,    1 }, /* 0xb4 */
+  {"ShowCallMsg",                 DISPLAY_QINDEX,    1 }, /* 0xb4 */
   {"CallerIdMsg",                 DISPLAY_QINDEX,    1 }, /* 0xb5 */
   {"HfpMsg",                      WRAPPER_QINDEX,    0 }, /* 0xb6 */
   {"MapMsg",                      WRAPPER_QINDEX,    0 }, /* 0xb7 */

@@ -51,7 +51,7 @@ typedef struct
 
 
 /*! number of buffers in the message buffer pool */
-#define MSG_BUF_NUM 22 //20
+#define MSG_BUF_NUM 31 //22 20
 
 // This memory is never accessed directly, pointers to the buffers are put on
 // a queue at startup
@@ -103,14 +103,12 @@ unsigned char *BPL_AllocMessageBuffer(void)
   if (!xQueueReceive(QueueHandles[FREE_QINDEX], &pBuffer, DONT_WAIT))
   {
     PrintS("@ Alloc");
-//    SetBufferPoolFailureBit();
   }
   else if (pBuffer < LOW_BUFFER_ADDRESS || pBuffer > HIGH_BUFFER_ADDRESS)
   {
     PrintF("@ Alloc invalid Buf 0x%04X", (unsigned int)pBuffer);
     BPL_FreeMessageBuffer(pBuffer);
     pBuffer = NULL;
-//    SetBufferPoolFailureBit();
   }
 
   return pBuffer;
@@ -155,7 +153,7 @@ void BPL_FreeMessageBufferFromIsr(unsigned char *pBuffer)
 
 #if 0
   /* this should never be true when freeing a message buffer */
-  if ( HigherPriorityTaskWoken == pdTRUE )
+  if ( HigherPriorityTaskWoken == TRUE )
   {
     portYIELD();
   }
@@ -172,7 +170,7 @@ unsigned char* BPL_AllocMessageBufferFromISR(void)
   signed portBASE_TYPE HigherPriorityTaskWoken;
   
   // params are: queue handle, ptr to the msg buffer, ticks to wait
-  if( pdTRUE != xQueueReceiveFromISR(QueueHandles[FREE_QINDEX], 
+  if( TRUE != xQueueReceiveFromISR(QueueHandles[FREE_QINDEX], 
                                      &pBuffer, 
                                      &HigherPriorityTaskWoken ))
   {
@@ -180,7 +178,7 @@ unsigned char* BPL_AllocMessageBufferFromISR(void)
     SetBufferPoolFailureBit();
   }
   
-  if ( HigherPriorityTaskWoken == pdTRUE )
+  if ( HigherPriorityTaskWoken == TRUE )
   {
     portYIELD();
   }

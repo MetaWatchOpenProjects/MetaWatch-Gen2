@@ -33,15 +33,23 @@
 
 #include "DebugUart.h"
 #include "LcdDisplay.h"
-#include "Utilities.h"
+
 #include "Vibration.h"
 
 /******************************************************************************/
+static tSetVibrateModePayload const VibraPattern[] =
+{
+  {1, 0x00, 0x01, 0x00, 0x01, 2}, // 512ms per cycle, 58 cycles for 30s
+  {1, 0x80, 0x01, 0x80, 0x00, 3},
+  {1, 0xC8, 0x00, 0xF4, 0x01, 1},
+  {1, 0x00, 0x02, 0x00, 0x02, 5},
+  {1, 0x00, 0x01, 0x00, 0x01, 5},
+  {1, 0xE8, 0x03, 0xE8, 0x03, 1} // 1s on, 1s off
+};
 
 static unsigned char VibeEventActive;  
 static unsigned char motorOn;          
-static unsigned char cycleCount;       
-static unsigned int timeStart;         
+static unsigned char CycleCount;       
 
 // count the number of interrupts to get vibe on/off timing
 static unsigned int VibeEventTimerCount;
@@ -56,7 +64,7 @@ static unsigned int nextActionTime;
 void InitVibration(void)
 {
   // Make sure the vibe motor is off
-  SetVibeMotorState(pdFALSE);
+  SetVibeMotorState(FALSE);
   
   // Initialize the timer for the vibe motor with the right PWM params.
   SetupVibrationMotorTimerAndPwm();
@@ -69,30 +77,33 @@ void InitVibration(void)
 void SetVibrateModeHandler(tMessage *pMsg)
 {
   // overlay a structure pointer on the data section
-  tSetVibrateModePayload *pMsgData;
-  pMsgData = (tSetVibrateModePayload*) pMsg->pBuffer;
+  tSetVibrateModePayload const *pMsgData;
 
-  // set it active or cancel it
-  VibeEventActive = pMsgData->Enable;
+  if (pMsg->Options != MSG_OPT_VIBRA_OFF)
+  {
+    pMsgData = !pMsg->Length ? &VibraPattern[pMsg->Options] : (tSetVibrateModePayload *)pMsg->pBuffer;
 
-  // save the parameters from the message
-  motorOn = pMsgData->Enable;
-  
-  tWordByteUnion temp;
-  temp.Bytes.byte0 = pMsgData->OnDurationLsb; 
-  temp.Bytes.byte1 = pMsgData->OnDurationMsb;
-  timeOn = temp.word / RTC_TIMER_MS_PER_TICK;
+    // set it active or cancel it
+    VibeEventActive = pMsgData->Enable;
+  }
+  else VibeEventActive = FALSE;
 
-  temp.Bytes.byte0 = pMsgData->OffDurationLsb; 
-  temp.Bytes.byte1 = pMsgData->OffDurationMsb;
-  timeOff = temp.word / RTC_TIMER_MS_PER_TICK;
-
-  cycleCount = pMsgData->NumberOfCycles;
-
+  motorOn = VibeEventActive;
   // Start or stop the RTC PS timer based on whether the motor is being turned
   // on or off
-  if ( VibeEventActive )
+  if (VibeEventActive)
   {
+    tWordByteUnion temp;
+    temp.Bytes.byte0 = pMsgData->OnDurationLsb; 
+    temp.Bytes.byte1 = pMsgData->OnDurationMsb;
+    timeOn = temp.word / RTC_TIMER_MS_PER_TICK;
+
+    temp.Bytes.byte0 = pMsgData->OffDurationLsb; 
+    temp.Bytes.byte1 = pMsgData->OffDurationMsb;
+    timeOff = temp.word / RTC_TIMER_MS_PER_TICK;
+
+    CycleCount = pMsgData->NumberOfCycles;
+
     EnableRtcPrescaleInterruptUser(RTC_TIMER_VIBRATION);
     EnableVibratorPwm();
   }
@@ -104,14 +115,13 @@ void SetVibrateModeHandler(tMessage *pMsg)
 
   // Use a separate timer that counts Rtc_Prescale_Timer_Static messages to
   // get the time for the vibe motor.
-  if(VibeEventActive)
+  if (VibeEventActive)
   {
     VibeEventTimerCount = 0;
-    timeStart =  0;
   }
 
   // the next event is to turn
-  nextActionTime =  timeStart + timeOn;
+  nextActionTime = timeOn;
 
   // Set/clear  the port bit that controls the motor
   SetVibeMotorState(motorOn);
@@ -125,27 +135,27 @@ void SetVibrateModeHandler(tMessage *pMsg)
 */
 void VibrationMotorStateMachineIsr(void)
 {
-  VibeEventTimerCount++;
+  VibeEventTimerCount ++;
   
   // If we have an active event
-  if( VibeEventActive )
+  if (VibeEventActive)
   {
     // is it time for the next action
-    if(VibeEventTimerCount >= nextActionTime)
+    if (VibeEventTimerCount >= nextActionTime)
     {
       // if the motor is currently on
-      if(motorOn)
+      if (motorOn)
       {
-        motorOn = pdFALSE;
-        nextActionTime +=  timeOff;
+        motorOn = FALSE;
+        nextActionTime += timeOff;
         
-        if ( cycleCount > 1 )
+        if (CycleCount > 1)
         {
-          cycleCount --;
+          CycleCount --;
         }
         else /* last cycle */
         {
-          VibeEventActive = pdFALSE;
+          VibeEventActive = FALSE;
           DisableRtcPrescaleInterruptUser(RTC_TIMER_VIBRATION);
           DisableVibratorPwm();
         }
@@ -153,14 +163,13 @@ void VibrationMotorStateMachineIsr(void)
       }
       else
       {
-        motorOn = pdTRUE;
-        nextActionTime +=  timeOn;
+        motorOn = TRUE;
+        nextActionTime += timeOn;
       }
     }
   
     // Set/clean the port bit that controls the motor
     SetVibeMotorState(motorOn);
-  
   }
   else
   {

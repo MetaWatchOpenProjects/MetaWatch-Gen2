@@ -77,6 +77,7 @@ void SetProperty(unsigned char Bits, unsigned char Val)
 {
   niProperty |= Bits & Val; // set all 1 bits of Val
   niProperty &= ~Bits | Val; // set all 0 bits of Val
+  PrintF("Prop:x%02X", niProperty);
 }
 
 void ToggleProperty(unsigned char Bit)

@@ -89,11 +89,6 @@ typedef struct QueueDefinition
 
 	signed portBASE_TYPE xRxLock;			/*< Stores the number of items received from the queue (removed from the queue) while the queue was locked.  Set to queueUNLOCKED when the queue is not locked. */
 	signed portBASE_TYPE xTxLock;			/*< Stores the number of items transmitted to the queue (added to the queue) while the queue was locked.  Set to queueUNLOCKED when the queue is not locked. */
- 
-#if CHECK_QUEUE_USAGE
-  unsigned portBASE_TYPE MaxWaiting;
-#endif
-  
 } xQUEUE;
     
 

@@ -34,15 +34,35 @@
 #define TOUT_ONCE      (1)
 #define REPEAT_FOREVER (0xFF)
 
+/* Timeout for OneSecondTimer */
+#define TOUT_MONITOR_BATTERY          (14) //second
+#define TOUT_BACKLIGHT                (5) //second
+#define TOUT_IDLE_MODE                (0xFFFF)
+#define TOUT_APP_MODE                 (600)
+#define TOUT_NOTIF_MODE               (30)
+#define TOUT_MUSIC_MODE               (600)
+#define TOUT_RING                     (2)
+#define TOUT_CONN_HFP_MAP_LONG        (10)
+#define TOUT_CONN_HFP_MAP_SHORT       (1)
+#define TOUT_DISCONNECT               (10)
+#define TOUT_TUNNEL_CONNECTING        (5)
+#define TOUT_INTERVAL_LONG            (40) //60
+#define TOUT_HEARTBEAT                (1) 
+#define TOUT_FIELD_TEST               (1)
+#define TOUT_TO_SNIFF                 (21)
+
 typedef enum
 {
   BatteryTimer,
   ModeTimer,
-  ShowCallTimer,
+//  ShowCallTimer,
   BacklightTimer,
   WrapperTimer,
   ConnIntvTimer,
   HeartbeatTimer,
+  VibraTimer,
+//  FieldTestTimer,
+  SniffTimer,
 } eTimerId;
 
 /*! One Second Timer handler that occurs in interrupt context */
@@ -53,11 +73,15 @@ void StartTimer(eTimerId Id);
 /*! Stop timer associated with TimerId */
 void StopTimer(eTimerId Id);
 
+
 /*! Reset and start a timer
  *
  * \param Timeout in seconds
  * \param Repeat Number of times to count
 */
-void SetTimer(eTimerId Id, unsigned int Timeout, unsigned char Repeat);
+void ResetTimer(eTimerId Id, unsigned int Timeout, unsigned char Repeat);
+
+void SetTimer(eTimerId Id, unsigned int Timeout, unsigned char Repeat,
+              unsigned char Que, unsigned char Msg, unsigned char Option);
 
 #endif /* ONE_SECOND_TIMERS_H */

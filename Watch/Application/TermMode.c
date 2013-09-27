@@ -63,7 +63,7 @@ void EnableTermMode(unsigned char Enable)
 {
   if (Enable)
   {
-    ReceiveCompleted = pdFALSE;
+    ReceiveCompleted = FALSE;
     EnableSmClkUser(TERM_MODE_USER);
     /* enable Rx interrupt */
     UCA3IE |= UCRXIE;
@@ -93,19 +93,19 @@ unsigned char TermModeIsr(void)
       /* change delimiter to null */
       CmdBuf[i] = '\0';
       i = 0;
-      ReceiveCompleted = pdTRUE;
+      ReceiveCompleted = TRUE;
 
       /* send message so that message can be processed */
       tMessage Msg;
       SetupMessage(&Msg, TermModeMsg, MSG_OPT_NONE);
       SendMessageToQueueFromIsr(DISPLAY_QINDEX, &Msg);
 
-      return pdTRUE;
+      return TRUE;
     }
     else i = (i < MAX_COMMAND_LENGTH - 1) ? i + 1 : 0;
   }
   
-  return pdFALSE;
+  return FALSE;
 }
 
 /******************************************************************************/
@@ -122,7 +122,7 @@ void TermModeHandler(void)
   if (i < NUMBER_OF_COMMANDS) COMMAND_TABLE[i].fpHandler();
   else PrintS(CmdBuf);
 
-  ReceiveCompleted = pdFALSE;
+  ReceiveCompleted = FALSE;
 }
 
 /******************************************************************************/

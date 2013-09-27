@@ -42,6 +42,7 @@
 
 extern unsigned char CurrentMode;
 extern unsigned char PageType;
+extern unsigned char OnCall;
 
 typedef enum
 {
@@ -59,6 +60,7 @@ typedef enum
 /*! Create task and queue for display task. Call from main or another task. */
 void CreateDisplayTask(void);
 void Init(void);
+void ChangeMode(unsigned char Option);
 void ResetModeTimer(void);
 
 /*! Called from RTC one second interrupt

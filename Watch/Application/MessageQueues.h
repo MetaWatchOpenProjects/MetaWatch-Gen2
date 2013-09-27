@@ -93,6 +93,7 @@ void SetupMessageWithBuffer(tMessage *pMsg, unsigned char Type, unsigned char Op
 void SendMessage(tMessage *pMsg, unsigned char Type, unsigned char Options);
 
 void CreateAndSendMessage(unsigned char Type, unsigned char Options);
+unsigned char *CreateMessage(tMessage *pMsg);
 
 /*! Print the message type
  *

@@ -29,6 +29,7 @@
 
 extern char const OK;
 extern char const NOK;
+extern char const PLUS;
 extern char const RCV;
 extern char const SND;
 extern char const SPACE;
@@ -69,5 +70,12 @@ void PrintF(char const *pFormat, ...);
 
 /*! Print HEX sequence with CR */
 void PrintQ(unsigned char const *pHex, unsigned char const Len);
+
+/*! Check how much statck and message queue a task is currently using
+ *
+ * \param TaskHandle points to the task
+ * \param Index is index of the message queue
+ */
+void CheckStackAndQueueUsage(unsigned char Index);
 
 #endif

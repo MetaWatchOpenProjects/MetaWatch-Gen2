@@ -28,33 +28,34 @@
 #ifndef ADC_H
 #define ADC_H
 
-#define BATTERY         (0)
-#define LIGHT_SENSOR    (1)
+#define BATTERY           0
+#define LIGHT_SENSOR      1
 
-#define CRITICAL_BT_OFF  (0)
-#define CRITICAL_WARNING (1)
+#define CRITICAL_BT_OFF   0
+#define CRITICAL_WARNING  1
 
-#define BATTERY_FULL_LEVEL        (4175) //4210 4140
+#define BATTERY_FULL_LEVEL        (4140) //4210 4140
 #define BATTERY_CRITICAL_LEVEL    (3300)
 #define BATTERY_LEVEL_RANGE       (BATTERY_FULL_LEVEL - BATTERY_CRITICAL_LEVEL)
 #define BATTERY_LEVEL_NUMBER      (7)
-#define BATTERY_LEVEL_INTERVAL    (BATTERY_LEVEL_RANGE / BATTERY_LEVEL_NUMBER)
+#define BATTERY_LEVEL_INTERVAL    14 //(BATTERY_LEVEL_RANGE / BATTERY_LEVEL_NUMBER)
+#define LEVEL_RANGE_ONETENTH      (BATTERY_LEVEL_RANGE / 10) //* 205) >> 11)
+#define LEVEL_RANGE_ONEPERCENT    (BATTERY_LEVEL_RANGE / 100) // * 41) >> 12)
 
-#define DARK_LEVEL              (3)
-#define BATTERY_PERCENT_UNKNOWN (101)
+
+#define WARNING_LEVEL             20 //3468 //20% * (4140 - 3300) + 3300
+#define RADIO_OFF_LEVEL           0
+
+#define DARK_LEVEL                3
+#define BATTERY_UNKNOWN           101
 
 void InitAdc(void);
-
-/*! Returns the average of the last 8 sensor Sense ADC cycles
- *\return sensor voltage in millivolts
- */
-unsigned int Read(unsigned char Sensor);
 
 /*! Start an ADC cycle to read battery voltage.  This function must
  * be called from a task.  It will return when finished.  The result can be 
  * read using the command ReadBatterySense.
  */
-void BatterySenseCycle(void);
+unsigned char ReadBattery(void);
 
 /*! Set the values of the low battery warning message and the value at which
  * the bluetooth radio should be turned off
@@ -63,19 +64,6 @@ void BatterySenseCycle(void);
  * and second byte is LowBatteryBtOffLevel in 10ths of a volt (37 = 3.7 volts)
  */
 void SetBatteryLevels(unsigned char *pData);
-
-unsigned int BatteryCriticalLevel(unsigned char Type);
-
-unsigned char BatteryPercentage(void);
-
-/*! Reads battery sense value and takes the appropriate action.
- *\note This function is meant to be called from a task.  When the low battery
- * warning level is reached a message is sent to the host.  When the low battery
- * bluetooth off message is reached then watch will vibrate, a message will be
- * sent to the phone, and the bluetooth radio will be turned off.
- * 
- */
-void CheckBatteryLow(void);
 
 /*! Start an ADC cycle to read the light sensor.  This function must
  * be called from a task.  It will return when finished.  It waits until the

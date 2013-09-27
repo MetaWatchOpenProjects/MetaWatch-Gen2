@@ -14,23 +14,21 @@
 //  limitations under the License.
 //==============================================================================
 
+#include <string.h>
 #include "FreeRTOS.h"
 #include "task.h"
 #include "queue.h"
 #include "portmacro.h"
-
 #include "Messages.h"
 #include "MessageQueues.h"
-
 #include "hal_lpm.h"
 #include "hal_board_type.h"
 #include "hal_miscellaneous.h"
 #include "hal_calibration.h"
 #include "hal_boot.h"
-
 #include "DebugUart.h"
 #include "Wrapper.h"
-#include "Utilities.h"
+
 #include "IdleTask.h"
 
 #if __IAR_SYSTEMS_ICC__
@@ -64,9 +62,9 @@ void vApplicationIdleHook(void)
   UpdateWatchdogInfo();
 
 #if SUPPORT_LPM
-  if (WatchdogInfo.SppReadyToSleep &&
+  if (WatchdogInfo.RadioReadyToSleep &&
       WatchdogInfo.DisplayMessagesWaiting == 0 &&
-      WatchdogInfo.SppMessagesWaiting == 0)
+      WatchdogInfo.WrapperMessagesWaiting == 0)
   {
     /* Call MSP430 Utility function to enable low power mode 3.     */
     /* Put OS and Processor to sleep. Will need an interrupt        */
@@ -88,28 +86,33 @@ void vApplicationIdleHook(void)
 }
 
 /******************************************************************************/
+extern xQueueHandle QueueHandles[];
 
 /* 8 us */
 void UpdateWatchdogInfo(void)
 {
-  WatchdogInfo.SppReadyToSleep = SerialPortReadyToSleep();
+  WatchdogInfo.RadioReadyToSleep = ReadyToSleep();
 
   WatchdogInfo.DisplayMessagesWaiting =
     QueueHandles[DISPLAY_QINDEX]->uxMessagesWaiting;
 
-  WatchdogInfo.SppMessagesWaiting = 
+  WatchdogInfo.WrapperMessagesWaiting = 
     QueueHandles[WRAPPER_QINDEX]->uxMessagesWaiting;
 }
 
 void ShowWatchdogInfo(void)
 {
-  if (niReset != NORMAL_RESET_CODE) niWdtCounter = 0;
+  if (niReset == MASTER_RESET_CODE)
+  {
+    niWdtCounter = 0;
+    memset(&WatchdogInfo, 0, sizeof(WatchdogInfo));
+  }
 
   unsigned int ResetSource = GetResetSource();
   PrintResetSource(ResetSource);
-  PrintF("SppReadyToSleep %d", WatchdogInfo.SppReadyToSleep);
-  PrintF("DisplayMsgWaiting %d", WatchdogInfo.DisplayMessagesWaiting);
-  PrintF("SppMsgWaiting %d", WatchdogInfo.SppMessagesWaiting);
+  PrintF("RadioReadyToSleep %u", WatchdogInfo.RadioReadyToSleep);
+  PrintF("DisplayMsgWaiting %u", WatchdogInfo.DisplayMessagesWaiting);
+  PrintF("WrapperMsgWaiting %u", WatchdogInfo.WrapperMessagesWaiting);
 
   if (ResetSource == SYSRSTIV_WDTTO || ResetSource == SYSRSTIV_WDTKEY)
   {

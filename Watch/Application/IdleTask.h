@@ -20,9 +20,9 @@
 /*! Parameters that are used to determine if micro can go into LPM3 */
 typedef struct
 {
-  unsigned char SppReadyToSleep;
+  unsigned char RadioReadyToSleep;
   unsigned int DisplayMessagesWaiting;
-  unsigned int SppMessagesWaiting;
+  unsigned int WrapperMessagesWaiting;
   
 } tWatchdogInfo;
 

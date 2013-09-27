@@ -43,10 +43,12 @@
 #define CHARGE_STATUS_OFF                     (0x18)
 
 #define CHECK_CHARGING_STATUS_DELAY_IN_MS     (1 * portTICK_RATE_MS)
+#define SHOW_CHARGE_STATUS_COUNTS             1 //30 // 5 mins
 
 // used to monitor battery status
 static unsigned char ChargeStatus;
 static unsigned char ChargeEnable;
+static unsigned char BattAver = BATTERY_UNKNOWN;
 
 #define BAT_CHARGE_OPEN_DRAIN_BITS \
   ( BAT_CHARGE_STAT1 + BAT_CHARGE_STAT2 + BAT_CHARGE_PWR_BIT )
@@ -83,14 +85,14 @@ void InitBattery(void)
   
   InitAdc();
 
-  ChargeEnable = pdTRUE;
+  ChargeEnable = TRUE;
   ChargeStatus = CHARGE_STATUS_OFF;
 }
 
 unsigned char CheckClip(void)
 {
   static unsigned char Last = CLIP_INIT;
-  unsigned char Changed = pdFALSE;
+  unsigned char Changed = FALSE;
 
   unsigned char Clip = ClipOn();
 
@@ -102,7 +104,7 @@ unsigned char CheckClip(void)
 
     if (Clip == CLIP_ON) PrintS("- Atch");
     
-    Changed = pdTRUE;
+    Changed = TRUE;
     Last = Clip;
   }
   return Changed;
@@ -110,12 +112,12 @@ unsigned char CheckClip(void)
 
 void CheckBattery(void)
 {
-  BatterySenseCycle();
+  static unsigned char Count = 0;
 
   if (!ClipOn())
   {
     ChargeStatus = CHARGE_STATUS_OFF;
-    CheckBatteryLow();
+    BattAver = ReadBattery();
   }
   else
   {
@@ -125,17 +127,27 @@ void CheckBattery(void)
     {
       ChargingControl();
 
-      switch (ChargeStatus)
+      if (++Count == SHOW_CHARGE_STATUS_COUNTS)
       {
-      case CHARGE_STATUS_PRECHARGE:   Status = '.'; break;
-      case CHARGE_STATUS_FAST_CHARGE: Status = ':'; break;
-      case CHARGE_STATUS_DONE:        Status = '|'; break;
-      case CHARGE_STATUS_OFF:         Status = 'o'; break;
-      default:                        Status = '?'; break;
+        switch (ChargeStatus)
+        {
+        case CHARGE_STATUS_PRECHARGE:   Status = '.'; break;
+        case CHARGE_STATUS_FAST_CHARGE: Status = ':'; break;
+        case CHARGE_STATUS_DONE:        Status = '|'; BattAver = 100; break;
+        case CHARGE_STATUS_OFF:         Status = 'o'; break;
+        default:                        Status = '?'; break;
+        }
+//        PrintF("%c%u", Status, BatteryPercentage());
+        if (Charging()) BattAver = ReadBattery();
+        Count = 0;
       }
     }
-    PrintF("%c%d", Status, Read(BATTERY));
   }
+}
+
+unsigned char BatteryPercentage(void)
+{
+  return BattAver;
 }
 
 unsigned char ClipOn(void)
@@ -162,12 +174,12 @@ static void ChargingControl(void)
    * during this delay we will also run the software FLL
    */
   /* disable BT flow during FLL loop */
-//  EnableFlowControl(pdFALSE);
-
-  EnableSoftwareFll();
+//  EnableFlowControl(FALSE);
+//
+//  EnableSoftwareFll();
 //  vTaskDelay(CHECK_CHARGING_STATUS_DELAY_IN_MS);
-  DisableSoftwareFll();
-//  EnableFlowControl(pdTRUE);
+//  DisableSoftwareFll();
+//  EnableFlowControl(TRUE);
 
   /* Decode the battery state */
   /* mask and shift to get the current battery charge status */

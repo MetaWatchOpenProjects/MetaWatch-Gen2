@@ -31,17 +31,20 @@
 #define CONN_TYPE_HFP       (0x04)
 #define CONN_TYPE_MAP       (0x08)
 #define CONN_TYPE_MWM       (0x10)
-#define CONN_TYPE_ANY       (0x1F)
+#define CONN_TYPE_ANCS      (0x20)
+#define CONN_TYPE_ANY       (0x3F)
 
 #define CONN_TYPE_BLE       (CONN_TYPE_TUNNEL | CONN_TYPE_MWM)
 #define CONN_TYPE_MAIN      (CONN_TYPE_BLE | CONN_TYPE_SPP)
 #define CONN_TYPE_BR        (CONN_TYPE_SPP | CONN_TYPE_HFP | CONN_TYPE_MAP)
 
+#define CONN_CHANGE_BIT     (0x80)
+
 #define CONN_CHG_CONN       (0x80)
 #define CONN_CHG_DSCONN     (0x00)
 
 /* send current conn state to remote */
-#define CONN_IND            (0x00)
+#define CONN_IND            (0x40)
 
 
 #define DEVICE_TYPE_BLE     (0x01)
@@ -65,7 +68,7 @@ void CreateWrapperTask(void);
 * 
 * \return 0 if micro cannot go into LPM3; 1 if micro can go into LPM3
 */
-unsigned char SerialPortReadyToSleep(void);
+unsigned char ReadyToSleep(void);
 
 unsigned char PairedDeviceType(void);
 
@@ -132,9 +135,10 @@ unsigned char QueryConnectable(void);
  * \return 0 when valid pairing does not exist, 1 when valid pairing information
  * exists
  */
-unsigned char ValidAuthInfo(void);
+unsigned char ValidRemoteAddr(void);
 
 void GetBDAddrStr(char *pAddr);
+char const *GetLocalName(void);
 
 /*! Query Link Key Information
  *
@@ -147,8 +151,6 @@ void GetBDAddrStr(char *pAddr);
  */
 void GetConnectedDeviceAddress(char *pAddr);
 
-char *GetConnectedDeviceName(void);
-
 #define GAP_CONNECTABLE   (1)
 typedef struct
 {
@@ -160,7 +162,9 @@ typedef struct
 #define INTERVAL_VALUE        0
 #define INTERVAL_STATE        1
 
+#if SUPPORT_BLE
 unsigned int CurrentInterval(unsigned char Prop);
+#endif
 
 /******************************************************************************/
 

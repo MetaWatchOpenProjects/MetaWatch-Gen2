@@ -104,7 +104,7 @@ occurs.
 #define configMAX_CO_ROUTINE_PRIORITIES     (2)
 #define configUSE_PREEMPTION                1
 
-#define TOTAL_TASKS ( 7 )
+#define TOTAL_TASKS ( 2 )
 
 /* the mulitplier is used by the FLL to generate the CLK */
 #define ACLK_FREQUENCY_HZ  ((unsigned int)32768)
@@ -119,7 +119,7 @@ occurs.
 #ifdef ANALOG
 #define configTOTAL_HEAP_SIZE               ((size_t)12044)
 #else
-#define configTOTAL_HEAP_SIZE               ((size_t)12320) //12000 12290 12328 13334 12364 12424 12486, 12492, 12526 13500
+#define configTOTAL_HEAP_SIZE               ((size_t)12048) //32//12000 12290 12328 13334 12364 12424 12486, 12492, 12526 13500
 #endif
 
 #define configMAX_TASK_NAME_LEN             (16)

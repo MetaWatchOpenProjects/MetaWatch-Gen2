@@ -482,13 +482,6 @@ tskTCB * pxNewTCB;
 		}
 	}
 
-#if TASK_DEBUG
-  extern unsigned char UTL_RegisterFreeRtosTask(void *xTaskHandle,
-                                                unsigned int StackDepth);
-
-  UTL_RegisterFreeRtosTask( ( xTaskHandle ) pxNewTCB,usStackDepth);
-#endif
-
 	return xReturn;
 }
 /*-----------------------------------------------------------*/

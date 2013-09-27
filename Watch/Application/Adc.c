@@ -29,7 +29,7 @@
 #include "Messages.h"
 #include "MessageQueues.h"
 #include "DebugUart.h"
-#include "Utilities.h"
+
 #include "Vibration.h"
 #include "Adc.h"
 
@@ -50,20 +50,19 @@
 #define WARN_LEVEL_RADIO_OFF (1)
 #define WARN_LEVEL_NONE      (2)
 
-#define BATTERY_LEVEL_RANGE_ONETENTH  (BATTERY_LEVEL_RANGE / 10)
-#define BATTERY_LEVEL_RANGE_ONEPERCENT (BATTERY_LEVEL_RANGE / 100)
+#define TENFOLD(_x)                   ((_x << 3) + (_x << 1))
+
 
 typedef struct
 {
   unsigned char MsgType1;
   unsigned char MsgType2;
-  tSetVibrateModePayload VibrateData;
 } LowBattWarning_t;
 
 static const LowBattWarning_t LowBattWarning[] =
 {
-  {LowBatteryWarningMsgHost, LowBatteryWarningMsg, {1, 0x00, 0x02, 0x00, 0x02, 5}},
-  {LowBatteryBtOffMsgHost, LowBatteryBtOffMsg, {1, 0x00, 0x01, 0x00, 0x01, 5}}
+  {LowBatteryWarningMsgHost, LowBatteryWarningMsg},
+  {LowBatteryBtOffMsgHost, LowBatteryBtOffMsg}
 };
 
 /*! Hardware Configuration is done using a voltage divider
@@ -91,24 +90,19 @@ extern unsigned char BoardType;
 
 static xSemaphoreHandle AdcMutex = 0;
 
-#define MAX_SAMPLES          (8)
-#define GAP_BIG              (20) //10
-#define GAP_SMALL            (10) //5
+#define MAX_SAMPLES          (4)
+#define GAP_BIG              (2) //20 10
+#define GAP_SMALL            (1) //10 5
 #define GAP_BIG_NEGATIVE     (0 - GAP_BIG)
 #define GAP_SMALL_NEGATIVE   (0 - GAP_SMALL)
 
-static unsigned int Sample[MAX_SAMPLES];
-static unsigned int BattAver = 0;
+static unsigned char Sample[MAX_SAMPLES];
 
-#define DEFAULT_WARNING_LEVEL         (3468) //20% * (4140 - 3300) + 3300
-#define DEFAULT_RADIO_OFF_LEVEL       (BATTERY_CRITICAL_LEVEL)
-
-static unsigned int WarningLevel;
-static unsigned int RadioOffLevel;
+static unsigned char WarningLevel;
+static unsigned char RadioOffLevel;
+static unsigned char Severity = WARN_LEVEL_NONE;
 
 static void AdcCheck(void);
-static void WaitForAdcBusy(void);
-static void EndAdcCycle(void);
 
 static unsigned int LightSense = 0;
 
@@ -118,10 +112,10 @@ static unsigned int LightSense = 0;
  * The output of this function is Voltage * 1000
  */
 const double CONVERSION_FACTOR_BATTERY = 
-  ((24300.0+38300.0)*2.5*1000.0)/(4095.0*24300.0);
+  ((24300.0 + 38300.0) * 2.5 * 1000.0) / (4095.0 * 24300.0);
 
 /*! conversion factor */
-const double CONVERSION_FACTOR =  2.5*10000.0/4096.0;
+const double CONVERSION_FACTOR =  2.5 * 10000.0 / 4096.0;
 
 /*! Initialize the Analog-to-Digital Conversion peripheral.  Set the outputs from
  * the micro to the correct state.  The ADC is used to read the 
@@ -159,15 +153,15 @@ void InitAdc(void)
   ADC12MCTL1 = BATTERY_SENSE_INPUT_CHANNEL + ADC12EOS;
   ADC12MCTL2 = LIGHT_SENSE_INPUT_CHANNEL + ADC12EOS;
 
-  /* init to 0 */
-  memset(Sample, 0, MAX_SAMPLES << 1);
+  /* init to value unknown */
+  memset(Sample, BATTERY_UNKNOWN, MAX_SAMPLES);
   
   /* control access to adc peripheral */
   AdcMutex = xSemaphoreCreateMutex();
   xSemaphoreGive(AdcMutex);
   
-  WarningLevel = DEFAULT_WARNING_LEVEL;
-  RadioOffLevel = DEFAULT_RADIO_OFF_LEVEL;
+  WarningLevel = WARNING_LEVEL;
+  RadioOffLevel = RADIO_OFF_LEVEL;
   /*
    * A voltage divider on the board is populated differently
    * for each revision of the board.
@@ -186,8 +180,8 @@ void InitAdc(void)
 
   /* enable the ADC to start sampling and perform a conversion */
   ENABLE_ADC();
-  WaitForAdcBusy();
-  
+  while (ADC12CTL1 & ADC12BUSY);
+
   /* Finish HardwareConfiguration Cycle */
   /* Convert ADC counts to a voltage (truncates)
    * ADC12MEM0: Voltage in ADC counts
@@ -209,12 +203,11 @@ void InitAdc(void)
  * conversion time = 13 * ADC12DIV *  1/FreqAdcClock
  * 13 * 8 * 1/5e6 = 20.8 us
  */
-void BatterySenseCycle(void)
+unsigned char ReadBattery(void)
 { 
   static unsigned char Index = 0;
 
   xSemaphoreTake(AdcMutex, portMAX_DELAY);
-  
   BATTERY_SENSE_ENABLE();
   ENABLE_REFERENCE();
 
@@ -224,21 +217,42 @@ void BatterySenseCycle(void)
   CLEAR_START_ADDR();
   ADC12CTL1 |= ADC12CSTARTADD_1;
   ENABLE_ADC();
-
-  WaitForAdcBusy();
+  while (ADC12CTL1 & ADC12BUSY);
 
   /* Convert the ADC count for the battery input into a voltage 
    * ADC12MEM1: Counts Battery Voltage in ADC counts
    * Result: Battery voltage in millivolts */
-  unsigned int Value = (unsigned int)(CONVERSION_FACTOR_BATTERY * (double)ADC12MEM1);
+  int Value = (int)(CONVERSION_FACTOR_BATTERY * (double)ADC12MEM1);
+  BATTERY_SENSE_DISABLE();
+  DISABLE_ADC();
+  DISABLE_REFERENCE();
+  xSemaphoreGive(AdcMutex);
 
   if (ValidCalibration()) Value += GetBatteryCalibrationValue();
+//  PrintE(" Batt:%u ", Value);
+
+  Value = Value > BATTERY_CRITICAL_LEVEL ? Value - BATTERY_CRITICAL_LEVEL : 0;
+  Value = Value > BATTERY_LEVEL_RANGE ? BATTERY_LEVEL_RANGE : Value;
+//  PrintF("%u", Value);
+  Value = TENFOLD(Value);
+//  PrintF("1/10 %u", Value);
+
+  unsigned char Percent = 0;
+  while (Value >= LEVEL_RANGE_ONETENTH)
+  {
+    Value -= LEVEL_RANGE_ONETENTH;
+    Percent ++;
+  }
+
+  if (Value > (LEVEL_RANGE_ONETENTH >> 1)) Percent ++;
+  PrintF("-Curr:%u", Percent);
 
   /* smoothing algorithm: cut extreme values (gap > 20) */
-  unsigned char Prev = (Index == 0) ? MAX_SAMPLES - 1: Index - 1;
-  if (Sample[Prev])
+  unsigned char Prev = (Index == 0) ? MAX_SAMPLES - 1 : Index - 1;
+
+  if (Sample[Index] != BATTERY_UNKNOWN)
   {
-    int Gap = Value - Sample[Prev];
+    int Gap = Percent - Sample[Prev];
     if (Charging())
     {
       if (Gap > GAP_BIG) Gap = GAP_BIG;
@@ -252,106 +266,83 @@ void BatterySenseCycle(void)
     
     Sample[Index] = Sample[Prev] + Gap;
   }
-  else Sample[Index] = Value;
+  else Sample[Index] = Percent;
 
   // calculate the average
-  
-  unsigned long Sum = 0;
   unsigned char i = Index;
   unsigned char k = 0;
-  
+  Value = 0;
+
   do
   {
-    Sum += Sample[i--];
+    Value += Sample[i--];
     if (i > MAX_SAMPLES) i = MAX_SAMPLES - 1;
     k ++;
-  } while (i != Index && Sample[i]);
+  } while (i != Index && Sample[i] != BATTERY_UNKNOWN);
 
-  BattAver = (k < MAX_SAMPLES) ? Sum / k : Sum >> 3; // devided by MAX_SAMPLES
-//  PrintF("-BattCyc k:%d", k);
+  if (k == 1) Percent = Value;
+  else if (k < MAX_SAMPLES)
+  {
+    Percent = 0;
+    while (Value >= k)
+    {
+      Value -= k;
+      Percent ++;
+    }
+
+    if (Value > (k >> 1)) Percent ++;
+  }
+  else
+  {
+    Percent = Value >> 2; // devided by MAX_SAMPLES
+    if ((Value & (MAX_SAMPLES - 1)) >= (MAX_SAMPLES >> 1)) Percent ++;
+  }
 
   if (++Index >= MAX_SAMPLES) Index = 0;
-  
-  BATTERY_SENSE_DISABLE();
-  EndAdcCycle(); //xSemaphoreGive()
-}
+  PrintF("-Aver:%u", Percent);
+//  for (k = 0; k < MAX_SAMPLES; ++k) PrintE("%u ", Sample[k]); PrintR();
 
-unsigned int Read(unsigned char Sensor)
-{
-  return BattAver;
-}
-
-unsigned char BatteryPercentage(void)
-{
-  int BattVal = Read(BATTERY);
-  if (BattVal >= BATTERY_FULL_LEVEL) return 100;
-
-  BattVal -= BATTERY_CRITICAL_LEVEL;
-  if (BattVal <= 0) return 0;
-
-  return (unsigned char)(BattVal * 10 / BATTERY_LEVEL_RANGE_ONETENTH);
-}
-
-// Shall be called only when clip is off
-void CheckBatteryLow(void)
-{
-  static unsigned char Severity = WARN_LEVEL_NONE;
-
-  unsigned int Average = Read(BATTERY);
-
-  /* it was not possible to get a reading below 2.8V
-   * the radio does not initialize when the battery voltage (from a supply)
-   * is below 2.8 V
-   * if the battery is not present then the readings are meaningless
-   * if the battery is charging then ignore the measured voltage
-   * and clear the flags
-  */
-  if (Average < WarningLevel)
+  if (!Charging())
   {
-    if (Average < RadioOffLevel && Severity == WARN_LEVEL_CRITICAL)
-      Severity = WARN_LEVEL_RADIO_OFF;
-    
-    else if (Average >= RadioOffLevel && Severity == WARN_LEVEL_NONE)
-      Severity = WARN_LEVEL_CRITICAL;
-    else return;
-
-    tMessage Msg;
-    SetupMessageWithBuffer(&Msg, LowBattWarning[Severity].MsgType1, MSG_OPT_NONE);
-    if (Msg.pBuffer != NULL)
+    if (Percent < WarningLevel)
     {
-      Msg.pBuffer[0] = (unsigned char)Average;
-      Msg.pBuffer[1] = (unsigned char)(Average >> 8);
-      Msg.Length = 2;
-      RouteMsg(&Msg);
-    }
-    /* send the same message to the display task */
-    SendMessage(&Msg, LowBattWarning[Severity].MsgType2, MSG_OPT_NONE);
+      if (Percent < RadioOffLevel && Severity == WARN_LEVEL_CRITICAL)
+        Severity = WARN_LEVEL_RADIO_OFF;
+      
+      else if (Percent >= RadioOffLevel && Severity == WARN_LEVEL_NONE)
+        Severity = WARN_LEVEL_CRITICAL;
 
-    /* now send a vibration to the wearer */
-    SetupMessageWithBuffer(&Msg, SetVibrateMode, MSG_OPT_NONE);
-    if (Msg.pBuffer != NULL)
-    {
-      signed char i = sizeof(tSetVibrateModePayload) - 1;
-      for (; i >= 0; i--)
-        Msg.pBuffer[i] = *((unsigned char *)&LowBattWarning[Severity].VibrateData + i);
+      else return Percent;
 
-      RouteMsg(&Msg);
+      tMessage Msg;
+      SetupMessageWithBuffer(&Msg, LowBattWarning[Severity].MsgType1, MSG_OPT_NONE);
+      if (Msg.pBuffer != NULL)
+      {
+        Msg.pBuffer[0] = Percent;
+        Msg.Length = 1;
+        RouteMsg(&Msg);
+      }
+
+      /* send the same message to the display task */
+      SendMessage(&Msg, LowBattWarning[Severity].MsgType2, MSG_OPT_NONE);
+
+      /* now send a vibration to the wearer */
+      SendMessage(&Msg, VibrateMsg, Severity == WARN_LEVEL_CRITICAL ?
+        VIBRA_PATTERN_LOW_BATT : VIBRA_PATTERN_BT_OFF);
     }
   }
   // re-enable alarm only if charging
-  else if (Charging()) Severity = WARN_LEVEL_NONE;
+  else Severity = WARN_LEVEL_NONE;
+
+  return Percent;
 }
 
 /* Set new low battery levels and save them to flash */
 void SetBatteryLevels(unsigned char *pData)
 {
-  WarningLevel = (unsigned int)pData[0] * BATTERY_LEVEL_RANGE_ONEPERCENT + BATTERY_CRITICAL_LEVEL;
-  RadioOffLevel = (unsigned int)pData[1] * BATTERY_LEVEL_RANGE_ONEPERCENT + BATTERY_CRITICAL_LEVEL;
-}
-
-unsigned int BatteryCriticalLevel(unsigned char Type)
-{
-  return Type == CRITICAL_BT_OFF ? RadioOffLevel : WarningLevel;
+//  WarningLevel = *pData;
+//  WarningLevel = pData[0] * LEVEL_RANGE_ONEPERCENT + BATTERY_CRITICAL_LEVEL;
+//  RadioOffLevel = (unsigned int)pData[1] * LEVEL_RANGE_ONEPERCENT + BATTERY_CRITICAL_LEVEL;
 }
 
 /* check the the adc is ready */
@@ -364,20 +355,6 @@ static void AdcCheck(void)
 #endif
 }
 
-static void WaitForAdcBusy(void)
-{
-  while (ADC12CTL1 & ADC12BUSY);
-}
-
-static void EndAdcCycle(void)
-{
-  DISABLE_ADC();
-  DISABLE_REFERENCE();
-
-  /* release the mutex */
-  xSemaphoreGive(AdcMutex);
-}
-
 unsigned int LightSenseCycle(void)
 {
 //  static unsigned char Index = 0;
@@ -387,10 +364,8 @@ unsigned int LightSenseCycle(void)
   LIGHT_SENSOR_L_GAIN();
   ENABLE_REFERENCE();
   
-  PrintS("- LightSensing BF vTaskDelay");
   /* light sensor requires 1 ms to wake up in the dark */
   vTaskDelay(LIGHT_SENSOR_WAKEUP_DELAY_IN_MS);
-  PrintS("- LightSensing AF vTaskDelay");
 
   AdcCheck();
   
@@ -398,20 +373,23 @@ unsigned int LightSenseCycle(void)
   ADC12CTL1 |= ADC12CSTARTADD_2;
 
   ENABLE_ADC();
-
-  WaitForAdcBusy();
+  while (ADC12CTL1 & ADC12BUSY);
 
   /* obtained reading of 30 in office
    * obtained readings from 2000-23000 with Android light in different positions
    */
   LightSense = (unsigned int)(CONVERSION_FACTOR * (double)ADC12MEM2);
-  PrintF("L:%d", LightSense);
+  PrintF("BL:%u", LightSense);
 
 //  Sample[LIGHT_SENSOR][Index++] = LightSense;
 //  if (Index >= MAX_SAMPLES) Index = 0;
 
   LIGHT_SENSOR_SHUTDOWN();
-  EndAdcCycle();
+  DISABLE_ADC();
+  DISABLE_REFERENCE();
+
+  /* release the mutex */
+  xSemaphoreGive(AdcMutex);
 
   return LightSense;
 }

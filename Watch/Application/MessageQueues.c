@@ -46,10 +46,16 @@ void SetupMessage(tMessage *pMsg, unsigned char Type, unsigned char Options)
 
 void SetupMessageWithBuffer(tMessage *pMsg, unsigned char Type, unsigned char Options)
 {
-  pMsg->Length = 0;
+//  pMsg->Length = 0;
   pMsg->Type = Type;
   pMsg->Options = Options;
   pMsg->pBuffer = BPL_AllocMessageBuffer();
+}
+
+unsigned char *CreateMessage(tMessage *pMsg)
+{
+  pMsg->pBuffer = BPL_AllocMessageBuffer();
+  return pMsg->pBuffer;
 }
 
 void SendMessage(tMessage *pMsg, unsigned char Type, unsigned char Options)

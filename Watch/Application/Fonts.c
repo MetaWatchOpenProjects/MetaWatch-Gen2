@@ -28,144 +28,7 @@
 #define ASCII_BEGIN    0x20
 #define ASCII_END      0x7D
 
-/* Height, Spacing, MaxWidth, WidthInBytes, Type, pWidth */
-static tFont const Font[] =
-{
-  {5, 1, 6, 1, 0, MetaWatch5width},
-  {7, 1, 8, 1, 0, MetaWatch7width},
-  {16, 1, 13, 2, 0, MetaWatch16width},
-  {19, 1, 12, 2, FONT_TYPE_TIME, TimeWidth},
-  {20, 1, 21, 3, FONT_TYPE_TIME, TimeBlockWidth},
-  {28, 1, 19, 3, FONT_TYPE_TIME, TimeGWidth},
-  {56, 1, 23, 3, FONT_TYPE_TIME, TimeKWidth}
-};
-#define FONT_NUM          (sizeof(Font) / sizeof(tFont))
-
-static etFontType CurrentType;
-
-static unsigned char CharToIndex(char const Char, etFontType Type);
-
-
-void SetFont(etFontType Type)
-{
-  CurrentType = Type;
-}
-
-unsigned char GetCharacterWidth(char const Char)
-{
-  return GetCharWidth(Char, CurrentType);
-}
-
-unsigned char GetCharWidth(char const Char, etFontType Type)
-{ 
-  unsigned char index = CharToIndex(Char, Type);
-  return Font[Type].pWidth[index];
-}
-
-unsigned char GetFontHeight(etFontType Type)
-{
-  return Font[Type].Height;
-}
-
-unsigned char GetCurrentFontHeight(void)
-{
-  return Font[CurrentType].Height;
-}
-
-unsigned char GetFontSpacing(void)
-{
-  return Font[CurrentType].Spacing;  
-}
-
-tFont const *GetCurrentFont(void)
-{
-  return &Font[CurrentType];
-}
-
-tFont const *GetFontPointer(etFontType Type)
-{
-  return &Font[Type];
-}
-
-static unsigned char CharToIndex(char const Char, etFontType Type)
-{
-  unsigned char index;
-
-  if (Font[Type].Type == FONT_TYPE_TIME)
-  {
-    if (Char == COLON) index = 10;
-    else if (Char == SPACE) index = 11;
-    else index = Char - '0';
-  }
-  else if (Char >= ASCII_BEGIN && Char <= ASCII_END) index = Char - ASCII_BEGIN;
-  else index = 0;
-  
-  return index;
-}
-
-void GetCharacterBitmap(char Char, unsigned int *pBitmap)
-{
-  unsigned char index = CharToIndex(Char, CurrentType);
-
-  unsigned char row;
-  for (row = 0; row < Font[CurrentType].Height; row++)
-  {
-    switch (CurrentType)
-    {
-    case MetaWatch5:
-      pBitmap[row] = (unsigned int)MetaWatch5table[index][row];  
-      break;
-  
-    case MetaWatch7:
-      pBitmap[row] = (unsigned int)MetaWatch7table[index][row];  
-      break;
-  
-    case MetaWatch16:
-      pBitmap[row] = MetaWatch16table[index][row];  
-      break;
-  
-    case Time:
-      pBitmap[row] = TimeTable[index][row];
-      break;
-      
-    case TimeBlock:
-      pBitmap[row] = TimeBlockTable[index][row];
-      break;
-      
-    case TimeG:
-      pBitmap[row] = TimeGTable[index][row];
-      break;
-
-    case TimeK:
-      pBitmap[row] = TimeKTable[index][row];
-      break;
-      
-    default:
-      break;
-    }
-  }
-}
-
-unsigned char const *GetFontBitmapPointer(char const Char, etFontType Type)
-{
-  unsigned char i = CharToIndex(Char, Type);
-  unsigned char *pCharBmp = (unsigned char *)&MetaWatch5table[i];
-  
-  switch (Type)
-  {
-  case MetaWatch5: pCharBmp = (unsigned char *)MetaWatch5table[i]; break;
-  case MetaWatch7: pCharBmp = (unsigned char *)MetaWatch7table[i]; break;
-  case MetaWatch16: pCharBmp = (unsigned char *)MetaWatch16table[i]; break;
-  case Time: pCharBmp = (unsigned char *)TimeTable[i]; break;
-  case TimeBlock: pCharBmp = (unsigned char *)TimeBlockTable[i]; break;
-  case TimeG: pCharBmp = (unsigned char *)TimeGTable[i]; break;
-  case TimeK: pCharBmp = (unsigned char *)TimeKTable[i]; break;
-  default: break;
-  }
-  return pCharBmp;
-}
-
-const unsigned char MetaWatch5table[][5] = 
+const unsigned char MetaWatch5table[][5] =
 {
   /* character 0x20 (' '): (width = 2) */
   0x00, 0x00, 0x00, 0x00, 0x00,
@@ -2327,17 +2190,80 @@ const unsigned char TimeKWidth[] =
 {
   /*		width    char    hexcode */
   /*		=====    ====    ======= */
-  23, /*   0      30      */
-  23, /*   1      31      */ // originally 10. 17 for same 3 bytes width
-  23, /*   2      32      */
-  23, /*   3      33      */
-  23, /*   4      34      */
-  23, /*   5      35      */
-  23, /*   6      36      */
-  23, /*   7      37      */
-  23, /*   8      38      */
-  23, /*   9      39      */
-  23, /*   :      3A      */ // originally 3. 17 for same 3 bytes width
-  23, /*          3B      */
+  22, /*   0      30      */
+  22, /*   1      31      */ // originally 10. 17 for same 3 bytes width
+  22, /*   2      32      */
+  22, /*   3      33      */
+  22, /*   4      34      */
+  22, /*   5      35      */
+  22, /*   6      36      */
+  22, /*   7      37      */
+  22, /*   8      38      */
+  22, /*   9      39      */
+  22, /*   :      3A      */ // originally 3. 17 for same 3 bytes width
+  22, /*          3B      */
 };
 
+/* Height, Spacing, MaxWidth, WidthInBytes, Type, pWidth */
+static tFont const Font[] =
+{
+  {5, 1, 6, 1, 0, MetaWatch5width},
+  {7, 1, 8, 1, 0, MetaWatch7width},
+  {16, 1, 13, 2, 0, MetaWatch16width},
+  {19, 1, 12, 2, FONT_TYPE_TIME, TimeWidth},
+  {20, 1, 21, 3, FONT_TYPE_TIME, TimeBlockWidth},
+  {28, 1, 19, 3, FONT_TYPE_TIME, TimeGWidth},
+  {56, 1, 22, 3, FONT_TYPE_TIME, TimeKWidth}
+};
+#define FONT_NUM          (sizeof(Font) / sizeof(tFont))
+
+static unsigned char CharToIndex(char const Char, etFontType Type);
+
+unsigned char GetCharWidth(char const Char, etFontType Type)
+{ 
+  unsigned char index = CharToIndex(Char, Type);
+  return Font[Type].pWidth[index];
+}
+
+tFont const *GetFont(etFontType Type)
+{
+  return &Font[Type];
+}
+
+static unsigned char CharToIndex(char const Char, etFontType Type)
+{
+  unsigned char index;
+
+  if (Font[Type].Type == FONT_TYPE_TIME)
+  {
+    if (Char == COLON) index = 10;
+    else if (Char == SPACE) index = 11;
+    else index = Char - '0';
+  }
+  else if (Char >= ASCII_BEGIN && Char <= ASCII_END) index = Char - ASCII_BEGIN;
+  else
+  {
+    PrintF("#Font:x%02X", Char);
+    index = 0;
+  }
+  return index;
+}
+
+unsigned char const *GetFontBitmap(char const Char, etFontType Type)
+{
+  unsigned char i = CharToIndex(Char, Type);
+  unsigned char *pCharBmp = (unsigned char *)&MetaWatch5table[i];
+  
+  switch (Type)
+  {
+  case MetaWatch5: pCharBmp = (unsigned char *)MetaWatch5table[i]; break;
+  case MetaWatch7: pCharBmp = (unsigned char *)MetaWatch7table[i]; break;
+  case MetaWatch16: pCharBmp = (unsigned char *)MetaWatch16table[i]; break;
+  case Time: pCharBmp = (unsigned char *)TimeTable[i]; break;
+  case TimeBlock: pCharBmp = (unsigned char *)TimeBlockTable[i]; break;
+  case TimeG: pCharBmp = (unsigned char *)TimeGTable[i]; break;
+  case TimeK: pCharBmp = (unsigned char *)TimeKTable[i]; break;
+  default: break;
+  }
+  return pCharBmp;
+}

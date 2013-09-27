@@ -177,6 +177,13 @@ typedef portBASE_TYPE (*pdTASK_HOOK_CODE)( void * );
 	#define INCLUDE_xTaskResumeFromISR 1
 #endif
 
+#ifndef configASSERT
+	#define configASSERT( x )
+	#define configASSERT_DEFINED 0
+#else
+	#define configASSERT_DEFINED 1
+#endif
+
 #ifndef INCLUDE_xTaskGetSchedulerState
 	#define INCLUDE_xTaskGetSchedulerState 0
 #endif
@@ -212,6 +219,9 @@ typedef portBASE_TYPE (*pdTASK_HOOK_CODE)( void * );
 	#define vQueueUnregisterQueue( xQueue )
 #endif
 
+#ifndef portPOINTER_SIZE_TYPE
+	#define portPOINTER_SIZE_TYPE unsigned long
+#endif
 
 /* Remove any unused trace macros. */
 #ifndef traceSTART

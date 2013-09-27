@@ -84,6 +84,14 @@
 
 typedef char tString;
 
+#ifndef TRUE
+   #define TRUE (1 == 1)
+#endif
+
+#ifndef FALSE
+   #define FALSE (0 == 1)
+#endif
+
 /*-----------------------------------------------------------*/
  
 /* Critical section control macros. */

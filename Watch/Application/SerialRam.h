@@ -85,4 +85,10 @@ void WriteBufferHandler(tMessage *pMsg);
 
 void SetWidgetList(tMessage *pMsg);
 void WriteClockWidget(unsigned char FaceId, unsigned char *pBuffer);
+
+void DrawBitmapToSram(Draw_t *Info, unsigned char WidthInBytes, unsigned char const *pBitmap, unsigned char Mode);
+void DrawTemplateToSram(Draw_t *Info, unsigned char const *pData, unsigned char Mode);
+void DrawStatusBar(void);
+void ClearSram(unsigned char Mode);
+
 #endif /* SERIAL_RAM_H */

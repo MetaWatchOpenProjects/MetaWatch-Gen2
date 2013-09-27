@@ -28,7 +28,7 @@
 #include "hal_calibration.h"
 
 #include "DebugUart.h"
-#include "Utilities.h"
+
 #include "Statistics.h"
 #include "OneSecondTimers.h"
 #include "Wrapper.h"
@@ -66,7 +66,7 @@ extern unsigned char niRtcSec;
 
 extern unsigned int niReset;
 
-static const unsigned char MaxRtc[] = {59, 59, 12, 31, 6, 12};
+static const unsigned char MaxRtc[] = {59, 59, 23, 31, 6, 12};
 static unsigned char RtcInUseMask = 0;
 
 static void RestoreRtc(void);
@@ -214,8 +214,7 @@ static unsigned char IncBCD(unsigned char Rtc, unsigned char Index)
 {
   Rtc = ToBin(Rtc) + 1;
   
-  if (Rtc > MaxRtc[Index])
-    Rtc = (Index == RTC_MIN || Index == RTC_DOW || Index == RTC_SEC) ? 0 : 1;
+  if (Rtc > MaxRtc[Index]) Rtc = (Index == RTC_DAY || Index == RTC_MON) ? 1 : 0;
 
   return ToBCD(Rtc);
 }

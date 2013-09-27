@@ -31,9 +31,7 @@
 
 #include "intrinsics.h"
 #include "msp430f5438a.h"
-
-#define FALSE   (0)
-#define TRUE    (1)
+#include "portmacro.h"
 
 #define NO_MSG      (0)
 #define MSG_RCVD    (1)

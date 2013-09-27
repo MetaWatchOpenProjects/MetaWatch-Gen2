@@ -49,6 +49,10 @@
 #define CDT_DAY_ADDR          (0x1C36)
 #define CDT_MIN_ADDR          (0x1C38)
 
+#define GATT_HANDLE_ADDR      (0x1C3A)
+#define ANCS_HANDLE_ADDR      (0x1C3A) // 3
+#define MWM_HANDLE_ADDR       (0x1C3F)
+#define SERVICE_CHANGED_ADDR  (0x1C13)
 
 /******************************************************************************/
 

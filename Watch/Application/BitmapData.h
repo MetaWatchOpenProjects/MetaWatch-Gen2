@@ -29,11 +29,12 @@
 #define HAL_FLASH_PAGE_SIZE       (512)
 #define TEMPLATE_FLASH_SIZE       (HAL_FLASH_PAGE_SIZE * TEMPLATE_NUM_FLASH_PAGES)
 
-#define TMPL_NOTIF_MODE           (0)
+#define TMPL_NOTIF_EMPTY          (0)
 #define TMPL_MUSIC_MODE           (1)
 #define TMPL_WGT_LOGO             (2)
 #define TMPL_WGT_FISH             (3)
 #define TMPL_WGT_HANZI            (4)
+#define TMPL_NOTIF_MODE           (5)
 
 #define TMPL_WGT_EMPTY            (0)
 #define TMPL_WGT_LOADING          (1)
@@ -41,35 +42,42 @@
 #define BOOTLOADER_COLS           (12)
 #define BOOTLOADER_ROWS           (46)
 #define BOOTLOADER_START_ROW      (7)
-#define CALL_NOTIF_COLS           (12)
-#define CALL_NOTIF_ROWS           (16)
-#define CALL_NOTIF_START_ROW      (77)
 
-extern const unsigned char pBootloader[BOOTLOADER_COLS * BOOTLOADER_ROWS];
-extern const unsigned char pCallNotif[CALL_NOTIF_COLS * CALL_NOTIF_ROWS];
+// Template starts from col 0, width is always 12 bytes and is written to mode screens
+typedef struct
+{
+  unsigned char Height;
+  unsigned char const *pData;
+} Template_t;
+
+extern Template_t const TmplInfo[];
+extern unsigned char const pBootloader[];
 
 #if __IAR_SYSTEMS_ICC__
-extern const unsigned char __data20 pTemplate[][BYTES_PER_SCREEN];
+extern unsigned char const __data20 pTemplate[][BYTES_PER_SCREEN];
 #else
-extern const unsigned char pTemplate[][BYTES_PER_SCREEN];
+extern unsigned char const pTemplate[][BYTES_PER_SCREEN];
 #endif
 
 #define TEMPLATE_NUM       (sizeof(pTemplate) / BYTES_PER_SCREEN)
 
-extern const unsigned char pWidgetTemplate[][6 * 48];
+extern unsigned char const pWidgetTemplate[][6 * 48];
 #define WIDGET_TEMPLATE_NUM (sizeof(pWidgetTemplate) / (6 * 48))
 
 #if __IAR_SYSTEMS_ICC__
-extern const unsigned char __data20 pTemplate2Q[][BYTES_PER_HALF_SCREEN];
+extern unsigned char const __data20 pTemplate2Q[][BYTES_PER_HALF_SCREEN];
 #else
-extern const unsigned char pTemplate2Q[][BYTES_PER_HALF_SCREEN];
+extern unsigned char const pTemplate2Q[][BYTES_PER_HALF_SCREEN];
 #endif
 
 #define TEMPLATE_2Q_NUM    (sizeof(pTemplate2Q) / BYTES_PER_HALF_SCREEN)
 
 #if __IAR_SYSTEMS_ICC__
-extern __data20 const unsigned char pWatchFace[][1]; //TEMPLATE_FLASH_SIZE];
-#define TEMPLATE20_NUM      (sizeof(pWatchFace) / TEMPLATE_FLASH_SIZE)
+extern __data20 unsigned char const pWatchFace[][1]; //TEMPLATE_FLASH_SIZE];
+#else
+extern unsigned char const pWatchFace[][1]; //TEMPLATE_FLASH_SIZE];
 #endif
+
+#define TEMPLATE20_NUM      (sizeof(pWatchFace) / TEMPLATE_FLASH_SIZE)
 
 #endif /* BITMAPDATA_H */

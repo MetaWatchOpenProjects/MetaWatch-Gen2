@@ -147,6 +147,7 @@
   #define ALL_BUTTONS (SW_A | SW_B | SW_C | SW_D | SW_E | SW_F | SW_P)
 #elif defined(DIGITAL)
   #define ALL_BUTTONS (SW_A | SW_B | SW_C | SW_D | SW_E | SW_F)
+  #define SHIP_MODE_BUTTONS (SW_A | SW_B | SW_C | SW_D | SW_F)
 #endif
 
 // The digital watch version 1 has 1 Meg pull downs
@@ -180,12 +181,12 @@
   RTCPS0CTL = 0x0000;                       \
   RTCPS1CTL = 0x0000;                       \
   UCSCTL8 = 0x0700;                         \
-  BUTTON_PORT_REN = SW_E;                   \
-  BUTTON_PORT_OUT = SW_E;                   \
-  BUTTON_PORT_DIR &= ~SW_E;                 \
-  BUTTON_PORT_IES |=   SW_E;                \
-  BUTTON_PORT_IFG  =   0x00;                \
-  BUTTON_PORT_IE  |=   SW_E;                \
+  BUTTON_PORT_REN = SHIP_MODE_BUTTONS;      \
+  BUTTON_PORT_OUT = SHIP_MODE_BUTTONS;      \
+  BUTTON_PORT_DIR &= ~SHIP_MODE_BUTTONS;    \
+  BUTTON_PORT_IES |=  SHIP_MODE_BUTTONS;    \
+  BUTTON_PORT_IFG  =  0x00;                 \
+  BUTTON_PORT_IE  |=  SHIP_MODE_BUTTONS;    \
 }
 
 // NOTE the the buttons are grounded. That means that we want to invert the bits

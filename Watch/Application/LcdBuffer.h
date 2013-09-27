@@ -119,7 +119,12 @@ typedef struct
 #define DRAW_OPT_BITWISE_DST_NOT      (3)
 #define DRAW_OPT_BITWISE_MASK         (0x03)
 
-void HourToString(char *Hour);
+#define DRAW_OPT_EQU_WIDTH            (0x04)
+
+#define LCD_BLACK                     (0xFF)
+#define LCD_WHITE                     (0x00)
+
+//void GetHour(char *Hour);
 void BitOp(unsigned char *pByte, unsigned char Bit, unsigned int Set, unsigned char Op);
 void DrawTextToLcd(DrawLcd_t *pData);
 
@@ -127,14 +132,16 @@ void DrawSplashScreen(void);
 void DrawDateTime(void);
 void DrawConnectionScreen(void);
 void DrawMenu(eIdleModePage Page);
-void DrawWatchStatusScreen(void);
+void DrawWatchStatusScreen(unsigned char Full);
 void DrawBootloaderScreen(void);
-void DrawCallScreen(char *pCallerId, char *pCallerName);
+//void DrawCallScreen(char *pCallerId, char *pCallerName);
 void CopyRowsIntoMyBuffer(unsigned char const *pImage, unsigned char StartRow, unsigned char RowNum);
 void SendMyBufferToLcd(unsigned char StartRow, unsigned char RowNum);
 void FillMyBuffer(unsigned char StartRow, unsigned char RowNum, unsigned char Value);
+void HandleFieldTestMode(unsigned char const Option);
+void DrawStatusBarToLcd(void);
 
-const unsigned char *GetBatteryIcon(unsigned char Id);
+unsigned char const *GetIcon(unsigned char Id);
 void *GetDrawBuffer(void);
 
 #if __IAR_SYSTEMS_ICC__

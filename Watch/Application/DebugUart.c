@@ -22,7 +22,7 @@
 #include "semphr.h"
 
 #include "Messages.h"
-
+#include "MessageQueues.h"
 #include "hal_board_type.h"
 #include "hal_clock_control.h"
 #include "hal_rtc.h"
@@ -30,16 +30,20 @@
 #include "hal_battery.h"
 #include "hal_calibration.h"
 #include "hal_miscellaneous.h"
-
+#include "hal_boot.h"
 #include "DebugUart.h"
 #include "Statistics.h"
 #include "task.h"
-#include "Utilities.h"
+
 #include "TermMode.h"
 #include "Wrapper.h"
 
+#define ASCII_BEGIN    32
+#define ASCII_END     126
+
 char const OK = '-';
 char const NOK = '#';
+char const PLUS = '+';
 char const RCV = '>';
 char const SND = '<';
 char const CR = '\r';
@@ -57,7 +61,7 @@ char const PERCENT = '%';
 
 static char Buffer[32];
 static unsigned char DebugEnabled;
-static unsigned char TimeStampEnabled = pdFALSE;
+static unsigned char TimeStampEnabled = FALSE;
 static xSemaphoreHandle UartMutex = 0;
 
 static void WriteTxBuffer(const tString * pBuf);
@@ -68,7 +72,7 @@ static void WriteTime(unsigned char Rtc, unsigned Separator);
 /* if interrupts are disabled then return */
 #define GIE_CHECK() {                         \
   if ((__get_interrupt_state() & GIE) == 0    \
-      || DebugEnabled == pdFALSE) return;     \
+      || DebugEnabled == FALSE) return;     \
 }
 
 #if PRETTY_PRINT
@@ -114,7 +118,7 @@ void EnableDebugUart(unsigned char Enable)
     UartMutex = xSemaphoreCreateMutex();
     xSemaphoreGive(UartMutex);
     
-    DebugEnabled = pdTRUE;
+    DebugEnabled = TRUE;
     PrintR(); PrintC(STAR); PrintC(STAR); PrintC(STAR); PrintR();
   }
   
@@ -156,7 +160,7 @@ void EnableTimeStamp(void)
   WriteTime(RTCDAY, SPACE);
   WriteTxBuffer(" ---\r\n");
   
-  TimeStampEnabled = pdTRUE;
+  TimeStampEnabled = TRUE;
 }
 
 /* 120 us - 90 us = 33 us */
@@ -164,7 +168,7 @@ void PrintC(char Char)
 {
   GIE_CHECK();
   GET_MUTEX();
-  WRITE_UART(Char);
+  if (Char >= ASCII_BEGIN && Char <= ASCII_END) WRITE_UART(Char);
   GIVE_MUTEX();
 }
 
@@ -245,10 +249,39 @@ void PrintE(const char *pFormat, ...)
  * enough so that a failure occurs
  *
  */
-void vApplicationMallocFailedHook(size_t xWantedSize)
+void vApplicationMallocFailedHook(void)
 {
-  PrintF("@ Ask: %d %s %d",(unsigned int)xWantedSize, " Free:", xPortGetFreeHeapSize());
+//  PrintE("@");
   __no_operation();
+}
+
+void vApplicationFreeFailedHook(unsigned char * pBuffer)
+{
+  PrintF("@F:%04X", pBuffer);
+}
+
+void vAssertCalled(void)
+{
+  PrintF("@ Assert");
+  __no_operation();
+}
+
+extern xQueueHandle QueueHandles[];
+
+void CheckStackAndQueueUsage(unsigned char Index)
+{
+  portBASE_TYPE Water = uxTaskGetStackHighWaterMark(NULL);
+  portBASE_TYPE QueLen = QueueHandles[Index]->uxMessagesWaiting;
+
+  if (Water < 10 || QueLen > 8)
+    PrintF("~%c S:%d Q:%u", Index == DISPLAY_QINDEX ? 'D' : 'W', Water, QueLen);
+}
+
+void vApplicationStackOverflowHook(xTaskHandle *pxTask, char *TaskName)
+{
+  /* try to print task name */
+  PrintF("@ Stack Oflw:%s", TaskName);
+  SoftwareReset();
 }
 
 void WhoAmI(void)

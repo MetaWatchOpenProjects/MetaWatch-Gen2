@@ -28,22 +28,10 @@
 /* The timer used for the vibrator on the Digital version of the 
  * development board is now required for the Software FLL. 
  */
-
-void SetVibeMotorState(unsigned char motorOn)
-{
-}
-
-void SetupVibrationMotorTimerAndPwm(void)
-{
-}
-
-void EnableVibratorPwm(void)
-{
-}
-
-void DisableVibratorPwm(void)
-{
-}
+void SetVibeMotorState(unsigned char motorOn) {}
+void SetupVibrationMotorTimerAndPwm(void) {}
+void EnableVibratorPwm(void) {}
+void DisableVibratorPwm(void) {}
 
 #else // not the devboard
 
@@ -75,7 +63,6 @@ void SetVibeMotorState(unsigned char motorOn)
   {
     P7SEL &= ~BIT3;
   }
-
 }
 
 void SetupVibrationMotorTimerAndPwm(void)
@@ -99,7 +86,6 @@ void SetupVibrationMotorTimerAndPwm(void)
   TA1CCR2 = 10;                // 10 is a 2/3 duty cycle
   
   START_VIBE_PWM_TIMER();
-
 }
 
 void EnableVibratorPwm(void)

@@ -285,12 +285,12 @@
   RTCPS0CTL = 0x0000;                       \
   RTCPS1CTL = 0x0000;                       \
   UCSCTL8 = 0x0700;                         \
-  BUTTON_PORT_REN = SW_E;                   \
-  BUTTON_PORT_OUT = SW_E;                   \
-  BUTTON_PORT_DIR &= ~SW_E;                 \
-  BUTTON_PORT_IES  =   SW_E;                \
+  BUTTON_PORT_REN = ALL_BUTTONS;                   \
+  BUTTON_PORT_OUT = ALL_BUTTONS;                   \
+  BUTTON_PORT_DIR &= ~ALL_BUTTONS;                 \
+  BUTTON_PORT_IES  =   ALL_BUTTONS;                \
   BUTTON_PORT_IFG  =   0x00;                \
-  BUTTON_PORT_IE   =   SW_E;                \
+  BUTTON_PORT_IE   =   ALL_BUTTONS;                \
 }
 
 // NOTE the the buttons are grounded. That means that we want to invert the bits

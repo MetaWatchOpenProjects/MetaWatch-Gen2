@@ -57,19 +57,13 @@
 /*! enable entry into low power mode 3 */
 #define SUPPORT_LPM ( 1 ) 
 
-#define SUPPORT_SHIPPING_MODE (0)
-
-/*! print task information */
-#define TASK_DEBUG ( 0 )
+#define SUPPORT_SHIPPING_MODE (1)
 
 /*! perform software check of errata PMM15 */
 #define CHECK_FOR_PMM15 ( 1 ) 
 
 /*! print stack usage information */
-#define CHECK_STACK_USAGE ( 1 )
-
-/*! keep track of maximum queue depth */
-#define CHECK_QUEUE_USAGE ( 0 )
+#define CHECK_STACK_AND_QUEUE_USAGE ( 1 )
 
 /*! use debug pin 5 on development board to keep track of when SMCLK is on */
 #define CLOCK_CONTROL_DEBUG ( 0 )

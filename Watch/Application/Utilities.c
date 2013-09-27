@@ -23,7 +23,7 @@
 #include "Messages.h"
 #include "MessageQueues.h"
 #include "DebugUart.h"
-#include "Utilities.h"
+
 #include "IdleTask.h"
 
 #if TASK_DEBUG
@@ -104,13 +104,6 @@ void CheckStackUsage(xTaskHandle TaskHandle, tString *TaskName)
   portBASE_TYPE HighWater = uxTaskGetStackHighWaterMark(TaskHandle);
   if (HighWater < 20) PrintF("%s Water:%d", TaskName, HighWater);
 #endif
-}
-
-void vApplicationStackOverflowHook(xTaskHandle *pxTask, char *pcTaskName)
-{
-  /* try to print task name */
-  PrintF("# Stack overflow:%s",(tString*)pcTaskName);
-  SoftwareReset();
 }
 
 void CheckQueueUsage(xQueueHandle Qhandle)

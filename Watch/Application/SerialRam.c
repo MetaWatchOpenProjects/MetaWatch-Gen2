@@ -29,21 +29,22 @@
 #include "hal_clock_control.h"
 #include "hal_miscellaneous.h"
 #include "hal_battery.h"
-#include "hal_lcd.h"
 #include "Messages.h"
 #include "MessageQueues.h"
 #include "DebugUart.h"
+#include "DrawMsgHandler.h"
 #include "ClockWidget.h"
 #include "SerialRam.h"
 #include "LcdDriver.h"
 #include "LcdDisplay.h"
 #include "Fonts.h"
 #include "LcdBuffer.h"
-#include "Utilities.h"
+
 #include "Adc.h"
 #include "BitmapData.h"
 #include "Wrapper.h"
 #include "Property.h"
+#include "CallNotifier.h"
 
 /******************************************************************************/
 
@@ -95,6 +96,7 @@
 #define WGT_EQU_CLK             (4)
 #define WGT_CHG_SETTING         (5)
 #define WGT_EQU_SETTING         (6)
+#define WGT_CHG_REMOVE_ADD      (7)
 
 #define BOARDER_PATTERN_ROW     (0x66)
 #define BOARDER_PATTERN_COL     (4)
@@ -105,17 +107,26 @@
 #define DMA_FILL                   (1)
 #define DMA_COPY                   (0)
 
+#define STATUS_BAR_IN_MODES ((1 << IDLE_MODE) | (1 << APP_MODE)) // | (1 << MUSIC_MODE))
+
 /* errata - DMA variables cannot be function scope */
-static const unsigned char DummyData = 0x00;
-static const unsigned char FILL_BLACK = 0x00;
-static const unsigned char FILL_WHITE = 0xFF;
+static unsigned char const DummyData = 0x00;
+static unsigned char const FILL_BLACK = 0x00;
+static unsigned char const FILL_WHITE = 0xFF;
 
 static unsigned char ReadData = 0x00;
 static unsigned char DmaBusy  = 0;
 
-static signed char CurrentPage = 0;
+static unsigned char CurrentPage = 0;
+static unsigned char StatusBarInModes = STATUS_BAR_IN_MODES;
 
 static xSemaphoreHandle SramMutex;
+
+typedef struct
+{
+  unsigned char Reserved[3];
+  tLcdLine Line;
+} tLcdBuffer;
 
 typedef struct
 {
@@ -142,7 +153,7 @@ typedef struct
 static Widget_t Widget[MAX_WIDGET_NUM + MAX_WIDGET_NUM];
 static Widget_t *pCurrWidgetList = &Widget[MAX_WIDGET_NUM]; // point to left/right half of double sized Widget[]
 
-const Layout_t Layout[] = {{1, 0}, {2, 1}, {2, 2}, {4, 1}};
+Layout_t const Layout[] = {{1, 0}, {2, 1}, {2, 2}, {4, 1}};
 
 static unsigned int BufTag = 0;
 ///* low 4 bits: Clock widget ID; high 4 bits: to be updated if set */
@@ -161,17 +172,18 @@ typedef struct
   unsigned char Layout[QUAD_NUM];
 } QuadAddr_t;
 
-static const unsigned char ModePriority[] = {NOTIF_MODE, APP_MODE, IDLE_MODE, MUSIC_MODE};
+static unsigned char const ModePriority[] = {NOTIF_MODE, APP_MODE, IDLE_MODE, MUSIC_MODE};
 
 #define IS_CLOCK_WIDGET(_x) ((_x & CLOCK_WIDGET_BIT) >> CLOCK_WIDGET_BIT_SHFT)
 #define ON_CURRENT_PAGE(_x) ((_x & IDLE_PAGE_MASK) >> IDLE_PAGE_SHFT == CurrentPage)
 #define LAYOUT_TYPE(_x) ((_x & LAYOUT_MASK) >> LAYOUT_SHFT)
 #define WGTLST_INDEX(_x) ((_x & WGTLST_PART_INDX_MASK) >> WGTLST_PART_INDX_SHFT)
 #define WGTLST_TOTAL(_x) ((_x & WGTLST_PARTS_MASK) >> WGTLST_PARTS_SHFT)
+#define MODE_START_ADDR(_x) (_x * BYTES_PER_SCREEN + MODE_BUF_START_ADDR)
 
 /******************************************************************************/
 static void SetAddr(unsigned int Addr);
-static void Write(const unsigned long pData, unsigned int Length, unsigned char Op);
+static void Write(unsigned long const pData, unsigned int Length, unsigned char Op);
 static void ReadBlock(unsigned char *pWriteData, unsigned char *pReadData, unsigned int Length);
 static void LoadBuffer(unsigned char i, unsigned char const *pTemp);
 
@@ -182,6 +194,8 @@ static void GetQuadAddr(QuadAddr_t *pAddr);
 static signed char ComparePriority(unsigned char Mode);
 static unsigned char GetWidgetChange(unsigned char CurId, unsigned char CurOpt, unsigned char MsgId, unsigned char MsgOpt);
 static void TestFaceId(WidgetList_t *pWidget);
+static void AllocateBuffer(unsigned char *pBuf);
+static void ClearWidgetList(void);
 
 void SetWidgetList(tMessage *pMsg)
 {
@@ -212,6 +226,8 @@ void SetWidgetList(tMessage *pMsg)
 
       pCurrWidget = pCurrWidgetList;
       pNextWidget = &Widget[0] + (&Widget[MAX_WIDGET_NUM] - pCurrWidgetList);
+      ClearWidgetList();
+      BufTag = 0;
     }
   }
 
@@ -233,7 +249,7 @@ void SetWidgetList(tMessage *pMsg)
 
     case WGT_CHG_CLK:
       PrintS("*Clk");
-      pCurrWidget->Outdated = pdTRUE;
+      pCurrWidget->Outdated = TRUE;
       if (ON_CURRENT_PAGE(pMsgWgtLst->Layout)) ClockId = pMsgWgtLst->Id;
 
     case WGT_CHG_SETTING:
@@ -246,12 +262,23 @@ void SetWidgetList(tMessage *pMsg)
       WidgetNum --;
       break;
 
-    case WGT_CHG_CLK_ADD:
-      PrintS("+Clk");
-      pNextWidget->Outdated = pdTRUE;
-      if (ON_CURRENT_PAGE(pMsgWgtLst->Layout)) ClockId = pMsgWgtLst->Id;
+    case WGT_CHG_REMOVE:
+    case WGT_CHG_REMOVE_ADD:
+    // remove widget: curr ++
+      PrintF("-%02X", pCurrWidget->Id);
+      FreeWidgetBuffer(pCurrWidget);
+      pCurrWidget ++;
+      if (Change == WGT_CHG_REMOVE) break;
+      
+    case WGT_CHG_ADD:
 
-    case WGT_CHG_ADD: //pCurrWidget->Id > pMsgWgtLst->Id)
+      if (IS_CLOCK_WIDGET(pMsgWgtLst->Layout))
+      {
+        PrintS("+Clk");
+        pNextWidget->Outdated = TRUE;
+        if (ON_CURRENT_PAGE(pMsgWgtLst->Layout)) ClockId = pMsgWgtLst->Id;
+      }
+
      // add new widget: cpy msg to next; msg and next ++; curr stays
       PrintF("+%02X", pMsgWgtLst->Id);
 
@@ -262,13 +289,6 @@ void SetWidgetList(tMessage *pMsg)
       pNextWidget ++;
       pMsgWgtLst ++;
       WidgetNum --;
-      break;
-      
-    case WGT_CHG_REMOVE:
-    // remove widget: curr ++
-      PrintF("-%02X", pCurrWidget->Id);
-      FreeWidgetBuffer(pCurrWidget);
-      pCurrWidget ++;
       break;
       
     default: break;
@@ -302,9 +322,17 @@ void SetWidgetList(tMessage *pMsg)
     pCurrWidgetList = &Widget[0] + (&Widget[MAX_WIDGET_NUM] - pCurrWidgetList);
     pCurrWidget = pCurrWidgetList;
 
-//    PrintS("N:");
-//    for (i=0; pCurrWidgetList[i].Id != INVALID_ID; ++i) PrintH(pCurrWidgetList[i].Id);
-//    PrintR();
+    unsigned char k;
+    for (i = 0; pCurrWidgetList[i].Id != INVALID_ID && i < MAX_WIDGET_NUM; ++i)
+    {
+      unsigned QuadNum = Layout[LAYOUT_TYPE(pCurrWidgetList[i].Layout)].QuadNum;
+      for (k = 0; k < QuadNum; ++k)
+      {
+        if (pCurrWidgetList[i].Buffers[k] == BUFFER_TAG_BITS)
+          AllocateBuffer(&pCurrWidgetList[i].Buffers[k]);
+      }
+    }
+
     PrintF("Tg:%04X", BufTag);
 
     if (ClockId != INVALID_ID)
@@ -329,17 +357,61 @@ static unsigned char GetWidgetChange(unsigned char CurId, unsigned char CurOpt,
 
   if (CurId == MsgId)
   {
-//    Change = IS_CLOCK_WIDGET(CurOpt) && CurFaceId != MsgFaceId ?
-//      WGT_CHG_CLK_FACE : WGT_CHG_SETTING;
-    if (IS_CLOCK_WIDGET(CurOpt))
+    if (LAYOUT_TYPE(CurOpt) != LAYOUT_TYPE(MsgOpt))
+      Change = WGT_CHG_REMOVE_ADD;
+
+    else if (IS_CLOCK_WIDGET(CurOpt))
       Change = (CurFaceId != MsgFaceId || CurOpt != MsgOpt) ?
                 WGT_CHG_CLK : WGT_EQU_CLK;
     else
       Change = (CurOpt != MsgOpt) ? WGT_CHG_SETTING : WGT_EQU_SETTING;
   }
   else if (CurId < MsgId) Change = WGT_CHG_REMOVE;
-  else Change = IS_CLOCK_WIDGET(MsgOpt) ? WGT_CHG_CLK_ADD : WGT_CHG_ADD;
+  else Change = WGT_CHG_ADD;
+  
   return Change;
+}
+
+static void AssignWidgetBuffer(Widget_t *pWidget)
+{
+  unsigned char QuadNum = Layout[LAYOUT_TYPE(pWidget->Layout)].QuadNum;
+  unsigned char i;
+
+  for (i = 0; i < QuadNum; ++i) AllocateBuffer(&pWidget->Buffers[i]);
+}
+
+static void AllocateBuffer(unsigned char *pBuf)
+{
+  unsigned char Tag;
+  for (Tag = 0; Tag < BUFFER_TAG_BITS; ++Tag) // go through 16 bufs
+  {
+    if ((BufTag & (1 << Tag)) == 0) // found empty buffer
+    {
+      *pBuf = Tag;
+      BufTag |= 1 << Tag;
+
+      // add "Loading..." template
+      LoadBuffer(Tag, pWidgetTemplate[TMPL_WGT_LOADING]);
+      break;
+    }
+  }
+
+  if (Tag == BUFFER_TAG_BITS) *pBuf = BUFFER_TAG_BITS;
+}
+
+static void FreeWidgetBuffer(Widget_t *pWidget)
+{
+  unsigned char QuadNum = Layout[LAYOUT_TYPE(pWidget->Layout)].QuadNum;
+  unsigned char i;
+
+  for (i = 0; i < QuadNum; ++i)
+  {
+    BufTag &= ~(1 << pWidget->Buffers[i]);
+    // add "+" template to empty buffer
+    LoadBuffer(pWidget->Buffers[i], pWidgetTemplate[TMPL_WGT_EMPTY]);
+  }
+
+  PrintF("-Tg:%04X", BufTag);
 }
 
 static void TestFaceId(WidgetList_t *pWidget)
@@ -358,44 +430,6 @@ static void TestFaceId(WidgetList_t *pWidget)
   // set clock widget bit
   pWidget->Layout |= CLOCK_WIDGET_BIT;
   PrintF("Clk AF: Id:0x%02X Layout:0x%02X", pWidget->Id, pWidget->Layout);
-}
-
-static void AssignWidgetBuffer(Widget_t *pWidget)
-{
-  unsigned QuadNum = Layout[LAYOUT_TYPE(pWidget->Layout)].QuadNum;
-  unsigned char i;
-
-  for (i = 0; i < QuadNum; ++i)
-  {
-    unsigned char Tag;
-    for (Tag = 0; Tag < BUFFER_TAG_BITS; ++Tag) // go through 16 bufs
-    {
-      if ((BufTag & (1 << Tag)) == 0) // found empty buffer
-      {
-        pWidget->Buffers[i] = Tag;
-        BufTag |= 1 << Tag;
-
-      // add "..." template
-        LoadBuffer(Tag, pWidgetTemplate[TMPL_WGT_LOADING]);
-        break;
-      }
-    }
-  }
-}
-
-static void FreeWidgetBuffer(Widget_t *pWidget)
-{
-  unsigned QuadNum = Layout[LAYOUT_TYPE(pWidget->Layout)].QuadNum;
-  unsigned char i;
-
-  for (i = 0; i < QuadNum; ++i)
-  {
-    BufTag &= ~(1 << pWidget->Buffers[i]);
-    // add "+" template to empty buffer
-    LoadBuffer(pWidget->Buffers[i], pWidgetTemplate[TMPL_WGT_EMPTY]);
-  }
-
-  PrintF("-Tg:%04X", BufTag);
 }
 
 //#define MSG_OPT_NEWUI             (0x80)
@@ -450,7 +484,7 @@ void WriteBufferHandler(tMessage* pMsg)
 void UpdateClockWidgets(void)
 {
   unsigned char i;
-  unsigned char NotUpdate = pdTRUE;
+  unsigned char NotUpdate = TRUE;
 
 //  xSemaphoreTake(SramMutex, portMAX_DELAY);
 
@@ -458,13 +492,13 @@ void UpdateClockWidgets(void)
   {
     if (!IS_CLOCK_WIDGET(pCurrWidgetList[i].Layout)) continue;
 
-    pCurrWidgetList[i].Outdated = pdTRUE;
+    pCurrWidgetList[i].Outdated = TRUE;
     
     if (NotUpdate && ON_CURRENT_PAGE(pCurrWidgetList[i].Layout))
     {
 //      PrintF("-UdCkW Id:%02X", pCurrWidgetList[i].Id);
       CreateAndSendMessage(DrawClockWidgetMsg, pCurrWidgetList[i].Id);
-      NotUpdate = pdFALSE;
+      NotUpdate = FALSE;
     }
   }
 
@@ -476,7 +510,7 @@ void WriteClockWidget(unsigned char FaceId, unsigned char *pBuffer)
 //  unsigned char FaceId = FACE_ID(pMsg->Options);
   unsigned char ClockId = INVALID_ID;
   unsigned char i, k;
-  unsigned char Found = pdFALSE;
+  unsigned char Found = FALSE;
 
   for (i = 0; pCurrWidgetList[i].Id != INVALID_ID && i < MAX_WIDGET_NUM; ++i)
   {
@@ -486,10 +520,8 @@ void WriteClockWidget(unsigned char FaceId, unsigned char *pBuffer)
     {
       if (FACE_ID(pCurrWidgetList[i].Id) == FaceId)
       {
-        Found = pdTRUE;
+        Found = TRUE;
         unsigned char LayoutType = LAYOUT_TYPE(pCurrWidgetList[i].Layout);
-
-//        PrintF("-WtCkW i:%d F:%02X", i, FaceId);
 
         for (k = 0; k < Layout[LayoutType].QuadNum; ++k)
         {
@@ -502,7 +534,7 @@ void WriteClockWidget(unsigned char FaceId, unsigned char *pBuffer)
           Write((unsigned long)pBuf, BYTES_PER_QUAD, DMA_COPY);
         }
 
-        pCurrWidgetList[i].Outdated = pdFALSE;
+        pCurrWidgetList[i].Outdated = FALSE;
       }
       else if (ClockId == INVALID_ID && pCurrWidgetList[i].Outdated)
       {
@@ -540,6 +572,17 @@ static unsigned char GetNextOutdatedClockWidget(void)
       return pCurrWidgetList[i].Id;
   }
   return INVALID_ID;
+}
+
+static void ClearWidgetList(void)
+{
+  unsigned char i;
+  for (i = 0; i < MAX_WIDGET_NUM + MAX_WIDGET_NUM; ++i)
+  {
+    Widget[i].Id = INVALID_ID;
+    Widget[i].Layout = 0;
+    Widget[i].Outdated = 0;
+  }
 }
 
 unsigned char CurrentIdleScreen(void)
@@ -612,7 +655,7 @@ void UpdateDisplayHandler(tMessage* pMsg)
 {
   unsigned char Mode = pMsg->Options & MODE_MASK;
   unsigned char SramBuf[SRAM_HEADER_LEN];
-  tLcdData LcdData;
+  tLcdBuffer LcdBuf;
   tMessage Msg;
 
   if ((pMsg->Options & MSG_OPT_NEWUI) && GetProperty(PROP_PHONE_DRAW_TOP)) //for idle update only
@@ -690,14 +733,14 @@ void UpdateDisplayHandler(tMessage* pMsg)
         SramBuf[1] = Addr >> 8;
         SramBuf[2] = Addr;
 
-        ReadBlock(SramBuf, (unsigned char *)&LcdData + BYTES_PER_QUAD_LINE * k, BYTES_PER_QUAD_LINE);
+        ReadBlock(SramBuf, (unsigned char *)&LcdBuf + BYTES_PER_QUAD_LINE * k, BYTES_PER_QUAD_LINE);
 
         unsigned char c; // Column byte number
         
         if (QuadAddr.Layout[i+k] & INVERT_BIT)
         { // Invert pixel
           for (c = 0; c < BYTES_PER_QUAD_LINE; ++c)
-            LcdData.pLine[c + BYTES_PER_QUAD_LINE * k] = ~LcdData.pLine[c + BYTES_PER_QUAD_LINE * k];
+            LcdBuf.Line.Data[c + BYTES_PER_QUAD_LINE * k] = ~LcdBuf.Line.Data[c + BYTES_PER_QUAD_LINE * k];
         }
 
         if (GetProperty(PROP_WIDGET_GRID))
@@ -706,7 +749,7 @@ void UpdateDisplayHandler(tMessage* pMsg)
 //          if (Row == 0 || Row == LCD_ROW_NUM - 1)
 //          {
 //            for (c = 0; c < BYTES_PER_QUAD_LINE; ++c)
-//              LcdData.pLine[c + BYTES_PER_QUAD_LINE * k] = BOARDER_PATTERN_ROW;
+//              LcdBuf.Line.Data[c + BYTES_PER_QUAD_LINE * k] = BOARDER_PATTERN_ROW;
 //          }
 //          else
           {
@@ -715,27 +758,27 @@ void UpdateDisplayHandler(tMessage* pMsg)
             if (Row % BOARDER_PATTERN_COL == 1 || Row % BOARDER_PATTERN_COL == 2)
             {// black dots
               // Rule 2: left and right side vertical boarders
-//              if (k) LcdData.pLine[BYTES_PER_LINE - 1] |= 0x80; // right side boarder
-//              else  LcdData.pLine[0] |= 0x01; // left side boarder
+//              if (k) LcdBuf.Line.Data[BYTES_PER_LINE - 1] |= 0x80; // right side boarder
+//              else  LcdBuf.Line.Data[0] |= 0x01; // left side boarder
 
              // Rule 3 inner vertical boarders
              if (LayoutType == 0 || LayoutType == 2)
              {
-              if (k) LcdData.pLine[BYTES_PER_QUAD_LINE] |= 0x01; // right inner boarder
-              else  LcdData.pLine[BYTES_PER_QUAD_LINE - 1] |= 0x80; // left inner boarder
+              if (k) LcdBuf.Line.Data[BYTES_PER_QUAD_LINE] |= 0x01; // right inner boarder
+              else  LcdBuf.Line.Data[BYTES_PER_QUAD_LINE - 1] |= 0x80; // left inner boarder
              }
             }
             else
             {// white dots
               // Rule 2: left and right side vertical boarders
-//              if (k) LcdData.pLine[BYTES_PER_LINE - 1] &= 0x7F; // right side boarder
-//              else  LcdData.pLine[0] &= 0xFE; // left side boarder
+//              if (k) LcdBuf.Line.Data[BYTES_PER_LINE - 1] &= 0x7F; // right side boarder
+//              else  LcdBuf.Line.Data[0] &= 0xFE; // left side boarder
 
              // Rule 3 inner vertical boarders
              if (LayoutType == 0 || LayoutType == 2)
              {
-              if (k) LcdData.pLine[BYTES_PER_QUAD_LINE] &= 0xFE; // right inner boarder
-              else  LcdData.pLine[BYTES_PER_QUAD_LINE - 1] &= 0x7F; // left inner boarder
+              if (k) LcdBuf.Line.Data[BYTES_PER_QUAD_LINE] &= 0xFE; // right inner boarder
+              else  LcdBuf.Line.Data[BYTES_PER_QUAD_LINE - 1] &= 0x7F; // left inner boarder
              }
             }
 
@@ -745,17 +788,18 @@ void UpdateDisplayHandler(tMessage* pMsg)
               if (Row == HALF_SCREEN_ROWS - 1 || Row == HALF_SCREEN_ROWS)
               {
                 for (c = 0; c < BYTES_PER_QUAD_LINE; ++c)
-                  LcdData.pLine[c + BYTES_PER_QUAD_LINE * k] = BOARDER_PATTERN_ROW;
+                  LcdBuf.Line.Data[c + BYTES_PER_QUAD_LINE * k] = BOARDER_PATTERN_ROW;
               }
             }
           }
         }
       }  while (k--);
 
-      LcdData.RowNumber = Row ++; // Lcd row number starts from 1
-      WriteLcdHandler(&LcdData);
+      LcdBuf.Line.Row = Row ++; // Lcd row number starts from 1
+      WriteToLcd(&LcdBuf.Line, 1);
       if (Row == HALF_SCREEN_ROWS) i += 2;
     }
+
     xSemaphoreGive(SramMutex);
   }
   else
@@ -767,15 +811,16 @@ void UpdateDisplayHandler(tMessage* pMsg)
     if (!(pMsg->Options & MSG_OPT_UPD_INTERNAL))
     {
       signed char Result = ComparePriority(Mode);
-      PrintF("- UpdDsp Priority:%d", Result);
+//      PrintF("- UpdDsp Priority:%d", Result);
 
-      if (Result > 0) SendMessage(&Msg, ChangeModeMsg, Mode);
+      if (Result > 0) ChangeMode(Mode); //SendMessage(&Msg, ChangeModeMsg, Mode);
       else if (Result < 0) return;
+      else if (Mode == NOTIF_MODE && Ringing()) return;
       else if (CurrentMode != IDLE_MODE) ResetModeTimer();
       else if (PageType != PAGE_TYPE_IDLE) return;
     }
-    PrintF("- UpdDsp PgTp:%d", PageType);
-    
+//    PrintF("- UpdDsp PgTp:%d", PageType);
+
     // determine starting line
     unsigned char StartRow = (Mode == IDLE_MODE && !GetProperty(PROP_PHONE_DRAW_TOP)) ?
                             WATCH_DRAW_SCREEN_ROW_NUM : 0;
@@ -806,16 +851,20 @@ void UpdateDisplayHandler(tMessage* pMsg)
        * 3+1 spots to starting location of data from dma read
        * (room for bytes read in when cmd and address are sent)
        */
-      ReadBlock(SramBuf, (unsigned char *)&LcdData, BYTES_PER_LINE);
+      ReadBlock(SramBuf, (unsigned char *)&LcdBuf, BYTES_PER_LINE);
 
       /* now add the row number */
-      LcdData.RowNumber = StartRow ++;
-      WriteLcdHandler(&LcdData);
+      LcdBuf.Line.Row = StartRow ++;
+      LcdBuf.Line.Trailer = 0;
+      WriteToLcd(&LcdBuf.Line, 1);
       Addr += BYTES_PER_LINE;
     }
   }
+
+  DrawStatusBar();
+
   /* now that the screen has been drawn put the LCD into a lower power mode */
-  PutLcdIntoStaticMode();
+//  SetLcdStaticMode();
 }
 
 static signed char ComparePriority(unsigned char Mode)
@@ -826,6 +875,28 @@ static signed char ComparePriority(unsigned char Mode)
   for (; i < MODE_NUM; ++i) if (ModePriority[i] == Mode) break;
   for (++i; i < MODE_NUM; ++i) if (ModePriority[i] == CurrentMode) return 1;
   return -1;
+}
+
+void DrawStatusBar(void)
+{
+  if ((1 << CurrentMode) & StatusBarInModes)
+  {
+    if (CurrentMode == IDLE_MODE)
+    {
+      unsigned char i;
+      for (i = 0; pCurrWidgetList[i].Id != INVALID_ID && i < MAX_WIDGET_NUM; ++i)
+      {
+        if (ON_CURRENT_PAGE(pCurrWidgetList[i].Layout) &&
+            LAYOUT_TYPE(pCurrWidgetList[i].Layout) == LAYOUT_FULL_SCREEN &&
+            !IS_CLOCK_WIDGET(pCurrWidgetList[i].Layout))
+        {
+          DrawStatusBarToLcd();
+          break;
+        }
+      }
+    }
+    else DrawStatusBarToLcd();
+  }
 }
 
 static void ReadBlock(unsigned char *pWriteData, unsigned char *pReadData, unsigned int Length)
@@ -846,8 +917,8 @@ static void ReadBlock(unsigned char *pWriteData, unsigned char *pReadData, unsig
    * for dma1 (DMACTL0 controls both)
    */
   DMACTL0 = DMA1TSEL_16 | DMA0TSEL_17;
-  __data16_write_addr((unsigned short) &DMA0SA,(unsigned long) pWriteData);
-  __data16_write_addr((unsigned short) &DMA0DA,(unsigned long) &UCA0TXBUF);
+  __data16_write_addr((unsigned short)&DMA0SA, (unsigned long)pWriteData);
+  __data16_write_addr((unsigned short)&DMA0DA, (unsigned long)&UCA0TXBUF);
   DMA0SZ = Length + SRAM_HEADER_LEN + 1;
 
   /* don't enable interrupt for transmit dma done(channel 0)
@@ -857,8 +928,8 @@ static void ReadBlock(unsigned char *pWriteData, unsigned char *pReadData, unsig
   DMA0CTL = DMADT_0 + DMASRCINCR_3 + DMASBDB + DMALEVEL;
 
   /* receive data is source for dma 1 */
-  __data16_write_addr((unsigned short) &DMA1SA,(unsigned long) &UCA0RXBUF);
-  __data16_write_addr((unsigned short) &DMA1DA,(unsigned long) pReadData);
+  __data16_write_addr((unsigned short)&DMA1SA, (unsigned long)&UCA0RXBUF);
+  __data16_write_addr((unsigned short)&DMA1DA, (unsigned long)pReadData);
   DMA1SZ = Length + SRAM_HEADER_LEN + 1;
 
   /* increment destination address */
@@ -873,7 +944,7 @@ static void ReadBlock(unsigned char *pWriteData, unsigned char *pReadData, unsig
 }
 
 /* use DMA to write a block of data to the serial ram */
-static void Write(const unsigned long pData, unsigned int Length, unsigned char Op)
+static void Write(unsigned long const pData, unsigned int Length, unsigned char Op)
 {
   EnableSmClkUser(SERIAL_RAM_USER);
   DmaBusy = 1;
@@ -882,8 +953,8 @@ static void Write(const unsigned long pData, unsigned int Length, unsigned char 
   /* USCIA0 TXIFG is the DMA trigger */
   DMACTL0 = DMA0TSEL_17;
 
-  __data16_write_addr((unsigned short) &DMA0SA, pData);
-  __data16_write_addr((unsigned short) &DMA0DA, (unsigned long)&UCA0TXBUF);
+  __data16_write_addr((unsigned short)&DMA0SA, pData);
+  __data16_write_addr((unsigned short)&DMA0DA, (unsigned long)&UCA0TXBUF);
 
   DMA0SZ = Length + SRAM_HEADER_LEN;
 
@@ -938,20 +1009,90 @@ void LoadTemplateHandler(tMessage *pMsg)
     /* clear or fill the screen */
     Write((unsigned long)(*pMsg->pBuffer ? &FILL_WHITE : &FILL_BLACK), BYTES_PER_SCREEN - SRAM_HEADER_LEN, DMA_FILL);
   }
-#if __IAR_SYSTEMS_ICC__
   else
   {
     /* template zero is reserved for simple patterns */
     Write((unsigned long)&pWatchFace[*pMsg->pBuffer - TEMPLATE_1][0], BYTES_PER_SCREEN - SRAM_HEADER_LEN, DMA_COPY);
     PrintF("-Template:%d", *pMsg->pBuffer);
   }
-#endif
 }
 
 static void LoadBuffer(unsigned char i, unsigned char const *pTemp)
 {
   SetAddr(i * BYTES_PER_QUAD + WGT_BUF_START_ADDR);
   Write((unsigned long)pTemp, BYTES_PER_QUAD - SRAM_HEADER_LEN, DMA_COPY);
+}
+
+void DrawTemplateToSram(Draw_t *Info, unsigned char const *pData, unsigned char Mode)
+{
+  SetAddr(MODE_START_ADDR(Mode) + Info->Y * BYTES_PER_LINE);
+  Write((unsigned long)pData, TmplInfo[Info->Id & TMPL_ID_MASK].Height * BYTES_PER_LINE - SRAM_HEADER_LEN, DMA_COPY);
+}
+
+void ClearSram(unsigned char Mode)
+{
+  SetAddr(MODE_START_ADDR(Mode));
+  Write((unsigned long)&DummyData, BYTES_PER_SCREEN - SRAM_HEADER_LEN, DMA_FILL);
+}
+
+#define SRAM_READ_OVERHEAD  4
+
+void DrawBitmapToSram(Draw_t *Info, unsigned char WidthInBytes, unsigned char const *pBitmap, unsigned char Mode)
+{
+  unsigned int Addr = (Info->X >> 3) + Info->Y * BYTES_PER_LINE + MODE_START_ADDR(Mode);
+  unsigned char SramBytes = ((Info->Width + Info->X % 8) >> 3) + 1;
+  int Overflow = SramBytes + (Info->X >> 3) - BYTES_PER_LINE;
+  if (Overflow > 0) SramBytes -= Overflow;
+//  unsigned char SramBytes = BYTES_PER_LINE - (Info->X >> 3);
+//  PrintF("Left:%u WB:%u", Info->X >> 3, SramBytes);
+
+  unsigned char x, y;
+  unsigned char Set;
+  unsigned char SramBuf[SRAM_HEADER_LEN + SRAM_READ_OVERHEAD + BYTES_PER_LINE];
+
+  for (y = 0; y < Info->Height && (y + Info->Y) < LCD_ROW_NUM; ++y)
+  {
+    unsigned char ColBit = BIT0 << (Info->X % 8); // dst
+    unsigned char MaskBit = BIT0; // src
+    unsigned char const *pBmp = pBitmap + y * WidthInBytes;
+    unsigned char *pByte = SramBuf + SRAM_HEADER_LEN + SRAM_READ_OVERHEAD;
+
+    SramBuf[0] = SPI_READ;
+    SramBuf[1] = Addr >> 8;
+    SramBuf[2] = Addr;
+    ReadBlock(SramBuf, SramBuf + SRAM_HEADER_LEN, SramBytes);
+
+    for (x = 0; x < Info->Width && (x + Info->X) < LCD_COL_NUM; ++x)
+    {
+      if (pByte >= SramBuf + sizeof(SramBuf)) PrintF("# OvrFlw x:%u y:%u", x+Info->X, y+Info->Y);
+
+      Set = *pBmp & MaskBit;
+      BitOp(pByte, ColBit, Set, Info->Opt & DRAW_OPT_BITWISE_MASK);
+
+      MaskBit <<= 1;
+      if (MaskBit == 0)
+      {
+        MaskBit = BIT0;
+        pBmp ++;
+      }
+      
+      ColBit <<= 1;
+      if (ColBit == 0)
+      {
+        ColBit = BIT0;
+        pByte ++;
+      }
+    }
+
+    SramBuf[1 + SRAM_HEADER_LEN] = SPI_WRITE;
+    SramBuf[2 + SRAM_HEADER_LEN] = Addr >> 8;
+    SramBuf[3 + SRAM_HEADER_LEN] = Addr;
+    Write((unsigned long)(SramBuf + SRAM_HEADER_LEN + 1), SramBytes, DMA_COPY);
+    Addr += BYTES_PER_LINE;
+  }
+
+  if ((y + Info->Y) >= LCD_ROW_NUM || (x + Info->X) >= LCD_COL_NUM)
+    PrintF("DrwBmp x:%d y:%d", x + Info->X, y + Info->Y);
 }
 
 /* configure the MSP430 SPI peripheral */
@@ -1037,10 +1178,9 @@ void SerialRamInit(void)
   SetAddr(MODE_BUF_START_ADDR);
   Write((unsigned long)&DummyData, MODE_BUFFER_SIZE - SRAM_HEADER_LEN, DMA_FILL);
 
+  ClearWidgetList();
+  
   unsigned char i;
-  for (i = 0; i < MAX_WIDGET_NUM + MAX_WIDGET_NUM; ++i)
-    Widget[i].Id = INVALID_ID;
-
   // load 16 buffers with empty widget template
   for (i = 0; i < MAX_WIDGET_NUM; ++i) LoadBuffer(i, pWidgetTemplate[TMPL_WGT_EMPTY]);
   

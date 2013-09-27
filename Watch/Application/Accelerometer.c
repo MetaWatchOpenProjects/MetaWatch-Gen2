@@ -34,7 +34,6 @@
 
 #include "MessageQueues.h"     
 #include "DebugUart.h"
-#include "Utilities.h" 
 #include "Accelerometer.h"
 #include "Wrapper.h"
 
@@ -162,7 +161,13 @@ void HandleAccelerometer(tMessage *pMsg)
   switch (pMsg->Options)
   {
   case MSG_OPT_ACCEL_DATA:
-    AccelerometerSendDataHandler();
+
+    if (Connected(CONN_TYPE_SPP) && QuerySniffState() == Active
+#if SUPPORT_BLE
+      || Connected(CONN_TYPE_BLE) && CurrentInterval(INTERVAL_STATE) == SHORT
+#endif
+      )
+      AccelerometerSendDataHandler();
     break;
 
   case MSG_OPT_ACCEL_ENABLE:

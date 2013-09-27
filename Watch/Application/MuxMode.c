@@ -56,7 +56,7 @@ void ChangeMuxMode(unsigned char Clip)
   static unsigned char LastMode = MUX_MODE_OFF;
   unsigned char MuxMode;
   
-  if (niReset != NORMAL_RESET_CODE) niMuxMode = MUX_MODE_DEFAULT_5V;
+  if (niReset == MASTER_RESET_CODE) niMuxMode = MUX_MODE_DEFAULT_5V;
   MuxMode = (Clip == CLIP_ON) ? niMuxMode : MUX_MODE_GND;
   if (MuxMode == LastMode) return;
 
