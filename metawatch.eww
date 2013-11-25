@@ -2,7 +2,7 @@
 
 <workspace>
   <project>
-    <path>$WS_DIR$\Watch\Project\Watch.ewp</path>
+    <path>$WS_DIR$\Watch\Project\gen2.ewp</path>
   </project>
   <batchBuild/>
 </workspace>

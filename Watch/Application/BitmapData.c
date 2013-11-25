@@ -723,7 +723,6 @@ unsigned char const pTemplate[][BYTES_PER_SCREEN] =
 };
 
 #if __IAR_SYSTEMS_ICC__
-#pragma location = "TEMPLATE_FLASH_HIGH_MEM"
 unsigned char const __data20 pTemplate2Q[][BYTES_PER_HALF_SCREEN] =
 #else
 unsigned char const pTemplate2Q[][BYTES_PER_HALF_SCREEN] =
@@ -738,7 +737,6 @@ unsigned char const pTemplate2Q[][BYTES_PER_HALF_SCREEN] =
 //erasing a template is easier.
 
 #if __IAR_SYSTEMS_ICC__
-#pragma location = "TEMPLATE_FLASH_HIGH_MEM"
 __data20 unsigned char const pWatchFace[][1] =
 #else
 unsigned char const pWatchFace[][1] =
