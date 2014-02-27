@@ -286,7 +286,7 @@ void vApplicationStackOverflowHook(xTaskHandle *pxTask, char *TaskName)
 
 void WhoAmI(void)
 {
-  PrintS(BR_DEVICE_NAME);
+  PrintS(BT_LOCAL_NAME);
   PrintF("Msp430 Rev:%c HwVer:%d", GetMsp430HardwareRevision(), HardwareVersion());
   PrintF("BoardConfig: %d", GetBoardConfiguration());
   PrintF("Calibration: %d", ValidCalibration());

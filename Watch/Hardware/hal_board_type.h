@@ -35,29 +35,15 @@
 
   #include "hal_devboard_v2_defs.h"
 
-  #ifdef ANALOG
-    #define BR_DEVICE_NAME "MetaWatch DB111"
-    
-  #elif defined(DIGITAL)
-    #define BR_DEVICE_NAME "MetaWatch DB12"
-    
-  #else
-    #error "ANALOG or DIGITAL not defined"
-  #endif
-
 #elif defined(WATCH)
 
   #if defined(DIGITAL)
 
     #include "hal_digital_v2_defs.h"
 
-    #define BR_DEVICE_NAME "MetaWatch SW12"
-
   #elif defined(ANALOG)
 
     #include "hal_analog_v2_defs.h"
-
-    #define BR_DEVICE_NAME "MetaWatch WDS111"
 
   #else
 

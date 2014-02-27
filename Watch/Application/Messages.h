@@ -148,6 +148,7 @@ typedef enum
 
   SetCliCfgMsg = 0x1a,
   HidMsg = 0x1b,
+  SetLocalNameMsg = 0x1c,
   
   /*
    * Status and control

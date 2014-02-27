@@ -24,6 +24,9 @@
 #ifndef HAL_MISCELLANEOUS_H
 #define HAL_MISCELLANEOUS_H
 
+#define BT_LOCAL_NAME   "MetaWatch   "
+#define LOCAL_NAME_LENGTH   (sizeof(BT_LOCAL_NAME))
+
 /*! Reads the hardware revision register in the MSP430
  *
  * \return Character representation of revision (Example: 'E')

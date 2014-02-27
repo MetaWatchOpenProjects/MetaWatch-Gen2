@@ -61,7 +61,7 @@ static const tMsgInfo MsgInfo[MAXIMUM_MESSAGE_TYPES] =
   {"DrwMsg",                      DISPLAY_QINDEX,    1 }, /* 0x19 */
   {"SetCliCfgMsg",                WRAPPER_QINDEX,    0 }, /* 0x1a */
   {"HidMsg",                      WRAPPER_QINDEX,    1 }, /* 0x1b */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0x1c */
+  {"SetLocalNameMsg",             WRAPPER_QINDEX,    0 }, /* 0x1c */
   {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0x1d */
   {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0x1e */
   {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0x1f */

@@ -69,6 +69,8 @@ extern unsigned int niReset;
 extern char niBuild[];
 extern unsigned char Clocking;
 
+char const BtName[] = BT_LOCAL_NAME;
+
 xTaskHandle DisplayHandle;
 
 static unsigned char RtcUpdateEnabled = FALSE;
@@ -570,6 +572,14 @@ static void BluetoothStateChangeHandler(tMessage *pMsg)
   {
     if (pMsg->Options == On)
     {
+      tMessage Msg;
+      SetupMessageWithBuffer(&Msg, SetLocalNameMsg, LOCAL_NAME_LENGTH);
+      if (Msg.pBuffer != NULL)
+      {
+        Msg.Length = 2; // pointer length
+        Msg.pBuffer = (unsigned char *)BtName;
+        RouteMsg(&Msg);
+      }
       Splashing = FALSE;
       RtcUpdateEnabled = TRUE;
       DetermineIdlePage();
