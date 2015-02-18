@@ -231,8 +231,8 @@ void *pvReturn = NULL;
 	{
 		if( pvReturn == NULL )
 		{
-			extern void vApplicationMallocFailedHook(size_t xWantedSize);
-			vApplicationMallocFailedHook(xWantedSize);
+			extern void vApplicationMallocFailedHook(void);
+			vApplicationMallocFailedHook();
 		}
 	}
 	#endif

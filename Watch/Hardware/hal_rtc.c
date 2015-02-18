@@ -17,54 +17,46 @@
 #include "FreeRTOS.h"
 #include "queue.h"
 #include "task.h"
-
 #include "Messages.h"
-#include "MessageQueues.h"
-
 #include "hal_board_type.h"
 #include "hal_boot.h"
 #include "hal_rtc.h"
 #include "hal_lpm.h"
 #include "hal_calibration.h"
-
 #include "DebugUart.h"
-
 #include "Statistics.h"
 #include "OneSecondTimers.h"
 #include "Wrapper.h"
 #include "Vibration.h"
 #include "LcdDisplay.h"
+#include "Log.h"
 
 /** Real Time Clock interrupt Flag definitions */
-#define RTC_NO_INTERRUPT      ( 0 )
-#define RTC_RDY_IFG           ( 2 )
-#define RTC_EV_IFG            ( 4 )
-#define RTC_A_IFG             ( 6 )
-#define RTC_PRESCALE_ZERO_IFG ( 8 )
-#define RTC_PRESCALE_ONE_IFG  ( 10 )
+#define RTC_NO_INTERRUPT        0
+#define RTC_RDY_IFG             2
+#define RTC_EV_IFG              4
+#define RTC_A_IFG               6
+#define RTC_PRESCALE_ZERO_IFG   8
+#define RTC_PRESCALE_ONE_IFG    10
 
 #define RTCCAL_VALUE_MASK     (0x3F)
 #define RTC_USER_MASK     (RTC_TIMER_VIBRATION | RTC_TIMER_BUTTON)
 
 #if __IAR_SYSTEMS_ICC__
-__no_init __root unsigned int niRtcYear @RTC_YEAR_ADDR;
-__no_init __root unsigned char niRtcMon @RTC_MON_ADDR;
-__no_init __root unsigned char niRtcDay @RTC_DAY_ADDR;
-__no_init __root unsigned char niRtcDow @RTC_DOW_ADDR;
-__no_init __root unsigned char niRtcHour @RTC_HOUR_ADDR;
 __no_init __root unsigned char niRtcMin @RTC_MIN_ADDR;
-__no_init __root unsigned char niRtcSec @RTC_SEC_ADDR;
+__no_init __root unsigned char niRtcHour @RTC_HOUR_ADDR;
+__no_init __root unsigned char niRtcDay @RTC_DAY_ADDR;
+__no_init __root unsigned char niRtcMon @RTC_MON_ADDR;
+__no_init __root unsigned char niRtcDow @RTC_DOW_ADDR;
+__no_init __root unsigned int niRtcYear @RTC_YEAR_ADDR;
 #else
-extern unsigned int niRtcYear;
-extern unsigned char niRtcMon;
-extern unsigned char niRtcDay;
-extern unsigned char niRtcDow;
-extern unsigned char niRtcHour;
 extern unsigned char niRtcMin;
-extern unsigned char niRtcSec;
+extern unsigned char niRtcHour;
+extern unsigned char niRtcDay;
+extern unsigned char niRtcMon;
+extern unsigned char niRtcDow;
+extern unsigned int niRtcYear;
 #endif
-
-extern unsigned int niReset;
 
 static const unsigned char MaxRtc[] = {59, 59, 23, 31, 6, 12};
 static unsigned char RtcInUseMask = 0;
@@ -77,7 +69,7 @@ void InitRealTimeClock(void)
   RtcInUseMask = 0;
   
   // stop it
-  RTCCTL01 = RTCHOLD;
+  RTCCTL01 |= RTCHOLD;
 
   // use calibration data to adjust real time clock frequency
   if (ValidCalibration())
@@ -121,23 +113,28 @@ void InitRealTimeClock(void)
   RTCCTL01 &= ~RTCHOLD;  
 }
 
-void SetRtc(Rtc_t *pRtcData)
+unsigned char SetRtc(Rtc_t *pRtcData)
 {
-  // Stop the RTC
-  RTCCTL01 |= RTCHOLD;    
+  static unsigned char Once;
+  unsigned char Hour = ToBCD(pRtcData->Hour);
+  unsigned char Minute = ToBCD(pRtcData->Minute);
+
+  if (Once && Hour == niRtcHour && Minute == niRtcMin) return FALSE;
+
+  Once = TRUE;
+  niRtcMin = Minute;
+  niRtcHour = Hour;
+  niRtcDay = ToBCD(pRtcData->Day);
+  niRtcDow = ToBCD(pRtcData->DayOfWeek);
+  niRtcMon = ToBCD(pRtcData->Month);
 
   // These calls are to asm level patch functions provided by TI for the MSP430F5438
   unsigned int Year = (pRtcData->YearMsb << 8) + pRtcData->YearLsb;
-  PrintF(">SetRtc Year: %d", Year);
+  PrintF(">SetRtc: %d", Year);
   niRtcYear = (ToBCD(Year / 100) << 8) + ToBCD(Year % 100);
-  PrintF(" %04X", niRtcYear);
-  
-  niRtcMon = ToBCD(pRtcData->Month);
-  niRtcDay = ToBCD(pRtcData->Day);
-  niRtcDow = ToBCD(pRtcData->DayOfWeek);
-  niRtcHour = ToBCD(pRtcData->Hour);
-  niRtcMin = ToBCD(pRtcData->Minute);
-  niRtcSec = ToBCD(pRtcData->Second);
+
+  // Stop the RTC
+  RTCCTL01 |= RTCHOLD;    
 
   RTCYEAR = niRtcYear;
   RTCMON = niRtcMon;
@@ -145,17 +142,16 @@ void SetRtc(Rtc_t *pRtcData)
   RTCDOW = niRtcDow;
   RTCHOUR = niRtcHour;
   RTCMIN = niRtcMin;
-  RTCSEC = niRtcSec;
+  RTCSEC = ToBCD(pRtcData->Second);
 
   // Enable the RTC
   RTCCTL01 &= ~RTCHOLD;
-
-  EnableTimeStamp();
+  return TRUE;
 }
 
 static void RestoreRtc(void)
 {
-  if (niReset == NORMAL_RESET_CODE &&
+  if (niResetType == NORMAL_RESET &&
       BCD_H(niRtcHour) >= 0 && BCD_H(niRtcHour) <= 2 &&
       BCD_L(niRtcHour) >= 0 && BCD_L(niRtcHour) <= 9 &&
       BCD_H(niRtcMin) >= 0 && BCD_H(niRtcMin) <= 6 &&
@@ -167,7 +163,6 @@ static void RestoreRtc(void)
     RTCDOW = niRtcDow;
     RTCHOUR = niRtcHour;
     RTCMIN = niRtcMin;
-    RTCSEC = niRtcSec;
   }
   else
   {
@@ -224,7 +219,8 @@ unsigned char To12H(unsigned char H24)
   unsigned char HH = BCD_H(H24);
   unsigned char HL = BCD_L(H24);
 
-  if (HH == 1 && HL > 2) {HH = 0; HL -= 2;}
+  if (H24 == 0) {HH = 1; HL = 2;} // 0am -> 12am
+  else if (HH == 1 && HL > 2) {HH = 0; HL -= 2;}
   else if (HH == 2) {HH = 0; HL += 8; if (HL > 9) {HL -= 10; HH ++;}}
   return (HH << 4) + HL;
 }
@@ -237,7 +233,6 @@ void BackupRtc(void)
   niRtcDow = RTCDOW;
   niRtcHour = RTCHOUR;
   niRtcMin = RTCMIN;
-  niRtcSec = RTCSEC;
 }
 
 void EnableRtcPrescaleInterruptUser(unsigned char UserMask)
@@ -286,8 +281,7 @@ static unsigned char DivideByFour = 0;
 __interrupt void RTC_ISR(void)
 {
   unsigned char ExitLpm = 0;
-  tMessage Msg;
-        
+
   // compiler intrinsic, value must be even, and in the range of 0 to 10
   switch(__even_in_range(RTCIV,10))
   {
@@ -307,8 +301,7 @@ __interrupt void RTC_ISR(void)
       
       if (RtcInUseMask & RTC_TIMER_BUTTON)
       {
-        SetupMessage(&Msg, ButtonStateMsg, MSG_OPT_NONE);
-        SendMessageToQueueFromIsr(DISPLAY_QINDEX, &Msg);
+        SendMessageIsr(ButtonStateMsg, MSG_OPT_NONE);
         ExitLpm = 1;
       }
     }

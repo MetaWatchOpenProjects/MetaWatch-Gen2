@@ -17,7 +17,6 @@
 #include "FreeRTOS.h"
 #include "hal_board_type.h"
 #include "hal_clock_control.h"
-#include "Messages.h"
 #include "DebugUart.h"
 #include "LcdDriver.h"
 #include "LcdDisplay.h"
@@ -43,10 +42,6 @@ static void Write(unsigned char Cmd, unsigned char *pBuffer, unsigned int Size);
 
 void LcdPeripheralInit(void)
 {
-  ENABLE_LCD_POWER();
-
-  CONFIG_LCD_PINS();
-  
   /*
    * configure the MSP430 SPI peripheral for use with Lcd
    */
@@ -60,17 +55,19 @@ void LcdPeripheralInit(void)
    * SMCLK is the clock source
    * set the clock prescaler
   */
-  LCD_SPI_UCBxCTL0 |= UCMST+ UCCKPH + UCSYNC;      
+  LCD_SPI_UCBxCTL0 |= UCMST + UCCKPH + UCSYNC;
                                                    
-  LCD_SPI_UCBxCTL1 |= UCSSEL_2;                    
+  LCD_SPI_UCBxCTL1 |= UCSSEL__SMCLK;
   LCD_SPI_UCBxBR0 = SPI_PRESCALE_L;               
   LCD_SPI_UCBxBR1 = SPI_PRESCALE_H;               
 
   /* remove reset */
   LCD_SPI_UCBxCTL1 &= ~UCSWRST;
+
+  ENABLE_LCD_POWER();
+  CONFIG_LCD_PINS();
 }
 
-/*! Writes a single line to the LCD */
 void WriteToLcd(tLcdLine *pData, unsigned char LineNum)
 {
   /* flip bits */

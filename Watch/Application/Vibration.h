@@ -31,6 +31,9 @@
 #define VIBRA_PATTERN_LOW_BATT  3
 #define VIBRA_PATTERN_BT_OFF    4
 #define VIBRA_PATTERN_FTM       5
+#define VIBRA_PATTERN_ALARM     6
+
+#define VIBRA_PATTERN_NONE      0xFF
 
 /*! Set Vibrate Mode Payload Structure
  *

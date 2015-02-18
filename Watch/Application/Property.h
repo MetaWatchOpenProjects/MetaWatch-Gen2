@@ -34,7 +34,6 @@
 
 #define PROPERTY_READ           (0x80)
 
-void InitProperty(void);
 unsigned char GetProperty(unsigned char Bits);
 void SetProperty(unsigned char Bits, unsigned char Val);
 void ToggleProperty(unsigned char Bit);

@@ -35,6 +35,7 @@
 #define TMPL_WGT_FISH             (3)
 #define TMPL_WGT_HANZI            (4)
 #define TMPL_NOTIF_MODE           (5)
+#define TMPL_WGT_CITY             (6)
 
 #define TMPL_WGT_EMPTY            (0)
 #define TMPL_WGT_LOADING          (1)
@@ -43,15 +44,7 @@
 #define BOOTLOADER_ROWS           (46)
 #define BOOTLOADER_START_ROW      (7)
 
-// Template starts from col 0, width is always 12 bytes and is written to mode screens
-typedef struct
-{
-  unsigned char Height;
-  unsigned char const *pData;
-} Template_t;
-
-extern Template_t const TmplInfo[];
-extern unsigned char const pBootloader[];
+extern unsigned char const pBootloader[BOOTLOADER_COLS * BOOTLOADER_ROWS];
 
 #if __IAR_SYSTEMS_ICC__
 extern unsigned char const __data20 pTemplate[][BYTES_PER_SCREEN];

@@ -1,5 +1,5 @@
 //==============================================================================
-//  Copyright 2011 Meta Watch Ltd. - http://www.MetaWatch.org/
+//  Copyright 2011 - 2013 Meta Watch Ltd. - http://www.MetaWatch.org/
 // 
 //  Licensed under the Meta Watch License, Version 1.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -14,37 +14,27 @@
 //  limitations under the License.
 //==============================================================================
 
-/******************************************************************************/
-/*! \file Vibration.c
-*
-*/
-/******************************************************************************/
-
 #include "FreeRTOS.h"
 #include "task.h"
-#include "queue.h"
-
 #include "Messages.h"
-#include "MessageQueues.h"
 
 #include "hal_board_type.h"
 #include "hal_vibe.h"
 #include "hal_rtc.h"
-
 #include "DebugUart.h"
 #include "LcdDisplay.h"
-
 #include "Vibration.h"
 
 /******************************************************************************/
 static tSetVibrateModePayload const VibraPattern[] =
 {
-  {1, 0x00, 0x01, 0x00, 0x01, 2}, // 512ms per cycle, 58 cycles for 30s
+  {1, 0x00, 0x01, 0x00, 0x01, 255}, // 512ms per cycle, 58 cycles for 30s
   {1, 0x80, 0x01, 0x80, 0x00, 3},
   {1, 0xC8, 0x00, 0xF4, 0x01, 1},
   {1, 0x00, 0x02, 0x00, 0x02, 5},
   {1, 0x00, 0x01, 0x00, 0x01, 5},
-  {1, 0xE8, 0x03, 0xE8, 0x03, 1} // 1s on, 1s off
+  {1, 0xE8, 0x03, 0xE8, 0x03, 1}, // 1s on, 1s off
+  {1, 0x00, 0x02, 0x00, 0x02, 10},
 };
 
 static unsigned char VibeEventActive;  
@@ -79,9 +69,10 @@ void SetVibrateModeHandler(tMessage *pMsg)
   // overlay a structure pointer on the data section
   tSetVibrateModePayload const *pMsgData;
 
-  if (pMsg->Options != MSG_OPT_VIBRA_OFF)
+  if (pMsg->Options != VIBRA_PATTERN_NONE)
   {
-    pMsgData = !pMsg->Length ? &VibraPattern[pMsg->Options] : (tSetVibrateModePayload *)pMsg->pBuffer;
+    pMsgData = pMsg->Length == 0 ?
+        &VibraPattern[pMsg->Options] : (tSetVibrateModePayload *)pMsg->pBuffer;
 
     // set it active or cancel it
     VibeEventActive = pMsgData->Enable;
@@ -113,6 +104,7 @@ void SetVibrateModeHandler(tMessage *pMsg)
     DisableVibratorPwm();
   }
 
+    PrintF("--- Vbra Cycle:%u", CycleCount);
   // Use a separate timer that counts Rtc_Prescale_Timer_Static messages to
   // get the time for the vibe motor.
   if (VibeEventActive)

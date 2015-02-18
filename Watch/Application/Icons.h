@@ -19,42 +19,35 @@
 
 #define LEFT_BUTTON_COLUMN  ( 0 )
 #define RIGHT_BUTTON_COLUMN ( 6 )
-#define BUTTON_ICON_SIZE_IN_COLUMNS ( 6 )
-#define BUTTON_ICON_SIZE_IN_ROWS    ( 32 )
+#define BUTTON_ICON_COLS      6
+#define BUTTON_ICON_ROWS      32
 
-#define ICON_MUSIC_WIDTH    (2)
-#define ICON_MUSIC_HEIGHT   (11)
+#define ICON_MUSIC_WIDTH        (2)
+#define ICON_MUSIC_HEIGHT       (11)
+#define ICON_MUSIC_PLAY         0x00
+#define ICON_MUSIC_NEXT         0x10
+#define ICON_MUSIC_PLUS         0x20
+#define ICON_MUSIC_MINUS        0x30
+#define ICON_MUSIC_MAX          4
+#define ICON_MUSIC_ENLARGE      1
+#define ICON_MUSIC_TYPE_MASK    0xF0
+#define ICON_MUSIC_ENLARGE_MASK 0x01
+#define ICON_MUSIC_PLAY_SIZE    (ICON_MUSIC_WIDTH * ICON_MUSIC_HEIGHT)
+#define ICON_MUSIC_NEXT_SIZE    (ICON_MUSIC_WIDTH * ICON_MUSIC_HEIGHT)
+#define ICON_MUSIC_PLUS_SIZE    (ICON_MUSIC_WIDTH * ICON_MUSIC_HEIGHT)
+#define ICON_MUSIC_MINUS_SIZE   (ICON_MUSIC_WIDTH * ICON_MUSIC_HEIGHT)
 
 #define BUTTON_ICON_A_F_ROW ( 0 )
 #define BUTTON_ICON_B_E_ROW ( 32 )
 #define BUTTON_ICON_C_D_ROW ( 64 )
 
-extern const unsigned char pBluetoothOffIcon[];
-extern const unsigned char pBluetoothInitIcon[];
-extern const unsigned char pBluetoothOnIcon[];
-extern const unsigned char pSecondsOffMenuIcon[];
-extern const unsigned char pSecondsOnMenuIcon[];
-extern const unsigned char pLinkAlarmOffIcon[];
-extern const unsigned char pLinkAlarmOnIcon[];
-extern const unsigned char pInvertDisplayIcon[];
+extern unsigned char const pIconMenuItem[][BUTTON_ICON_COLS * BUTTON_ICON_ROWS];
 
-extern const unsigned char pLedIcon[];
-extern const unsigned char pExitIcon[];
-extern const unsigned char pNextIcon[];
-
-extern const unsigned char pRstPinIcon[];
-extern const unsigned char pNmiPinIcon[]; 
-extern const unsigned char pResetButtonIcon[];
-extern const unsigned char pGroundIcon[];
-extern const unsigned char pSbwIcon[];
-extern const unsigned char pSerialIcon[];
-extern const unsigned char pTestIcon[];
-
-extern const unsigned char pIconChargingEnabled[];
-extern const unsigned char pIconChargingDisabled[];
-extern const unsigned char pBootloaderIcon[];
-
-extern const unsigned char pIconMusicState[][ICON_MUSIC_WIDTH * ICON_MUSIC_HEIGHT];
+extern const unsigned char au8_music_icon_play[][ICON_MUSIC_PLAY_SIZE];
+extern const unsigned char au8_music_icon_next[][ICON_MUSIC_NEXT_SIZE];
+extern const unsigned char au8_music_icon_plus[][ICON_MUSIC_PLUS_SIZE];
+extern const unsigned char au8_music_icon_minus[][ICON_MUSIC_MINUS_SIZE];
+extern const unsigned char au8_music_icon_positions[][2];
 
 extern const unsigned char pInitPageBluetoothOff[];
 extern const unsigned char pInitPagePaired[];
@@ -104,6 +97,9 @@ extern const unsigned char pBatteryMediumStatusScreenIcon[];
 #define ICON_PHONE                        13
 #define ICON_INIT_PAGE_PAIRED             14
 #define ICON_BATTERY_UNKNOWN              15
+#define ICON_NOTIF_NEXT                   16
+#define ICON_MENU_ITEM                    17
+#define ICON_TIMER                        18
 
 #define BATTERY_ICON_NUM         (8)
 
@@ -114,12 +110,28 @@ extern const unsigned char pBatteryMediumStatusScreenIcon[];
 
 #define BLUETOOTH_ICON_NUM       (4)
 
-#define MENU_ITEM_RADIO_STATUS   (0)
-#define MENU_ITEM_SHOW_SECOND    (3)
-#define MENU_ITEM_LINK_ALARM     (5)
-#define MENU_ITEM_DISCOVERABLE   (7)
-#define MENU_ITEM_BACKLIGHT      (8)
-#define MENU_ITEM_EXIT           (9)
+#define MENU_ITEM_RADIO_OFF       0
+#define MENU_ITEM_RADIO_INIT      1
+#define MENU_ITEM_RADIO_ON        2
+#define MENU_ITEM_SECOND_OFF      3
+#define MENU_ITEM_SECOND_ON       4
+#define MENU_ITEM_ALARM_OFF       5
+#define MENU_ITEM_ALARM_ON        6
+#define MENU_ITEM_COUNTDOWN       7
+#define MENU_ITEM_INVERT          8
+#define MENU_ITEM_BACKLIGHT       9
+#define MENU_ITEM_EXIT            10
+#define MENU_ITEM_NEXT            11
+#define MENU_ITEM_RST             12
+#define MENU_ITEM_NMI             13
+#define MENU_ITEM_RESET           14
+#define MENU_ITEM_GROUND          15
+#define MENU_ITEM_SBW             16
+#define MENU_ITEM_SERIAL          17
+#define MENU_ITEM_TEST            18
+#define MENU_ITEM_CHARGE_EN       19
+#define MENU_ITEM_CHARGE_DISABLE  20
+#define MENU_ITEM_BOOTLOADER      21
 
 typedef struct
 {

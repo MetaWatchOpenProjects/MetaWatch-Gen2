@@ -33,6 +33,7 @@
 // be included.
 //
 
+#define USE_LARGE_CODE_MODEL 1
 #include "macros.m43"
 #include "cfi.m43"
 

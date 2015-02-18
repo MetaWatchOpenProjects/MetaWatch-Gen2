@@ -16,127 +16,54 @@
 
 #include <string.h>
 #include "FreeRTOS.h"
-#include "task.h"
-#include "queue.h"
 #include "portmacro.h"
-#include "Messages.h"
-#include "MessageQueues.h"
 #include "hal_lpm.h"
+#include "hal_battery.h"
 #include "hal_board_type.h"
-#include "hal_miscellaneous.h"
-#include "hal_calibration.h"
-#include "hal_boot.h"
-#include "DebugUart.h"
-#include "Wrapper.h"
-
 #include "IdleTask.h"
+#include "hal_boot.h"
+#include "Log.h"
+#include "queue.h"
+#include "Wrapper.h"
+#include "Messages.h"
 
 #if __IAR_SYSTEMS_ICC__
-__no_init __root tWatchdogInfo WatchdogInfo @ WATCHDOG_INFO_ADDR;
-__no_init __root unsigned int niWdtCounter @ WATCHDOG_COUNTER_ADDR;
+__no_init __root unsigned char niRadioReadyToSleep @ RADIO_SLEEP_ADDR;
+__no_init __root unsigned char niDisplayQueue @ DISPLAY_QUEUE_ADDR;
+__no_init __root unsigned char niWrapperQueue @ WRAPPER_QUEUE_ADDR;
+__no_init __root unsigned char niWdtNum @ WDT_NUM_ADDR;
 #else
-extern tWatchdogInfo WatchdogInfo;
-extern unsigned int niWdtCounter;
+extern unsigned char niRadioReadyToSleep;
+extern unsigned char niDisplayQueue;
+extern unsigned char niWrapperQueue;
+extern unsigned char niWdtNum;
 #endif
 
-extern unsigned int niReset;
-
-static void PrintResetSource(unsigned int Source);
-
-void vApplicationIdleHook(void)
-{
-
-  /* Put the processor to sleep if the serial port indicates it is OK and
-   * all of the queues are empty.
-   * This will stop the OS scheduler.
-   */ 
-
-  /* enter a critical section so that the flags can be checked */
-//  __disable_interrupt();
-//  __no_operation();
-
-  /* the watchdog is set at 16 seconds.
-   * the battery interval rate is set a 10 seconds
-   * each task checks in at the battery interval rate
-   */
-  UpdateWatchdogInfo();
-
-#if SUPPORT_LPM
-  if (WatchdogInfo.RadioReadyToSleep &&
-      WatchdogInfo.DisplayMessagesWaiting == 0 &&
-      WatchdogInfo.WrapperMessagesWaiting == 0)
-  {
-    /* Call MSP430 Utility function to enable low power mode 3.     */
-    /* Put OS and Processor to sleep. Will need an interrupt        */
-    /* to wake us up from here.   */
-//    DISABLE_LCD_LED();
-    EnterLpm3();
-//    ENABLE_LCD_LED();
-
-  __enable_interrupt();
-  __no_operation();
-    /* If we get here then interrupts are enabled */
-    return;
-  }
-#endif
-
-  /* we aren't going to sleep so enable interrupts */
-  __enable_interrupt();
-  __no_operation();
-}
-
-/******************************************************************************/
+extern unsigned char niResetCode;
 extern xQueueHandle QueueHandles[];
 
-/* 8 us */
-void UpdateWatchdogInfo(void)
+static unsigned char Interval = WDT_SHORT;
+static unsigned char LpmChecking = FALSE;
+
+void SetWatchdogInterval(unsigned char Intvl)
 {
-  WatchdogInfo.RadioReadyToSleep = ReadyToSleep();
-
-  WatchdogInfo.DisplayMessagesWaiting =
-    QueueHandles[DISPLAY_QINDEX]->uxMessagesWaiting;
-
-  WatchdogInfo.WrapperMessagesWaiting = 
-    QueueHandles[WRAPPER_QINDEX]->uxMessagesWaiting;
-}
-
-void ShowWatchdogInfo(void)
-{
-  if (niReset == MASTER_RESET_CODE)
-  {
-    niWdtCounter = 0;
-    memset(&WatchdogInfo, 0, sizeof(WatchdogInfo));
-  }
-
-  unsigned int ResetSource = GetResetSource();
-  PrintResetSource(ResetSource);
-  PrintF("RadioReadyToSleep %u", WatchdogInfo.RadioReadyToSleep);
-  PrintF("DisplayMsgWaiting %u", WatchdogInfo.DisplayMessagesWaiting);
-  PrintF("WrapperMsgWaiting %u", WatchdogInfo.WrapperMessagesWaiting);
-
-  if (ResetSource == SYSRSTIV_WDTTO || ResetSource == SYSRSTIV_WDTKEY)
-  {
-    PrintF("# WDT %s", ResetSource == SYSRSTIV_WDTTO ? "Failsafe" : "Forced");
-    niWdtCounter ++;
-  }
-  
-  PrintF("Total Watchdogs: %d", niWdtCounter);
+  Interval = Intvl;
 }
 
 void ResetWatchdog(void)
 {
   /* set watchdog for 16 second timeout
-   * write password, select aclk, WDTIS_3 means divide by 512*1024 = 16 s;
+   * write password, select aclk, WDTIS_3 means divide by 512*1024 = 16s;
    * WDTIS_2: 4 mins 
    */
 #if USE_FAILSAFE_WATCHDOG
   
-  WDTCTL = WDTPW + WDTCNTCL + WDTSSEL__ACLK + WDTIS_3;
+  WDTCTL = WDTPW + WDTCNTCL + WDTSSEL__ACLK + Interval;
   SFRIE1 &= ~WDTIE;
   
 #else
   
-  WDTCTL = WDTPW + WDTCNTCL + WDTSSEL__ACLK + WDTIS_3 + WDTTMSEL;
+  WDTCTL = WDTPW + WDTCNTCL + WDTSSEL__ACLK + Interval + WDTTMSEL;
 
   /* enable watchdog timer interrupt */
   SFRIE1 |= WDTIE;
@@ -155,7 +82,10 @@ void WatchdogReset(void)
   ENABLE_LCD_LED();
   WATCHDOG_LED_DELAY();
 #endif
-  
+
+  niWdtNum ++;
+  niResetCode = RESET_WDT;
+
 #if USE_FAILSAFE_WATCHDOG
   while(1);
 #else
@@ -165,7 +95,6 @@ void WatchdogReset(void)
 }
 
 /******************************************************************************/
-
 /* the timer mode is used when the option USE_FAILSAFE_WATCHDOG == 0 
  * this is for debugging only
  */
@@ -189,13 +118,11 @@ void WatchdogTimerIsr(void)
   WATCHDOG_LED_DELAY();
 #endif
 
-  // BOR reset
-//  PMMCTL0 = PMMPW | PMMSWBOR;
+  niWdtNum ++;
+  niResetCode = RESET_WDT;
   /* write the inverse of the password and cause a PUC reset */
   WDTCTL = ~WDTPW; 
 }
-
-/******************************************************************************/
 
 /* the clearing of the flags cannot be done in the idle loop because
  * it may be interrupted
@@ -213,40 +140,64 @@ void TaskCheckIn(etTaskCheckInId TaskId)
     /* all tasks have checked in - so the flags can be cleared
      * and the watchdog can be kicked
      */
-    TaskCheckInFlags = 0;
     ResetWatchdog();
+    TaskCheckInFlags = 0;
   }
   
   portEXIT_CRITICAL();
 }
 
-/* PrintS( reset code and the interrupt type */
-static void PrintResetSource(unsigned int Source)
-{  
-  PrintF("ResetSource 0x%02X", Source);
+/* 8 us */
+void UpdateQueueInfo(void)
+{
+  niRadioReadyToSleep = ReadyToSleep();
+  niDisplayQueue = QueueHandles[DISPLAY_QINDEX]->uxMessagesWaiting;
+  niWrapperQueue = QueueHandles[WRAPPER_QINDEX]->uxMessagesWaiting;
+}
 
-#if 0
-  PrintS(" - ");
-  switch (Source)
+void vApplicationIdleHook(void)
+{
+  /* Put the processor to sleep if the serial port indicates it is OK and
+   * all of the queues are empty.
+   * This will stop the OS scheduler.
+   */ 
+
+  /* enter a critical section so that the flags can be checked */
+  __disable_interrupt();
+  __no_operation();
+
+#if LOGGING
+  /* the watchdog is set at 16 seconds.
+   * the battery interval rate is set a 10 seconds
+   * each task checks in at the battery interval rate
+   */
+  UpdateQueueInfo();
+#endif
+
+#if SUPPORT_LPM
+  if (niRadioReadyToSleep && niDisplayQueue == 0 && niWrapperQueue == 0)
   {
-  case 0x0000: PrintS("No interrupt pending"); break;
-  case 0x0002: PrintS("Brownout (BOR) (highest priority)"); break;
-  case 0x0004: PrintS("RST/NMI (BOR)"); break;
-  case 0x0006: PrintS("PMMSWBOR (BOR)"); break;
-  case 0x0008: PrintS("Wakeup from LPMx.5 (BOR)"); break;
-  case 0x000A: PrintS("Security violation (BOR)"); break;
-  case 0x000C: PrintS("SVSL (POR)"); break;
-  case 0x000E: PrintS("SVSH (POR)"); break;
-  case 0x0010: PrintS("SVML_OVP (POR)"); break;
-  case 0x0012: PrintS("SVMH_OVP (POR)"); break;
-  case 0x0014: PrintS("PMMSWPOR (POR)"); break;
-  case 0x0016: PrintS("WDT time out (PUC)"); break;
-  case 0x0018: PrintS("WDT password violation (PUC)"); break;
-  case 0x001A: PrintS("Flash password violation (PUC)"); break;
-  case 0x001C: PrintS("PLL unlock (PUC)"); break;
-  case 0x001E: PrintS("PERF peripheral/configuration area fetch (PUC)"); break;
-  case 0x0020: PrintS("PMM password violation (PUC)"); break;
-  default:     PrintS("Unknown"); break;
+    /* Call MSP430 Utility function to enable low power mode 3.     */
+    /* Put OS and Processor to sleep. Will need an interrupt        */
+    /* to wake us up from here.   */
+    if (LpmChecking) DISABLE_LCD_LED();
+    EnterLpm3();
+    if (LpmChecking) ENABLE_LCD_LED();
+
+//  __enable_interrupt();
+//  __no_operation();
+//  
+//    /* If we get here then interrupts are enabled */
+//    return;
   }
 #endif
+
+  /* we aren't going to sleep so enable interrupts */
+  __enable_interrupt();
+  __no_operation();
+}
+
+void CheckLpm(void)
+{
+  LpmChecking = !LpmChecking;
 }

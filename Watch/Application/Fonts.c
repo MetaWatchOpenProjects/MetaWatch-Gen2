@@ -26,9 +26,9 @@
 #include "DebugUart.h"
 
 #define ASCII_BEGIN    0x20
-#define ASCII_END      0x7D
+#define ASCII_END      0x80
 
-const unsigned char MetaWatch5table[][5] =
+unsigned char const MetaWatch5table[][5] =
 {
   /* character 0x20 (' '): (width = 2) */
   0x00, 0x00, 0x00, 0x00, 0x00,
@@ -43,10 +43,10 @@ const unsigned char MetaWatch5table[][5] =
   0x0A, 0x1F, 0x0A, 0x1F, 0x0A, 
   
   /* character 0x24 ('$'): (width=3) */
-  0x00, 0x00, 0x00, 0x00, 0x00, 
+  0xF0, 0x28, 0x70, 0xA0, 0x78,
   
-  /* character 0x25 ('%'): (width=3) */
-  0x00, 0x00, 0x00, 0x00, 0x00, 
+  /* character 0x25 ('%'): (width=5) */
+  0x11, 0x08, 0x04, 0x02, 0x11,
   
   /* character 0x26 ('&'): (width=5) */
   0x02, 0x05, 0x16, 0x09, 0x1E, 
@@ -126,8 +126,8 @@ const unsigned char MetaWatch5table[][5] =
   /* character 0x3F ('?'): (width=3) */
   0x03, 0x04, 0x02, 0x00, 0x02, 
   
-  /* character 0x40 ('@'): (width=3) */
-  0x00, 0x00, 0x00, 0x00, 0x00, 
+  /* character 0x40 ('@'): (width=4) */
+  0x06, 0x09, 0x0B, 0x01, 0x06,
   
   /* character 0x41 ('A'): (width=5) */
   0x04, 0x04, 0x0A, 0x0E, 0x11, 
@@ -304,32 +304,41 @@ const unsigned char MetaWatch5table[][5] =
   0x0F, 0x04, 0x02, 0x01, 0x0F, 
   
   /* character 0x7B ('{'): (width=3) */
-  0x00, 0x00, 0x00, 0x00, 0x00, 
+  0x06, 0x02, 0x03, 0x02, 0x06,
   
   /* character 0x7C ('|'): (width=1) */
   0x01, 0x01, 0x01, 0x01, 0x01, 
   
   /* character 0x7D ('}'): (width=3) */
-  0x00, 0x00, 0x00, 0x00, 0x00, 
+  0x03, 0x02, 0x06, 0x02, 0x03,
+
+  /* character 0x7E ('^'): (width=5) */
+  0x00, 0x08, 0x1C, 0x3E, 0x00,
+
+  /* character 0x7F ('v'): (width=5) */
+  0x00, 0x3E, 0x1C, 0x08, 0x00,
+
+  /* character 0x80 (square): (width=4) */
+  0x00, 0x0E, 0x0E, 0x0E, 0x00,
 };
 
-const unsigned char MetaWatch5width[] = 
+unsigned char const MetaWatch5width[] = 
 {
 /*		width    char    hexcode */
 /*		=====    ====    ======= */
-        3, /*  '  '    20      */
+        2, /*  ' '     20      */
   		  2, /*   !      21      */
   		  4, /*   "      22      */
   		  6, /*   #      23      */
   		  4, /*   $      24      */
-  		  4, /*   %      25      */
+  		  6, /*   %      25      */
   		  6, /*   &      26      */
   		  2, /*   '      27      */
   		  3, /*   (      28      */
   		  3, /*   )      29      */
   		  6, /*   *      2A      */
   		  6, /*   +      2B      */
-  		  2, /*   ,      2C      */
+  		  3, /*   ,      2C      */
   		  4, /*   -      2D      */
   		  2, /*   .      2E      */
   		  6, /*   /      2F      */
@@ -349,7 +358,7 @@ const unsigned char MetaWatch5width[] =
   		  5, /*   =      3D      */
   		  4, /*   >      3E      */
   		  4, /*   ?      3F      */
-  		  4, /*   @      40      */
+  		  5, /*   @      40      */
   		  6, /*   A      41      */
   		  5, /*   B      42      */
   		  5, /*   C      43      */
@@ -411,9 +420,12 @@ const unsigned char MetaWatch5width[] =
   		  4, /*   {      7B      */
   		  2, /*   |      7C      */
   		  4, /*   }      7D      */
+  		  6, /*   }      7E      */
+  		  6, /*   }      7F      */
+        5, /*   }      80      */
 };
 
-const unsigned char MetaWatch7table[][7] = 
+unsigned char const MetaWatch7table[][7] = 
 {
 
   /* character 0x20 (' '): (width = 2) */
@@ -437,8 +449,8 @@ const unsigned char MetaWatch7table[][7] =
   /* character 0x26 ('&'): (width=5) */
   0x02, 0x05, 0x05, 0x02, 0x15, 0x09, 0x16, 
   
-  /* character 0x27 ('''): (width=3) */
-  0x05, 0x05, 0x00, 0x00, 0x00, 0x00, 0x00, 
+  /* character 0x27 ('''): (width=1) */
+  0x01, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00,
   
   /* character 0x28 ('('): (width=3) */
   0x04, 0x02, 0x01, 0x01, 0x01, 0x02, 0x04, 
@@ -452,8 +464,8 @@ const unsigned char MetaWatch7table[][7] =
   /* character 0x2B ('+'): (width=5) */
   0x00, 0x04, 0x04, 0x1F, 0x04, 0x04, 0x00, 
   
-  /* character 0x2C (','): (width=1) */
-  0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x01, 
+  /* character 0x2C (','): (width=2) */
+  0x00, 0x00, 0x00, 0x00, 0x02, 0x02, 0x01,
   
   /* character 0x2D ('-'): (width=4) */
   0x00, 0x00, 0x00, 0x0F, 0x00, 0x00, 0x00, 
@@ -497,8 +509,8 @@ const unsigned char MetaWatch7table[][7] =
   /* character 0x3A (':'): (width=1) */
   0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 
   
-  /* character 0x3B (';'): (width=1) */
-  0x00, 0x00, 0x00, 0x01, 0x00, 0x01, 0x01, 
+  /* character 0x3B (';'): (width=2) */
+  0x00, 0x00, 0x02, 0x00, 0x02, 0x02, 0x01,
   
   /* character 0x3C ('<'): (width=3) */
   0x00, 0x04, 0x02, 0x01, 0x02, 0x04, 0x00, 
@@ -594,13 +606,13 @@ const unsigned char MetaWatch7table[][7] =
   0x1F, 0x10, 0x08, 0x04, 0x02, 0x01, 0x1F, 
   
   /* character 0x5B ('['): (width=3) */
-  0x07, 0x01, 0x01, 0x01, 0x01, 0x01, 0x07, 
+  0x06, 0x01, 0x01, 0x01, 0x01, 0x01, 0x06,
   
   /* character 0x5C ('\'): (width=4) */
   0x01, 0x01, 0x02, 0x06, 0x04, 0x08, 0x08, 
   
   /* character 0x5D (']'): (width=3) */
-  0x07, 0x04, 0x04, 0x04, 0x04, 0x04, 0x07, 
+  0x06, 0x02, 0x02, 0x02, 0x02, 0x02, 0x06,
   
   /* character 0x5E ('^'): (width=5) */
   0x04, 0x0A, 0x11, 0x00, 0x00, 0x00, 0x00, 
@@ -700,22 +712,22 @@ const unsigned char MetaWatch7table[][7] =
 
 };
 
-const unsigned char MetaWatch7width[] = {
+unsigned char const MetaWatch7width[] = {
 /*		width    char    hexcode */
 /*		=====    ====    ======= */
-        3, /*  '  '    20      */
+        2, /*  '  '    20      */
   		  2, /*   !      21      */
   		  4, /*   "      22      */
   		  8, /*   #      23      */
   		  6, /*   $      24      */
   		  8, /*   %      25      */
   		  6, /*   &      26      */
-  		  4, /*   '      27      */
+  		  2, /*   '      27      */
   		  4, /*   (      28      */
   		  4, /*   )      29      */
   		  8, /*   *      2A      */
   		  6, /*   +      2B      */
-  		  2, /*   ,      2C      */
+  		  3, /*   ,      2C      */
   		  5, /*   -      2D      */
   		  2, /*   .      2E      */
   		  5, /*   /      2F      */
@@ -730,7 +742,7 @@ const unsigned char MetaWatch7width[] = {
   		  5, /*   8      38      */
   		  5, /*   9      39      */
   		  2, /*   :      3A      */
-  		  2, /*   ;      3B      */
+  		  3, /*   ;      3B      */
   		  4, /*   <      3C      */
   		  5, /*   =      3D      */
   		  4, /*   >      3E      */
@@ -800,7 +812,7 @@ const unsigned char MetaWatch7width[] = {
 };
 
 
-const unsigned int MetaWatch16table[][16] = 
+unsigned int const MetaWatch16table[][16] = 
 {
   /* character 0x20 (' '): (width=4) */
   0x0000, 0x0000, 0x0000, 0x0000, 
@@ -882,8 +894,8 @@ const unsigned int MetaWatch16table[][16] =
   
   /* character 0x2D ('-'): (width=8) */
   0x0000, 0x0000, 0x0000, 0x0000, 
-  0x0000, 0x0000, 0x0000, 0x00FF, 
-  0x00FF, 0x0000, 0x0000, 0x0000, 
+  0x0000, 0x0000, 0x0000, 0x000F,
+  0x000F, 0x0000, 0x0000, 0x0000,
   0x0000, 0x0000, 0x0000, 0x0000, 
   
   /* character 0x2E ('.'): (width=2) */
@@ -1283,7 +1295,7 @@ const unsigned int MetaWatch16table[][16] =
   0x001E, 0x0000, 0x0000, 0x0000, 
   
   /* character 0x70 ('p'): (width=6) */
-  0x0000, 0x0000, 0x0000, 0x0000, 
+  0x0000, 0x0000, 0x0000, 0x0000,
   0x0000, 0x001F, 0x003F, 0x0033, 
   0x0033, 0x0033, 0x0033, 0x001F, 
   0x001F, 0x0003, 0x0003, 0x0003, 
@@ -1368,11 +1380,11 @@ const unsigned int MetaWatch16table[][16] =
 
 };
 
-const unsigned char MetaWatch16width[] = 
+unsigned char const MetaWatch16width[] = 
 {
 /*		width    char    hexcode */
 /*		=====    ====    ======= */
-        5, /*  '  '    20      */
+        3, /*  '  '    20      */
   		  3, /*   !      21      */
   		  6, /*   "      22      */
   		 13, /*   #      23      */
@@ -1385,7 +1397,7 @@ const unsigned char MetaWatch16width[] =
   		  9, /*   *      2A      */
   		  9, /*   +      2B      */
   		  3, /*   ,      2C      */
-  		  9, /*   -      2D      */
+  		  5, /*   -      2D      */
   		  3, /*   .      2E      */
   		  7, /*   /      2F      */
   		  8, /*   0      30      */
@@ -1469,7 +1481,7 @@ const unsigned char MetaWatch16width[] =
 };
 
 /******************************************************************************/
-const unsigned int TimeTable[][19] = 
+unsigned int const TimeTable[][19] = 
 {
   /* character 0x30 ('0'): (width=11, offset=0) */
   0x01FC, 0x03FE, 0x07FF, 0x07FF, 
@@ -1556,7 +1568,7 @@ const unsigned int TimeTable[][19] =
   0x0000, 0x0000, 0x0000, 
 };
 
-const unsigned char TimeWidth[] =
+unsigned char const TimeWidth[] =
 {
 /*		width    char    hexcode */
 /*		=====    ====    ======= */
@@ -1581,7 +1593,7 @@ const unsigned char TimeWidth[] =
   Data length: 3 bytes
   Data format: Big Endian, Row based, Row preferred, Unpacked
  *******************************************************************************************/
-const unsigned char TimeBlockTable[][3*20] =
+unsigned char const TimeBlockTable[][3*20] =
 {
   /* character 0x30 ('0'): (width=20, offset=80) */
   0xFF, 0xFF, 0x0F, 0xFF, 0xFF, 0x0F, 0xFF, 0xFF,
@@ -1704,7 +1716,7 @@ const unsigned char TimeBlockTable[][3*20] =
   0x00, 0x00, 0x00, 0x00
 };
 
-const unsigned char TimeBlockWidth[] =
+unsigned char const TimeBlockWidth[] =
 {
   /*		width    char    hexcode */
   /*		=====    ====    ======= */
@@ -1722,7 +1734,7 @@ const unsigned char TimeBlockWidth[] =
   21, /*          3B      */ // space
 };
 
-const unsigned char TimeGTable[][3*28] =
+unsigned char const TimeGTable[][3*28] =
 {
   /* character 0x30 ('0'): (width=18, offset=896) */
   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
@@ -1881,7 +1893,7 @@ const unsigned char TimeGTable[][3*28] =
   0x00, 0x00, 0x00, 0x00, 
 };
 
-const unsigned char TimeGWidth[] =
+unsigned char const TimeGWidth[] =
 {
 /*		width    char    hexcode */
 /*		=====    ====    ======= */
@@ -1907,7 +1919,7 @@ const unsigned char TimeGWidth[] =
   Data format: Big Endian, Row based, Row preferred, Unpacked
  *******************************************************************************************/
 
-const unsigned char TimeKTable[][3*56] =
+unsigned char const TimeKTable[][3*56] =
 {
   /* character 0x30 ('0'): (width=22, offset=0) */
   0x00, 0x7F, 0x00, 0x80, 0xFF, 0x00, 0xE0, 0xFF, 
@@ -2186,7 +2198,7 @@ const unsigned char TimeKTable[][3*56] =
 	0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
 };
 
-const unsigned char TimeKWidth[] =
+unsigned char const TimeKWidth[] =
 {
   /*		width    char    hexcode */
   /*		=====    ====    ======= */
@@ -2213,7 +2225,7 @@ static tFont const Font[] =
   {19, 1, 12, 2, FONT_TYPE_TIME, TimeWidth},
   {20, 1, 21, 3, FONT_TYPE_TIME, TimeBlockWidth},
   {28, 1, 19, 3, FONT_TYPE_TIME, TimeGWidth},
-  {56, 1, 22, 3, FONT_TYPE_TIME, TimeKWidth}
+  {56, 1, 22, 3, FONT_TYPE_TIME, TimeKWidth},
 };
 #define FONT_NUM          (sizeof(Font) / sizeof(tFont))
 

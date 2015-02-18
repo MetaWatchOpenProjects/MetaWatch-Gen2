@@ -42,6 +42,12 @@
 #define BTN_EVT_RELS          (1)
 #define BTN_EVT_HOLD          (2)
 
+#define MSG_OPT_VOL_UP        1
+#define MSG_OPT_VOL_DOWN      2
+#define MSG_OPT_VOL_MUTE      4
+#define MSG_OPT_NEXT_TRACK    3
+#define MSG_OPT_PLAY_PAUSE    5
+
 /*! Structure to hold the configuration of a button
  *
  * \param MaskTable holds the absolute mask and button press mask 

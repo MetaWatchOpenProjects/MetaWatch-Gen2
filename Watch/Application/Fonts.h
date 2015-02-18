@@ -26,7 +26,11 @@
 #ifndef FONTS_H
 #define FONTS_H
 
-#define FONT_TYPE_TIME  (1)
+#define FONT_TYPE_TIME  1
+
+#define CHAR_UP       0x7E
+#define CHAR_DOWN     0x7F
+#define CHAR_SQUARE   0x80
 
 /*! There are three fonts defined for the MetaWatch LCD
  * they are 5, 7 and 16 pixels tall with variable width

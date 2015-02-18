@@ -21,6 +21,7 @@
 #include "DebugUart.h"
 #include "MuxMode.h"
 #include "hal_board_type.h"
+#include "Log.h"
 
 #if __IAR_SYSTEMS_ICC__
 __no_init __root unsigned char niMuxMode @ MUX_MODE_ADDR;
@@ -28,14 +29,13 @@ __no_init __root unsigned char niMuxMode @ MUX_MODE_ADDR;
 extern unsigned char niMuxMode;
 #endif
 
-extern unsigned int niReset;
-
 /* Assume clip is on */
 unsigned char GetMuxMode(void)
 {
   return niMuxMode;
 }
 
+// from service menu
 void SetMuxMode(unsigned char MuxMode)
 {
   niMuxMode = MuxMode;
@@ -52,22 +52,21 @@ void SetMuxMode(unsigned char MuxMode)
  */
 void ChangeMuxMode(unsigned char Clip)
 {
-#if DIGITAL
   static unsigned char LastMode = MUX_MODE_OFF;
-  unsigned char MuxMode;
-  
-  if (niReset == MASTER_RESET_CODE) niMuxMode = MUX_MODE_DEFAULT_5V;
-  MuxMode = (Clip == CLIP_ON) ? niMuxMode : MUX_MODE_GND;
-  if (MuxMode == LastMode) return;
 
-#ifndef HW_DEVBOARD_V2
+//  if (niResetType != NORMAL_RESET) niMuxMode = MUX_MODE_SERIAL;
+
+  niMuxMode = Clip ? MUX_MODE_SERIAL : MUX_MODE_GND;
+  if (niMuxMode == LastMode) return;
+
   /* setup default state for mux */
   ENABLE_MUX_OUTPUT_CONTROL();
 
-  switch (MuxMode)
+  switch (niMuxMode)
   {
   case MUX_MODE_SERIAL: // with bootloader for flashing
     MUX_OUTPUT_SELECTS_SERIAL();
+    EnableDebugUart(Clip);
     break;
   
   case MUX_MODE_SPY_BI_WIRE: // TI jtag in-circuit debugging
@@ -76,16 +75,11 @@ void ChangeMuxMode(unsigned char Clip)
     
   case MUX_MODE_GND: // normal mode
     /* this mode prevents shorting of the case back pins due to sweat,
-     * screwdrivers, etc
-     */
+     * screwdrivers, etc */
   default:
     MUX_OUTPUT_SELECTS_GND();
-    niMuxMode = MUX_MODE_DEFAULT_5V;
-    MuxMode = MUX_MODE_GND;
     break;
   }
-#endif
-  
-  LastMode = MuxMode;
-#endif
+
+  LastMode = niMuxMode;
 }

@@ -97,15 +97,12 @@ void InitRealTimeClock(void);
  *
  * \param pRtcData
  */
-void SetRtc(Rtc_t *pRtcData);
-
+unsigned char SetRtc(Rtc_t *pRtcData);
 void BackupRtc(void);
-
 void IncRtc(unsigned char Index);
 
 unsigned char ToBCD(unsigned char Dec);
 unsigned char ToBin(unsigned char Bcd);
-
 unsigned char To12H(unsigned char H24);
 
 // The exact value is 31.25 mS

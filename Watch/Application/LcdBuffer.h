@@ -31,10 +31,11 @@
 #ifndef LCD_BUFFER_H
 #define LCD_BUFFER_H
 
-#define LCD_ROW_NUM  (96)
-#define LCD_COL_NUM  (96)
+#define STARTING_ROW                  0
+#define LCD_ROW_NUM                   96
+#define LCD_COL_NUM                   96
 
-#define WATCH_DRAW_SCREEN_ROW_NUM     (30)
+#define WATCH_DRAW_SCREEN_ROW_NUM     30
 
 //Set Default Positions
 #define DO_NOT_DISPLAY_ROW 0
@@ -96,53 +97,42 @@
 #define DEFAULT_DATE_SEPARATOR_FONT MetaWatch7
 
 /*! Languages */ 
-#define LANG_EN (0)
-#define LANG_FI (1)
-#define LANG_DE (2)
+#define LANG_EN           0
+#define LANG_FI           1
+#define LANG_DE           2
 
 extern const char DaysOfTheWeek[][7][4];
 extern const char MonthsOfYear[][13][7];
 
-typedef struct
-{
-  unsigned char Col;
-  unsigned char ColMask;
-  unsigned char Row;
-  etFontType Font;
-  char *pText;
-  unsigned char Length;
-} DrawLcd_t;
-
-#define DRAW_OPT_BITWISE_OR           (0)
-#define DRAW_OPT_BITWISE_NOT          (1)
-#define DRAW_OPT_BITWISE_SET          (2)
-#define DRAW_OPT_BITWISE_DST_NOT      (3)
-#define DRAW_OPT_BITWISE_MASK         (0x03)
-
-#define DRAW_OPT_EQU_WIDTH            (0x04)
-
 #define LCD_BLACK                     (0xFF)
 #define LCD_WHITE                     (0x00)
 
+#define NOTIF_PAGE_NO_START_ROW       75
+#define NOTIF_PAGE_NO_END_ROW         83
+
 //void GetHour(char *Hour);
 void BitOp(unsigned char *pByte, unsigned char Bit, unsigned int Set, unsigned char Op);
-void DrawTextToLcd(DrawLcd_t *pData);
+void DrawTextToLcd(Draw_t *Info, char const *pText);
+void DrawBitmapToLcd(Draw_t *Info, unsigned char WidthInBytes, unsigned char const *pData);
+void FillLcdBuffer(unsigned char StartRow, unsigned char RowNum, unsigned char Value);
+void WriteBufferToLcd(unsigned char StartRow, unsigned char RowNum);
 
 void DrawSplashScreen(void);
 void DrawDateTime(void);
 void DrawConnectionScreen(void);
-void DrawMenu(eIdleModePage Page);
+void DrawMenu(unsigned char Page);
 void DrawWatchStatusScreen(unsigned char Full);
 void DrawBootloaderScreen(void);
 //void DrawCallScreen(char *pCallerId, char *pCallerName);
 void CopyRowsIntoMyBuffer(unsigned char const *pImage, unsigned char StartRow, unsigned char RowNum);
-void SendMyBufferToLcd(unsigned char StartRow, unsigned char RowNum);
-void FillMyBuffer(unsigned char StartRow, unsigned char RowNum, unsigned char Value);
+void WriteBufferToLcd(unsigned char StartRow, unsigned char RowNum);
 void HandleFieldTestMode(unsigned char const Option);
 void DrawStatusBarToLcd(void);
+void DrawNotifPageNo(unsigned char PageNo);
 
 unsigned char const *GetIcon(unsigned char Id);
-void *GetDrawBuffer(void);
+
+void *GetLcdBuffer(void);
 
 #if __IAR_SYSTEMS_ICC__
 void CopyRowsIntoMyBuffer_20(unsigned char const __data20 *pImage, unsigned char StartRow, unsigned char RowNum);

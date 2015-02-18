@@ -17,25 +17,8 @@
 #ifndef IDLE_TASK_H
 #define IDLE_TASK_H
 
-/*! Parameters that are used to determine if micro can go into LPM3 */
-typedef struct
-{
-  unsigned char RadioReadyToSleep;
-  unsigned int DisplayMessagesWaiting;
-  unsigned int WrapperMessagesWaiting;
-  
-} tWatchdogInfo;
-
-/*! This function prints about the cause of a watchdog reset
- * It also saves the values to non-volatile memory for the last occurence
- * of a watchdog reset.
- *
- * \param ResetSource ( SYSRSTIV )
- */
-void ShowWatchdogInfo(void);
-
-/*! This function keeps track of the number of messages in each queue. */
-void UpdateWatchdogInfo(void);
+#define WDT_SHORT       (WDTIS_3) // 16s
+#define WDT_LONG        (WDTIS_2) // 4x60 = 240s
 
 /*! kick the watchdog timer */
 void ResetWatchdog(void);
@@ -43,7 +26,9 @@ void ResetWatchdog(void);
 /*! cause a reset to occur because of the watchdog expiring */
 void WatchdogReset(void);
 
-/******************************************************************************/
+void SetWatchdogInterval(unsigned char Intvl);
+
+void UpdateQueueInfo(void);
 
 typedef enum
 {
@@ -56,6 +41,7 @@ typedef enum
 #define ALL_TASKS_HAVE_CHECKED_IN ( 0x03 )
 
 void TaskCheckIn(etTaskCheckInId TaskId);
+void CheckLpm(void);
 
 #if CHECK_CSTACK
 

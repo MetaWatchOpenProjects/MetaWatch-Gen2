@@ -17,62 +17,49 @@
 
 #include "msp430.h"
 #include "hal_boot.h"
+#include "Log.h"
 #include "hal_rtc.h"
+#include "DebugUart.h"
+
+#define BUILD_SIZE            3
+
+/* Things shared between bootloader and main application */
+/* This address is in an unused location reserved for the alternate interrupt
+ * table */
+#define SIGNATURE_ADDR        (0x5B80)
 
 #if __IAR_SYSTEMS_ICC__
-__no_init __root unsigned long long Signature @SIGNATURE_ADDR;
+__no_init __root unsigned char niResetType @ RESET_TYPE_ADDR;
+__no_init __root unsigned char niResetCode @ RESET_CODE_ADDR;
+__no_init __root unsigned char niResetValue @ RESET_VALUE_ADDR;
+__no_init __root char niBuild[BUILD_SIZE] @ BUILD_NUMBER_ADDR;
+__no_init __root unsigned long long niSignature @ SIGNATURE_ADDR;
 #else
-extern unsigned long long Signature;
+extern unsigned char niResetType;
+extern unsigned char niResetCode;
+extern unsigned char niResetValue;
+extern char niBuild[BUILD_SIZE];
+extern unsigned long long niSignature;
 #endif
 
 void SetBootloaderSignature(void)
 {
-  Signature = BOOTLOADER_SIGNATURE;
+  niSignature = BOOTLOADER_SIGNATURE;
 }
 
 void ClearBootloaderSignature(void)
 {
-  Signature = 0;
+  niSignature = 0;
 }
 
 unsigned long long GetBootloaderSignature(void)
 {
-  return Signature;
+  return niSignature;
 }
 
-/******************************************************************************/
+extern char const BUILD[];
 
-#if __IAR_SYSTEMS_ICC__
-__no_init __root unsigned int ResetSource @RESET_REASON_ADDR;
-#else
-extern unsigned int ResetSource;
-#endif
-
-void SaveResetSource(void)
-{
-  /* save and then clear reason for reset */
-  ResetSource = SYSRSTIV;
-  SYSRSTIV = 0;
-}
-
-unsigned int GetResetSource(void)
-{
-  return ResetSource;
-}
-
-/******************************************************************************/
-#define BUILD_SIZE    (3)
-extern const char BUILD[];
-
-#if __IAR_SYSTEMS_ICC__
-__no_init __root unsigned int niReset @ RESET_TYPE_ADDR;
-__no_init __root char niBuild[BUILD_SIZE + 1] @ BUILD_NUMBER_ADDR;
-#else
-extern unsigned int niReset;
-extern char niBuild[BUILD_SIZE + 1];
-#endif
-
-void CheckResetCode(void)
+void CheckResetType(void)
 {
   unsigned char i = 0;
   
@@ -81,23 +68,19 @@ void CheckResetCode(void)
   if (i < BUILD_SIZE)
   { // it's a flash reset
     for (i = 0; i < BUILD_SIZE; ++i) niBuild[i] = BUILD[i];
-    niBuild[i] = '\0';
-    niReset = MASTER_RESET_CODE; //FLASH_RESET_CODE;
+    niResetType = MASTER_RESET; //FLASH_RESET;
   }
 }
 
-void SetMasterReset(void)
+void SoftwareReset(unsigned char Code, unsigned char Value)
 {
-  niReset = MASTER_RESET_CODE;
-}
+  niResetCode = Code;
+  niResetValue = Value;
+  if (Code == RESET_BUTTON_PRESS || Code == RESET_BOOTLOADER) niResetType = Value;
 
-void ClearResetCode(void)
-{
-  niReset = NORMAL_RESET_CODE;
-}
+  PrintF("Reset Code:%u Type:%02X Val:%u", niResetCode, niResetType, niResetValue);
 
-void SoftwareReset(void)
-{
   BackupRtc();
+//  WDTCTL = ~WDTPW;
   PMMCTL0 = PMMPW | PMMSWBOR;
 }

@@ -24,12 +24,6 @@
 #ifndef HAL_BATTERY_H
 #define HAL_BATTERY_H
 
-#define CLIP_OFF        0
-#define CLIP_ON         1
-#define CLIP_INIT       0xFF
-
-void InitBattery(void);
-
 /*! Query whether or not the battery is charging */
 unsigned char Charging(void);
 

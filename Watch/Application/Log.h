@@ -1,5 +1,5 @@
 //==============================================================================
-//  Copyright 2011 Meta Watch Ltd. - http://www.MetaWatch.org/
+//  Copyright 2013 Meta Watch Ltd. - http://www.MetaWatch.org/
 // 
 //  Licensed under the Meta Watch License, Version 1.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -14,21 +14,19 @@
 //  limitations under the License.
 //==============================================================================
 
-/******************************************************************************/
-/*! \file MessageQueues.h
- * 
- * This file contains the handles for all of the message queues.  
- * 
- * When a message is passed to the RouteMsg function it determines which queue 
- * to place a message based on the Type.
- */
-/******************************************************************************/
+#ifndef LOG_H
+#define LOG_H
 
-#ifndef MESSAGE_QUEUES_H
-#define MESSAGE_QUEUES_H
+/*! This function prints about the cause of a watchdog reset
+ * It also saves the values to non-volatile memory for the last occurence
+ * of a watchdog reset. */
+void SaveStateInfo(void);
+void ShowStateInfo(void);
 
+void UpdateLog(unsigned char MsgType, unsigned char MsgOpt);
+void InitStateLog(void);
+void SaveStateLog(void);
+void SendStateLog(void);
+void ShowStateLog(void);
 
-#endif /* MESSAGE_QUEUES_H */
-
- 
-
+#endif /* LOG_H */

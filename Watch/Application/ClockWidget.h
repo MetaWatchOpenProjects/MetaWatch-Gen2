@@ -18,9 +18,7 @@
 #define CLOCK_WIDGET_H
   
 void DrawClockWidget(unsigned char Id);
-void DrawBitmapToIdle(Draw_t *Info, unsigned char WidthInBytes, unsigned char const *pBitmap);
-void DrawTemplateToIdle(Draw_t *Info);
-void DrawBlockToIdle(Draw_t *Info);
+
 void DrawHanziClock(Draw_t *Info);
 
 #endif // CLOCK_WIDGET_H

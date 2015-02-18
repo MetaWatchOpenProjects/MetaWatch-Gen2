@@ -17,13 +17,10 @@
 #ifndef MUX_MODE_H
 #define MUX_MODE_H
 
-#define MUX_MODE_SERIAL      ( 1 )
-#define MUX_MODE_GND         ( 0 ) 
-#define MUX_MODE_SPY_BI_WIRE ( 2 )
-#define MUX_MODE_OFF         ( 3 )
-
-#define MUX_MODE_DEFAULT_5V     ( MUX_MODE_SERIAL )
-#define MUX_MODE_DEFAULT_NORMAL ( MUX_MODE_GND )
+#define MUX_MODE_GND            0
+#define MUX_MODE_SERIAL         1
+#define MUX_MODE_SPY_BI_WIRE    2
+#define MUX_MODE_OFF            3
 
 /*! return the mode the mux control should be in
  * (output of micro can be overriden by pressing A (top right) during power-up

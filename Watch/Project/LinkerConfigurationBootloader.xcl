@@ -116,9 +116,9 @@
 // Bootloader forward declarations
 //
 
-//-D_RAM_BEG=1C00 Save 16 bytes for values shared between bootloader and app
-// 1C10-1C3F: save extra 48 bytes for persistent usage
--D_RAM_BEG=1C40
+//-D_RAM_BEG=1C00 Save 2 bytes for values shared between bootloader and app
+// 1C02-1C7F: save extra 126 bytes for app's persistent usage
+-D_RAM_BEG=1C80
 -D_RAM_END=5B7F
 -D_INTVEC_SIZE=0x80
 -D_INTRAM_BEG=(_RAM_END+1)
@@ -282,4 +282,5 @@
 // STEP 2
 // If you set a breakpoint in main and it isn't reached then you probably 
 // forgot step 2. Or you are stuck in bootloader mode.
+-HFFFF
 -J2,crc16,,,,2=APPL_SEG_BEG-0xF1FF,0xFA00-0xFDFF,0x10000-0x41592

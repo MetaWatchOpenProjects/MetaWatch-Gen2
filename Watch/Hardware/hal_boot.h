@@ -17,66 +17,74 @@
 #ifndef HAL_BOOT_H
 #define HAL_BOOT_H
 
-/******************************************************************************/
-
-/* Things shared between bootloader and main application */
-
-/* This address is in an unused location reserved for the alternate interrupt
- * table
- */
-#define SIGNATURE_ADDR ( 0x5B80 )
-
-/* this (1C00 - 1C3F, 64 bytes) is reserved in the linker file */
-#define RESET_REASON_ADDR     (0x1C00)
-#define WATCHDOG_INFO_ADDR    (0x1C02) // 6
-#define WATCHDOG_COUNTER_ADDR (0x1C08)
-#define MUX_MODE_ADDR         (0x1C0A)
-#define RESET_TYPE_ADDR       (0x1C0C)
-#define BUILD_NUMBER_ADDR     (0x1C0E) // 4
-#define BLE_DISCONN_ADDR      (0x1C12)
-#define AUTH_INFO_ADDR        (0x1C14) // 23
-#define PROPERTY_ADDR         (0x1C2C)
-
-#define RTC_YEAR_ADDR         (0x1C2E)
-#define RTC_MON_ADDR          (0x1C30)
-#define RTC_DAY_ADDR          (0x1C31)
-#define RTC_DOW_ADDR          (0x1C32)
-#define RTC_HOUR_ADDR         (0x1C33)
-#define RTC_MIN_ADDR          (0x1C34)
-#define RTC_SEC_ADDR          (0x1C35)
-//#define RTC_LANG_ADDR         (0x1C36)
-
-#define CDT_DAY_ADDR          (0x1C36)
-#define CDT_MIN_ADDR          (0x1C38)
-
-#define GATT_HANDLE_ADDR      (0x1C3A)
-#define ANCS_HANDLE_ADDR      (0x1C3A) // 3
-#define MWM_HANDLE_ADDR       (0x1C3F)
-#define SERVICE_CHANGED_ADDR  (0x1C13)
-
-/******************************************************************************/
-
 /* software reset (done using PMMSWBOR) */
-#define VALID_RESET_TYPE_FOR_BOOTLOADER_ENTRY ( 0x0006 )
+#define VALID_RESET_TYPE_FOR_BOOTLOADER_ENTRY (0x0006)
    
-/******************************************************************************/
-     
 /* "MetaBoot" backwards */
-#define BOOTLOADER_SIGNATURE      (0x746F6F426174654D)
-#define MASTER_RESET_CODE         (0xDEAF)
-#define FLASH_RESET_CODE          (0xABCD)
-#define NORMAL_RESET_CODE         (0x0000)
+#define BOOTLOADER_SIGNATURE (0x746F6F426174654D)
+#define MASTER_RESET         (0xAA)
+#define NORMAL_RESET         (0x55)
+
+#define RESET_UNKNOWN         0
+#define RESET_STACK_OVFL      1
+#define RESET_TASK_FAIL       2
+#define RESET_WRAPPER_INIT    3
+#define RESET_BUTTON_PRESS    4
+#define RESET_BOOTLOADER      5
+#define RESET_SHIPMODE        6
+#define RESET_INVALID_HCILL   7
+#define RESET_UART_ERROR      8
+#define RESET_TERM_MODE       9
+#define RESET_HCI_HW          10
+#define RESET_MEM_ALLOC       11
+#define RESET_MEM_FREE        12
+#define RESET_WDT             13
+
+/******************************************************************************/
+#define RESET_TYPE_ADDR       (0x1C02)
+#define RESET_CODE_ADDR       (0x1C03)
+#define RESET_VALUE_ADDR      (0x1C04)
+#define RADIO_SLEEP_ADDR      (0x1C05)
+#define DISPLAY_QUEUE_ADDR    (0x1C06)
+#define WRAPPER_QUEUE_ADDR    (0x1C07)
+#define WDT_NUM_ADDR          (0x1C08)
+#define MUX_MODE_ADDR         (0x1C09)
+#define PROPERTY_ADDR         (0x1C0A)
+#define BT_STATE_ADDR         (0x1C0B)
+#define CONN_TYPE_ADDR        (0x1C0C)
+#define DSCONN_TYPE_ADDR      (0x1C0D)
+#define BATTERY_ADDR          (0x1C0E)
+#define SERVICE_CHANGED_ADDR  (0x1C0F)
+#define GATT_HANDLE_ADDR      (0x1C10)
+#define ANCS_HANDLE_ADDR      (0x1C10)
+#define MWM_HANDLE_ADDR       (0x1C11)
+#define BUILD_NUMBER_ADDR     (0x1C12) // 3
+
+#define RTC_MIN_ADDR          (0x1C15)
+#define RTC_HOUR_ADDR         (0x1C16)
+#define RTC_DAY_ADDR          (0x1C17)
+#define RTC_MON_ADDR          (0x1C18)
+#define RTC_DOW_ADDR          (0x1C19)
+#define RTC_YEAR_ADDR         (0x1C1A) //2
+
+#define REMOTE_DEVICE_ADDR    (0x1C1C)
+#define LINK_KEY_ADDR         (0x1C22)
+
+#define LOG_BUFFER_ADDR       (0x1C34)
+#define RESET_LOG_ADDR        (0x1C36)  // 18x4=72 -> 1C7C
+
+#if WWZ
+#define CDT_DAY_ADDR          (0x1C7C)
+#define CDT_MIN_ADDR          (0x1C7E)
+#endif
+
+extern unsigned char niResetType;
 
 void SetBootloaderSignature(void);
 void ClearBootloaderSignature(void);
 unsigned long long GetBootloaderSignature(void);
 
-void SaveResetSource(void);
-unsigned int GetResetSource(void);
-
-void CheckResetCode(void);
-void SetMasterReset(void);
-void ClearResetCode(void);
-void SoftwareReset(void);
+void CheckResetType(void);
+void SoftwareReset(unsigned char Code, unsigned char Value);
 
 #endif /* HAL_BOOT */

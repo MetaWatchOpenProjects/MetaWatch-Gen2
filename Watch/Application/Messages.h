@@ -14,12 +14,6 @@
 //  limitations under the License.
 //==============================================================================
 
-/******************************************************************************/
-/*! \file Messages.h
- *
- */
-/******************************************************************************/
-
 #ifndef MESSAGES_H
 #define MESSAGES_H
 
@@ -63,46 +57,7 @@ typedef struct
   unsigned char *pBuffer;
 } tMessage;
 
-/*! Host Message Packet Format
- *
- * \note This message format is also used internally but not all fields are used.
- *
- * \param startByte is always 0x01
- * \param Length is total number of bytes including start and crc
- * \param Type is the message type
- * \param Options is a byte to hold message options
- * \param pPayload is an array of bytes
- * \param crcLsb
- * \param crcMsb
- *
- * \note
- * The CRC is CCITT 16 intialized with 0xFFFF and bit reversed generation
- * not pretty, but it's what the MSP430 hardware does. A test vector is:
- *
- * CRC({0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39}) = 0x89F6
- *
- * SPP can deliver a partial packet if the link times out so bytes are needed to
- * re-assemble/frame a message.
- *
- * The Get Device Type message is 0x01, 0x06, 0x01, 0x00, 0x0B, 0xD9.
- *
- * \note Deprecated - This format is not used internally BUT IS STILL THE
- * FORMAT FOR MESSAGES SENT TO THE HOST
- */
-#if 0
-typedef struct
-{
-  unsigned char startByte;
-  unsigned char Length;
-  unsigned char Type;
-  unsigned char Options;
-  unsigned char pPayload[MSG_MAX_PAYLOAD_LENGTH];
-  unsigned char crcLsb;
-  unsigned char crcMsb;
-
-} tHostMsg;
-
-#endif
+#define MESSAGE_SIZE      (sizeof(tMessage))
 
 /*! Message type enumeration
  *
@@ -110,8 +65,6 @@ typedef struct
  */
 typedef enum
 {
-  InvalidMsg = 0x00,
-
   DevTypeMsg = 0x01,
   DevTypeRespMsg = 0x02,
   VerInfoMsg = 0x03,
@@ -141,14 +94,14 @@ typedef enum
   OledCrownMenuButtonMsg = 0x17,
 
   /* Music Play State */
-  MusicControlMsg = 0x18,
+  MusicStateMsg = 0x18,
 
   /* draw text/bitmap */
   DrawMsg = 0x19,
 
   SetCliCfgMsg = 0x1a,
   HidMsg = 0x1b,
-  SetLocalNameMsg = 0x1c,
+  MusicIconMsg = 0x1c,
   
   /*
    * Status and control
@@ -160,9 +113,9 @@ typedef enum
   TermModeMsg = 0x21,
   FieldTestMsg = 0x22,
   
-  /* config and (dis)enable vibrate */
   VibrateMsg = 0x23,
   ButtonStateMsg = 0x24,
+  StopTimerMsg = 0x25,
 
   /* Sets the RTC */
   SetRtcMsg = 0x26,
@@ -199,7 +152,7 @@ typedef enum
   WriteToTemplateMsg = 0x4c,
   SetClockWidgetSettingsMsg = 0x4d,
   DrawClockWidgetMsg = 0x4e,
-
+  LogMsg = 0x4f,
   SetExtWidgetMsg = 0x50,
   UpdateClockMsg = 0x51,
   MonitorBatteryMsg = 0x52,
@@ -258,7 +211,7 @@ typedef enum
   IntervalTimeoutMsg = 0xbc,
 
   SppAckMsg = 0xcc,
-  CountDownMsg = 0xcd,
+  CountdownMsg = 0xcd,
   SetCountdownDoneMsg = 0xce,
   
   QueryMemoryMsg = 0xd0,
@@ -272,7 +225,8 @@ typedef enum
   
   EnableAdvMsg = 0xf1,
   SetAdvDataMsg = 0xf2,
-  SetScanRespMsg = 0xf3
+  SetScanRespMsg = 0xf3,
+  ScanMsg = 0xf4
 } eMessageType;
 
 #define MAXIMUM_MESSAGE_TYPES      (256)
@@ -362,16 +316,14 @@ typedef enum
 #define MSG_OPT_INIT_BONDING        (1)
 
 /* options for music control */
-#define MSG_OPT_MUSIC_DEFAULT         0x10
-#define MSG_OPT_MUSIC_PREVIOUS        0x11
-#define MSG_OPT_MUSIC_PLAY            0x12
-#define MSG_OPT_MUSIC_NEXT            0x13
-#define MSG_OPT_MUSIC_VOL_UP          0x14
-#define MSG_OPT_MUSIC_VOL_DOWN        0x15
-#define MSG_OPT_MUSIC_VOL_MUTE        0x16
+#define MSG_OPT_MUSIC_CHANGE_END      0x00
+#define MSG_OPT_MUSIC_VOL_UP          0x01
+#define MSG_OPT_MUSIC_VOL_DOWN        0x02
+#define MSG_OPT_MUSIC_PLAY            0x04
+#define MSG_OPT_MUSIC_NEXT            0x08
 
-#define MSG_OPT_MUSIC_STATE_PAUSE     0
-#define MSG_OPT_MUSIC_STATE_PLAY      1
+/* options for SPP */
+#define MSG_OPT_DISCONN             1
 
 /* options for Field testing */
 #define FIELD_TEST_ENTER            0
@@ -676,7 +628,6 @@ typedef struct
 #define MODIFY_TIME_INCREMENT_MINUTE ( 0x01 )
 #define MODIFY_TIME_INCREMENT_DOW    ( 0x02 )
 
-
 #define MENU_MODE_OPTION_PAGE1               ( 0x01 )
 #define MENU_MODE_OPTION_PAGE2               ( 0x02 )
 #define MENU_MODE_OPTION_PAGE3               ( 0x03 )
@@ -706,9 +657,6 @@ typedef struct
 #define PAIRING_CONTROL_OPTION_TOGGLE_SSP      ( 0x03 )
 #define PAIRING_CONTROL_OPTION_SAVE_SPP        ( 0x04 )
 
-#define NORMAL_SOFTWARE_RESET_OPTION ( 0x00 )
-#define MASTER_RESET_OPTION          ( 0x01 )
-
 #define TOGGLE_SECONDS_OPTIONS_UPDATE_IDLE      ( 0x01 )
 #define TOGGLE_SECONDS_OPTIONS_DONT_UPDATE_IDLE ( 0x02 )
 
@@ -720,13 +668,11 @@ typedef struct
 
 /******************************************************************************/
 
-
 #define SCROLL_OPTION_LAST_PACKET ( BIT0 )
 #define SCROLL_OPTION_START       ( BIT1 )
 
 #define SCROLL_OPTION_LAST_PACKET_MASK ( BIT0 )
 #define SCROLL_OPTION_START_MASK       ( BIT1 )
-
 
 /******************************************************************************/
 
@@ -745,7 +691,6 @@ typedef union
 } tWordByteUnion;
 
 /******************************************************************************/
-
 
 #define OLED_CROWN_MENU_MODE_OPTION_ENTER               ( 0 )
 #define OLED_CROWN_MENU_MODE_OPTION_NEXT_MENU           ( 1 )
@@ -794,6 +739,31 @@ typedef struct
 #define MSG_OPT_SHOW_SECOND       ( 2 )
 #define MSG_OPT_NORMAL_DISPLAY    ( 3 )
 #define MSG_OPT_INVERT_DISPLAY    ( 4 )
+
+
 /******************************************************************************/
+#define DISPLAY_QINDEX          0
+#define WRAPPER_QINDEX          1
+#define FREE_QINDEX             2
+
+#define DISPLAY_QUEUE_LENGTH   128 //16
+#define WRAPPER_QUEUE_LENGTH   32 //20, 16
+
+unsigned char *CreateMessage(tMessage *pMsg);
+void FreeMessageBuffer(unsigned char *pBuffer);
+
+void SendMessage(unsigned char Type, unsigned char Options);
+
+/*! Send a message to a queue from an ISR. This requires 1/2 the time of
+ * RouteMsgFromIsr. */
+void SendMessageIsr(unsigned char Type, unsigned char Options);
+
+/*! Route a message to the appropriate task (queue). This operation is a copy.
+ * \param pMsg A pointer to a message buffer
+ */
+void RouteMsg(tMessage *pMsg);
+
+/*! Print the message type */
+void ShowMessageInfo(tMessage *pMsg);
 
 #endif  /* MESSAGES_H */

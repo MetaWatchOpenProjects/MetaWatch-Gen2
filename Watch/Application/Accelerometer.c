@@ -23,7 +23,6 @@
 #include <string.h>
 #include "FreeRTOS.h"
 #include "task.h"
-#include "queue.h"
 #include "semphr.h"
 #include "portmacro.h"
 
@@ -32,7 +31,7 @@
 #include "Messages.h"
 #include "hal_rtc.h"
 
-#include "MessageQueues.h"     
+     
 #include "DebugUart.h"
 #include "Accelerometer.h"
 #include "Wrapper.h"
@@ -122,12 +121,11 @@ static void InitAccelerometer(void)
  */
 static void AccelerometerSendDataHandler(void)
 {
-  tMessage Msg;
+  tMessage Msg = {3, AccelIndMsg, MSG_OPT_NONE, NULL};
 
-  SetupMessageWithBuffer(&Msg, AccelIndMsg, MSG_OPT_NONE);
-  if (Msg.pBuffer != NULL)
+  if (CreateMessage(&Msg))
   {
-    if (Control & DRDYE_DATA_AVAILABLE || Control & WUF_ENABLE)
+    if (Control & DRDYE_DATA_AVAILABLE || (Control & WUF_ENABLE))
     {
       AccelerometerRead(Control & DRDYE_DATA_AVAILABLE ? KIONIX_XOUT_L : KIONIX_XOUT_HPF_L,
         Data, XYZ_DATA_LENGTH);
@@ -135,19 +133,16 @@ static void AccelerometerSendDataHandler(void)
       Msg.pBuffer[0] = Data[1];
       Msg.pBuffer[1] = Data[3];
       Msg.pBuffer[2] = Data[5];
-      Msg.Length = 3;
       RouteMsg(&Msg);
 
-      PrintH(Msg.pBuffer[0]); PrintC(SPACE);
-      PrintH(Msg.pBuffer[1]); PrintC(SPACE);
-      PrintH(Msg.pBuffer[2]); PrintR();
+//      PrintQ(Msg.pBuffer, 3);
     }
     else if (Control & TILT_ENABLE_TPE)
     {
       AccelerometerRead(KIONIX_TILT_POS_CUR, Msg.pBuffer, ONE_BYTE);
       Msg.Length = 1;
       RouteMsg(&Msg);
-      PrintH(*Msg.pBuffer); PrintR();
+      PrintH(Msg.pBuffer[0]); PrintR();
     }
 
     AccelerometerRead(KIONIX_INT_REL, Data, ONE_BYTE); //clear int
@@ -172,10 +167,8 @@ void HandleAccelerometer(tMessage *pMsg)
 
   case MSG_OPT_ACCEL_ENABLE:
 
-    if (Connected(CONN_TYPE_BLE)) CreateAndSendMessage(UpdConnParamMsg, SHORT);
-
-    else if (Connected(CONN_TYPE_SPP))
-      CreateAndSendMessage(SniffControlMsg, MSG_OPT_EXIT_SNIFF);
+    if (Connected(CONN_TYPE_BLE)) SendMessage(UpdConnParamMsg, SHORT);
+    else if (Connected(CONN_TYPE_SPP)) SendMessage(SniffControlMsg, MSG_OPT_EXIT_SNIFF);
 
     if (pMsg->Length)
     {
@@ -194,7 +187,7 @@ void HandleAccelerometer(tMessage *pMsg)
     /* put into low power mode */
     ACCELEROMETER_INT_DISABLE();
     ENTER_STANDBY_MODE();
-    if (Connected(CONN_TYPE_BLE)) CreateAndSendMessage(UpdConnParamMsg, LONG);
+    if (Connected(CONN_TYPE_BLE)) SendMessage(UpdConnParamMsg, LONG);
     break;
 
   case MSG_OPT_ACCEL_STREAMING:
@@ -232,7 +225,5 @@ void HandleAccelerometer(tMessage *pMsg)
  */
 void AccelerometerPinIsr(void)
 {
-  tMessage Msg;
-  SetupMessage(&Msg, AccelMsg, MSG_OPT_ACCEL_DATA);  
-  SendMessageToQueueFromIsr(DISPLAY_QINDEX, &Msg);
+  SendMessageIsr(AccelMsg, MSG_OPT_ACCEL_DATA);
 }

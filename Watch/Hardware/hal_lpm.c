@@ -23,7 +23,6 @@
 #include "hal_lpm.h"
 #include "hal_miscellaneous.h"
 #include "HAL_UCS.h"
-#include "Messages.h"
 #include "LcdDriver.h"
 #include "DebugUart.h"
 #include "task.h"
@@ -38,7 +37,7 @@ void EnterLpm3(void)
      * we are already in critical section so that we do not get switched out by the
      * OS in the middle of stopping the OS Scheduler.
      */
-    if (!xTaskTickRequired()) DisableRtosTick();
+    /*if (!xTaskTickRequired())*/ DisableRtosTick();
     
     /* errata PMM11 + PMM12 divide MCLK by two before going to sleep */
     if (Errata()) MCLK_DIV(2);
@@ -121,7 +120,7 @@ void EnterLpm3(void)
     __no_operation();
     
     /* should not get here without a power event */
-    SoftwareReset();
+    SoftwareReset(RESET_SHIPMODE, 0);
   }
 #endif
 }

@@ -23,17 +23,16 @@
  */
 typedef struct
 {
-  const char *MsgStr;
+  char const * const MsgStr;
   unsigned char MsgQueue;
   unsigned char Log;
-
 } tMsgInfo;
 
-static const char UnusedMsg[] = "UnusedMsg";
+static char const ReservedMsg[] = "ReservedMsg";
 
-static const tMsgInfo MsgInfo[MAXIMUM_MESSAGE_TYPES] = 
+static tMsgInfo const MsgInfo[MAXIMUM_MESSAGE_TYPES] =
 {
-  {"InvalidMsg",                  FREE_QINDEX,       1 }, /* 0x00 */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0x00 */
   {"GetDevTypeMsg",               DISPLAY_QINDEX,    1 }, /* 0x01 */
   {"GetDevTypeResp",              WRAPPER_QINDEX,    1 }, /* 0x02 */
   {"GetInfoMsg",                  DISPLAY_QINDEX,    1 }, /* 0x03 */
@@ -43,7 +42,7 @@ static const tMsgInfo MsgInfo[MAXIMUM_MESSAGE_TYPES] =
   {"SoftResetMsg",                DISPLAY_QINDEX,    1 }, /* 0x07 */
   {"ConnTimeoutMsg",              WRAPPER_QINDEX,    1 }, /* 0x08 */
   {"TurnRadioOnMsg",              WRAPPER_QINDEX,    1 }, /* 0x09 */
-  {"TurnRadioOffMsg",             WRAPPER_QINDEX,    0 }, /* 0x0a */
+  {"TurnRadioOffMsg",             WRAPPER_QINDEX,    1 }, /* 0x0a */
   {"ReadRssiMsg",                 WRAPPER_QINDEX,    1 }, /* 0x0b */
   {"PairCtrlMsg",                 WRAPPER_QINDEX,    0 }, /* 0x0c */
   {"ReadRssiResp",                WRAPPER_QINDEX,    1 }, /* 0x0d */
@@ -58,45 +57,45 @@ static const tMsgInfo MsgInfo[MAXIMUM_MESSAGE_TYPES] =
   {"OleCrwnMenuMsg",              DISPLAY_QINDEX,    0 }, /* 0x16 */
   {"OleCrwnMenuBtnMsg",           DISPLAY_QINDEX,    0 }, /* 0x17 */
   {"MusCtlMsg",                   DISPLAY_QINDEX,    1 }, /* 0x18 */
-  {"DrwMsg",                      DISPLAY_QINDEX,    1 }, /* 0x19 */
+  {"DrwMsg",                      DISPLAY_QINDEX,    0 }, /* 0x19 */
   {"SetCliCfgMsg",                WRAPPER_QINDEX,    0 }, /* 0x1a */
-  {"HidMsg",                      WRAPPER_QINDEX,    1 }, /* 0x1b */
-  {"SetLocalNameMsg",             WRAPPER_QINDEX,    0 }, /* 0x1c */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0x1d */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0x1e */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0x1f */
+  {"HidMsg",                      WRAPPER_QINDEX,    0 }, /* 0x1b */
+  {"MusicIcon",                   DISPLAY_QINDEX,    0 }, /* 0x1c */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0x1d */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0x1e */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0x1f */
   {"WatchHandMsg",                DISPLAY_QINDEX,    0 }, /* 0x20 */
   {"TermModMsg",                  DISPLAY_QINDEX,    1 }, /* 0x21 */
   {"FtmMsg",                      DISPLAY_QINDEX,    1 }, /* 0x22 */
   {"SetVbrMsg",                   DISPLAY_QINDEX,    0 }, /* 0x23 */
   {"BtnStateMsg",                 DISPLAY_QINDEX,    0 }, /* 0x24 */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0x25 */
+  {"StopTimerMsg",                DISPLAY_QINDEX,    0 }, /* 0x25 */
   {"SetRtcMsg",                   DISPLAY_QINDEX,    0 }, /* 0x26 */
   {"GetRtcMsg",                   DISPLAY_QINDEX,    0 }, /* 0x27 */
   {"GetRtcResp",                  WRAPPER_QINDEX,    1 }, /* 0x28 */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0x29 */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0x2a */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0x2b */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0x2c */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0x2d */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0x2e */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0x2f */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0x29 */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0x2a */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0x2b */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0x2c */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0x2d */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0x2e */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0x2f */
   {"PropMsg",                     DISPLAY_QINDEX,    0 }, /* 0x30 */
   {"PropResp",                    WRAPPER_QINDEX,    0 }, /* 0x31 */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0x32 */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0x32 */
   {"ModChgIndMsg",                WRAPPER_QINDEX,    0 }, /* 0x33 */
   {"BtnEventMsg",                 WRAPPER_QINDEX,    0 }, /* 0x34 */
   {"GeneralPhoneMsg",             WRAPPER_QINDEX,    0 }, /* 0x35 */
   {"GeneralWatchMsg",             DISPLAY_QINDEX,    0 }, /* 0x36 */
   {"WrpTskMsg",                   WRAPPER_QINDEX,    0 }, /* 0x37 */
   {"DspTskMsg",                   DISPLAY_QINDEX,    0 }, /* 0x38 */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0x39 */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0x3a */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0x3b */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0x3c */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0x3d */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0x3e */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0x3f */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0x39 */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0x3a */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0x3b */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0x3c */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0x3d */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0x3e */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0x3f */
   {"WrtBufMsg",                   DISPLAY_QINDEX,    0 }, /* 0x40 */
   {"ConfDispMsg",                 DISPLAY_QINDEX,    1 }, /* 0x41 */
   {"ConfDrwTopMsg",               DISPLAY_QINDEX,    1 }, /* 0x42 */
@@ -112,7 +111,7 @@ static const tMsgInfo MsgInfo[MAXIMUM_MESSAGE_TYPES] =
   {"WrtTmplMsg",                  DISPLAY_QINDEX,    1 }, /* 0x4c */
   {"SetClkWgtMsg",                DISPLAY_QINDEX,    0 }, /* 0x4d */
   {"DrwClkWgtMsg",                DISPLAY_QINDEX,    0 }, /* 0x4e */
-  {UnusedMsg,                     DISPLAY_QINDEX,    0 }, /* 0x4f */
+  {"LogMsg",                      WRAPPER_QINDEX,    1 }, /* 0x4f */
   {"SetExtWgtMsg",                WRAPPER_QINDEX,    1 }, /* 0x50 */
   {"UpdClkWgt",                   DISPLAY_QINDEX,    0 }, /* 0x51 */
   {"BattChrgCtrlMsg",             DISPLAY_QINDEX,    0 }, /* 0x52 */
@@ -125,80 +124,80 @@ static const tMsgInfo MsgInfo[MAXIMUM_MESSAGE_TYPES] =
   {"RdLightSensorResp",           WRAPPER_QINDEX,    1 }, /* 0x59 */
   {"LowBattMsg",                  DISPLAY_QINDEX,    0 }, /* 0x5a */
   {"LowBattBtOffMsg",             DISPLAY_QINDEX,    0 }, /* 0x5b */
-  {"AutoBklightMsg",              DISPLAY_QINDEX,    1 }, /* 0x5c */
-  {"SetBacklightMsg",             DISPLAY_QINDEX,    1 }, /* 0x5d */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0x5e */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0x5f */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0x60 */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0x61 */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0x62 */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0x63 */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0x64 */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0x65 */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0x66 */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0x67 */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0x68 */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0x69 */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0x6a */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0x6b */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0x6c */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0x6d */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0x6e */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0x6f */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0x70 */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0x71 */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0x72 */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0x73 */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0x74 */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0x75 */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0x76 */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0x77 */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0x78 */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0x79 */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0x7a */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0x7b */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0x7c */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0x7d */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0x7e */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0x7f */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0x80 */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0x81 */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0x82 */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0x83 */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0x84 */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0x85 */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0x86 */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0x87 */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0x88 */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0x89 */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0x8a */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0x8b */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0x8c */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0x8d */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0x8e */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0x8f */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0x90 */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0x91 */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0x92 */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0x93 */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0x94 */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0x95 */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0x96 */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0x97 */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0x98 */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0x99 */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0x9a */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0x9b */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0x9c */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0x9d */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0x9e */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0x9f */
+  {"AutoBklightMsg",              DISPLAY_QINDEX,    0 }, /* 0x5c */
+  {"SetBacklightMsg",             DISPLAY_QINDEX,    0 }, /* 0x5d */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0x5e */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0x5f */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0x60 */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0x61 */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0x62 */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0x63 */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0x64 */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0x65 */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0x66 */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0x67 */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0x68 */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0x69 */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0x6a */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0x6b */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0x6c */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0x6d */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0x6e */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0x6f */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0x70 */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0x71 */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0x72 */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0x73 */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0x74 */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0x75 */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0x76 */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0x77 */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0x78 */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0x79 */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0x7a */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0x7b */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0x7c */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0x7d */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0x7e */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0x7f */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0x80 */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0x81 */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0x82 */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0x83 */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0x84 */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0x85 */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0x86 */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0x87 */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0x88 */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0x89 */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0x8a */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0x8b */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0x8c */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0x8d */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0x8e */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0x8f */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0x90 */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0x91 */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0x92 */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0x93 */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0x94 */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0x95 */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0x96 */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0x97 */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0x98 */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0x99 */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0x9a */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0x9b */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0x9c */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0x9d */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0x9e */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0x9f */
   {"IdleUpdMsg",                  DISPLAY_QINDEX,    0 }, /* 0xa0 */
   {"SetWgtListMsg",               DISPLAY_QINDEX,    0 }, /* 0xa1 */
   {"WatchDrawnTout",              DISPLAY_QINDEX,    0 }, /* 0xa2 */
   {"AncsNtfMsg",                  WRAPPER_QINDEX,    0 }, /* 0xa3 */
   {"AncsGetAttrMsg",              WRAPPER_QINDEX,    1 }, /* 0xa4 */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0xa5 */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0xa5 */
   {"ChgModMsg",                   DISPLAY_QINDEX,    0 }, /* 0xa6 */
   {"ModeTimeoutMsg",              DISPLAY_QINDEX,    0 }, /* 0xa7 */
   {"WatchStatusMsg",              DISPLAY_QINDEX,    0 }, /* 0xa8 */
@@ -222,73 +221,73 @@ static const tMsgInfo MsgInfo[MAXIMUM_MESSAGE_TYPES] =
   {"UpdWgtIndMsg",                WRAPPER_QINDEX,    0 }, /* 0xba */
   {"IntvChgIndMsg",               WRAPPER_QINDEX,    1 }, /* 0xbb */
   {"TunnelToutMsg",               WRAPPER_QINDEX,    0 }, /* 0xbc */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0xbd */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0xbe */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0xbf */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0xc0 */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0xc1 */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0xc2 */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0xc3 */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0xc4 */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0xc5 */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0xc6 */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0xc7 */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0xc8 */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0xc9 */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0xca */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0xcb */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0xbd */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0xbe */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0xbf */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0xc0 */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0xc1 */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0xc2 */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0xc3 */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0xc4 */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0xc5 */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0xc6 */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0xc7 */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0xc8 */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0xc9 */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0xca */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0xcb */
   {"AckMsg",                      WRAPPER_QINDEX,    1 }, /* 0xcc */
   {"CntdwnMsg",                   DISPLAY_QINDEX,    0 }, /* 0xcd */
   {"SetDoneMsg",                  DISPLAY_QINDEX,    0 }, /* 0xce */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0xcf */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0xcf */
   {"QueryMemMsg",                 WRAPPER_QINDEX,    0 }, /* 0xd0 */
   {"ConnTypeMsg",                 WRAPPER_QINDEX,    1 }, /* 0xd1 */
   {"RateTstMsg",                  DISPLAY_QINDEX,    1 }, /* 0xd2 */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0xd3 */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0xd4 */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0xd5 */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0xd6 */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0xd7 */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0xd8 */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0xd9 */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0xda */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0xdb */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0xdc */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0xdd */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0xde */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0xdf */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0xd3 */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0xd4 */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0xd5 */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0xd6 */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0xd7 */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0xd8 */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0xd9 */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0xda */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0xdb */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0xdc */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0xdd */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0xde */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0xdf */
   {"AccelIndMsg",                 WRAPPER_QINDEX,    0 }, /* 0xe0 */
   {"AccelMsg" ,                   DISPLAY_QINDEX,    0 }, /* 0xe1 */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0xe2 */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0xe3 */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0xe4 */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0xe5 */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0xe6 */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0xe7 */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0xe8 */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0xe9 */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0xea */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0xeb */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0xec */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0xed */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0xee */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0xef */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0xe2 */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0xe3 */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0xe4 */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0xe5 */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0xe6 */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0xe7 */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0xe8 */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0xe9 */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0xea */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0xeb */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0xec */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0xed */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0xee */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0xef */
   {"RadioPwrCtrlMsg",             WRAPPER_QINDEX,    1 }, /* 0xf0 */
   {"EnableAdvMsg",                WRAPPER_QINDEX,    1 }, /* 0xf1 */
   {"SetAdvDataMsg",               WRAPPER_QINDEX,    1 }, /* 0xf2 */
   {"SetScanRespMsg",              WRAPPER_QINDEX,    1 }, /* 0xf3 */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0xf4 */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0xf5 */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0xf6 */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0xf7 */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0xf8 */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0xf9 */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0xfa */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0xfb */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0xfc */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0xfd */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0xfe */
-  {UnusedMsg,                     FREE_QINDEX,       0 }, /* 0xff */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0xf4 */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0xf5 */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0xf6 */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0xf7 */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0xf8 */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0xf9 */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0xfa */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0xfb */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0xfc */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0xfd */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0xfe */
+  {ReservedMsg,                   FREE_QINDEX,       0 }, /* 0xff */
 };
 
 #endif /* MESSAGE_INFORMATION_H */

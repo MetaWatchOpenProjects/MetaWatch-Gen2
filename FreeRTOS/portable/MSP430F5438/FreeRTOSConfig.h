@@ -84,8 +84,7 @@ ever get saved twice, but imposes an overhead on the occasions that no context s
 occurs.
 */
 
-#define configINTERRUPT_EXAMPLE_METHOD 1
-
+#define configINTERRUPT_EXAMPLE_METHOD      1
 
 /*-----------------------------------------------------------
  * Application specific definitions.
@@ -101,10 +100,10 @@ occurs.
 
 /* Co-routine definitions. */
 #define configUSE_CO_ROUTINES               0
-#define configMAX_CO_ROUTINE_PRIORITIES     (2)
+#define configMAX_CO_ROUTINE_PRIORITIES     2
 #define configUSE_PREEMPTION                1
 
-#define TOTAL_TASKS ( 2 )
+#define TOTAL_TASKS                         2
 
 /* the mulitplier is used by the FLL to generate the CLK */
 #define ACLK_FREQUENCY_HZ  ((unsigned int)32768)
@@ -119,10 +118,10 @@ occurs.
 #ifdef ANALOG
 #define configTOTAL_HEAP_SIZE               ((size_t)12044)
 #else
-#define configTOTAL_HEAP_SIZE               ((size_t)12048) //32//12000 12290 12328 13334 12364 12424 12486, 12492, 12526 13500
+#define configTOTAL_HEAP_SIZE               ((size_t)14468) //12000 13500 14508
 #endif
 
-#define configMAX_TASK_NAME_LEN             (16)
+#define configMAX_TASK_NAME_LEN             8
 #define configUSE_TRACE_FACILITY            0
 #define configUSE_16_BIT_TICKS              1
 #define configIDLE_SHOULD_YIELD             1
@@ -136,9 +135,8 @@ occurs.
 /*! the rtos tick count is approximatly 1 ms
  * 32768/32 = 1024 kHz = 0.9765625 ms
  */
-#define RTOS_TICK_COUNT  ( 1 )
-
-#define DONT_WAIT ( 0 )
+#define RTOS_TICK_COUNT                     1
+#define DONT_WAIT                           0
 
 /* Set the following definitions to 1 to include the API function, or zero
 to exclude the API function. */
@@ -154,8 +152,7 @@ to exclude the API function. */
 
 /* include xTaskGetCurrentHandle for Threaded BTPSKRNL  */
 #define INCLUDE_xTaskGetCurrentTaskHandle   1
-
-#define INCLUDE_pcTaskGetTaskName 1
+#define INCLUDE_pcTaskGetTaskName           1
 
 /* when clock is 16777261 MHz then each cycle is 59.6 ns
  * -> 1013.28 us

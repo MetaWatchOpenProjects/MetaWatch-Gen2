@@ -15,19 +15,16 @@
 //==============================================================================
 
 #include <string.h>
-#include "hal_board_type.h"
 #include "FreeRTOS.h"
 #include "task.h"
+#include "hal_board_type.h"
 #include "semphr.h"
-#include "queue.h"
-
 #include "hal_clock_control.h"
 #include "hal_battery.h"
 #include "hal_calibration.h"
 #include "hal_miscellaneous.h"
-
 #include "Messages.h"
-#include "MessageQueues.h"
+
 #include "DebugUart.h"
 
 #include "Vibration.h"
@@ -222,12 +219,13 @@ unsigned char ReadBattery(void)
   /* Convert the ADC count for the battery input into a voltage 
    * ADC12MEM1: Counts Battery Voltage in ADC counts
    * Result: Battery voltage in millivolts */
-  int Value = (int)(CONVERSION_FACTOR_BATTERY * (double)ADC12MEM1);
+  unsigned int adc = ADC12MEM1;
+  int Value = (int)(CONVERSION_FACTOR_BATTERY * (double)adc);
   BATTERY_SENSE_DISABLE();
   DISABLE_ADC();
-  DISABLE_REFERENCE();
   xSemaphoreGive(AdcMutex);
 
+//  PrintE("Adc: x%04X Raw:%u ", adc, Value);
   if (ValidCalibration()) Value += GetBatteryCalibrationValue();
 //  PrintE(" Batt:%u ", Value);
 
@@ -314,20 +312,18 @@ unsigned char ReadBattery(void)
 
       else return Percent;
 
-      tMessage Msg;
-      SetupMessageWithBuffer(&Msg, LowBattWarning[Severity].MsgType1, MSG_OPT_NONE);
-      if (Msg.pBuffer != NULL)
+      tMessage Msg = {1, LowBattWarning[Severity].MsgType1, MSG_OPT_NONE, NULL};
+      if (CreateMessage(&Msg))
       {
         Msg.pBuffer[0] = Percent;
-        Msg.Length = 1;
         RouteMsg(&Msg);
       }
 
       /* send the same message to the display task */
-      SendMessage(&Msg, LowBattWarning[Severity].MsgType2, MSG_OPT_NONE);
+      SendMessage(LowBattWarning[Severity].MsgType2, MSG_OPT_NONE);
 
       /* now send a vibration to the wearer */
-      SendMessage(&Msg, VibrateMsg, Severity == WARN_LEVEL_CRITICAL ?
+      SendMessage(VibrateMsg, Severity == WARN_LEVEL_CRITICAL ?
         VIBRA_PATTERN_LOW_BATT : VIBRA_PATTERN_BT_OFF);
     }
   }
@@ -400,15 +396,13 @@ void ReadLightSensorHandler(void)
 //  LightSenseCycle();
 
   /* send message to the host */
-  tMessage Msg;
-  SetupMessageWithBuffer(&Msg, LightSensorRespMsg, MSG_OPT_NONE);
-  if (Msg.pBuffer != NULL)
+  tMessage Msg = {2, LightSensorRespMsg, MSG_OPT_NONE, NULL};
+  if (CreateMessage(&Msg))
   {
     /* instantaneous value */
     unsigned int lv = LightSenseCycle();
     Msg.pBuffer[0] = lv & 0xFF;
     Msg.pBuffer[1] = (lv >> 8 ) & 0xFF;
-    Msg.Length = 2;
 
   //  /* average value */
   //  lv = Read(LIGHT_SENSOR);

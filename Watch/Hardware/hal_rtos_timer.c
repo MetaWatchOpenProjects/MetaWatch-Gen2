@@ -108,15 +108,15 @@ void EnableRtosTick(void)
 {
   if (RtosTickEnabled) return;
 
-  RtosTickEnabled = 1;
-  AddUser(TIMER0_RTOS_USER,RTOS_TICK_COUNT);
+  RtosTickEnabled = TRUE;
+  AddUser(TIMER0_RTOS_USER, RTOS_TICK_COUNT);
 }
 
 void DisableRtosTick(void)
 {
   if (!RtosTickEnabled) return;
   
-  RtosTickEnabled = 0;
+  RtosTickEnabled = FALSE;
   RemoveUser(TIMER0_RTOS_USER);
 }
 

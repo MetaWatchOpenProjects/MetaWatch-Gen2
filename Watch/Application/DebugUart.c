@@ -17,12 +17,11 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdarg.h>
-
 #include "FreeRTOS.h"
 #include "semphr.h"
-
 #include "Messages.h"
-#include "MessageQueues.h"
+
+#include "hal_boot.h"
 #include "hal_board_type.h"
 #include "hal_clock_control.h"
 #include "hal_rtc.h"
@@ -30,16 +29,15 @@
 #include "hal_battery.h"
 #include "hal_calibration.h"
 #include "hal_miscellaneous.h"
-#include "hal_boot.h"
 #include "DebugUart.h"
 #include "Statistics.h"
 #include "task.h"
-
 #include "TermMode.h"
 #include "Wrapper.h"
 
-#define ASCII_BEGIN    32
-#define ASCII_END     126
+#define DEBUG_BUFFER_SIZE   32
+#define ASCII_BEGIN         32
+#define ASCII_END           126
 
 char const OK = '-';
 char const NOK = '#';
@@ -58,9 +56,11 @@ char const HASH = '#';
 char const DOLLAR = '$';
 char const TILDE = '~';
 char const PERCENT = '%';
+char const AT = '@';
+char const SLASH = '/';
 
-static char Buffer[32];
-static unsigned char DebugEnabled;
+static char *Buffer = NULL;
+static unsigned char DebugEnabled = FALSE;
 static unsigned char TimeStampEnabled = FALSE;
 static xSemaphoreHandle UartMutex = 0;
 
@@ -92,7 +92,9 @@ static void WriteTime(unsigned char Rtc, unsigned Separator);
 
 void EnableDebugUart(unsigned char Enable)
 {
-  if (!UartMutex)
+  if (DebugEnabled == Enable) return;
+
+  if (Enable && !UartMutex)
   {
     UCA3CTL1 = UCSWRST;
     
@@ -117,11 +119,11 @@ void EnableDebugUart(unsigned char Enable)
     
     UartMutex = xSemaphoreCreateMutex();
     xSemaphoreGive(UartMutex);
-    
-    DebugEnabled = TRUE;
-    PrintR(); PrintC(STAR); PrintC(STAR); PrintC(STAR); PrintR();
   }
   
+  if (Enable) Buffer = (char *)pvPortMalloc(DEBUG_BUFFER_SIZE);
+  else vPortFree(Buffer);
+
   DebugEnabled = Enable;
   EnableTermMode(Enable);
 }
@@ -155,6 +157,7 @@ static void WriteTime(unsigned char Rtc, unsigned Separator)
 
 void EnableTimeStamp(void)
 {
+  GIE_CHECK();
   WriteTxBuffer("--- ");
   WriteTime(RTCMON, DOT);
   WriteTime(RTCDAY, SPACE);
@@ -178,22 +181,31 @@ void PrintR(void)
   GET_MUTEX();
   WRITE_UART(CR);
   WRITE_UART(LN);
+  TimeStampEnabled = TRUE;
   GIVE_MUTEX();
 }
 
 void PrintH(unsigned char Value)
 {
+  GIE_CHECK();
   unsigned char MSB = Value >> 4;
   unsigned char LSB = Value & 0x0F;
   MSB += MSB > 9 ? 'A' - 10 : '0';
   LSB += LSB > 9 ? 'A' - 10 : '0';
 
-  GIE_CHECK();
   GET_MUTEX();
   WRITE_UART(MSB);
   WRITE_UART(LSB);
   WRITE_UART(SPACE);
   GIVE_MUTEX();
+}
+
+void PrintQ(unsigned char const *pHex, unsigned char const Len)
+{
+  GIE_CHECK();
+  unsigned char i;
+  for (i = 0; i < Len; ++i) PrintH(*pHex++);
+  PrintR();
 }
 
 void PrintS(const char *pString)
@@ -203,6 +215,7 @@ void PrintS(const char *pString)
   WriteTxBuffer(pString);
   WRITE_UART(CR);
   WRITE_UART(LN);
+  TimeStampEnabled = TRUE;
   GIVE_MUTEX();
 }
 
@@ -211,34 +224,34 @@ void PrintW(const char *pString)
   GIE_CHECK();
   GET_MUTEX();
   WriteTxBuffer(pString);
+  TimeStampEnabled = FALSE;
   GIVE_MUTEX();
-}
-
-void PrintQ(unsigned char const *pHex, unsigned char const Len)
-{
-  unsigned char i;
-  for (i = 0; i < Len; ++i) PrintH(*pHex++);
-  PrintR();
 }
 
 void PrintF(const char *pFormat, ...)
 {
+  GIE_CHECK();
+  GET_MUTEX();
   va_list args;
 
   va_start(args, pFormat);
   vSprintF(Buffer, pFormat, args);
   va_end(args);
 
+  GIVE_MUTEX();
   PrintS(Buffer);
 }
 
 void PrintE(const char *pFormat, ...)
 {
+  GIE_CHECK();
+  GET_MUTEX();
   va_list args;
 
   va_start(args, pFormat);
   vSprintF(Buffer, pFormat, args);
   va_end(args);
+  GIVE_MUTEX();
 
   PrintW(Buffer);
 }
@@ -252,12 +265,13 @@ void PrintE(const char *pFormat, ...)
 void vApplicationMallocFailedHook(void)
 {
 //  PrintE("@");
-  __no_operation();
+  SoftwareReset(RESET_MEM_ALLOC, 0);
 }
 
 void vApplicationFreeFailedHook(unsigned char * pBuffer)
 {
   PrintF("@F:%04X", pBuffer);
+  SoftwareReset(RESET_MEM_FREE, 0);
 }
 
 void vAssertCalled(void)
@@ -267,21 +281,22 @@ void vAssertCalled(void)
 }
 
 extern xQueueHandle QueueHandles[];
+#define QUEUE_WARNING_LEN     (DISPLAY_QUEUE_LENGTH - 8)
 
-void CheckStackAndQueueUsage(unsigned char Index)
+void CheckStackAndQueueUsage(unsigned char Id)
 {
   portBASE_TYPE Water = uxTaskGetStackHighWaterMark(NULL);
-  portBASE_TYPE QueLen = QueueHandles[Index]->uxMessagesWaiting;
+  portBASE_TYPE QueLen = QueueHandles[Id]->uxMessagesWaiting;
 
-  if (Water < 10 || QueLen > 8)
-    PrintF("~%c S:%d Q:%u", Index == DISPLAY_QINDEX ? 'D' : 'W', Water, QueLen);
+  if (Water < 10 || QueLen > QUEUE_WARNING_LEN)
+    PrintF("#%c S:%d Q:%u", Id == DISPLAY_QINDEX ? 'D' : 'W', Water, QueLen);
 }
 
 void vApplicationStackOverflowHook(xTaskHandle *pxTask, char *TaskName)
 {
   /* try to print task name */
-  PrintF("@ Stack Oflw:%s", TaskName);
-  SoftwareReset();
+  PrintF("@%s Stack Ovfl", TaskName);
+  SoftwareReset(RESET_STACK_OVFL, TaskName[0] == 'W' ? WRAPPER_QINDEX : DISPLAY_QINDEX);
 }
 
 void WhoAmI(void)

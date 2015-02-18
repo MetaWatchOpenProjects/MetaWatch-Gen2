@@ -23,6 +23,7 @@
 #include "IdleTask.h"
 #include "Version.h"
 
+#define BUILD_LENGTH    6
 char const VERSION[] = APP_VER;
 char const BUILD[] = BUILD_VER;
 
@@ -32,18 +33,6 @@ char const BUILD[] = BUILD_VER;
 
 /* for image_data_t definiton */
 #include "bl_boot.h"        
-
-/*******************************************************************************
-
-__checksum contains a the checksum (CRC16) of the code image up to and
-including EndOfImage.  The code image inits the value to 0xFFFF and the actual
-value is calculated and stored here by the boot loader tool.
-
-*******************************************************************************/
-#if 0
-#pragma location="CHECKSUM"
-__root __no_init const unsigned int __checksum;
-#endif
 
 /******************************************************************************
 

@@ -14,42 +14,26 @@
 //  limitations under the License.
 //==============================================================================
 
-/******************************************************************************/
-/*! \file SerialRam.c
-*
-*/
-/******************************************************************************/
-
 #include <string.h>
 #include "FreeRTOS.h"
 #include "task.h"
-#include "queue.h"
 #include "semphr.h"
 #include "hal_board_type.h"
 #include "hal_clock_control.h"
 #include "hal_miscellaneous.h"
-#include "hal_battery.h"
 #include "Messages.h"
-#include "MessageQueues.h"
 #include "DebugUart.h"
-#include "DrawMsgHandler.h"
+#include "DrawHandler.h"
 #include "ClockWidget.h"
-#include "SerialRam.h"
 #include "LcdDriver.h"
+#include "SerialRam.h"
 #include "LcdDisplay.h"
-#include "Fonts.h"
 #include "LcdBuffer.h"
-
-#include "Adc.h"
 #include "BitmapData.h"
-#include "Wrapper.h"
-#include "Property.h"
 #include "CallNotifier.h"
+#include "Property.h"
+#include "Widget.h"
 
-/******************************************************************************/
-
-#define SPI_READ                (0x03)
-#define SPI_WRITE               (0x02)
 /* write and read status register */
 #define SPI_RDSR                (0x05)
 #define SPI_WRSR                (0x01)
@@ -63,70 +47,44 @@
 #define FINAL_SR_VALUE_256      (0x41)
 #define SEQUENTIAL_MODE_COMMAND (0x41)
 
-#define MAX_WIDGET_NUM          (16)
-#define QUAD_NO_MASK            (0x03)
-#define IDLE_PAGE_MASK          (0x30)
-#define IDLE_PAGE_SHFT          (4)
-#define IDLE_PAGE_NUM           (4)
-
+#define SRAM_TOTAL_SIZE         (8 * 1024)
 #define MODE_BUF_START_ADDR     (0x0E00) // 1152x3 = 3456
 #define MODE_BUFFER_SIZE        (0x1200) // 1152x4
-#define APP_MODE_START_ADDR     (APP_MODE * BYTES_PER_SCREEN + MODE_BUF_START_ADDR)
-#define NOTIF_MODE_START_ADDR   (NOTIF_MODE * BYTES_PER_SCREEN + MODE_BUF_START_ADDR)
 #define WGT_BUF_START_ADDR      (0x80) //(1024x8-1152x7=128 (0x1B00) // 96x12x(4 + 2) = 6912
-
-#define WRITE_DATA_LEN          (BYTES_PER_QUAD_LINE + BYTES_PER_QUAD_LINE)
-#define SRAM_DATA_LEN           (SRAM_HEADER_LEN + WRITE_DATA_LEN)
-#define SRAM_BUFFER_SIZE        (SRAM_HEADER_LEN + BYTES_PER_LINE)
-#define BUFFER_TAG_BITS         (16)
-#define WGTLST_PART_INDX_MASK   (0x3)
-#define WGTLST_PARTS_MASK       (0xC)
-#define WGTLST_PART_INDX_SHFT   (0)
-#define WGTLST_PARTS_SHFT       (2)
-#define INVALID_ID              (0xFF)
-#define CLOCK_WIDGET_ID_RANGE   (15) // home widget: 0 - 15
-#define INVERT_BIT              (BIT6)
-#define CLOCK_WIDGET_BIT        (BIT7)
-#define CLOCK_WIDGET_BIT_SHFT   (7)
-
-#define WGT_CHG_REMOVE          (0)
-#define WGT_CHG_ADD             (1)
-#define WGT_CHG_CLK_ADD         (2)
-#define WGT_CHG_CLK             (3)
-#define WGT_EQU_CLK             (4)
-#define WGT_CHG_SETTING         (5)
-#define WGT_EQU_SETTING         (6)
-#define WGT_CHG_REMOVE_ADD      (7)
-
-#define BOARDER_PATTERN_ROW     (0x66)
-#define BOARDER_PATTERN_COL     (4)
 
 #define WRITE_BUFFER_TWO_LINES     (0x00)
 #define MSG_OPT_WRTBUF_BPL_MASK    (0x38)
 
-#define DMA_FILL                   (1)
-#define DMA_COPY                   (0)
-
 #define STATUS_BAR_IN_MODES ((1 << IDLE_MODE) | (1 << APP_MODE)) // | (1 << MUSIC_MODE))
+
+#define IDLE_PAGE_NUM             4
+#define NOTIF_TOTAL_PAGES         5
+#define DRAW_PAGE                 0
+#define SHOW_PAGE                 1
+
+#define TEMPLATE_1                2  //starts at 2 because 0,1 are clear and fill
+#define TEMPLATE_2                3
+#define TEMPLATE_3                4
+#define TEMPLATE_4                5
 
 /* errata - DMA variables cannot be function scope */
 static unsigned char const DummyData = 0x00;
-static unsigned char const FILL_BLACK = 0x00;
-static unsigned char const FILL_WHITE = 0xFF;
 
 static unsigned char ReadData = 0x00;
 static unsigned char DmaBusy  = 0;
 
-static unsigned char CurrentPage = 0;
+static unsigned char const ModeAddrIndex[] = {0, 1, 3, 2};
+static unsigned char IdleShowPage = 0;
+static unsigned char NotifShowPage = 0;
+static unsigned char NotifDrawPage = 0;
+static unsigned char NotifPageNum = 0;
 static unsigned char StatusBarInModes = STATUS_BAR_IN_MODES;
 
-static xSemaphoreHandle SramMutex;
+/* avoid conflicting widget buffer read/write btw SetWidgetList and UpdateDisplay */
+xSemaphoreHandle SramMutex;
 
-typedef struct
-{
-  unsigned char Reserved[3];
-  tLcdLine Line;
-} tLcdBuffer;
+static unsigned char SramBuf[SRAM_HEADER_LEN];
+static unsigned char const ModePriority[] = {NOTIF_MODE, APP_MODE, IDLE_MODE, MUSIC_MODE};
 
 typedef struct
 {
@@ -134,339 +92,48 @@ typedef struct
   unsigned char RowNum;
 } Rect_t;
 
-typedef struct
-{
-  unsigned char Id;
-  unsigned char Layout;
-} WidgetList_t;
-
-#define WIDGET_HEADER_LEN  (sizeof(WidgetList_t))
-
-typedef struct
-{
-  unsigned char Id;
-  unsigned char Layout;
-  unsigned char Outdated;
-  unsigned char Buffers[QUAD_NUM];
-} Widget_t;
-
-static Widget_t Widget[MAX_WIDGET_NUM + MAX_WIDGET_NUM];
-static Widget_t *pCurrWidgetList = &Widget[MAX_WIDGET_NUM]; // point to left/right half of double sized Widget[]
-
-Layout_t const Layout[] = {{1, 0}, {2, 1}, {2, 2}, {4, 1}};
-
-static unsigned int BufTag = 0;
-///* low 4 bits: Clock widget ID; high 4 bits: to be updated if set */
-//static unsigned char ClkWgtUpd[CLOCK_WIDGET_ID_RANGE + 1];
-
-typedef struct
-{
-  unsigned char Id;
-  unsigned char Row;
-} WidgetHeader_t;
-
-typedef struct
-{
-  unsigned char Page;
-  unsigned int Addr[QUAD_NUM];
-  unsigned char Layout[QUAD_NUM];
-} QuadAddr_t;
-
-static unsigned char const ModePriority[] = {NOTIF_MODE, APP_MODE, IDLE_MODE, MUSIC_MODE};
-
-#define IS_CLOCK_WIDGET(_x) ((_x & CLOCK_WIDGET_BIT) >> CLOCK_WIDGET_BIT_SHFT)
-#define ON_CURRENT_PAGE(_x) ((_x & IDLE_PAGE_MASK) >> IDLE_PAGE_SHFT == CurrentPage)
-#define LAYOUT_TYPE(_x) ((_x & LAYOUT_MASK) >> LAYOUT_SHFT)
-#define WGTLST_INDEX(_x) ((_x & WGTLST_PART_INDX_MASK) >> WGTLST_PART_INDX_SHFT)
-#define WGTLST_TOTAL(_x) ((_x & WGTLST_PARTS_MASK) >> WGTLST_PARTS_SHFT)
-#define MODE_START_ADDR(_x) (_x * BYTES_PER_SCREEN + MODE_BUF_START_ADDR)
+#define MODE_START_ADDR(_x) (ModeAddrIndex[_x] * BYTES_PER_SCREEN + MODE_BUF_START_ADDR)
 
 /******************************************************************************/
 static void SetAddr(unsigned int Addr);
-static void Write(unsigned long const pData, unsigned int Length, unsigned char Op);
-static void ReadBlock(unsigned char *pWriteData, unsigned char *pReadData, unsigned int Length);
-static void LoadBuffer(unsigned char i, unsigned char const *pTemp);
-
-static void AssignWidgetBuffer(Widget_t *pWidget);
-static void FreeWidgetBuffer(Widget_t *pWidget);
-static unsigned int GetAddr(WidgetHeader_t *pData);
-static void GetQuadAddr(QuadAddr_t *pAddr);
 static signed char ComparePriority(unsigned char Mode);
-static unsigned char GetWidgetChange(unsigned char CurId, unsigned char CurOpt, unsigned char MsgId, unsigned char MsgOpt);
-static void TestFaceId(WidgetList_t *pWidget);
-static void AllocateBuffer(unsigned char *pBuf);
-static void ClearWidgetList(void);
-
-void SetWidgetList(tMessage *pMsg)
-{
-  static Widget_t *pCurrWidget = NULL; // point to Widget in current Widget[]
-  static Widget_t *pNextWidget = NULL; // point to Widget in new Widget[]
-  static unsigned char ClockId = INVALID_ID;
-
-  xSemaphoreTake(SramMutex, portMAX_DELAY);
-
-  WidgetList_t *pMsgWgtLst = (WidgetList_t *)pMsg->pBuffer;
-  unsigned char WidgetNum = pMsg->Length / WIDGET_HEADER_LEN;
-
-  unsigned char i = 0;
-  PrintF(">SetWLst I:%d %s %d %s %d", WGTLST_INDEX(pMsg->Options), "T:", WGTLST_TOTAL(pMsg->Options), "Num:", WidgetNum);
-  for(; i<WidgetNum; ++i) {PrintH(pMsgWgtLst[i].Id); PrintH(pMsgWgtLst[i].Layout);} PrintR();
-
-  if (pNextWidget == NULL) // first time call, only add widgets
-  {
-    pCurrWidget = pCurrWidgetList;
-    pNextWidget = &Widget[0];
-  }
-  else
-  {
-    if (WGTLST_INDEX(pMsg->Options) == 0 &&
-      (pCurrWidget != pCurrWidgetList || (pNextWidget != &Widget[0] && pNextWidget != &Widget[MAX_WIDGET_NUM])))
-    { // last SetWLst failed in the middle.Clean up whole list
-      PrintS("# Last SetWgtLst broken!");
-
-      pCurrWidget = pCurrWidgetList;
-      pNextWidget = &Widget[0] + (&Widget[MAX_WIDGET_NUM] - pCurrWidgetList);
-      ClearWidgetList();
-      BufTag = 0;
-    }
-  }
-
-  while (WidgetNum) // number of list items
-  {
-      /* old clock widgets */
-    if (!IS_CLOCK_WIDGET(pMsgWgtLst->Layout) && pMsgWgtLst->Id <= CLOCK_WIDGET_ID_RANGE) TestFaceId(pMsgWgtLst);
-    unsigned char Change = GetWidgetChange(pCurrWidget->Id, pCurrWidget->Layout, pMsgWgtLst->Id, pMsgWgtLst->Layout);
-    
-    switch (Change)
-    {
-    case WGT_EQU_CLK:
-    case WGT_EQU_SETTING:
-      PrintF("=%02X", pCurrWidget->Id);
-      *pNextWidget++ = *pCurrWidget++;
-      pMsgWgtLst ++;
-      WidgetNum --;
-      break;
-
-    case WGT_CHG_CLK:
-      PrintS("*Clk");
-      pCurrWidget->Outdated = TRUE;
-      if (ON_CURRENT_PAGE(pMsgWgtLst->Layout)) ClockId = pMsgWgtLst->Id;
-
-    case WGT_CHG_SETTING:
-     //cpy layout to curr; cpy curr to next; msg, curr, next ++
-      PrintF("*%02X", pCurrWidget->Id);
-      pCurrWidget->Id = pMsgWgtLst->Id;
-      pCurrWidget->Layout = pMsgWgtLst->Layout;
-      *pNextWidget++ = *pCurrWidget++;
-      pMsgWgtLst ++;
-      WidgetNum --;
-      break;
-
-    case WGT_CHG_REMOVE:
-    case WGT_CHG_REMOVE_ADD:
-    // remove widget: curr ++
-      PrintF("-%02X", pCurrWidget->Id);
-      FreeWidgetBuffer(pCurrWidget);
-      pCurrWidget ++;
-      if (Change == WGT_CHG_REMOVE) break;
-      
-    case WGT_CHG_ADD:
-
-      if (IS_CLOCK_WIDGET(pMsgWgtLst->Layout))
-      {
-        PrintS("+Clk");
-        pNextWidget->Outdated = TRUE;
-        if (ON_CURRENT_PAGE(pMsgWgtLst->Layout)) ClockId = pMsgWgtLst->Id;
-      }
-
-     // add new widget: cpy msg to next; msg and next ++; curr stays
-      PrintF("+%02X", pMsgWgtLst->Id);
-
-      pNextWidget->Id = pMsgWgtLst->Id;
-      pNextWidget->Layout = pMsgWgtLst->Layout;
-      AssignWidgetBuffer(pNextWidget);
-
-      pNextWidget ++;
-      pMsgWgtLst ++;
-      WidgetNum --;
-      break;
-      
-    default: break;
-    }
-  }
-  PrintR();
-
-  // if part index + 1 == parts, SetWidgetList complete
-  if (WGTLST_TOTAL(pMsg->Options) == WGTLST_INDEX(pMsg->Options) + 1)
-  {
-//    PrintS("C:");
-//    for (i=0; pCurrWidgetList[i].Id != INVALID_ID && i < MAX_WIDGET_NUM; ++i) PrintH(pCurrWidgetList[i].Id);
-//    PrintR();
-
-    while (pCurrWidget->Id != INVALID_ID && pCurrWidget < &pCurrWidgetList[MAX_WIDGET_NUM])
-    {
-      FreeWidgetBuffer(pCurrWidget);
-      pCurrWidget->Id = INVALID_ID;
-      pCurrWidget ++;
-    }
-
-    for (i = 0; i < MAX_WIDGET_NUM; ++i)
-    {
-      if (pCurrWidgetList[i].Id != INVALID_ID)
-      { // clear the widget id in the curr list
-        pCurrWidgetList[i].Id = INVALID_ID;
-      }
-    }
-
-    pNextWidget = pCurrWidgetList;
-    pCurrWidgetList = &Widget[0] + (&Widget[MAX_WIDGET_NUM] - pCurrWidgetList);
-    pCurrWidget = pCurrWidgetList;
-
-    unsigned char k;
-    for (i = 0; pCurrWidgetList[i].Id != INVALID_ID && i < MAX_WIDGET_NUM; ++i)
-    {
-      unsigned QuadNum = Layout[LAYOUT_TYPE(pCurrWidgetList[i].Layout)].QuadNum;
-      for (k = 0; k < QuadNum; ++k)
-      {
-        if (pCurrWidgetList[i].Buffers[k] == BUFFER_TAG_BITS)
-          AllocateBuffer(&pCurrWidgetList[i].Buffers[k]);
-      }
-    }
-
-    PrintF("Tg:%04X", BufTag);
-
-    if (ClockId != INVALID_ID)
-    {
-//      PrintS("------ SetWLst UdCk");
-      CreateAndSendMessage(DrawClockWidgetMsg, ClockId);
-      ClockId = INVALID_ID;
-    }
-  }
-  xSemaphoreGive(SramMutex);
-}
-
-static unsigned char GetWidgetChange(unsigned char CurId, unsigned char CurOpt,
-                                     unsigned char MsgId, unsigned char MsgOpt)
-{
-  unsigned char CurFaceId = FACE_ID(CurId);
-  unsigned char MsgFaceId = FACE_ID(MsgId);
-  unsigned char Change;
-
-  if (IS_CLOCK_WIDGET(CurOpt)) CurId = CurId & 0x0F;
-  if (IS_CLOCK_WIDGET(MsgOpt)) MsgId = MsgId & 0x0F;
-
-  if (CurId == MsgId)
-  {
-    if (LAYOUT_TYPE(CurOpt) != LAYOUT_TYPE(MsgOpt))
-      Change = WGT_CHG_REMOVE_ADD;
-
-    else if (IS_CLOCK_WIDGET(CurOpt))
-      Change = (CurFaceId != MsgFaceId || CurOpt != MsgOpt) ?
-                WGT_CHG_CLK : WGT_EQU_CLK;
-    else
-      Change = (CurOpt != MsgOpt) ? WGT_CHG_SETTING : WGT_EQU_SETTING;
-  }
-  else if (CurId < MsgId) Change = WGT_CHG_REMOVE;
-  else Change = WGT_CHG_ADD;
-  
-  return Change;
-}
-
-static void AssignWidgetBuffer(Widget_t *pWidget)
-{
-  unsigned char QuadNum = Layout[LAYOUT_TYPE(pWidget->Layout)].QuadNum;
-  unsigned char i;
-
-  for (i = 0; i < QuadNum; ++i) AllocateBuffer(&pWidget->Buffers[i]);
-}
-
-static void AllocateBuffer(unsigned char *pBuf)
-{
-  unsigned char Tag;
-  for (Tag = 0; Tag < BUFFER_TAG_BITS; ++Tag) // go through 16 bufs
-  {
-    if ((BufTag & (1 << Tag)) == 0) // found empty buffer
-    {
-      *pBuf = Tag;
-      BufTag |= 1 << Tag;
-
-      // add "Loading..." template
-      LoadBuffer(Tag, pWidgetTemplate[TMPL_WGT_LOADING]);
-      break;
-    }
-  }
-
-  if (Tag == BUFFER_TAG_BITS) *pBuf = BUFFER_TAG_BITS;
-}
-
-static void FreeWidgetBuffer(Widget_t *pWidget)
-{
-  unsigned char QuadNum = Layout[LAYOUT_TYPE(pWidget->Layout)].QuadNum;
-  unsigned char i;
-
-  for (i = 0; i < QuadNum; ++i)
-  {
-    BufTag &= ~(1 << pWidget->Buffers[i]);
-    // add "+" template to empty buffer
-    LoadBuffer(pWidget->Buffers[i], pWidgetTemplate[TMPL_WGT_EMPTY]);
-  }
-
-  PrintF("-Tg:%04X", BufTag);
-}
-
-static void TestFaceId(WidgetList_t *pWidget)
-{
-  PrintF("Clk BF: Id:0x%02X Layout:0x%02X", pWidget->Id, pWidget->Layout);
-  
-  // copy layout type to faceId,
-  pWidget->Id |= LAYOUT_TYPE(pWidget->Layout) << 4;
-  // if type 3, invert-> faceId 4
-//  if (LAYOUT_TYPE(pWidget->Layout) == LAYOUT_FULL_SCREEN && (pWidget->Layout & INVERT_BIT))
-//  {
-//    pWidget->Layout &= ~INVERT_BIT;
-//    pWidget->Id = (((pWidget->Id >> 4) + 1) << 4) | (pWidget->Id & 0x0F);
-//  }
-
-  // set clock widget bit
-  pWidget->Layout |= CLOCK_WIDGET_BIT;
-  PrintF("Clk AF: Id:0x%02X Layout:0x%02X", pWidget->Id, pWidget->Layout);
-}
+static void TurnPage(unsigned char PageNo);
 
 //#define MSG_OPT_NEWUI             (0x80)
 //#define MSG_OPT_HOME_WGT          (0x40) // new ui only
-//#define MODE_MASK                 (0x03)
 //#define MSG_OPT_WRTBUF_1_LINE     (0x10)
 //#define WRITE_BUFFER_TWO_LINES    (0x00)
-//#define IDLE_MODE_PAGE_MASK       (0x07)
+//#define MODE_MASK                 (0x07)
 //#define MSG_OPT_WRTBUF_MULTILINE  (0x40) // for music mode
 //#define MSG_OPT_WRTBUF_BPL_MASK   (0x38) // for music mode
 
-void WriteBufferHandler(tMessage* pMsg)
+void WriteBufferHandler(tMessage *pMsg)
 {
-  if (pMsg->Options & MSG_OPT_NEWUI)
-  {
-    unsigned int Addr = GetAddr((WidgetHeader_t *)(pMsg->pBuffer));
-    unsigned char *pBuffer = pMsg->pBuffer + WIDGET_HEADER_LEN - SRAM_HEADER_LEN;
-    pBuffer[0] = SPI_WRITE;
-    pBuffer[1] = Addr >> 8;
-    pBuffer[2] = Addr;
-
-    Write((unsigned long)pBuffer, pMsg->Length - WIDGET_HEADER_LEN, DMA_COPY);
-  }
+  if (pMsg->Options & MSG_OPT_NEWUI) WriteWidgetBuffer(pMsg);
   else
   {
-    unsigned int Addr = (pMsg->Options & IDLE_MODE_PAGE_MASK) * BYTES_PER_SCREEN +
-                        *pMsg->pBuffer * BYTES_PER_LINE + MODE_BUF_START_ADDR;
-    
+    unsigned int Addr = MODE_START_ADDR(pMsg->Options & MODE_MASK) + *pMsg->pBuffer * BYTES_PER_LINE;
     unsigned char *pBuffer = pMsg->pBuffer + 1 - SRAM_HEADER_LEN;
-    unsigned char BytesPerLine = pMsg->Options & MSG_OPT_WRTBUF_MULTILINE ?
-                                (pMsg->Options & MSG_OPT_WRTBUF_BPL_MASK) >> 3 :
-                                 BYTES_PER_LINE;
+    unsigned char BytesPerLine = BYTES_PER_LINE;
+    unsigned char DataLength = pMsg->Length - 1;
+
+    if ((pMsg->Options & MODE_MASK) == NOTIF_MODE)
+    {
+        Addr += NotifDrawPage * BYTES_PER_SCREEN;
+    }
+
+    if (pMsg->Options & MSG_OPT_WRTBUF_MULTILINE)
+    {
+        Addr += *(pMsg->pBuffer + 1);
+        pBuffer ++; // first 2 bytes for y, x
+        DataLength --; // exclude first 2 bytes
+        BytesPerLine = (pMsg->Options & MSG_OPT_WRTBUF_BPL_MASK) >> 3;
+    }
+
+    unsigned char LineNum = DataLength / BytesPerLine;
+    if (BytesPerLine != BYTES_PER_LINE) PrintF("- Wrtbuf BPL:%d %s %d", BytesPerLine, "Ln:", LineNum);
     
-    unsigned char i = (pMsg->Length - 1) / BytesPerLine;
-    if (BytesPerLine != BYTES_PER_LINE) PrintF("- Wrtbuf BPL:%d %s %d", BytesPerLine, "Ln:", i);
-    
-    while (i--)
+    while (LineNum--)
     {
       pBuffer[0] = SPI_WRITE;
       pBuffer[1] = Addr >> 8;
@@ -479,165 +146,9 @@ void WriteBufferHandler(tMessage* pMsg)
   }
 }
 
-/* mark all clock widgets outdated and request for updating
-   the first widget on current page */
-void UpdateClockWidgets(void)
-{
-  unsigned char i;
-  unsigned char NotUpdate = TRUE;
-
-//  xSemaphoreTake(SramMutex, portMAX_DELAY);
-
-  for (i = 0; pCurrWidgetList[i].Id != INVALID_ID && i < MAX_WIDGET_NUM; ++i)
-  {
-    if (!IS_CLOCK_WIDGET(pCurrWidgetList[i].Layout)) continue;
-
-    pCurrWidgetList[i].Outdated = TRUE;
-    
-    if (NotUpdate && ON_CURRENT_PAGE(pCurrWidgetList[i].Layout))
-    {
-//      PrintF("-UdCkW Id:%02X", pCurrWidgetList[i].Id);
-      CreateAndSendMessage(DrawClockWidgetMsg, pCurrWidgetList[i].Id);
-      NotUpdate = FALSE;
-    }
-  }
-
-//  xSemaphoreGive(SramMutex);
-}
-
-void WriteClockWidget(unsigned char FaceId, unsigned char *pBuffer)
-{
-//  unsigned char FaceId = FACE_ID(pMsg->Options);
-  unsigned char ClockId = INVALID_ID;
-  unsigned char i, k;
-  unsigned char Found = FALSE;
-
-  for (i = 0; pCurrWidgetList[i].Id != INVALID_ID && i < MAX_WIDGET_NUM; ++i)
-  {
-    if (!IS_CLOCK_WIDGET(pCurrWidgetList[i].Layout)) continue;
-    
-    if (ON_CURRENT_PAGE(pCurrWidgetList[i].Layout))
-    {
-      if (FACE_ID(pCurrWidgetList[i].Id) == FaceId)
-      {
-        Found = TRUE;
-        unsigned char LayoutType = LAYOUT_TYPE(pCurrWidgetList[i].Layout);
-
-        for (k = 0; k < Layout[LayoutType].QuadNum; ++k)
-        {
-          unsigned int Addr = pCurrWidgetList[i].Buffers[k] * BYTES_PER_QUAD + WGT_BUF_START_ADDR;
-          unsigned char *pBuf = pBuffer + k * BYTES_PER_QUAD;
-          pBuf[0] = SPI_WRITE;
-          pBuf[1] = Addr >> 8;
-          pBuf[2] = Addr;
-          
-          Write((unsigned long)pBuf, BYTES_PER_QUAD, DMA_COPY);
-        }
-
-        pCurrWidgetList[i].Outdated = FALSE;
-      }
-      else if (ClockId == INVALID_ID && pCurrWidgetList[i].Outdated)
-      {
-        ClockId = pCurrWidgetList[i].Id; // get next outdated clk on the page
-//        PrintF("- nxt: %02X", ClockId);
-      }
-    }    
-  }
-
-//  pMsg->pBuffer = NULL; // the pBuffer here is not allocated in message queue
-
-  if (!Found) {PrintF("# WrtClk invld FId:x%02X", FaceId); return;}
-
-  if (ClockId == INVALID_ID)
-  { // all outdated clock on current page are updated
-    CreateAndSendMessage(UpdateDisplayMsg, MSG_OPT_NEWUI | MSG_OPT_UPD_INTERNAL | IDLE_MODE);
-  }
-  else
-  { // draw next outdated clock widget of the current page
-//    PrintF("-WtCkW nxt Id:%02X", ClockId);
-    CreateAndSendMessage(DrawClockWidgetMsg, ClockId);
-  }
-//  PrintS("<<<<");
-}
-
-/* get widget ID of the next outdated clock widget of current page */
-static unsigned char GetNextOutdatedClockWidget(void)
-{
-  unsigned char i = 0;
-  for (; pCurrWidgetList[i].Id != INVALID_ID && i < MAX_WIDGET_NUM; ++i)
-  {
-    if (pCurrWidgetList[i].Outdated &&
-        IS_CLOCK_WIDGET(pCurrWidgetList[i].Layout) &&
-        ON_CURRENT_PAGE(pCurrWidgetList[i].Layout))
-      return pCurrWidgetList[i].Id;
-  }
-  return INVALID_ID;
-}
-
-static void ClearWidgetList(void)
-{
-  unsigned char i;
-  for (i = 0; i < MAX_WIDGET_NUM + MAX_WIDGET_NUM; ++i)
-  {
-    Widget[i].Id = INVALID_ID;
-    Widget[i].Layout = 0;
-    Widget[i].Outdated = 0;
-  }
-}
-
 unsigned char CurrentIdleScreen(void)
 {
-  return CurrentPage;
-}
-
-static unsigned int GetAddr(WidgetHeader_t *pData)
-{
-  static unsigned char i = 0;
-  unsigned int Addr = 0;
-
-  if (pData->Id != pCurrWidgetList[i].Id)
-  {
-    for (i = 0; pCurrWidgetList[i].Id != INVALID_ID && i < MAX_WIDGET_NUM; ++i)
-    {
-      if (pData->Id == pCurrWidgetList[i].Id &&
-          !IS_CLOCK_WIDGET(pCurrWidgetList[i].Layout)) break;
-    }
-
-    if (pCurrWidgetList[i].Id == INVALID_ID || i == MAX_WIDGET_NUM)
-    {
-      i = 0;
-      return Addr;
-    }
-  }
-  
-  //find right buffer according to row
-  Addr = pCurrWidgetList[i].Buffers[pData->Row / QUAD_ROW_NUM] * BYTES_PER_QUAD +
-         (pData->Row % QUAD_ROW_NUM) * BYTES_PER_QUAD_LINE + WGT_BUF_START_ADDR;
-
-  return Addr;
-}
-
-static void GetQuadAddr(QuadAddr_t *pAddr)
-{
-  unsigned char i = 0;
-  for (i = 0; pCurrWidgetList[i].Id != INVALID_ID && i < MAX_WIDGET_NUM; ++i)
-  {
-    if ((pCurrWidgetList[i].Layout & IDLE_PAGE_MASK) >> IDLE_PAGE_SHFT == pAddr->Page)
-    {
-      unsigned char Type = LAYOUT_TYPE(pCurrWidgetList[i].Layout);
-      unsigned char Quad = pCurrWidgetList[i].Layout & QUAD_NO_MASK;
-      unsigned char k = 0;
-      //PrintS("W:"); PrintH(pCurrWidgetList[i].Id);
-
-      while (k < Layout[Type].QuadNum)
-      {
-        pAddr->Addr[Quad] = pCurrWidgetList[i].Buffers[k] * BYTES_PER_QUAD + WGT_BUF_START_ADDR;
-        pAddr->Layout[Quad] = pCurrWidgetList[i].Layout; //(pCurrWidgetList[i].Layout & LAYOUT_MASK) >> LAYOUT_SHFT;
-        Quad += Layout[Type].Step;
-        k ++;
-      }
-    }
-  }
+  return IdleShowPage;
 }
 
 //#define MSG_OPT_NEWUI             (0x80)
@@ -649,156 +160,39 @@ static void GetQuadAddr(QuadAddr_t *pAddr)
 //#define MSG_OPT_PRV_PAGE          (0x08)
 //#define MSG_OPT_NXT_PAGE          (0x04)
 //#define MODE_MASK                 (0x03)
-//#define IDLE_MODE_PAGE_MASK       (0x07)
 
-void UpdateDisplayHandler(tMessage* pMsg)
+void UpdateDisplayHandler(tMessage *pMsg)
 {
   unsigned char Mode = pMsg->Options & MODE_MASK;
-  unsigned char SramBuf[SRAM_HEADER_LEN];
-  tLcdBuffer LcdBuf;
-  tMessage Msg;
 
   if ((pMsg->Options & MSG_OPT_NEWUI) && GetProperty(PROP_PHONE_DRAW_TOP)) //for idle update only
   {
     if (!(pMsg->Options & MSG_OPT_UPD_INTERNAL) && pMsg->Options & MSG_OPT_SET_PAGE)
     { // set current page only
-      CurrentPage = (pMsg->Options & MSG_OPT_PAGE_NO) >> SET_PAGE_SHFT;
+      IdleShowPage = (pMsg->Options & MSG_OPT_PAGE_NO) >> SET_PAGE_SHFT;
     }
     else if (pMsg->Options & MSG_OPT_TURN_PAGE)
     { // turn page
-      if ((pMsg->Options & MSG_OPT_TURN_PAGE) == MSG_OPT_NXT_PAGE) CurrentPage ++;
+      if ((pMsg->Options & MSG_OPT_TURN_PAGE) == MSG_OPT_NXT_PAGE) IdleShowPage ++;
 
-#if COUNTDOWN_TIMER
-      if (CurrentPage == IDLE_PAGE_NUM)
+#if WWZ
+      if (IdleShowPage == IDLE_PAGE_NUM)
       {
-        CurrentPage = 0;
-        SendMessage(&Msg, CountDownMsg, MSG_OPT_NONE);
+        IdleShowPage = 0;
+        SendMessage(CountDownMsg, MSG_OPT_NONE);
         return;
       }
 #endif
-      if (CurrentPage == IDLE_PAGE_NUM) CurrentPage = 0;
-      SendMessage(&Msg, ChangeModeMsg, MSG_OPT_CHGMOD_IND); // report curr page|mode
+      if (IdleShowPage == IDLE_PAGE_NUM) IdleShowPage = 0;
+      SendMessage(ChangeModeMsg, MSG_OPT_CHGMOD_IND); // report curr page|mode
     }
 
     // not in idle mode idle page
     if (CurrentMode != IDLE_MODE || PageType != PAGE_TYPE_IDLE) return;
 
-    unsigned char OutdatedClkId = GetNextOutdatedClockWidget();
-
-//    if (!(pMsg->Options & MSG_OPT_UPD_INTERNAL && pMsg->Options & MSG_OPT_UPD_HWGT) &&
-//        OutdatedClkWgt != INVALID_ID)
-//    if (!(pMsg->Options & MSG_OPT_UPD_INTERNAL) && OutdatedClkWgt != INVALID_ID)
-    if (OutdatedClkId != INVALID_ID)
-    { //ask for drawing clock widget from external
-//      PrintF("- UpdDsp OtdClk:0x%02X", OutdatedClkId);
-      SendMessage(&Msg, DrawClockWidgetMsg, OutdatedClkId);
-      return; // will get back internal upddisp when updhomewgt done
-    }
-
-//    PrintC('U'); PrintCR();
     xSemaphoreTake(SramMutex, portMAX_DELAY);
 
-    QuadAddr_t QuadAddr;
-    QuadAddr.Page = CurrentPage;
-
-    // clear QuadAddr
-    unsigned char i;
-    for (i = 0; i < QUAD_NUM; ++i)
-    {
-      QuadAddr.Addr[i] = 0;
-      QuadAddr.Layout[i] = 0;
-    }
-    GetQuadAddr(&QuadAddr);
-    
-    i = 0;
-    while (BufTag & (1 << i)) i ++; // find out first empty buffer
-    unsigned int Addr = i * BYTES_PER_QUAD + WGT_BUF_START_ADDR;
-    
-    for (i = 0; i < QUAD_NUM; ++i)
-    {
-     if (QuadAddr.Addr[i] == 0) QuadAddr.Addr[i] = Addr;
-    }
-
-    unsigned char Row = 0;
-    i = 0; // 0 for upper Quads, 1 for lower Quads
-
-    while (Row < LCD_ROW_NUM)
-    {
-      unsigned char k = 1; // 0 for left Quads, 1 for right Quads
-      do
-      {
-        Addr = QuadAddr.Addr[i+k] + (Row % HALF_SCREEN_ROWS) * BYTES_PER_QUAD_LINE;
-        
-        SramBuf[0] = SPI_READ;
-        SramBuf[1] = Addr >> 8;
-        SramBuf[2] = Addr;
-
-        ReadBlock(SramBuf, (unsigned char *)&LcdBuf + BYTES_PER_QUAD_LINE * k, BYTES_PER_QUAD_LINE);
-
-        unsigned char c; // Column byte number
-        
-        if (QuadAddr.Layout[i+k] & INVERT_BIT)
-        { // Invert pixel
-          for (c = 0; c < BYTES_PER_QUAD_LINE; ++c)
-            LcdBuf.Line.Data[c + BYTES_PER_QUAD_LINE * k] = ~LcdBuf.Line.Data[c + BYTES_PER_QUAD_LINE * k];
-        }
-
-        if (GetProperty(PROP_WIDGET_GRID))
-        {
-          // Rule 1: outer upper and lower horizontal boarders
-//          if (Row == 0 || Row == LCD_ROW_NUM - 1)
-//          {
-//            for (c = 0; c < BYTES_PER_QUAD_LINE; ++c)
-//              LcdBuf.Line.Data[c + BYTES_PER_QUAD_LINE * k] = BOARDER_PATTERN_ROW;
-//          }
-//          else
-          {
-            unsigned char LayoutType = LAYOUT_TYPE(QuadAddr.Layout[i+k]);
-
-            if (Row % BOARDER_PATTERN_COL == 1 || Row % BOARDER_PATTERN_COL == 2)
-            {// black dots
-              // Rule 2: left and right side vertical boarders
-//              if (k) LcdBuf.Line.Data[BYTES_PER_LINE - 1] |= 0x80; // right side boarder
-//              else  LcdBuf.Line.Data[0] |= 0x01; // left side boarder
-
-             // Rule 3 inner vertical boarders
-             if (LayoutType == 0 || LayoutType == 2)
-             {
-              if (k) LcdBuf.Line.Data[BYTES_PER_QUAD_LINE] |= 0x01; // right inner boarder
-              else  LcdBuf.Line.Data[BYTES_PER_QUAD_LINE - 1] |= 0x80; // left inner boarder
-             }
-            }
-            else
-            {// white dots
-              // Rule 2: left and right side vertical boarders
-//              if (k) LcdBuf.Line.Data[BYTES_PER_LINE - 1] &= 0x7F; // right side boarder
-//              else  LcdBuf.Line.Data[0] &= 0xFE; // left side boarder
-
-             // Rule 3 inner vertical boarders
-             if (LayoutType == 0 || LayoutType == 2)
-             {
-              if (k) LcdBuf.Line.Data[BYTES_PER_QUAD_LINE] &= 0xFE; // right inner boarder
-              else  LcdBuf.Line.Data[BYTES_PER_QUAD_LINE - 1] &= 0x7F; // left inner boarder
-             }
-            }
-
-            // Rule 4: inner horizontal boarders
-            if (LayoutType == 0 || LayoutType == 1)
-            {
-              if (Row == HALF_SCREEN_ROWS - 1 || Row == HALF_SCREEN_ROWS)
-              {
-                for (c = 0; c < BYTES_PER_QUAD_LINE; ++c)
-                  LcdBuf.Line.Data[c + BYTES_PER_QUAD_LINE * k] = BOARDER_PATTERN_ROW;
-              }
-            }
-          }
-        }
-      }  while (k--);
-
-      LcdBuf.Line.Row = Row ++; // Lcd row number starts from 1
-      WriteToLcd(&LcdBuf.Line, 1);
-      if (Row == HALF_SCREEN_ROWS) i += 2;
-    }
+    DrawWidgetToLcd(IdleShowPage);
 
     xSemaphoreGive(SramMutex);
   }
@@ -808,16 +202,28 @@ void UpdateDisplayHandler(tMessage* pMsg)
     // redraw date&time. In any case of mode change, notify LcdDisplay to
     // switch button definition for the mode.
     // for external msg, NOTIF > APP > IDLE > MUSIC
-    if (!(pMsg->Options & MSG_OPT_UPD_INTERNAL))
+    if (pMsg->Options & MSG_OPT_UPD_INTERNAL)
+    {
+      if ((pMsg->Options & MSG_OPT_TURN_PAGE) == MSG_OPT_NXT_PAGE)
+      {
+        if (NotifPageNum == 0) return;
+        TurnPage(SHOW_PAGE);
+      }
+      else if (Mode == NOTIF_MODE && Ringing()) TurnPage(DRAW_PAGE);
+    }
+    else
     {
       signed char Result = ComparePriority(Mode);
 //      PrintF("- UpdDsp Priority:%d", Result);
 
-      if (Result > 0) ChangeMode(Mode); //SendMessage(&Msg, ChangeModeMsg, Mode);
-      else if (Result < 0) return;
-      else if (Mode == NOTIF_MODE && Ringing()) return;
-      else if (CurrentMode != IDLE_MODE) ResetModeTimer();
-      else if (PageType != PAGE_TYPE_IDLE) return;
+      if (Result >= 0)
+      {
+        if (Result > 0) ChangeMode(Mode);
+        if (Mode == NOTIF_MODE) TurnPage(DRAW_PAGE);
+        if (CurrentMode != IDLE_MODE) ResetModeTimer();
+        else if (PageType != PAGE_TYPE_IDLE) return;
+      }
+      else return;
     }
 //    PrintF("- UpdDsp PgTp:%d", PageType);
 
@@ -834,37 +240,46 @@ void UpdateDisplayHandler(tMessage* pMsg)
     }
 
     /* now calculate the absolute address */
-    unsigned int Addr = (pMsg->Options & IDLE_MODE_PAGE_MASK) * BYTES_PER_SCREEN +
-                        StartRow * BYTES_PER_LINE + MODE_BUF_START_ADDR;
+    unsigned int Addr = MODE_START_ADDR(Mode) + StartRow * BYTES_PER_LINE;
+    if (Mode == NOTIF_MODE) Addr += NotifShowPage * BYTES_PER_SCREEN;
+//    PrintF("UpdDsp NtfShwPg:%u Rows:%u", NotifShowPage, RowNum);
+    tLcdLine *DrawBuf = NULL;
+    LcdReadBuffer_t *LcdBuf = (LcdReadBuffer_t *)pvPortMalloc(LCD_READ_BUFFER_SIZE);
 
     while (RowNum --)
     {
-      /* one buffer is used for writing and another is used for reading
-       * the incoming message can't be used because it doesn't have a buffer
-       */
       SramBuf[0] = SPI_READ;
-      SramBuf[1] = (unsigned char)(Addr >> 8);
-      SramBuf[2] = (unsigned char) Addr;
-
-      /*
-       * The tLcdData accounts for the
-       * 3+1 spots to starting location of data from dma read
-       * (room for bytes read in when cmd and address are sent)
-       */
-      ReadBlock(SramBuf, (unsigned char *)&LcdBuf, BYTES_PER_LINE);
-
+      SramBuf[1] = Addr >> 8;
+      SramBuf[2] = Addr;
+      Read(SramBuf, (unsigned char *)LcdBuf, BYTES_PER_LINE);
       /* now add the row number */
-      LcdBuf.Line.Row = StartRow ++;
-      LcdBuf.Line.Trailer = 0;
-      WriteToLcd(&LcdBuf.Line, 1);
+      LcdBuf->Line.Row = StartRow ++;
+      LcdBuf->Line.Trailer = 0;
+
+      if (Mode == NOTIF_MODE && NotifPageNum > 0 &&
+          LcdBuf->Line.Row >= NOTIF_PAGE_NO_START_ROW &&
+          LcdBuf->Line.Row <= NOTIF_PAGE_NO_END_ROW)
+      {
+        if (DrawBuf == NULL) DrawBuf = (tLcdLine *)GetLcdBuffer();
+        memcpy(&DrawBuf[LcdBuf->Line.Row], (unsigned char *)&LcdBuf->Line, sizeof(tLcdLine));
+      }
+
+      WriteToLcd(&LcdBuf->Line, 1);
       Addr += BYTES_PER_LINE;
+    }
+    vPortFree(LcdBuf);
+
+    if (DrawBuf)
+    {
+      unsigned char PageMore;
+      if (NotifShowPage < NotifDrawPage) PageMore = NotifShowPage + NotifPageNum - NotifDrawPage;
+      else PageMore = NotifShowPage - NotifDrawPage;
+
+      DrawNotifPageNo(PageMore); // include freebuf
     }
   }
 
   DrawStatusBar();
-
-  /* now that the screen has been drawn put the LCD into a lower power mode */
-//  SetLcdStaticMode();
 }
 
 static signed char ComparePriority(unsigned char Mode)
@@ -877,29 +292,27 @@ static signed char ComparePriority(unsigned char Mode)
   return -1;
 }
 
+static void TurnPage(unsigned char PageNo)
+{
+  if (PageNo == DRAW_PAGE)
+  {
+    NotifShowPage = NotifDrawPage;
+    if (++NotifDrawPage == NOTIF_TOTAL_PAGES) NotifDrawPage = 0;
+    if (NotifPageNum < NOTIF_TOTAL_PAGES) NotifPageNum ++;
+  }
+  else if (NotifShowPage-- == 0) NotifShowPage = NotifPageNum - 1;
+}
+
 void DrawStatusBar(void)
 {
   if ((1 << CurrentMode) & StatusBarInModes)
   {
-    if (CurrentMode == IDLE_MODE)
-    {
-      unsigned char i;
-      for (i = 0; pCurrWidgetList[i].Id != INVALID_ID && i < MAX_WIDGET_NUM; ++i)
-      {
-        if (ON_CURRENT_PAGE(pCurrWidgetList[i].Layout) &&
-            LAYOUT_TYPE(pCurrWidgetList[i].Layout) == LAYOUT_FULL_SCREEN &&
-            !IS_CLOCK_WIDGET(pCurrWidgetList[i].Layout))
-        {
-          DrawStatusBarToLcd();
-          break;
-        }
-      }
-    }
+    if (CurrentMode == IDLE_MODE) DrawStatusBarToWidget();
     else DrawStatusBarToLcd();
   }
 }
 
-static void ReadBlock(unsigned char *pWriteData, unsigned char *pReadData, unsigned int Length)
+void Read(unsigned char *pWriteData, unsigned char *pReadData, unsigned int Length)
 {
   DmaBusy = 1;
   SRAM_CSN_ASSERT();
@@ -909,7 +322,7 @@ static void ReadBlock(unsigned char *pWriteData, unsigned char *pReadData, unsig
    *
    * two DMA channels are used
    *
-   * read requires 16 total bytes because the shift in of the read data
+   * read requires 4 leading bytes because the shift in of the read data
    * lags the transmit data by one byte
    */
 
@@ -944,7 +357,7 @@ static void ReadBlock(unsigned char *pWriteData, unsigned char *pReadData, unsig
 }
 
 /* use DMA to write a block of data to the serial ram */
-static void Write(unsigned long const pData, unsigned int Length, unsigned char Op)
+void Write(unsigned long const pData, unsigned int Length, unsigned char Op)
 {
   EnableSmClkUser(SERIAL_RAM_USER);
   DmaBusy = 1;
@@ -978,27 +391,28 @@ static void Write(unsigned long const pData, unsigned int Length, unsigned char 
 static void SetAddr(unsigned int Addr)
 {
   SRAM_CSN_ASSERT();
-  unsigned char Data[3];
 
-  Data[0] = SPI_WRITE;
-  Data[1] = Addr >> 8;
-  Data[2] = Addr;
+  SramBuf[0] = SPI_WRITE;
+  SramBuf[1] = Addr >> 8;
+  SramBuf[2] = Addr;
 
   unsigned char i;
 
   for (i = 0; i < 3; ++i)
   {
-    UCA0TXBUF = Data[i];
+    UCA0TXBUF = SramBuf[i];
     while (!(UCA0IFG&UCTXIFG));
     while (!(UCA0IFG&UCRXIFG));
-    Data[i] = UCA0RXBUF;
+    SramBuf[i] = UCA0RXBUF;
   }
 }
 
 /* Load a template from flash into mode SRAM */
 void LoadTemplateHandler(tMessage *pMsg)
 {
-  SetAddr((pMsg->Options & MODE_MASK) * BYTES_PER_SCREEN + MODE_BUF_START_ADDR);
+  unsigned int Addr = MODE_START_ADDR(pMsg->Options & MODE_MASK);
+  if ((pMsg->Options & MODE_MASK) == NOTIF_MODE) Addr += NotifDrawPage * BYTES_PER_SCREEN;
+  SetAddr(Addr);
 
   if (pMsg->pBuffer == NULL)
   { // internal usage: high 4-bit is TmpID
@@ -1007,7 +421,7 @@ void LoadTemplateHandler(tMessage *pMsg)
   else if (*pMsg->pBuffer <= 1)
   {
     /* clear or fill the screen */
-    Write((unsigned long)(*pMsg->pBuffer ? &FILL_WHITE : &FILL_BLACK), BYTES_PER_SCREEN - SRAM_HEADER_LEN, DMA_FILL);
+    Write((unsigned long)(*pMsg->pBuffer ? &FILL_BLACK : &FILL_WHITE), BYTES_PER_SCREEN - SRAM_HEADER_LEN, DMA_FILL);
   }
   else
   {
@@ -1017,57 +431,57 @@ void LoadTemplateHandler(tMessage *pMsg)
   }
 }
 
-static void LoadBuffer(unsigned char i, unsigned char const *pTemp)
+void LoadBuffer(unsigned char QuadIndex, unsigned char const *pTemp)
 {
-  SetAddr(i * BYTES_PER_QUAD + WGT_BUF_START_ADDR);
+  SetAddr(QuadIndex * BYTES_PER_QUAD + WGT_BUF_START_ADDR);
   Write((unsigned long)pTemp, BYTES_PER_QUAD - SRAM_HEADER_LEN, DMA_COPY);
-}
-
-void DrawTemplateToSram(Draw_t *Info, unsigned char const *pData, unsigned char Mode)
-{
-  SetAddr(MODE_START_ADDR(Mode) + Info->Y * BYTES_PER_LINE);
-  Write((unsigned long)pData, TmplInfo[Info->Id & TMPL_ID_MASK].Height * BYTES_PER_LINE - SRAM_HEADER_LEN, DMA_COPY);
 }
 
 void ClearSram(unsigned char Mode)
 {
-  SetAddr(MODE_START_ADDR(Mode));
+  unsigned int Addr = MODE_START_ADDR(Mode);
+  if (Mode == NOTIF_MODE) Addr += NotifDrawPage * BYTES_PER_SCREEN;
+  SetAddr(Addr);
   Write((unsigned long)&DummyData, BYTES_PER_SCREEN - SRAM_HEADER_LEN, DMA_FILL);
 }
 
-#define SRAM_READ_OVERHEAD  4
+#define SRAM_READ_OVERHEAD  (SRAM_HEADER_LEN + 1)
 
 void DrawBitmapToSram(Draw_t *Info, unsigned char WidthInBytes, unsigned char const *pBitmap, unsigned char Mode)
 {
   unsigned int Addr = (Info->X >> 3) + Info->Y * BYTES_PER_LINE + MODE_START_ADDR(Mode);
+  if (Mode == NOTIF_MODE) Addr += NotifDrawPage * BYTES_PER_SCREEN;
+//  PrintF("DrwBmpSrm NtfDrwPg:%u", NotifDrawPage);
+
   unsigned char SramBytes = ((Info->Width + Info->X % 8) >> 3) + 1;
   int Overflow = SramBytes + (Info->X >> 3) - BYTES_PER_LINE;
   if (Overflow > 0) SramBytes -= Overflow;
-//  unsigned char SramBytes = BYTES_PER_LINE - (Info->X >> 3);
-//  PrintF("Left:%u WB:%u", Info->X >> 3, SramBytes);
+//  PrintF("WB:%u", SramBytes);
 
   unsigned char x, y;
   unsigned char Set;
-  unsigned char SramBuf[SRAM_HEADER_LEN + SRAM_READ_OVERHEAD + BYTES_PER_LINE];
+  unsigned char *pBuf = (unsigned char *)pvPortMalloc(SramBytes + SRAM_READ_OVERHEAD);
+//  memset(pBuf, 0x55, SramBytes + SRAM_READ_OVERHEAD);
 
   for (y = 0; y < Info->Height && (y + Info->Y) < LCD_ROW_NUM; ++y)
   {
     unsigned char ColBit = BIT0 << (Info->X % 8); // dst
     unsigned char MaskBit = BIT0; // src
     unsigned char const *pBmp = pBitmap + y * WidthInBytes;
-    unsigned char *pByte = SramBuf + SRAM_HEADER_LEN + SRAM_READ_OVERHEAD;
+    unsigned char *pByte = pBuf + SRAM_READ_OVERHEAD;
 
     SramBuf[0] = SPI_READ;
     SramBuf[1] = Addr >> 8;
     SramBuf[2] = Addr;
-    ReadBlock(SramBuf, SramBuf + SRAM_HEADER_LEN, SramBytes);
+    Read(SramBuf, pBuf, SramBytes);
+//    PrintQ(pBuf, SramBytes + SRAM_READ_OVERHEAD);
 
     for (x = 0; x < Info->Width && (x + Info->X) < LCD_COL_NUM; ++x)
     {
-      if (pByte >= SramBuf + sizeof(SramBuf)) PrintF("# OvrFlw x:%u y:%u", x+Info->X, y+Info->Y);
+      if (pByte >= pBuf + SramBytes + SRAM_READ_OVERHEAD) PrintF("#DrwSram x:%u y:%u", x+Info->X, y+Info->Y);
 
       Set = *pBmp & MaskBit;
-      BitOp(pByte, ColBit, Set, Info->Opt & DRAW_OPT_BITWISE_MASK);
+      BitOp(pByte, ColBit, Set, Info->Opt & DRAW_OPT_MASK);
 
       MaskBit <<= 1;
       if (MaskBit == 0)
@@ -1084,23 +498,32 @@ void DrawBitmapToSram(Draw_t *Info, unsigned char WidthInBytes, unsigned char co
       }
     }
 
-    SramBuf[1 + SRAM_HEADER_LEN] = SPI_WRITE;
-    SramBuf[2 + SRAM_HEADER_LEN] = Addr >> 8;
-    SramBuf[3 + SRAM_HEADER_LEN] = Addr;
-    Write((unsigned long)(SramBuf + SRAM_HEADER_LEN + 1), SramBytes, DMA_COPY);
+    pBuf[1] = SPI_WRITE;
+    pBuf[2] = Addr >> 8;
+    pBuf[3] = Addr;
+    Write((unsigned long)(pBuf + 1), SramBytes, DMA_COPY);
     Addr += BYTES_PER_LINE;
   }
 
+  vPortFree(pBuf);
   if ((y + Info->Y) >= LCD_ROW_NUM || (x + Info->X) >= LCD_COL_NUM)
     PrintF("DrwBmp x:%d y:%d", x + Info->X, y + Info->Y);
 }
 
+void DrawTemplateToSram(Draw_t *Info, unsigned char Mode)
+{
+  unsigned int Addr = MODE_START_ADDR(Mode) + Info->Y * BYTES_PER_LINE;
+  if (Mode == NOTIF_MODE) Addr += NotifDrawPage * BYTES_PER_SCREEN;
+  
+  SetAddr(Addr);
+  Write((unsigned long)pTemplate[Info->Id & TMPL_ID_MASK], BYTES_PER_SCREEN - SRAM_HEADER_LEN, DMA_COPY);
+}
+
 /* configure the MSP430 SPI peripheral */
-void SerialRamInit(void)
+void InitSerialRam(void)
 {
   /* assert reset when configuring */
   UCA0CTL1 = UCSWRST;
-
   EnableSmClkUser(SERIAL_RAM_USER);
 
   SRAM_SCLK_PSEL |= SRAM_SCLK_PIN;
@@ -1109,7 +532,6 @@ void SerialRamInit(void)
 
   /* 3 pin SPI master, MSB first, clock inactive when low, phase is 1 */
   UCA0CTL0 |= UCMST + UCMSB + UCCKPH + UCSYNC;
-
   UCA0CTL1 |= UCSSEL__SMCLK;
 
   /* spi clock of 8.39 MHz (chip can run at 16 MHz max)*/
@@ -1118,71 +540,61 @@ void SerialRamInit(void)
 
   /* release reset and wait for SPI to initialize */
   UCA0CTL1 &= ~UCSWRST;
-
   vTaskDelay(SPI_INIT_DELAY_IN_MS);
+    /*
+     * Read the status register
+     */
+    SRAM_CSN_ASSERT();
+    while (!(UCA0IFG & UCTXIFG));
 
-  /*
-   * Read the status register
-   */
-  SRAM_CSN_ASSERT();
+    /* writing automatically clears flag */
+    UCA0TXBUF = SPI_RDSR;
+    while (!(UCA0IFG&UCTXIFG));
+    UCA0TXBUF = DummyData;
+    while (!(UCA0IFG&UCTXIFG));
+    WAIT_FOR_SRAM_SPI_SHIFT_COMPLETE();
+    ReadData = UCA0RXBUF;
 
-  while (!(UCA0IFG&UCTXIFG));
+    unsigned char FinalSrValue = DEFAULT_SR_VALUE;
+    unsigned char DefaultSrValue = FINAL_SR_VALUE;
 
-  /* writing automatically clears flag */
-  UCA0TXBUF = SPI_RDSR;
-  while (!(UCA0IFG&UCTXIFG));
-  UCA0TXBUF = DummyData;
-  while (!(UCA0IFG&UCTXIFG));
-  WAIT_FOR_SRAM_SPI_SHIFT_COMPLETE();
-  ReadData = UCA0RXBUF;
+    if (GetBoardConfiguration() >= 2)
+    {
+      DefaultSrValue = DEFAULT_SR_VALUE_256;
+      FinalSrValue = FINAL_SR_VALUE_256;
+    }
 
-  unsigned char FinalSrValue = DEFAULT_SR_VALUE;
-  unsigned char DefaultSrValue = FINAL_SR_VALUE;
+    /* make sure correct value is read from the part */
+    if (ReadData != DefaultSrValue && ReadData != FinalSrValue) PrintS("# SRAM Init1");
+    SRAM_CSN_DEASSERT();
 
-  if ( GetBoardConfiguration() >= 2 )
-  {
-    DefaultSrValue = DEFAULT_SR_VALUE_256;
-    FinalSrValue = FINAL_SR_VALUE_256;
-  }
+    /* put the part into sequential mode */
+    SRAM_CSN_ASSERT();
+    UCA0TXBUF = SPI_WRSR;
+    while (!(UCA0IFG&UCTXIFG));
+    UCA0TXBUF = SEQUENTIAL_MODE_COMMAND;
+    while (!(UCA0IFG&UCTXIFG));
+    WAIT_FOR_SRAM_SPI_SHIFT_COMPLETE();
+    SRAM_CSN_DEASSERT();
 
-  /* make sure correct value is read from the part */
-  if (ReadData != DefaultSrValue && ReadData != FinalSrValue) PrintS("# SRAM Init1");
-  SRAM_CSN_DEASSERT();
+    SRAM_CSN_ASSERT();
+    UCA0TXBUF = SPI_RDSR;
+    while (!(UCA0IFG&UCTXIFG));
 
-  /*
-   * put the part into sequential mode
-   */
-  SRAM_CSN_ASSERT();
-  UCA0TXBUF = SPI_WRSR;
-  while (!(UCA0IFG&UCTXIFG));
-  UCA0TXBUF = SEQUENTIAL_MODE_COMMAND;
-  while (!(UCA0IFG&UCTXIFG));
-  WAIT_FOR_SRAM_SPI_SHIFT_COMPLETE();
-  SRAM_CSN_DEASSERT();
+    UCA0TXBUF = DummyData;
+    while (!(UCA0IFG&UCTXIFG));
+    WAIT_FOR_SRAM_SPI_SHIFT_COMPLETE();
+    ReadData = UCA0RXBUF;
 
-  /**/
-  SRAM_CSN_ASSERT();
-  UCA0TXBUF = SPI_RDSR;
-  while (!(UCA0IFG&UCTXIFG));
-
-  UCA0TXBUF = DummyData;
-  while (!(UCA0IFG&UCTXIFG));
-  WAIT_FOR_SRAM_SPI_SHIFT_COMPLETE();
-  ReadData = UCA0RXBUF;
-
-  /* make sure correct value is read from the part */
-  if (ReadData != FinalSrValue) PrintS("# SRAM Init2");
-  SRAM_CSN_DEASSERT();
+    /* make sure correct value is read from the part */
+    if (ReadData != FinalSrValue) PrintS("# SRAM Init2");
+    SRAM_CSN_DEASSERT();
 
   /* now use the DMA to clear the serial ram */
-  SetAddr(MODE_BUF_START_ADDR);
-  Write((unsigned long)&DummyData, MODE_BUFFER_SIZE - SRAM_HEADER_LEN, DMA_FILL);
+    SetAddr(MODE_BUF_START_ADDR);
+    Write((unsigned long)&DummyData, MODE_BUFFER_SIZE - SRAM_HEADER_LEN, DMA_FILL);
 
-  ClearWidgetList();
-  
-  unsigned char i;
-  // load 16 buffers with empty widget template
-  for (i = 0; i < MAX_WIDGET_NUM; ++i) LoadBuffer(i, pWidgetTemplate[TMPL_WGT_EMPTY]);
+  InitWidget();
   
   SramMutex = xSemaphoreCreateMutex();
   xSemaphoreGive(SramMutex);

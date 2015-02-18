@@ -20,7 +20,7 @@
 #include "hal_board_type.h"
 #include "hal_battery.h"
 #include "hal_software_fll.h"
-
+#include "hal_boot.h"
 #include "DebugUart.h"
 #include "Adc.h"
 #include "MuxMode.h"
@@ -44,11 +44,17 @@
 
 #define CHECK_CHARGING_STATUS_DELAY_IN_MS     (1 * portTICK_RATE_MS)
 #define SHOW_CHARGE_STATUS_COUNTS             1 //30 // 5 mins
+#define CLIP_INIT                             (0xFF)
+
+#if __IAR_SYSTEMS_ICC__
+__no_init __root unsigned char niBattery @ BATTERY_ADDR;
+#else
+extern unsigned char niBattery;
+#endif
 
 // used to monitor battery status
 static unsigned char ChargeStatus;
 static unsigned char ChargeEnable;
-static unsigned char BattAver = BATTERY_UNKNOWN;
 
 #define BAT_CHARGE_OPEN_DRAIN_BITS \
   ( BAT_CHARGE_STAT1 + BAT_CHARGE_STAT2 + BAT_CHARGE_PWR_BIT )
@@ -56,12 +62,13 @@ static unsigned char BattAver = BATTERY_UNKNOWN;
 #define BAT_CHARGE_STATUS_OPEN_DRAIN_BITS \
   ( BAT_CHARGE_STAT1 + BAT_CHARGE_STAT2 )
 
+static void InitBattery(void);
 static void ChargingControl(void);
 
 /*! Configure the pins used for reading the battery state and 
  * charging the battery.
  */
-void InitBattery(void)
+static void InitBattery(void)
 {
   // enable the resistor on the interface pins to the battery charger
   BAT_CHARGE_REN |= BAT_CHARGE_OPEN_DRAIN_BITS;
@@ -82,9 +89,8 @@ void InitBattery(void)
    */
   BAT_CHARGE_OUT |= BAT_CHARGE_PWR_BIT;
   BATTERY_CHARGE_DISABLE();
-  
-  InitAdc();
 
+  niBattery = BATTERY_UNKNOWN;
   ChargeEnable = TRUE;
   ChargeStatus = CHARGE_STATUS_OFF;
 }
@@ -92,7 +98,8 @@ void InitBattery(void)
 unsigned char CheckClip(void)
 {
   static unsigned char Last = CLIP_INIT;
-  unsigned char Changed = FALSE;
+
+  if (Last == CLIP_INIT) InitBattery();
 
   unsigned char Clip = ClipOn();
 
@@ -100,14 +107,10 @@ unsigned char CheckClip(void)
   {
     /* change the mux settings accordingly */
     ChangeMuxMode(Clip);
-    EnableDebugUart(Clip);
-
-    if (Clip == CLIP_ON) PrintS("- Atch");
-    
-    Changed = TRUE;
     Last = Clip;
+    return TRUE;
   }
-  return Changed;
+  return FALSE;
 }
 
 void CheckBattery(void)
@@ -117,7 +120,7 @@ void CheckBattery(void)
   if (!ClipOn())
   {
     ChargeStatus = CHARGE_STATUS_OFF;
-    BattAver = ReadBattery();
+    niBattery = ReadBattery();
   }
   else
   {
@@ -133,12 +136,14 @@ void CheckBattery(void)
         {
         case CHARGE_STATUS_PRECHARGE:   Status = '.'; break;
         case CHARGE_STATUS_FAST_CHARGE: Status = ':'; break;
-        case CHARGE_STATUS_DONE:        Status = '|'; BattAver = 100; break;
+        case CHARGE_STATUS_DONE:        Status = '|';
+            if (niBattery != BATTERY_UNKNOWN) niBattery = 100;
+            break;
         case CHARGE_STATUS_OFF:         Status = 'o'; break;
         default:                        Status = '?'; break;
         }
-//        PrintF("%c%u", Status, BatteryPercentage());
-        if (Charging()) BattAver = ReadBattery();
+        PrintF("%c%u", Status, BatteryPercentage());
+        if (Charging()) niBattery = ReadBattery();
         Count = 0;
       }
     }
@@ -147,7 +152,7 @@ void CheckBattery(void)
 
 unsigned char BatteryPercentage(void)
 {
-  return BattAver;
+  return niBattery;
 }
 
 unsigned char ClipOn(void)

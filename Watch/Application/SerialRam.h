@@ -14,65 +14,30 @@
 //  limitations under the License.
 //==============================================================================
 
-/******************************************************************************/
-/*! \file SerialRam.h
- *
- * The serial ram is used to store images for the LCD.  When the phone draws 
- * images they are sent directly to Serial RAM.  When an image is ready to be 
- * displayed it is read from the serial RAM and sent to the LCD driver.
- *
- */
-/******************************************************************************/
-
 #ifndef SERIAL_RAM_H
 #define SERIAL_RAM_H
 
-#define BYTES_PER_QUAD          (288) //48x6
-#define BYTES_PER_QUAD_LINE     (6)
-#define HALF_SCREEN_ROWS        (LCD_ROW_NUM >> 1)
-#define QUAD_ROW_NUM            (HALF_SCREEN_ROWS)
-#define HALF_SCREEN_COLS        (LCD_COL_NUM >> 1)
-#define QUAD_NUM                (4)
-#define SRAM_HEADER_LEN         (3)
-#define LAYOUT_NUM              (4)
-#define LAYOUT_MASK             (0x0C)
-#define LAYOUT_SHFT             (2)
-
-/* Layout type */
-#define LAYOUT_QUAD_SCREEN      (0)
-#define LAYOUT_HORI_SCREEN      (1)
-#define LAYOUT_VERT_SCREEN      (2)
-#define LAYOUT_FULL_SCREEN      (3)
-
-#define LAYOUT_MODE_SCREEN      (4)
-
-// two extra page for non-4Q idle screen
-#define IDLE_MODE_MENU          (4)
-#define IDLE_MODE_SERVICE       (5)
-#define IDLE_MODE_PAGE_MASK     (0x7)
+#define SRAM_HEADER_LEN           3
+#define SPI_READ                (0x03)
+#define SPI_WRITE               (0x02)
+#define DMA_FILL                  1
+#define DMA_COPY                  0
 
 /* defines for write buffer command */
 #define MSG_OPT_WRTBUF_1_LINE      (0x10)
 #define MSG_OPT_WRTBUF_MULTILINE   (0x40)
 
-#define FACE_ID(_x) ((_x & 0xF0) >> 4)
-
 typedef struct
 {
-  unsigned char QuadNum;
-  unsigned char Step;
-} Layout_t;
-
-extern const Layout_t Layout[];
+  unsigned char Reserved[3];
+  tLcdLine Line;
+} LcdReadBuffer_t;
+#define LCD_READ_BUFFER_SIZE (sizeof(LcdReadBuffer_t))
 
 unsigned char CurrentIdleScreen(void);
 
-void UpdateClockWidgets(void);
-
-/*! This sets up the peripheral in the MSP430, the external serial ram,
- * and clears the serial RAM memory to zero.
- */
-void SerialRamInit(void);
+/*! Handle the write buffer message */
+void WriteBufferHandler(tMessage *pMsg);
 
 /*! Handle the update display message */
 void UpdateDisplayHandler(tMessage *pMsg);
@@ -80,15 +45,18 @@ void UpdateDisplayHandler(tMessage *pMsg);
 /*! Handle the load template message */
 void LoadTemplateHandler(tMessage *pMsg);
 
-/*! Handle the write buffer message */
-void WriteBufferHandler(tMessage *pMsg);
-
-void SetWidgetList(tMessage *pMsg);
-void WriteClockWidget(unsigned char FaceId, unsigned char *pBuffer);
+void Write(unsigned long const pData, unsigned int Length, unsigned char Op);
+void Read(unsigned char *pWriteData, unsigned char *pReadData, unsigned int Length);
 
 void DrawBitmapToSram(Draw_t *Info, unsigned char WidthInBytes, unsigned char const *pBitmap, unsigned char Mode);
-void DrawTemplateToSram(Draw_t *Info, unsigned char const *pData, unsigned char Mode);
+void DrawTemplateToSram(Draw_t *Info, unsigned char Mode);
 void DrawStatusBar(void);
 void ClearSram(unsigned char Mode);
+void LoadBuffer(unsigned char QuadIndex, unsigned char const *pTemp);
+
+/*! This sets up the peripheral in the MSP430, the external serial ram,
+ * and clears the serial RAM memory to zero. */
+void InitSerialRam(void);
+
 
 #endif /* SERIAL_RAM_H */

@@ -14,110 +14,119 @@
 //  limitations under the License.
 //==============================================================================
 
-/******************************************************************************/
-/*! \file OneSecondTimers.c
-*
-*/
-/******************************************************************************/
-
 #include "FreeRTOS.h"
 #include "task.h"
-#include "queue.h"
 #include "semphr.h"
-
-#include "hal_board_type.h"
 #include "hal_clock_control.h"
-
 #include "Messages.h"
-#include "MessageQueues.h"
+#include "Countdown.h"
 #include "DebugUart.h"
-
 #include "Wrapper.h"
 #include "OneSecondTimers.h"
 #include "Vibration.h"
 
-/*! One Second Timer Structure */
-typedef struct
-{
-  unsigned int Timeout;
-  unsigned int DownCounter;
-  unsigned char Running;
-  unsigned char Repeat;
-  unsigned char Que;
-  unsigned char MsgType;
-  unsigned char MsgOpt;
-} tOneSecondTimer;
-
 typedef struct
 {
   unsigned int Timeout;
   unsigned char Repeat;
-  unsigned char Que;
   unsigned char MsgType;
   unsigned char MsgOpt;
-} tTimerSettings;
+} TimerSetting_t;
 
-static tTimerSettings const TimerSettings[] =
+static TimerSetting_t const TimerSettings[] =
 {
-  {TOUT_MONITOR_BATTERY, REPEAT_FOREVER, DISPLAY_QINDEX, MonitorBatteryMsg, MSG_OPT_NONE},
-  {TOUT_NOTIF_MODE, TOUT_ONCE, DISPLAY_QINDEX, ModeTimeoutMsg, NOTIF_MODE},
-  {TOUT_BACKLIGHT, TOUT_ONCE, DISPLAY_QINDEX, SetBacklightMsg, LED_OFF},
-  {TOUT_CONN_HFP_MAP_SHORT, TOUT_ONCE, WRAPPER_QINDEX, ConnTimeoutMsg, MSG_OPT_NONE},
-  {TOUT_INTERVAL_LONG, TOUT_ONCE, WRAPPER_QINDEX, UpdConnParamMsg, LONG},
-  {TOUT_HEARTBEAT, TOUT_ONCE, WRAPPER_QINDEX, HeartbeatMsg, MSG_OPT_NONE},
-//  {TOUT_FIELD_TEST, REPEAT_FOREVER, DISPLAY_QINDEX, FieldTestMsg, FIELD_TEST_TIMEOUT},
-  {TOUT_RING, REPEAT_FOREVER, DISPLAY_QINDEX, VibrateMsg, VIBRA_PATTERN_RING},
-  {TOUT_TO_SNIFF, TOUT_ONCE, WRAPPER_QINDEX, SniffControlMsg, MSG_OPT_ENTER_SNIFF},
+  {TOUT_IDLE_MODE, TOUT_ONCE, ModeTimeoutMsg, NOTIF_MODE},
+  {TOUT_APP_MODE, TOUT_ONCE, ModeTimeoutMsg, NOTIF_MODE},
+  {TOUT_NOTIF_MODE, TOUT_ONCE, ModeTimeoutMsg, NOTIF_MODE},
+  {TOUT_MUSIC_MODE, TOUT_ONCE, ModeTimeoutMsg, NOTIF_MODE},
+  {TOUT_MONITOR_BATTERY, REPEAT_FOREVER, MonitorBatteryMsg, MSG_OPT_NONE},
+  {TOUT_BACKLIGHT, TOUT_ONCE, SetBacklightMsg, LED_OFF},
+  {TOUT_CONN_HFP_MAP_SHORT, TOUT_ONCE, ConnTimeoutMsg, MSG_OPT_NONE},
+  {TOUT_CONN_HFP_MAP_LONG, TOUT_ONCE, ConnTimeoutMsg, MSG_OPT_NONE},
+  {TOUT_INTERVAL_LONG, TOUT_ONCE, UpdConnParamMsg, LONG},
+  {TOUT_HEARTBEAT, TOUT_ONCE, HeartbeatMsg, MSG_OPT_NONE},
+  {TOUT_TO_SNIFF, TOUT_ONCE, SniffControlMsg, MSG_OPT_ENTER_SNIFF},
+  {TOUT_FIELD_TEST, REPEAT_FOREVER, FieldTestMsg, FIELD_TEST_TIMEOUT},
+  {TOUT_COUNT_DOWN, REPEAT_FOREVER, CountdownMsg, CDT_COUNT},
+  {TOUT_DISCONNECT, TOUT_ONCE, ConnTimeoutMsg, MSG_OPT_DISCONN},
 };
-#define TOTAL_TIMERS    (sizeof(TimerSettings) / sizeof(tTimerSettings))
 
-static tOneSecondTimer Timer[TOTAL_TIMERS];
+static char const TimerName[][5] =
+{
+  "Idle", "App", "Ntf", "Musc", "Batt", "Led", "HfpS", "HfpL", "Intv", "Beat",
+  "Ring", "Snif", "Ftm", "Ctdn",
+};
+
+struct TimerItem
+{
+  unsigned char Id;
+  unsigned char Repeat;
+  unsigned int DownCounter;
+  struct TimerItem *Next;
+};
+
+typedef struct TimerItem Timer_t;
+#define TIMER_SIZE    (sizeof(Timer_t))
+
+static Timer_t *TimerList = NULL;
   
-/* start the timer if not started already; restart otherwise */
 void StartTimer(eTimerId Id)
 {
   portENTER_CRITICAL();
-  if (!Timer[Id].MsgType)
+
+  Timer_t *pTimer = TimerList;
+
+  while (pTimer)
   {
-    Timer[Id].Que = TimerSettings[Id].Que;
-    Timer[Id].MsgType = TimerSettings[Id].MsgType;
-    Timer[Id].MsgOpt = TimerSettings[Id].MsgOpt;
+    if (pTimer->Id == Id)
+    {
+      pTimer->DownCounter = TimerSettings[Id].Timeout;
+      PrintF("RstTmr:%s", TimerName[Id]);
+      portEXIT_CRITICAL();
+      return;
+    }
+    else if (pTimer->Next == NULL) break;
+
+    pTimer = pTimer->Next;
   }
 
-  if (!Timer[Id].Timeout) Timer[Id].Timeout = TimerSettings[Id].Timeout;
-  if (!Timer[Id].Repeat) Timer[Id].Repeat = TimerSettings[Id].Repeat;
-  
-  Timer[Id].DownCounter = Timer[Id].Timeout;
-  Timer[Id].Running = TRUE;
+  // create a timer
+  Timer_t *pNext = (Timer_t *)pvPortMalloc(TIMER_SIZE);
+  PrintF("CrtTmr:%s", TimerName[Id]);
+
+  pNext->Id = Id;
+  pNext->Repeat = TimerSettings[Id].Repeat;
+  pNext->DownCounter = TimerSettings[Id].Timeout;
+  pNext->Next = NULL;
+
+  if (TimerList) pTimer->Next = pNext;
+  else TimerList = pNext;
+
   portEXIT_CRITICAL();
-}
-
-void ResetTimer(eTimerId Id, unsigned int Timeout, unsigned char Repeat)
-{
-  SetTimer(Id, Timeout, Repeat, Timer[Id].Que, Timer[Id].MsgType, Timer[Id].MsgOpt);
-}
-
-void SetTimer(eTimerId Id, unsigned int Timeout, unsigned char Repeat,
-              unsigned char Que, unsigned char Msg, unsigned char Option)
-{
-  if (Timeout && Repeat)
-  {
-    Timer[Id].Timeout = Timeout;
-    Timer[Id].Repeat = Repeat;
-    Timer[Id].Que = Que;
-    Timer[Id].MsgType = Msg;
-    Timer[Id].MsgOpt = Option;
-    StartTimer(Id);
-  }
-  else StopTimer(Id);
 }
 
 void StopTimer(eTimerId Id)
 {
-  Timer[Id].Running = FALSE;
-  Timer[Id].MsgType = 0;
-  Timer[Id].Timeout = 0;
-  Timer[Id].Repeat = 0;
+  Timer_t *pTimer = TimerList;
+  Timer_t *pPrev = NULL;
+
+  while (pTimer)
+  {
+    if (pTimer->Id == Id)
+    {
+      if (pPrev) pPrev->Next = pTimer->Next;
+      else TimerList = pTimer->Next;
+
+      PrintF("StpTmr:%s", TimerName[Id]);
+      vPortFree(pTimer);
+      break;
+    }
+    else
+    {
+      pPrev = pTimer;
+      pTimer = pTimer->Next;
+    }
+  }
 }
 
 /* this should be as fast as possible because it happens in interrupt context
@@ -126,28 +135,38 @@ void StopTimer(eTimerId Id)
 unsigned char OneSecondTimerHandlerIsr(void)
 {
   unsigned char ExitLpm = 0;
-  
-  unsigned char i;
-  for (i = 0; i < TOTAL_TIMERS; ++i)
-  {
-    if (Timer[i].Running)
-    {        
-      /* decrement the counter first, then check if the counter == 0 */
-      if (--Timer[i].DownCounter == 0)
-      {
-        if (Timer[i].Repeat != REPEAT_FOREVER) Timer[i].Repeat --;
-        
-        if (Timer[i].Repeat == 0) Timer[i].Running = FALSE;
-        else Timer[i].DownCounter = Timer[i].Timeout;
+  Timer_t *pTimer = TimerList;
+//  Timer_t *pPrev = NULL;
 
-        tMessage Msg;
-        SetupMessage(&Msg, Timer[i].MsgType, Timer[i].MsgOpt);
-        SendMessageToQueueFromIsr(Timer[i].Que, &Msg);
-        ExitLpm = 1;
-      }
+  while (pTimer)
+  {
+    /* decrement the counter first, then check if the counter == 0 */
+    if (--pTimer->DownCounter == 0)
+    {
+      SendMessageIsr(TimerSettings[pTimer->Id].MsgType, TimerSettings[pTimer->Id].MsgOpt);
+
+      if (pTimer->Repeat != REPEAT_FOREVER) pTimer->Repeat --;
+
+      if (pTimer->Repeat == 0) SendMessageIsr(StopTimerMsg, pTimer->Id);
+      else pTimer->DownCounter = TimerSettings[pTimer->Id].Timeout;
+
+      ExitLpm = 1;
+    }
+
+//    if (Stop)
+//    {
+//      if (pPrev) pPrev->Next = pTimer->Next;
+//      else TimerList = pTimer->Next;
+//
+//      vPortFree(pTimer);
+//      pTimer = pPrev ? pPrev->Next : TimerList;
+//    }
+//    else
+    {
+//      pPrev = pTimer;
+      pTimer = pTimer->Next;
     }
   }
   
   return ExitLpm;
 }
-

@@ -21,21 +21,20 @@
 /******************************************************************************/
 
 #include "FreeRTOS.h"
-#include "task.h"
-#include "queue.h"
 #include "semphr.h"
 #include "Messages.h"
 #include "hal_lpm.h"
 #include "hal_board_type.h"
 #include "hal_rtc.h"
 #include "hal_vibe.h"
+#include "hal_boot.h"
 #include "Buttons.h"
 #include "DebugUart.h"
 #include "Wrapper.h"
-
-#include "MessageQueues.h"
+#include "Countdown.h"
 #include "OneSecondTimers.h"
 #include "LcdDisplay.h"
+#include "Icons.h"
 
 // This is the number of consecutive samples by the RTC ISR that need to be
 // asserted for a button to be moved to the state
@@ -69,18 +68,21 @@
 #define BTN_EVT_MASK          (0x03)
 
 #define IDLE_PAGE             (IDLE_MODE << 2)
+#define APP_PAGE              (APP_MODE << 2)
 #define NOTIF_PAGE            (NOTIF_MODE << 2)
 #define MUSIC_PAGE            (MUSIC_MODE << 2)
-#define APP_PAGE              (APP_MODE << 2)
 
 #define INIT_PAGE             (0 << 2)
 #define INFO_PAGE             (1 << 2)
-#define CALL_PAGE             (2 << 2)
-#define CDT_PAGE              (3 << 2)
+#define CDT_PAGE             (2 << 2)
 
 #define MENU_PAGE_0           (0 << 2)
 #define MENU_PAGE_1           (1 << 2)
 #define MENU_PAGE_2           (2 << 2)
+
+#define MSG_OPT_REMOTE_CONTROL (0x12) // defined by MWM
+
+
 
 /*! Structure to consolidate the data used to manage the button state
  *
@@ -102,11 +104,7 @@ typedef  struct
   unsigned char MsgOpt;
 } tButtonAction;
 
-#ifdef DIGITAL
-
-#define CONN_PAGE_ACT_NUM      (20) // 3rd party needs 16
-
-static const tButtonAction DisconnAction[] =
+static tButtonAction const DisconnAction[] =
 {
   {BTN_A | IDLE_PAGE | BTN_EVT_IMDT, ChangeModeMsg, NOTIF_MODE | MSG_OPT_UPD_INTERNAL},
   {BTN_B | IDLE_PAGE | BTN_EVT_IMDT, UpdateDisplayMsg, IDLE_MODE | MSG_OPT_NEWUI | MSG_OPT_NXT_PAGE | MSG_OPT_UPD_INTERNAL},
@@ -115,19 +113,34 @@ static const tButtonAction DisconnAction[] =
   {BTN_E | IDLE_PAGE | BTN_EVT_IMDT, ChangeModeMsg, MUSIC_MODE | MSG_OPT_UPD_INTERNAL},
   
   {BTN_A | NOTIF_PAGE | BTN_EVT_IMDT, ChangeModeMsg, IDLE_MODE | MSG_OPT_UPD_INTERNAL},
+  {BTN_C | NOTIF_PAGE | BTN_EVT_IMDT, UpdateDisplayMsg, NOTIF_MODE | MSG_OPT_NXT_PAGE | MSG_OPT_UPD_INTERNAL},
   {BTN_A | MUSIC_PAGE | BTN_EVT_IMDT, ChangeModeMsg, IDLE_MODE | MSG_OPT_UPD_INTERNAL},
+#if SUPPORT_HID
+  {BTN_B | MUSIC_PAGE | BTN_EVT_IMDT, HidMsg, MSG_OPT_MUSIC_VOL_UP},
+  {BTN_B | MUSIC_PAGE | BTN_EVT_RELS, HidMsg, MSG_OPT_MUSIC_CHANGE_END},
+  {BTN_C | MUSIC_PAGE | BTN_EVT_IMDT, HidMsg, MSG_OPT_MUSIC_VOL_DOWN},
+  {BTN_C | MUSIC_PAGE | BTN_EVT_RELS, HidMsg, MSG_OPT_MUSIC_CHANGE_END},
+  {BTN_D | MUSIC_PAGE | BTN_EVT_IMDT, HidMsg, MSG_OPT_MUSIC_NEXT},
+  {BTN_E | MUSIC_PAGE | BTN_EVT_IMDT, HidMsg, MSG_OPT_MUSIC_PLAY},
+  {BTN_E | MUSIC_PAGE | BTN_EVT_RELS, HidMsg, MSG_OPT_MUSIC_CHANGE_END},
+#else
+  {BTN_B | MUSIC_PAGE | BTN_EVT_IMDT, MusicIconMsg, (ICON_MUSIC_PLUS + ICON_MUSIC_ENLARGE)},
+  {BTN_B | MUSIC_PAGE | BTN_EVT_RELS, MusicIconMsg, ICON_MUSIC_PLUS},
+  {BTN_C | MUSIC_PAGE | BTN_EVT_IMDT, MusicIconMsg, (ICON_MUSIC_MINUS + ICON_MUSIC_ENLARGE)},
+  {BTN_C | MUSIC_PAGE | BTN_EVT_RELS, MusicIconMsg, ICON_MUSIC_MINUS},
+  {BTN_D | MUSIC_PAGE | BTN_EVT_IMDT, MusicIconMsg, (ICON_MUSIC_NEXT + ICON_MUSIC_ENLARGE)},
+  {BTN_D | MUSIC_PAGE | BTN_EVT_RELS, MusicIconMsg, ICON_MUSIC_NEXT},
+  {BTN_E | MUSIC_PAGE | BTN_EVT_IMDT, MusicIconMsg, (ICON_MUSIC_PLAY + ICON_MUSIC_ENLARGE)},
+  {BTN_E | MUSIC_PAGE | BTN_EVT_RELS, MusicIconMsg, ICON_MUSIC_PLAY},
+#endif
   {BTN_A |   APP_PAGE | BTN_EVT_IMDT, ChangeModeMsg, IDLE_MODE | MSG_OPT_UPD_INTERNAL},
 };
-#define DISCONN_PAGE_ACT_NUM (sizeof(DisconnAction) / sizeof(tButtonAction))
+#define DISCONN_PAGE_ACT_NUM   (sizeof(DisconnAction) / sizeof(tButtonAction))
+#define CONN_PAGE_ACT_NUM      (DISCONN_PAGE_ACT_NUM + 10) // 3rd party needs 10
 
-static const tButtonAction InitAction[] =
+static tButtonAction const InitAction[] =
 {
   {BTN_A | INIT_PAGE | BTN_EVT_IMDT, ModifyTimeMsg, RTC_MIN},
-//#if COUNTDOWN_TIMER
-//  {BTN_B | INIT_PAGE | BTN_EVT_IMDT, CountDownMsg, MSG_OPT_NONE},
-//#else
-//  {BTN_B | INIT_PAGE | BTN_EVT_IMDT, ModifyTimeMsg, RTC_DOW},
-//#endif
   {BTN_B | INIT_PAGE | BTN_EVT_IMDT, ModifyTimeMsg, RTC_DOW},
   {BTN_C | INIT_PAGE | BTN_EVT_RELS, MenuModeMsg, Menu1Page},
   {BTN_D | INIT_PAGE | BTN_EVT_IMDT, WatchStatusMsg, 0},
@@ -137,32 +150,36 @@ static const tButtonAction InitAction[] =
   {BTN_B | INFO_PAGE | BTN_EVT_IMDT, FieldTestMsg, FIELD_TEST_BUTTON_B},
   {BTN_C | INFO_PAGE | BTN_EVT_IMDT, FieldTestMsg, FIELD_TEST_BUTTON_C},
   {BTN_D | INFO_PAGE | BTN_EVT_IMDT, FieldTestMsg, FIELD_TEST_EXIT},
+//  {BTN_E | INFO_PAGE | BTN_EVT_IMDT, CountdownMsg, CDT_ENTER},
 
-//  {BTN_A | CALL_PAGE | BTN_EVT_IMDT, ShowCallMsg, SHOW_NOTIF_REJECT_CALL},
-//  {BTN_C | CALL_PAGE | BTN_EVT_RELS, MenuModeMsg, Menu1Page},
-#if COUNTDOWN_TIMER
+#if WWZ
   {BTN_A | CDT_PAGE | BTN_EVT_IMDT, ChangeModeMsg, NOTIF_MODE | MSG_OPT_UPD_INTERNAL},
   {BTN_B | CDT_PAGE | BTN_EVT_IMDT, IdleUpdateMsg, MSG_OPT_NONE},
   {BTN_C | CDT_PAGE | BTN_EVT_RELS, MenuModeMsg, Menu1Page},
   {BTN_D | CDT_PAGE | BTN_EVT_IMDT, WatchStatusMsg, MSG_OPT_NONE},
-//  {BTN_D | CDT_PAGE | BTN_EVT_IMDT, SetCountdownDoneMsg, MSG_OPT_NONE},
   {BTN_E | CDT_PAGE | BTN_EVT_IMDT, ChangeModeMsg, MUSIC_MODE | MSG_OPT_UPD_INTERNAL},
+#else
+  {BTN_A | CDT_PAGE | BTN_EVT_IMDT, ChangeModeMsg, IDLE_MODE | MSG_OPT_UPD_INTERNAL},
+  {BTN_B | CDT_PAGE | BTN_EVT_IMDT, CountdownMsg, CDT_HHMM},
+  {BTN_C | CDT_PAGE | BTN_EVT_IMDT, CountdownMsg, CDT_START},
+  {BTN_D | CDT_PAGE | BTN_EVT_IMDT, CountdownMsg, CDT_DEC},
+  {BTN_E | CDT_PAGE | BTN_EVT_IMDT, CountdownMsg, CDT_INC},
 #endif
 };
 #define INIT_PAGE_ACT_NUM (sizeof(InitAction) / sizeof(tButtonAction))
 
-static const tButtonAction MenuAction[] =
+static tButtonAction const MenuAction[] =
 {
   {BTN_A | MENU_PAGE_0 | BTN_EVT_IMDT, MenuButtonMsg, MENU_BUTTON_OPTION_TOGGLE_BLUETOOTH},
   {BTN_B | MENU_PAGE_0 | BTN_EVT_IMDT, MenuButtonMsg, MENU_BUTTON_OPTION_DISPLAY_SECONDS},
   {BTN_C | MENU_PAGE_0 | BTN_EVT_RELS, IdleUpdateMsg, MSG_OPT_NONE}, //ChangeModeMsg, IDLE_MODE | MSG_OPT_UPD_INTERNAL},
-  {BTN_D | MENU_PAGE_0 | BTN_EVT_IMDT, MenuButtonMsg, MENU_BUTTON_OPTION_TOGGLE_LINK_ALARM},
+  {BTN_D | MENU_PAGE_0 | BTN_EVT_IMDT, CountdownMsg, CDT_ENTER},
   {BTN_E | MENU_PAGE_0 | BTN_EVT_IMDT, MenuButtonMsg, MENU_BUTTON_OPTION_INVERT_DISPLAY},
   
   {BTN_A | MENU_PAGE_1 | BTN_EVT_IMDT, MenuButtonMsg, MENU_BUTTON_OPTION_TOGGLE_RST_NMI_PIN},
   {BTN_B | MENU_PAGE_1 | BTN_EVT_IMDT, MenuModeMsg, Menu3Page},
   {BTN_C | MENU_PAGE_1 | BTN_EVT_RELS, MenuButtonMsg, MENU_BUTTON_OPTION_EXIT},
-  {BTN_D | MENU_PAGE_1 | BTN_EVT_IMDT, ResetMsg, MASTER_RESET_OPTION},
+  {BTN_D | MENU_PAGE_1 | BTN_EVT_IMDT, ResetMsg, MASTER_RESET},
   {BTN_E | MENU_PAGE_1 | BTN_EVT_IMDT, MenuButtonMsg, MENU_BUTTON_OPTION_TOGGLE_SERIAL_SBW_GND},
 
   {BTN_A | MENU_PAGE_2 | BTN_EVT_IMDT, MenuButtonMsg, MENU_BUTTON_OPTION_ENTER_BOOTLOADER_MODE},
@@ -172,12 +189,6 @@ static const tButtonAction MenuAction[] =
   {BTN_E | MENU_PAGE_2 | BTN_EVT_IMDT, MenuButtonMsg, MENU_BUTTON_OPTION_TOGGLE_ENABLE_CHARGING},
 };
 #define MENU_PAGE_ACT_NUM (sizeof(MenuAction) / sizeof(tButtonAction))
-
-#else
-
-#define CONN_PAGE_ACT_NUM      (20)
-
-#endif
 
 /* Allocate an array of structures to keep track of button data.  Index 4 is not
  * used, but it complicates things too much to skip it.  Everything is sized and
@@ -198,8 +209,6 @@ static void HandleButtonEvent(unsigned char Index, unsigned char Event);
 
 void InitButton(void)
 {
-  CONFIGURE_BUTTON_PINS();
-  
   // Initalize the button state structures. In this case it ends up being all
   // zeros, but that may not always be the case.
   unsigned char i;
@@ -211,6 +220,7 @@ void InitButton(void)
   }
   
   ResetButtonAction();
+  CONFIGURE_BUTTON_PINS();
 }
 
 /* init ButtonAction[] with DisconnButtonAction[] */
@@ -380,9 +390,7 @@ static void ChangeButtonState(unsigned char Index, unsigned char State)
  */
 static void HandleButtonEvent(unsigned char Index, unsigned char Event)
 {
-  tMessage Msg;
-
-//  PrintS(tringAndTwoDecimals("- BtnEvt i:", Index, "e:", Event);
+  PrintC(Index + 'A');
 //  PrintS(tringAndHexByte("LstBF:0x", LastButton);
 
   unsigned char Done = FALSE;
@@ -395,12 +403,12 @@ static void HandleButtonEvent(unsigned char Index, unsigned char Event)
     {
       if (CurrentIdlePage() == Menu1Page)
       {
-        if (Index == BTN_INDEX_C) SendMessage(&Msg, ServiceMenuMsg, MSG_OPT_NONE);
+        if (Index == BTN_INDEX_C) SendMessage(ServiceMenuMsg, MSG_OPT_NONE);
       }
       else if (CurrentIdlePage() == StatusPage)
       {
-        if (Index == BTN_INDEX_C) SendMessage(&Msg, FieldTestMsg, FIELD_TEST_ENTER);
-        else if (Index == BTN_INDEX_E) SendMessage(&Msg, ShippingModeMsg, MSG_OPT_NONE);
+        if (Index == BTN_INDEX_C) SendMessage(FieldTestMsg, FIELD_TEST_ENTER);
+        else if (Index == BTN_INDEX_E) SendMessage(ShippingModeMsg, MSG_OPT_NONE);
       }
       Done = TRUE;
     }
@@ -408,7 +416,7 @@ static void HandleButtonEvent(unsigned char Index, unsigned char Event)
              Index == BTN_INDEX_E && LastButton == (BTN_INDEX_B << BTN_NO_SHFT | BTN_EVT_HOLD) ||
              Index == BTN_INDEX_F)
     {
-      SendMessage(&Msg, ResetMsg, Index == BTN_INDEX_F ? MSG_OPT_NONE : MASTER_RESET_OPTION);
+      SendMessage(ResetMsg, Index == BTN_INDEX_F ? NORMAL_RESET : MASTER_RESET);
       Done = TRUE;
     }
   }
@@ -416,7 +424,7 @@ static void HandleButtonEvent(unsigned char Index, unsigned char Event)
   {
     if (BackLightOn() || Index == BTN_INDEX_F)
     {
-      SendMessage(&Msg, SetBacklightMsg, Index == BTN_INDEX_F ? LED_TOGGLE : LED_ON);
+      SendMessage(SetBacklightMsg, Index == BTN_INDEX_F ? LED_TOGGLE : LED_ON);
       if (Index == BTN_INDEX_F) Done = TRUE;
     }
   }
@@ -431,15 +439,15 @@ static void HandleButtonEvent(unsigned char Index, unsigned char Event)
   const tButtonAction *pAction;
   unsigned char ActNum, ModePage;
   
-  if (PageType == PAGE_TYPE_MENU) // menu page can't be overwritten in any case
+  if (CurrentMode == IDLE_MODE)
   {
-    pAction = MenuAction;
-    ActNum = MENU_PAGE_ACT_NUM;
-    ModePage = CurrentIdlePage() - Menu1Page;
-  }
-  else if (CurrentMode == IDLE_MODE)
-  {
-    if (CurrentIdlePage() == DisconnectedPage)
+    if (PageType == PAGE_TYPE_MENU) // menu page can't be overwritten in any case
+    {
+      pAction = MenuAction;
+      ActNum = MENU_PAGE_ACT_NUM;
+      ModePage = CurrentIdlePage() - Menu1Page;
+    }
+    else if (CurrentIdlePage() == DisconnectedPage)
     {// disconnected
       pAction = DisconnAction;
       ActNum = DISCONN_PAGE_ACT_NUM;
@@ -452,7 +460,7 @@ static void HandleButtonEvent(unsigned char Index, unsigned char Event)
       ModePage = ButtonMode;
     }
     else
-    {// InitPage, StatusPage or CallPage
+    {// InitPage, StatusPage
       pAction = InitAction;
       ActNum = INIT_PAGE_ACT_NUM;
       ModePage = CurrentIdlePage() - InitPage;
@@ -485,29 +493,23 @@ static void HandleButtonEvent(unsigned char Index, unsigned char Event)
   
   if (i == ActNum) return;
   
-  //PrintS(tringAndDecimal("-No mask:", Event);
-  /* if this button press is going to the bluetooth then allocate
-   * a buffer and add the button index
-   */
+  /* button press is meant to send to phone */
   if (pAction[i].MsgType == ButtonEventMsg)
   {
     PrintF("- BtnEvtMsg:Evt:%d", Event);
-    SetupMessageWithBuffer(&Msg, pAction[i].MsgType, pAction[i].MsgOpt);
-    if (Msg.pBuffer != NULL)
+    tMessage Msg = {5, pAction[i].MsgType, pAction[i].MsgOpt, NULL};
+
+    if (CreateMessage(&Msg))
     {
       Msg.pBuffer[0] = (Index >= SW_UNUSED_INDEX) ? ++Index : Index;
       Msg.pBuffer[1] = ButtonMode;
       Msg.pBuffer[2] = Event;
       Msg.pBuffer[3] = pAction[i].MsgType;
       Msg.pBuffer[4] = pAction[i].MsgOpt;
-      Msg.Length = 5;
       RouteMsg(&Msg);
     }
   }
-  else if (pAction[i].MsgType != InvalidMsg)
-  {
-    SendMessage(&Msg, pAction[i].MsgType, pAction[i].MsgOpt);
-  }
+  else SendMessage(pAction[i].MsgType, pAction[i].MsgOpt);
 }
 
 /*! Attach callback to button press type. Each button press type is associated
@@ -537,7 +539,7 @@ void EnableButtonMsgHandler(tMessage* pMsg)
   for (i = 0; i < CONN_PAGE_ACT_NUM; ++i)
   {
     if (ButtonAction[i].Info == BtnInfo) break;
-    else if (ButtonAction[i].MsgType == InvalidMsg && k == CONN_PAGE_ACT_NUM) k = i;
+    else if (ButtonAction[i].MsgType == 0 && k == CONN_PAGE_ACT_NUM) k = i;
   }
   
   if (i == CONN_PAGE_ACT_NUM && k < CONN_PAGE_ACT_NUM) i = k;
@@ -573,7 +575,7 @@ void DisableButtonMsgHandler(tMessage* pMsg)
   unsigned char i;
   for (i = 0; i < CONN_PAGE_ACT_NUM; ++i)
   {
-    if (ButtonAction[i].Info == BtnInfo) ButtonAction[i].MsgType = InvalidMsg;
+    if (ButtonAction[i].Info == BtnInfo) ButtonAction[i].MsgType = 0;
   }
 }
 
@@ -583,34 +585,33 @@ void DisableButtonMsgHandler(tMessage* pMsg)
  *
  * \param tHostMsg* pMsg - A message with a tButtonActionPayload payload
  */
-void ReadButtonConfigHandler(tMessage* pMsg)
+void ReadButtonConfigHandler(tMessage *pMsg)
 {
-  tMessage Msg;
-  SetupMessageWithBuffer(&Msg, ReadButtonConfigResponse, MSG_OPT_NONE);
-  if (Msg.pBuffer == NULL) return;
+  tMessage Msg = {pMsg->Length, ReadButtonConfigResponse, MSG_OPT_NONE, NULL};
 
-  Msg.Length = pMsg->Length;
-
-  unsigned char i = 0;
-  for (; i< Msg.Length; ++i) Msg.pBuffer[i] = pMsg->pBuffer[i];
-
-  tButtonActionPayload *pAction = (tButtonActionPayload*)pMsg->pBuffer;
-  unsigned char BtnInfo = pAction->DisplayMode << BTN_MODE_PAGE_SHFT |
-                          pAction->ButtonIndex << BTN_NO_SHFT |
-                          pAction->ButtonEvent;
-  
-  
-  for (i = 0; i < CONN_PAGE_ACT_NUM; ++i)
-    if (ButtonAction[i].Info == BtnInfo) break;
-
-  if (i < CONN_PAGE_ACT_NUM)
+  if (CreateMessage(&Msg))
   {
-    if (Msg.pBuffer[1] >= SW_UNUSED_INDEX) Msg.pBuffer[1] ++;
-    Msg.pBuffer[3] = ButtonAction[i].MsgType;
-    Msg.pBuffer[4] = ButtonAction[i].MsgOpt;
+    unsigned char i = 0;
+    for (; i< Msg.Length; ++i) Msg.pBuffer[i] = pMsg->pBuffer[i];
+
+    tButtonActionPayload *pAction = (tButtonActionPayload*)pMsg->pBuffer;
+    unsigned char BtnInfo = pAction->DisplayMode << BTN_MODE_PAGE_SHFT |
+                            pAction->ButtonIndex << BTN_NO_SHFT |
+                            pAction->ButtonEvent;
+    
+    
+    for (i = 0; i < CONN_PAGE_ACT_NUM; ++i)
+      if (ButtonAction[i].Info == BtnInfo) break;
+
+    if (i < CONN_PAGE_ACT_NUM)
+    {
+      if (Msg.pBuffer[1] >= SW_UNUSED_INDEX) Msg.pBuffer[1] ++;
+      Msg.pBuffer[3] = ButtonAction[i].MsgType;
+      Msg.pBuffer[4] = ButtonAction[i].MsgOpt;
+    }
+    
+    RouteMsg(&Msg);
   }
-  
-  RouteMsg(&Msg);
 }
 
 /*******************************************************************************

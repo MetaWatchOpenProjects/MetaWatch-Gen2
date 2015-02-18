@@ -1,5 +1,5 @@
 //==============================================================================
-//  Copyright 2011 - 2013 Meta Watch Ltd. - http://www.MetaWatch.org/
+//  Copyright 2011 - 2014 Meta Watch Ltd. - http://www.MetaWatch.org/
 //
 //  Licensed under the Meta Watch License, Version 1.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@
 #ifndef VERSION_H
 #define VERSION_H
 
-#define APP_VER     "1.5.1"
-#define BUILD_VER   "962.000"
+#define APP_VER     "1.5.6"
+#define BUILD_VER   "104200"
 
 #endif /* VERSION_H */

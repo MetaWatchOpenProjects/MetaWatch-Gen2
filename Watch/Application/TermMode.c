@@ -16,12 +16,8 @@
 
 #include <stdio.h>
 #include <string.h>
-
 #include "FreeRTOS.h"
-#include "queue.h"
 #include "Messages.h"
-#include "MessageQueues.h"
-
 #include "DebugUart.h"
 #include "hal_lpm.h"
 #include "hal_clock_control.h"
@@ -29,35 +25,36 @@
 #include "LcdDisplay.h"
 #include "hal_board_type.h"
 #include "hal_boot.h"
+#include "Log.h"
 
 /* don't forget null character */
-#define MAX_COMMAND_LENGTH    ( 8 )
-#define DELIMITER             ( 0x0D )
-#define END_OF_XMIT           ( 0x04 )
+#define MAX_CMD_LEN           8
+#define DELIMITER             (0x0D)
+#define END_OF_XMIT           (0x04)
 
-static char CmdBuf[MAX_COMMAND_LENGTH];
+static char CmdBuf[MAX_CMD_LEN + 1];
 static unsigned char ReceiveCompleted;
 
 static void HelpCmdHandler(void);
+static void ResetHandler(void);
 
 typedef struct
 {
-  const char Cmd[MAX_COMMAND_LENGTH];
+  char const Cmd[MAX_CMD_LEN];
   void (*fpHandler)(void);  
 } tCommand;
 
-static const tCommand COMMAND_TABLE[] =
+static tCommand const COMMAND_TABLE[] =
 {
   {"boot", EnterBootloader},
   {"help", HelpCmdHandler},
   {"whoami", WhoAmI},
-  {"reset", SoftwareReset},
+  {"reset", ResetHandler},
   {"ship", EnableShippingMode},
+  {"log", ShowStateLog},
   {{0x01,0x10,0x03,'?','?','?', 0x30}, EnterBootloader} // Metaboot
 };
 #define NUMBER_OF_COMMANDS (sizeof(COMMAND_TABLE)/sizeof(tCommand))
-
-/******************************************************************************/
 
 void EnableTermMode(unsigned char Enable)
 {
@@ -73,11 +70,8 @@ void EnableTermMode(unsigned char Enable)
     UCA3IE &= ~UCRXIE;
     DisableSmClkUser(TERM_MODE_USER);
   }
-
-  PrintF("%c EnTermMode", Enable ? OK : NOK);
+//  PrintF("%c EnTermMode", Enable ? OK : NOK);
 }
-
-/******************************************************************************/
 
 unsigned char TermModeIsr(void)
 {
@@ -88,33 +82,27 @@ unsigned char TermModeIsr(void)
     CmdBuf[i] = UCA3RXBUF;
     
     /* parse things based on carriage return */
-    if (CmdBuf[i] == DELIMITER || CmdBuf[i] == END_OF_XMIT)
+    if (CmdBuf[i] == DELIMITER || CmdBuf[i] == END_OF_XMIT || i == MAX_CMD_LEN)
     {
       /* change delimiter to null */
       CmdBuf[i] = '\0';
       i = 0;
       ReceiveCompleted = TRUE;
-
-      /* send message so that message can be processed */
-      tMessage Msg;
-      SetupMessage(&Msg, TermModeMsg, MSG_OPT_NONE);
-      SendMessageToQueueFromIsr(DISPLAY_QINDEX, &Msg);
-
+      SendMessageIsr(TermModeMsg, MSG_OPT_NONE);
       return TRUE;
     }
-    else i = (i < MAX_COMMAND_LENGTH - 1) ? i + 1 : 0;
+    else i ++;
   }
   
   return FALSE;
 }
 
-/******************************************************************************/
-
 void TermModeHandler(void)
 {
   /* see if the command is in the table */
   unsigned char i = 0;
-  
+
+  PrintF(":%s", CmdBuf);
   /* the more commands there are - the longer this will take */
   while (i < NUMBER_OF_COMMANDS && strcmp(CmdBuf, COMMAND_TABLE[i].Cmd)) i ++;
   
@@ -125,8 +113,6 @@ void TermModeHandler(void)
   ReceiveCompleted = FALSE;
 }
 
-/******************************************************************************/
-
 static void HelpCmdHandler(void)
 {
   PrintS("***** Commands *****");
@@ -134,4 +120,9 @@ static void HelpCmdHandler(void)
   unsigned char i = 0;
   /* don't print the last command because it is for PC tool */
   while (i < NUMBER_OF_COMMANDS - 1) PrintS(COMMAND_TABLE[i++].Cmd);
+}
+
+static void ResetHandler(void)
+{
+  SoftwareReset(RESET_TERM_MODE, 0);
 }
