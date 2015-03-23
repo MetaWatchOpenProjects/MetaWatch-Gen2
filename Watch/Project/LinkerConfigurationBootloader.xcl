@@ -283,4 +283,4 @@
 // If you set a breakpoint in main and it isn't reached then you probably 
 // forgot step 2. Or you are stuck in bootloader mode.
 -HFFFF
--J2,crc16,,,,2=APPL_SEG_BEG-0xF1FF,0xFA00-0xFDFF,0x10000-0x41592
+-J2,crc16,,,,2=APPL_SEG_BEG-0xF1FF,0xFA00-0xFDFF,0x10000-0x451D6

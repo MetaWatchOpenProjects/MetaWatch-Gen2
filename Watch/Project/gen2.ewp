@@ -232,7 +232,7 @@
           <state>WATCH</state>
           <state>SUPPORT_BLE</state>
           <state>INCLUDE_1316_PATCH</state>
-          <state>BOOTLOADER</state>
+          <state>xBOOTLOADER</state>
           <state>CHECK_CSTACK</state>
         </option>
         <option>
@@ -736,11 +736,11 @@
         <debug>0</debug>
         <option>
           <name>XOutOverride</name>
-          <state>0</state>
+          <state>1</state>
         </option>
         <option>
           <name>OutputFile</name>
-          <state>gen2.txt</state>
+          <state>gen2.d43</state>
         </option>
         <option>
           <name>OutputFormat</name>
@@ -774,7 +774,7 @@
         </option>
         <option>
           <name>XList</name>
-          <state>0</state>
+          <state>1</state>
         </option>
         <option>
           <name>SegmentMap</name>
@@ -806,7 +806,7 @@
         </option>
         <option>
           <name>XclFile</name>
-          <state>Y:\Workfiles\MetaWatch-Gen2-Public\Watch\Project\LinkerConfigurationBootloader.xcl</state>
+          <state>$PROJ_DIR$\LinkerConfiguration.xcl</state>
         </option>
         <option>
           <name>XclFileSlave</name>
@@ -898,7 +898,7 @@
         </option>
         <option>
           <name>DebugInformation</name>
-          <state>1</state>
+          <state>0</state>
         </option>
         <option>
           <name>RuntimeControl</name>
@@ -922,15 +922,15 @@
         </option>
         <option>
           <name>AllowExtraOutput</name>
-          <state>0</state>
+          <state>1</state>
         </option>
         <option>
           <name>GenerateExtraOutput</name>
-          <state>0</state>
+          <state>1</state>
         </option>
         <option>
           <name>XExtraOutOverride</name>
-          <state>0</state>
+          <state>1</state>
         </option>
         <option>
           <name>ExtraOutputFile</name>
@@ -968,10 +968,10 @@
         </option>
         <option>
           <name>XExtraOptions</name>
+          <state>-C $PROJ_DIR$\..\..\Stack\Api\IAR\wrapper.r43</state>
           <state>-C $PROJ_DIR$\..\..\Stack\Api\IAR\libgatt.a</state>
           <state>-C $PROJ_DIR$\..\..\Stack\Api\IAR\libmap.a</state>
           <state>-C $PROJ_DIR$\..\..\Stack\Api\IAR\stack.a</state>
-          <state>-C $PROJ_DIR$\..\..\Stack\Api\IAR\wrapper.r43</state>
           <state>-C $PROJ_DIR$\..\..\Bootloader\Api\IAR\Bootloader.r43</state>
         </option>
         <option>
@@ -2281,9 +2281,15 @@
     </excluded>
     <file>
       <name>$PROJ_DIR$\..\Bootloader\AltVect.s43</name>
+      <excluded>
+        <configuration>Gen2</configuration>
+      </excluded>
     </file>
     <file>
       <name>$PROJ_DIR$\..\Bootloader\cstartup.s43</name>
+      <excluded>
+        <configuration>Gen2</configuration>
+      </excluded>
     </file>
   </group>
   <group>

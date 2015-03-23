@@ -65,11 +65,11 @@ void CreateWrapperTask(void);
 * 
 * \return 0 if micro cannot go into LPM3; 1 if micro can go into LPM3
 */
-unsigned char ReadyToSleep(void);
-unsigned char BlePaired(void);
-unsigned char BtPaired(void);
-unsigned char NotPaired(void);
-unsigned char HfpPaired(void);
+extern unsigned char ReadyToSleep(void);
+extern unsigned char BlePaired(void);
+extern unsigned char BtPaired(void);
+extern unsigned char NotPaired(void);
+extern unsigned char HfpPaired(void);
 
 /******************************************************************************/
 
@@ -165,7 +165,7 @@ typedef enum
   ActiveToSniff
 } etSniffState;
 
-etSniffState QuerySniffState(void);
+extern etSniffState QuerySniffState(void);
 
 /******************************************************************************/
 
